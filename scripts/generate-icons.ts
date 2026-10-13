@@ -60,6 +60,9 @@ export async function renderIcon(svg: string, size: number, appearance: Appearan
     context.fill();
   }
   let scaled = svg.replace('width="100" height="100"', `width="${size}" height="${size}"`);
+  if (appearance !== "extension") {
+    scaled = scaled.replace('<g color=', '<g transform="translate(8 8) scale(.84)" color=');
+  }
   if (appearance === "dark" || appearance === "tinted") {
     scaled = scaled.replace('color="#111111"', `color="${appearance === "dark" ? "#E6E6E6" : "#FFFFFF"}"`);
   }
