@@ -58,7 +58,11 @@ test("Capture tab assets provide a transparent template at each display scale", 
     expect([...context.getImageData(size - 1, size - 1, 1, 1).data][3]).toBe(0);
     const rows = Array.from({ length: size }, (_, y) =>
       Array.from({ length: size }, (_, x) => pixels[(y * size + x) * 4 + 3]!).some(alpha => alpha > 127));
-    expect(rows.filter(Boolean).length).toBeGreaterThanOrEqual(20 * scale);
-    expect(rows.filter(Boolean).length).toBeLessThanOrEqual(22 * scale);
+    const columns = Array.from({ length: size }, (_, x) =>
+      Array.from({ length: size }, (_, y) => pixels[(y * size + x) * 4 + 3]!).some(alpha => alpha > 127));
+    const inkDimensions = [rows.filter(Boolean).length, columns.filter(Boolean).length];
+    expect(Math.max(...inkDimensions)).toBeGreaterThanOrEqual(20 * scale);
+    expect(Math.max(...inkDimensions)).toBeLessThanOrEqual(22 * scale);
+    expect(Math.min(...inkDimensions)).toBeGreaterThanOrEqual(16 * scale);
   }
 });
