@@ -7,7 +7,7 @@ import type {
   ResolvedPost,
 } from "./types.ts";
 import { compositionPolicySchema, DEFAULT_QUOTE_DEPTH, MAX_QUOTE_DEPTH, SCHEMA_VERSION } from "./types.ts";
-import { combineAspects, explicitAudio, mediaAspect, tileRects, IMAGE_RECIPE_LONG_EDGE, IMAGE_RECIPE_MIN_TILE } from "./render-recipe.ts";
+import { combineAspects, explicitAudio, mediaAspect, tileRects, IMAGE_RECIPE_LONG_EDGE, IMAGE_RECIPE_MIN_TILE, VIDEO_RECIPE_LONG_EDGE, VIDEO_RECIPE_MIN_TILE, even } from "./render-recipe.ts";
 import { atprotoMarkdown } from "./providers/atproto-post.ts";
 import { availableQuoteNodes, quoteDateLabel, renderedQuoteDepth } from "./quote-policy.ts";
 import { soundCloudPlaylistText } from "./soundcloud.ts";
@@ -229,13 +229,17 @@ function orderedLayout(media: MediaAsset[]): LayoutNode | undefined {
   return media.length ? rowArrangements(media)[0]!.node : undefined;
 }
 
-function legibleImageLayout(media: MediaAsset[], preferred: LayoutNode): LayoutNode {
+function legibleMediaLayout(media: MediaAsset[], preferred: LayoutNode): LayoutNode {
   // Leave existing valid layouts byte-for-byte intact. Search at most 100
   // contiguous row widths; never remove/reorder assets or enlarge the canvas.
-  if (media.length < 2 || media.length > 100 || media.some(item => item.kind !== "image")) return preferred;
+  if (media.length < 2 || media.length > 100 || media.some(item => !["image", "video"].includes(item.kind))) return preferred;
+  const video = media.some(item => item.kind === "video");
+  const native = Math.max(0, ...media.map(item => Math.max(item.width ?? 0, item.height ?? 0)));
+  const longEdge = video ? even(Math.min(VIDEO_RECIPE_LONG_EDGE, native || VIDEO_RECIPE_LONG_EDGE)) : IMAGE_RECIPE_LONG_EDGE;
+  const minTile = video ? VIDEO_RECIPE_MIN_TILE : IMAGE_RECIPE_MIN_TILE;
   const assets = new Map(media.map(item => [item.ref, item]));
-  const fits = (node: LayoutNode) => [...tileRects(node, assets, IMAGE_RECIPE_LONG_EDGE, 0).rects.values()]
-    .every(rect => Math.min(rect.width, rect.height) >= IMAGE_RECIPE_MIN_TILE);
+  const fits = (node: LayoutNode) => [...tileRects(node, assets, longEdge, 0).rects.values()]
+    .every(rect => Math.min(rect.width, rect.height) >= minTile);
   if (fits(preferred)) return preferred;
   return rowArrangements(media).find(candidate => fits(candidate.node))?.node ?? preferred;
 }
@@ -243,7 +247,7 @@ function legibleImageLayout(media: MediaAsset[], preferred: LayoutNode): LayoutN
 function layoutFor(posts: ResolvedPost[], media: MediaAsset[], ordered: boolean): LayoutNode | undefined {
   if (ordered) {
     const preferred = orderedLayout(media);
-    return preferred ? legibleImageLayout(media, preferred) : undefined;
+    return preferred ? legibleMediaLayout(media, preferred) : undefined;
   }
   const selected = new Set(media.map((item) => item.ref));
   const groups = posts.flatMap((post) => {
@@ -254,7 +258,7 @@ function layoutFor(posts: ResolvedPost[], media: MediaAsset[], ordered: boolean)
     const images = imageGroup(chosen.filter((item) => item.kind === "image"));
     return [squarest([...videos, ...(images ? [images] : [])])];
   });
-  return groups.length ? legibleImageLayout(media, squarest(groups).node) : undefined;
+  return groups.length ? legibleMediaLayout(media, squarest(groups).node) : undefined;
 }
 
 function stable(value: unknown): string {

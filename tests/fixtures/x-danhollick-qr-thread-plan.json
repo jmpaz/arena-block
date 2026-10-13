@@ -1,0 +1,734 @@
+{
+  "schemaVersion": 1,
+  "hash": "d4c715248d5ae88a0db111f9ae7acabdf23775c5c9731b5f48551ef55f69c40d",
+  "sources": [
+    {
+      "provider": "x",
+      "id": "1570040185500626947",
+      "canonicalUrl": "https://x.com/DanHollick/status/1570040185500626947",
+      "selection": {
+        "role": "primary",
+        "origin": "explicit",
+        "declaredIndex": 1
+      },
+      "author": {
+        "handle": "DanHollick",
+        "name": "Dan Hollick"
+      },
+      "text": "Ever wondered how a QR code works?  \nNo, me neither but it's low-key fascinating.\n\n(Warning, there is some extremely nerdy shit here.\ud83d\udc47 )",
+      "postedAt": "Wed Sep 14 13:22:04 +0000 2022",
+      "media": [
+        {
+          "ref": "1.1",
+          "kind": "image",
+          "url": "https://pbs.twimg.com/media/FcnnOeBakAI4TbP.png?name=orig",
+          "id": "1570040180878512130",
+          "width": 2024,
+          "height": 1012,
+          "alt": ""
+        }
+      ]
+    },
+    {
+      "provider": "x",
+      "id": "1570040193742434304",
+      "canonicalUrl": "https://x.com/DanHollick/status/1570040193742434304",
+      "selection": {
+        "role": "primary",
+        "origin": "expanded",
+        "parentUri": "https://x.com/DanHollick/status/1570040185500626947"
+      },
+      "author": {
+        "handle": "DanHollick",
+        "name": "Dan Hollick"
+      },
+      "text": "The Quick Response code was invented by a subsidiary of Toyota to track parts across the manufacturing process.\n\nBarcodes were proving inadequate - they can only be read at certain angles and didn't store much data relative to their size\n\nThe QR code solves those issues and more",
+      "replyTo": {
+        "id": "1570040185500626947",
+        "authorHandle": "DanHollick"
+      },
+      "postedAt": "Wed Sep 14 13:22:06 +0000 2022",
+      "media": [
+        {
+          "ref": "2.1",
+          "kind": "image",
+          "url": "https://pbs.twimg.com/media/FcnnO46acAE_zAB.png?name=orig",
+          "id": "1570040188096901121",
+          "width": 2024,
+          "height": 1012,
+          "alt": ""
+        }
+      ]
+    },
+    {
+      "provider": "x",
+      "id": "1570040203825549313",
+      "canonicalUrl": "https://x.com/DanHollick/status/1570040203825549313",
+      "selection": {
+        "role": "primary",
+        "origin": "expanded",
+        "parentUri": "https://x.com/DanHollick/status/1570040193742434304"
+      },
+      "author": {
+        "handle": "DanHollick",
+        "name": "Dan Hollick"
+      },
+      "text": "The most distinctive thing about a QR code are these cube shapes, called Finder Patterns, that help your reader detect the code.\n\nThe smaller fourth cube, the Alignment Pattern, orientates the code so it can be at any angle and the reader will still know which way is up.",
+      "replyTo": {
+        "id": "1570040193742434304",
+        "authorHandle": "DanHollick"
+      },
+      "postedAt": "Wed Sep 14 13:22:09 +0000 2022",
+      "media": [
+        {
+          "ref": "3.1",
+          "kind": "image",
+          "url": "https://pbs.twimg.com/media/FcnnPZZacAALNbh.png?name=orig",
+          "id": "1570040196816859136",
+          "width": 2024,
+          "height": 1012,
+          "alt": ""
+        }
+      ]
+    },
+    {
+      "provider": "x",
+      "id": "1570040218476216320",
+      "canonicalUrl": "https://x.com/DanHollick/status/1570040218476216320",
+      "selection": {
+        "role": "primary",
+        "origin": "expanded",
+        "parentUri": "https://x.com/DanHollick/status/1570040203825549313"
+      },
+      "author": {
+        "handle": "DanHollick",
+        "name": "Dan Hollick"
+      },
+      "text": "You've probably never noticed but every QR code has these alternating black and white dots called the Timing Pattern. \n\nThese tell the reader how big a single module is and how big the whole QR code is - known as the version.\n\nVersion 1: Smallest\nVersion 40: Biggest",
+      "replyTo": {
+        "id": "1570040203825549313",
+        "authorHandle": "DanHollick"
+      },
+      "postedAt": "Wed Sep 14 13:22:12 +0000 2022",
+      "media": [
+        {
+          "ref": "4.1",
+          "kind": "image",
+          "url": "https://pbs.twimg.com/media/FcnnP9dacAEoEJL.png?name=orig",
+          "id": "1570040206497312769",
+          "width": 2024,
+          "height": 1012,
+          "alt": ""
+        },
+        {
+          "ref": "4.2",
+          "kind": "image",
+          "url": "https://pbs.twimg.com/media/FcnnQSKaUAAhOOW.png?name=orig",
+          "id": "1570040212054757376",
+          "width": 2024,
+          "height": 1012,
+          "alt": ""
+        }
+      ]
+    },
+    {
+      "provider": "x",
+      "id": "1570040227640803328",
+      "canonicalUrl": "https://x.com/DanHollick/status/1570040227640803328",
+      "selection": {
+        "role": "primary",
+        "origin": "expanded",
+        "parentUri": "https://x.com/DanHollick/status/1570040218476216320"
+      },
+      "author": {
+        "handle": "DanHollick",
+        "name": "Dan Hollick"
+      },
+      "text": "Information about the format is stored in these two strips near the Finder patterns. \n\nIt's stored twice so its readable even when QR code is partially obscured. (You'll notice that this is a recurring theme.)",
+      "replyTo": {
+        "id": "1570040218476216320",
+        "authorHandle": "DanHollick"
+      },
+      "postedAt": "Wed Sep 14 13:22:14 +0000 2022",
+      "media": [
+        {
+          "ref": "5.1",
+          "kind": "image",
+          "url": "https://pbs.twimg.com/media/FcnnQ0BakAALV15.png?name=orig",
+          "id": "1570040221143830528",
+          "width": 2024,
+          "height": 1012,
+          "alt": ""
+        }
+      ]
+    },
+    {
+      "provider": "x",
+      "id": "1570040235614171137",
+      "canonicalUrl": "https://x.com/DanHollick/status/1570040235614171137",
+      "selection": {
+        "role": "primary",
+        "origin": "expanded",
+        "parentUri": "https://x.com/DanHollick/status/1570040227640803328"
+      },
+      "author": {
+        "handle": "DanHollick",
+        "name": "Dan Hollick"
+      },
+      "text": "This stores three crucial pieces of information:\n\n- Mask.\n- Error correction level\n- Error correction format.\n\nI know these sound super fucking boring but they are actually pretty interesting.",
+      "replyTo": {
+        "id": "1570040227640803328",
+        "authorHandle": "DanHollick"
+      },
+      "postedAt": "Wed Sep 14 13:22:16 +0000 2022",
+      "media": [
+        {
+          "ref": "6.1",
+          "kind": "image",
+          "url": "https://pbs.twimg.com/media/FcnnRVGaMAUcfsM.png?name=orig",
+          "id": "1570040230023147525",
+          "width": 2024,
+          "height": 1012,
+          "alt": ""
+        }
+      ]
+    },
+    {
+      "provider": "x",
+      "id": "1570040244107644929",
+      "canonicalUrl": "https://x.com/DanHollick/status/1570040244107644929",
+      "selection": {
+        "role": "primary",
+        "origin": "expanded",
+        "parentUri": "https://x.com/DanHollick/status/1570040235614171137"
+      },
+      "author": {
+        "handle": "DanHollick",
+        "name": "Dan Hollick"
+      },
+      "text": "First, error correction - what is it?\n\nEssentially, it dictates how much redundant information is stored in the code to ensure it remains readable even when part of it is missing.",
+      "replyTo": {
+        "id": "1570040235614171137",
+        "authorHandle": "DanHollick"
+      },
+      "postedAt": "Wed Sep 14 13:22:18 +0000 2022",
+      "media": [
+        {
+          "ref": "7.1",
+          "kind": "image",
+          "url": "https://pbs.twimg.com/media/FcnnRycaUAI6Ux9.png?name=orig",
+          "id": "1570040237900058626",
+          "width": 2024,
+          "height": 1012,
+          "alt": ""
+        }
+      ]
+    },
+    {
+      "provider": "x",
+      "id": "1570040253184094213",
+      "canonicalUrl": "https://x.com/DanHollick/status/1570040253184094213",
+      "selection": {
+        "role": "primary",
+        "origin": "expanded",
+        "parentUri": "https://x.com/DanHollick/status/1570040244107644929"
+      },
+      "author": {
+        "handle": "DanHollick",
+        "name": "Dan Hollick"
+      },
+      "text": "This is pretty amazing - If your code is outdoors you can choose a higher redundancy level to make sure it still functions when obscured.\n\n(try it)",
+      "replyTo": {
+        "id": "1570040244107644929",
+        "authorHandle": "DanHollick"
+      },
+      "postedAt": "Wed Sep 14 13:22:20 +0000 2022",
+      "media": [
+        {
+          "ref": "8.1",
+          "kind": "image",
+          "url": "https://pbs.twimg.com/media/FcnnSUnagAMUQhY.png?name=orig",
+          "id": "1570040247073013763",
+          "width": 2024,
+          "height": 1012,
+          "alt": ""
+        }
+      ]
+    },
+    {
+      "provider": "x",
+      "id": "1570040261950205954",
+      "canonicalUrl": "https://x.com/DanHollick/status/1570040261950205954",
+      "selection": {
+        "role": "primary",
+        "origin": "expanded",
+        "parentUri": "https://x.com/DanHollick/status/1570040253184094213"
+      },
+      "author": {
+        "handle": "DanHollick",
+        "name": "Dan Hollick"
+      },
+      "text": "Second, the mask - what's that? \n\nWell, QR readers work best when there are the same amount of white and black areas. \n\nBut the data might not play ball so a mask is used to even things out.",
+      "replyTo": {
+        "id": "1570040253184094213",
+        "authorHandle": "DanHollick"
+      },
+      "postedAt": "Wed Sep 14 13:22:23 +0000 2022",
+      "media": [
+        {
+          "ref": "9.1",
+          "kind": "image",
+          "url": "https://pbs.twimg.com/media/FcnnSz8akAI80Vu.png?name=orig",
+          "id": "1570040255482597378",
+          "width": 2024,
+          "height": 1012,
+          "alt": ""
+        }
+      ]
+    },
+    {
+      "provider": "x",
+      "id": "1570040325103849473",
+      "canonicalUrl": "https://x.com/DanHollick/status/1570040325103849473",
+      "selection": {
+        "role": "primary",
+        "origin": "expanded",
+        "parentUri": "https://x.com/DanHollick/status/1570040261950205954"
+      },
+      "author": {
+        "handle": "DanHollick",
+        "name": "Dan Hollick"
+      },
+      "text": "When a mask is applied to the code anything that falls under the dark part of the mask is inverted.\n\nA white area becomes black and black area becomes white.",
+      "replyTo": {
+        "id": "1570040261950205954",
+        "authorHandle": "DanHollick"
+      },
+      "postedAt": "Wed Sep 14 13:22:38 +0000 2022",
+      "media": [
+        {
+          "ref": "10.1",
+          "kind": "video",
+          "url": "https://video.twimg.com/tweet_video/FcnnTbZacAILtOg.mp4",
+          "id": "1570040266073206786",
+          "width": 1920,
+          "height": 1080,
+          "posterUrl": "https://pbs.twimg.com/tweet_video_thumb/FcnnTbZacAILtOg.jpg",
+          "alt": ""
+        }
+      ]
+    },
+    {
+      "provider": "x",
+      "id": "1570040335841243139",
+      "canonicalUrl": "https://x.com/DanHollick/status/1570040335841243139",
+      "selection": {
+        "role": "primary",
+        "origin": "expanded",
+        "parentUri": "https://x.com/DanHollick/status/1570040325103849473"
+      },
+      "author": {
+        "handle": "DanHollick",
+        "name": "Dan Hollick"
+      },
+      "text": "There are 8 standard patterns which are applied one by one.\n\nThe pattern that achieves the best result is used and that info is stored so the reader can unapply the mask.",
+      "replyTo": {
+        "id": "1570040325103849473",
+        "authorHandle": "DanHollick"
+      },
+      "postedAt": "Wed Sep 14 13:22:40 +0000 2022",
+      "media": [
+        {
+          "ref": "11.1",
+          "kind": "image",
+          "url": "https://pbs.twimg.com/media/FcnnXIjaAAANy9c.png?name=orig",
+          "id": "1570040329734324224",
+          "width": 2024,
+          "height": 1012,
+          "alt": ""
+        }
+      ]
+    },
+    {
+      "provider": "x",
+      "id": "1570040344309551104",
+      "canonicalUrl": "https://x.com/DanHollick/status/1570040344309551104",
+      "selection": {
+        "role": "primary",
+        "origin": "expanded",
+        "parentUri": "https://x.com/DanHollick/status/1570040335841243139"
+      },
+      "author": {
+        "handle": "DanHollick",
+        "name": "Dan Hollick"
+      },
+      "text": "Finally we get to the actual data. \n\nWeirdly, the data starts at the bottom-right corner and winds back up like pictured. \n\nIt almost doesn't matter where it starts because it can be read at any angle.",
+      "replyTo": {
+        "id": "1570040335841243139",
+        "authorHandle": "DanHollick"
+      },
+      "postedAt": "Wed Sep 14 13:22:42 +0000 2022",
+      "media": [
+        {
+          "ref": "12.1",
+          "kind": "image",
+          "url": "https://pbs.twimg.com/media/FcnnXo_aEAACmw0.png?name=orig",
+          "id": "1570040338441703424",
+          "width": 2024,
+          "height": 1012,
+          "alt": ""
+        }
+      ]
+    },
+    {
+      "provider": "x",
+      "id": "1570040354866626560",
+      "canonicalUrl": "https://x.com/DanHollick/status/1570040354866626560",
+      "selection": {
+        "role": "primary",
+        "origin": "expanded",
+        "parentUri": "https://x.com/DanHollick/status/1570040344309551104"
+      },
+      "author": {
+        "handle": "DanHollick",
+        "name": "Dan Hollick"
+      },
+      "text": "The first chunk of information here tells the reader what mode the data was encoded in and the second tells it the length.\n\nIn our case each character takes up 8 bit chunks, otherwise known as bytes, and there are 24 of them.",
+      "replyTo": {
+        "id": "1570040344309551104",
+        "authorHandle": "DanHollick"
+      },
+      "postedAt": "Wed Sep 14 13:22:45 +0000 2022",
+      "media": [
+        {
+          "ref": "13.1",
+          "kind": "image",
+          "url": "https://pbs.twimg.com/media/FcnnYJcaUAI5WFF.png?name=orig",
+          "id": "1570040347153289218",
+          "width": 2024,
+          "height": 1012,
+          "alt": ""
+        }
+      ]
+    },
+    {
+      "provider": "x",
+      "id": "1570040363586564098",
+      "canonicalUrl": "https://x.com/DanHollick/status/1570040363586564098",
+      "selection": {
+        "role": "primary",
+        "origin": "expanded",
+        "parentUri": "https://x.com/DanHollick/status/1570040354866626560"
+      },
+      "author": {
+        "handle": "DanHollick",
+        "name": "Dan Hollick"
+      },
+      "text": "There is still a bunch of left over space after our data. \n\nThis is where the error correction information is stored so that it can be read if partially obscured. The way this works is actually really really complex so I'll leave that out.\n\nThat's basically it!",
+      "replyTo": {
+        "id": "1570040354866626560",
+        "authorHandle": "DanHollick"
+      },
+      "postedAt": "Wed Sep 14 13:22:47 +0000 2022",
+      "media": [
+        {
+          "ref": "14.1",
+          "kind": "image",
+          "url": "https://pbs.twimg.com/media/FcnnYveacAQNKWQ.png?name=orig",
+          "id": "1570040357362233348",
+          "width": 2024,
+          "height": 1012,
+          "alt": ""
+        }
+      ]
+    },
+    {
+      "provider": "x",
+      "id": "1570040367273365506",
+      "canonicalUrl": "https://x.com/DanHollick/status/1570040367273365506",
+      "selection": {
+        "role": "primary",
+        "origin": "expanded",
+        "parentUri": "https://x.com/DanHollick/status/1570040363586564098"
+      },
+      "author": {
+        "handle": "DanHollick",
+        "name": "Dan Hollick"
+      },
+      "text": "For the absolute nerds who made it here, a fun fact: \n\nPerhaps the coolest thing about QR codes is that Denso Wave, the company that invented them, never exercised their patent and released the technology for free!\n\nhttps://www.denso-wave.com/en/technology/vol1.html",
+      "replyTo": {
+        "id": "1570040363586564098",
+        "authorHandle": "DanHollick"
+      },
+      "postedAt": "Wed Sep 14 13:22:48 +0000 2022",
+      "media": []
+    },
+    {
+      "provider": "x",
+      "id": "1570040370150641664",
+      "canonicalUrl": "https://x.com/DanHollick/status/1570040370150641664",
+      "selection": {
+        "role": "primary",
+        "origin": "expanded",
+        "parentUri": "https://x.com/DanHollick/status/1570040367273365506"
+      },
+      "author": {
+        "handle": "DanHollick",
+        "name": "Dan Hollick"
+      },
+      "text": "Apparently, to maximise engagement, I'm supposed to link the original tweet here and encourage you to retweet it.",
+      "replyTo": {
+        "id": "1570040367273365506",
+        "authorHandle": "DanHollick"
+      },
+      "postedAt": "Wed Sep 14 13:22:48 +0000 2022",
+      "media": [],
+      "quote": {
+        "provider": "x",
+        "id": "1570040185500626947",
+        "canonicalUrl": "https://x.com/DanHollick/status/1570040185500626947",
+        "author": {
+          "handle": "DanHollick",
+          "name": "Dan Hollick"
+        },
+        "text": "Ever wondered how a QR code works?  \nNo, me neither but it's low-key fascinating.\n\n(Warning, there is some extremely nerdy shit here.\ud83d\udc47 )",
+        "postedAt": "Wed Sep 14 13:22:04 +0000 2022",
+        "media": [
+          {
+            "ref": "quote.1",
+            "kind": "image",
+            "url": "https://pbs.twimg.com/media/FcnnOeBakAI4TbP.png?name=orig",
+            "id": "1570040180878512130",
+            "width": 2024,
+            "height": 1012,
+            "alt": ""
+          }
+        ]
+      },
+      "quoteCoverage": {
+        "maxDepth": 8,
+        "actualDepth": 1,
+        "maxReached": false,
+        "truncated": false,
+        "stopped": "end",
+        "sourceIds": [
+          "1570040370150641664",
+          "1570040185500626947"
+        ],
+        "acquisitionDepth": 2,
+        "mayExpand": false
+      }
+    },
+    {
+      "provider": "x",
+      "id": "1570043237104234501",
+      "canonicalUrl": "https://x.com/DanHollick/status/1570043237104234501",
+      "selection": {
+        "role": "primary",
+        "origin": "expanded",
+        "parentUri": "https://x.com/DanHollick/status/1570040370150641664"
+      },
+      "author": {
+        "handle": "DanHollick",
+        "name": "Dan Hollick"
+      },
+      "text": "You can check out the unrolled version here:\nhttps://typefully.com/DanHollick/qr-codes-T7tLlNi",
+      "replyTo": {
+        "id": "1570040370150641664",
+        "authorHandle": "DanHollick"
+      },
+      "postedAt": "Wed Sep 14 13:34:12 +0000 2022",
+      "media": []
+    }
+  ],
+  "policy": {
+    "media": "all",
+    "selectedMedia": [],
+    "threadExpansion": "on",
+    "quote": "block",
+    "separator": "auto"
+  },
+  "block": {
+    "kind": "video",
+    "title": "Post by @DanHollick",
+    "markdown": "Ever wondered how a QR code works?  \nNo, me neither but it's low-key fascinating.\n\n(Warning, there is some extremely nerdy shit here.\ud83d\udc47 )\n\n*[image]*\n\n---\n\nThe Quick Response code was invented by a subsidiary of Toyota to track parts across the manufacturing process.\n\nBarcodes were proving inadequate - they can only be read at certain angles and didn't store much data relative to their size\n\nThe QR code solves those issues and more\n\n*[image]*\n\n---\n\nThe most distinctive thing about a QR code are these cube shapes, called Finder Patterns, that help your reader detect the code.\n\nThe smaller fourth cube, the Alignment Pattern, orientates the code so it can be at any angle and the reader will still know which way is up.\n\n*[image]*\n\n---\n\nYou've probably never noticed but every QR code has these alternating black and white dots called the Timing Pattern. \n\nThese tell the reader how big a single module is and how big the whole QR code is - known as the version.\n\nVersion 1: Smallest\nVersion 40: Biggest\n\n*[images]*\n\n---\n\nInformation about the format is stored in these two strips near the Finder patterns. \n\nIt's stored twice so its readable even when QR code is partially obscured. (You'll notice that this is a recurring theme.)\n\n*[image]*\n\n---\n\nThis stores three crucial pieces of information:\n\n- Mask.\n- Error correction level\n- Error correction format.\n\nI know these sound super fucking boring but they are actually pretty interesting.\n\n*[image]*\n\n---\n\nFirst, error correction - what is it?\n\nEssentially, it dictates how much redundant information is stored in the code to ensure it remains readable even when part of it is missing.\n\n*[image]*\n\n---\n\nThis is pretty amazing - If your code is outdoors you can choose a higher redundancy level to make sure it still functions when obscured.\n\n(try it)\n\n*[image]*\n\n---\n\nSecond, the mask - what's that? \n\nWell, QR readers work best when there are the same amount of white and black areas. \n\nBut the data might not play ball so a mask is used to even things out.\n\n*[image]*\n\n---\n\nWhen a mask is applied to the code anything that falls under the dark part of the mask is inverted.\n\nA white area becomes black and black area becomes white.\n\n*[video]*\n\n---\n\nThere are 8 standard patterns which are applied one by one.\n\nThe pattern that achieves the best result is used and that info is stored so the reader can unapply the mask.\n\n*[image]*\n\n---\n\nFinally we get to the actual data. \n\nWeirdly, the data starts at the bottom-right corner and winds back up like pictured. \n\nIt almost doesn't matter where it starts because it can be read at any angle.\n\n*[image]*\n\n---\n\nThe first chunk of information here tells the reader what mode the data was encoded in and the second tells it the length.\n\nIn our case each character takes up 8 bit chunks, otherwise known as bytes, and there are 24 of them.\n\n*[image]*\n\n---\n\nThere is still a bunch of left over space after our data. \n\nThis is where the error correction information is stored so that it can be read if partially obscured. The way this works is actually really really complex so I'll leave that out.\n\nThat's basically it!\n\n*[image]*\n\n---\n\nFor the absolute nerds who made it here, a fun fact: \n\nPerhaps the coolest thing about QR codes is that Denso Wave, the company that invented them, never exercised their patent and released the technology for free!\n\nhttps://www.denso-wave.com/en/technology/vol1.html\n\n---\n\nApparently, to maximise engagement, I'm supposed to link the original tweet here and encourage you to retweet it.\n\n> `@DanHollick`\n> Ever wondered how a QR code works?  \n> No, me neither but it's low-key fascinating.\n>\n> (Warning, there is some extremely nerdy shit here.\ud83d\udc47 )\n>\n> *[image]*\n\n---\n\nYou can check out the unrolled version here:\nhttps://typefully.com/DanHollick/qr-codes-T7tLlNi",
+    "canonicalSource": "https://x.com/DanHollick/status/1570040185500626947",
+    "selectedMedia": [
+      "1.1",
+      "2.1",
+      "3.1",
+      "4.1",
+      "4.2",
+      "5.1",
+      "6.1",
+      "7.1",
+      "8.1",
+      "9.1",
+      "10.1",
+      "11.1",
+      "12.1",
+      "13.1",
+      "14.1"
+    ],
+    "layout": {
+      "kind": "split",
+      "axis": "horizontal",
+      "children": [
+        {
+          "kind": "split",
+          "axis": "vertical",
+          "children": [
+            {
+              "kind": "split",
+              "axis": "horizontal",
+              "children": [
+                {
+                  "kind": "split",
+                  "axis": "horizontal",
+                  "children": [
+                    {
+                      "kind": "media",
+                      "ref": "1.1"
+                    },
+                    {
+                      "kind": "media",
+                      "ref": "2.1"
+                    }
+                  ]
+                },
+                {
+                  "kind": "split",
+                  "axis": "vertical",
+                  "children": [
+                    {
+                      "kind": "media",
+                      "ref": "3.1"
+                    },
+                    {
+                      "kind": "split",
+                      "axis": "vertical",
+                      "children": [
+                        {
+                          "kind": "media",
+                          "ref": "4.1"
+                        },
+                        {
+                          "kind": "media",
+                          "ref": "4.2"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "split",
+              "axis": "vertical",
+              "children": [
+                {
+                  "kind": "split",
+                  "axis": "vertical",
+                  "children": [
+                    {
+                      "kind": "media",
+                      "ref": "5.1"
+                    },
+                    {
+                      "kind": "media",
+                      "ref": "6.1"
+                    }
+                  ]
+                },
+                {
+                  "kind": "media",
+                  "ref": "7.1"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "split",
+          "axis": "vertical",
+          "children": [
+            {
+              "kind": "split",
+              "axis": "vertical",
+              "children": [
+                {
+                  "kind": "split",
+                  "axis": "vertical",
+                  "children": [
+                    {
+                      "kind": "media",
+                      "ref": "8.1"
+                    },
+                    {
+                      "kind": "media",
+                      "ref": "9.1"
+                    }
+                  ]
+                },
+                {
+                  "kind": "split",
+                  "axis": "vertical",
+                  "children": [
+                    {
+                      "kind": "media",
+                      "ref": "10.1"
+                    },
+                    {
+                      "kind": "media",
+                      "ref": "11.1"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "split",
+              "axis": "horizontal",
+              "children": [
+                {
+                  "kind": "split",
+                  "axis": "vertical",
+                  "children": [
+                    {
+                      "kind": "media",
+                      "ref": "12.1"
+                    },
+                    {
+                      "kind": "media",
+                      "ref": "13.1"
+                    }
+                  ]
+                },
+                {
+                  "kind": "media",
+                  "ref": "14.1"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "quoteCoverage": [
+      {
+        "sourceId": "1570040370150641664",
+        "availableDepth": 1,
+        "renderedDepth": 1,
+        "requestedDepth": 2,
+        "maxDepth": 8,
+        "maxReached": false,
+        "truncated": false,
+        "stopped": "end",
+        "mayExpand": false,
+        "dateUncertainty": [
+          "same_day"
+        ]
+      }
+    ]
+  }
+}

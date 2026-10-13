@@ -1,10 +1,11 @@
 #!/usr/bin/env bun
 import { snapshotDefaultChannel } from "./provenance-schema.ts";
-import { copyFile } from "node:fs/promises";
+import { copyFile, open } from "node:fs/promises";
 import { join } from "node:path";
+import { isDeepStrictEqual } from "node:util";
 import { Command } from "commander";
 import { ArenaBlockClient, PublicationError } from "./client.ts";
-import { composePlan } from "./compose.ts";
+import { composePlan, planHash } from "./compose.ts";
 import { SocialResolver } from "./providers/index.ts";
 import type { MosaicMode } from "./mosaic-preview.ts";
 import { buildInfo } from "./version.ts";
@@ -135,12 +136,12 @@ function addCompositionOptions(command: Command, extras = true): Command {
   return command
     .option("--media <mode>", "auto, none, all, video, audio (SoundCloud original download), images, indexes (1+4), or refs (1.1,1.4)", "auto")
     .option("--frame <refs>", "use observed source poster frames for selected video refs (1.1,2.1)")
-    .option("--video-frame-threshold <seconds>", "auto-use observed poster for videos longer than this (default 600; 1–600)")
-    .option("--thread-expansion <mode>", "auto (single Bluesky or Delvetown seed), on (observed linear X/AT Protocol thread), or off")
+    .option("--video-frame-threshold <seconds>", "auto-use observed poster for videos longer than this (default 600; 1-600)")
+    .option("--thread-expansion <mode>", "auto (single Bluesky or Delvetown seed), on (observed linear x.com/AT Protocol thread), or off")
     .option("--media-order <refs>", "complete tile order using stable source refs (2.1,1.2,1.1); includes the first item")
     .option("--audio <mode>", "video-mosaic soundtrack: auto, mix, index (2), or post.media ref (1.2)")
     .option("--quote <mode>", "block, sequence, or omit", "block")
-    .option("--quote-depth <depth>", "render 0–8 quote descendants (default 2), or full available chain bounded at 8")
+    .option("--quote-depth <depth>", "render 0-8 quote descendants (default 2), or full available chain bounded at 8")
     .option("--quote-dates <mode>", "auto (earlier comparable source day), source (literal timestamp), or none")
     .option("--separator <mode>", "auto, always, or never", "auto")
     .option("--to <channel>", "Are.na channel slug or URL", (value, values: string[]) => [...values, value], []);
@@ -311,6 +312,37 @@ addCompositionOptions(addReceiptOptions(program.command("publish").description("
     } finally { if (!published && provenanceDirectory && display !== "human") console.error(`Private save snapshot: ${provenanceDirectory}`); }
   });
 
+program.command("replan-save").description("Create a new local plan from an unsaved capture; never publish or alter the original save")
+  .argument("<id>", "original save UUID")
+  .requiredOption("-o, --output <path>", "new private plan file; must not exist")
+  .action(async (id: string, options: { output: string }) => {
+    const daemon = client();
+    const before = await daemon.saveStatus(id);
+    const safelyUncreated = (status: typeof before) => status.phase === "not_saved" && !status.active && !status.receipt && !status.attempt;
+    if (!safelyUncreated(before)) throw new Error("Replanning requires an inactive save with no block or creation attempt. Inspect the original save before recovery.");
+    const retained = await daemon.retainedIntent(id);
+    if (retained.snapshot.origin !== "cli") throw new Error("Use the original capture adapter to recover this save.");
+    if (!retained.snapshot.fidelity.originalPlanPreserved) throw new Error("The retained source plan was redacted. Replan from the original local sources instead.");
+    const original = retained.snapshot.plan;
+    const { hash: originalHash, ...originalBody } = original;
+    if (planHash(originalBody) !== originalHash) throw new Error("The retained plan checksum does not match. Use the original local plan for recovery.");
+    const composed = composePlan(original.sources, original.policy);
+    const selection = (block: BlockPlan["block"]) => ({ kind: block.kind, selectedMedia: block.selectedMedia, frameMedia: block.frameMedia ?? [] });
+    if (!isDeepStrictEqual(selection(composed.block), selection(original.block))) throw new Error("Replanning would change the selected media. Review the original capture before recovery.");
+    // Only the new plan's geometry changes. Preserve any approved title or writing
+    // that differs from the provider's original text, as well as all provenance.
+    const body = structuredClone(originalBody);
+    body.block.layout = composed.block.layout;
+    const plan = { ...body, hash: planHash(body) };
+    if (plan.hash === original.hash) throw new Error("The retained composition is unchanged. Review its media selection before creating another save.");
+    if (!safelyUncreated(await daemon.saveStatus(id))) throw new Error("The original save changed during replanning. Inspect its status before recovery.");
+    const file = await open(options.output, "wx", 0o600);
+    try { await file.writeFile(JSON.stringify(plan, null, 2) + "\n"); } finally { await file.close(); }
+    console.log(JSON.stringify({ originalSaveId: id, originalPlanHash: original.hash, planHash: plan.hash, output: options.output,
+      destinations: retained.snapshot.routing.destinations, published: false }, null, 2));
+    console.error("Review the new plan, then publish it separately with --plan and the destinations above. This creates a new save UUID; the original save is unchanged.");
+  });
+
 program.command("save-intent").description("Write a private, immutable save snapshot and proposed Remote Inbox metadata; never publish")
   .requiredOption("--plan <path>", "existing immutable source plan")
   .requiredOption("--output-dir <path>", "directory for a fresh private snapshot bundle")
@@ -457,6 +489,28 @@ program.command("serve").description("Run the HTTP service").action(async () => 
   serve();
 });
 
+function saveRecovery(error: PublicationError): string | undefined {
+  const status = error.saveStatus;
+  if (!status || status.failure?.code === "retained_recovery") return undefined;
+  if (status.failure?.retryable === false) {
+    if (status.phase === "not_saved" && !status.active && !status.receipt && !status.attempt
+      && status.failure.code === "media_budget" && status.failure.message.startsWith("Mosaic selection is too dense"))
+      return `Replan without publishing: arena-block replan-save ${status.saveId} --output <new-plan.json>`;
+    return undefined;
+  }
+  return `Recovery after inspection: arena-block retry-save ${status.saveId}`;
+}
+
+function publicationIssue(error: PublicationError): string {
+  if (saveRecovery(error)?.startsWith("Replan without publishing:")) {
+    // Older daemons suggest image-only local previews for mixed-media failures.
+    // Preserve the measured dimensions while showing the supported recovery.
+    const detail = /^Mosaic selection is too dense for a legible \d+x\d+ composition\./.exec(error.saveStatus!.failure!.message)?.[0];
+    if (detail) return `${detail} Replan from the retained sources before publishing. The original save keeps its layout.`;
+  }
+  return error.message;
+}
+
 program.parseAsync().catch(async (error) => {
   if (error instanceof PublicationError && error.userInterrupted) {
     console.error(error.message);
@@ -477,21 +531,21 @@ program.parseAsync().catch(async (error) => {
       if (!receipt.error) console.error(`Issue: ${error.message}`);
       console.error(`Inspect: arena-block inspect ${receipt.id}`);
     } else if (error.saveStatus) {
-      console.error(`Save needs attention\n${error.message}\nStatus: arena-block save-status ${error.saveStatus.saveId}`);
+      console.error(`Save needs attention\n${publicationIssue(error)}\nStatus: arena-block save-status ${error.saveStatus.saveId}`);
     } else if (error.attempt) {
       console.error(`Creation outcome needs inspection\n${error.message}\nAttempt: arena-block attempt ${error.attempt.id}`);
     } else {
       console.error(`Save needs attention\n${error.message}${activeSaveId ? `\nStatus: arena-block save-status ${activeSaveId}` : ""}`);
     }
-    if (activeReceiptOptions.verbose && activeSaveId && error.saveStatus?.failure?.code !== "retained_recovery")
-      console.error(`Recovery after inspection: arena-block retry-save ${activeSaveId}`);
+    const recovery = saveRecovery(error);
+    if (recovery && (activeReceiptOptions.verbose || error.saveStatus?.failure?.retryable === false)) console.error(recovery);
     process.exitCode = 1;
     return;
   }
-  console.error(error instanceof Error ? error.message : String(error));
+  console.error(error instanceof PublicationError ? publicationIssue(error) : error instanceof Error ? error.message : String(error));
   if (error instanceof PublicationError) {
     if (error.receipt) console.error(`Block retained: ${error.receipt.blockUrl}\nInspect: arena-block inspect ${error.receipt.id}${error.saveStatus ? "" : `\nResume: arena-block resume ${error.receipt.id}`}`);
-    if (error.saveStatus) console.error(`Save UUID: ${error.saveStatus.saveId}\nStatus: arena-block save-status ${error.saveStatus.saveId}${error.saveStatus.failure?.code === "retained_recovery" ? "" : `\nRecovery: arena-block retry-save ${error.saveStatus.saveId}`}`);
+    if (error.saveStatus) console.error(`Save UUID: ${error.saveStatus.saveId}\nStatus: arena-block save-status ${error.saveStatus.saveId}${saveRecovery(error) ? `\n${saveRecovery(error)}` : ""}`);
     if (error.attempt) console.error(`${error.attempt.status === "rejected" ? "Creation rejected; correct access before retrying. Audit" : "Creation outcome needs inspection"}: arena-block attempt ${error.attempt.id}\nPlan: ${error.attempt.planHash}`);
   }
   if (!(error instanceof PublicationError) && activeReceiptOptions && receiptOutputMode(activeReceiptOptions, Boolean(process.stdout.isTTY)) === "human" && activeSaveId) {

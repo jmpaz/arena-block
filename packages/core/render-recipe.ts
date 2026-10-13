@@ -8,6 +8,8 @@ export type Mosaic = Size & { fps: number; duration: number; bitrate: number; au
 type Staged = { item: MediaAsset; path: string; probe?: Probe };
 export const IMAGE_RECIPE_LONG_EDGE = 4096;
 export const IMAGE_RECIPE_MIN_TILE = 256;
+export const VIDEO_RECIPE_LONG_EDGE = 1920;
+export const VIDEO_RECIPE_MIN_TILE = 120;
 export class MosaicLayoutError extends Error { readonly code = "media_budget"; }
 
 export function mediaAspect(item: MediaAsset | undefined): number {
@@ -88,7 +90,7 @@ export function tileRects(
   const rects = new Map<string, Rect>();
   rectangles(layout, { x: 0, y: 0, ...size }, assets, rects);
   if ([...rects.values()].some((rect) => Math.min(rect.width, rect.height) < minTile)) {
-    throw new MosaicLayoutError(`Mosaic selection is too dense for a legible ${size.width}x${size.height} composition. Keep every image with local render --layout reading --output-dir <path>, or choose --layout wallpaper for an overview that may require zoom. Neither preview publishes a block.`);
+    throw new MosaicLayoutError(`Mosaic selection is too dense for a legible ${size.width}x${size.height} composition. Create a new composition before publishing; retrying this unchanged layout cannot increase tile sizes. Reading and wallpaper are local image-only previews, not publish options.`);
   }
   return { size, rects };
 }
@@ -121,11 +123,11 @@ export function captureRenderRecipe(plan: import("./types.ts").BlockPlan, probes
   const video = plan.block.kind === "video";
   const dimensions = new Map(selected.map(asset => [asset.ref, probes[asset.ref] ? { ...asset, ...probes[asset.ref] } : asset]));
   const native = Math.max(0, ...[...dimensions.values()].map(asset => Math.max(asset.width ?? 0, asset.height ?? 0)));
-  const longEdge = video ? even(Math.min(1920, native || 1920)) : IMAGE_RECIPE_LONG_EDGE;
+  const longEdge = video ? even(Math.min(VIDEO_RECIPE_LONG_EDGE, native || VIDEO_RECIPE_LONG_EDGE)) : IMAGE_RECIPE_LONG_EDGE;
   const layout = plan.block.layout ?? { kind: "media" as const, ref: selected[0]!.ref };
   const geometry = !video && selected.length === 1
     ? { size: { width: dimensions.get(selected[0]!.ref)!.width ?? 0, height: dimensions.get(selected[0]!.ref)!.height ?? 0 }, rects: new Map<string, Rect>() }
-    : tileRects(layout, dimensions, longEdge, video ? 120 : IMAGE_RECIPE_MIN_TILE);
+    : tileRects(layout, dimensions, longEdge, video ? VIDEO_RECIPE_MIN_TILE : IMAGE_RECIPE_MIN_TILE);
   const videos = selected.filter(asset => asset.kind === "video").map(asset => {
     const probe = probes[asset.ref];
     if (!probe) throw new Error(`Missing video probe for ${asset.ref}`);
