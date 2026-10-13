@@ -5,11 +5,12 @@ final class CaptureUITests: XCTestCase {
         super.setUp()
         continueAfterFailure = false
     }
-    private func launch(_ mode: String, dark: Bool = false, large: Bool = false, store: String = UUID().uuidString, clipboard: String? = nil) -> XCUIApplication {
+    private func launch(_ mode: String, dark: Bool = false, large: Bool = false, store: String = UUID().uuidString, clipboard: String? = nil, separateComposer: Bool = false) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchEnvironment["CAPTURE_UI_FIXTURE"] = mode
         app.launchEnvironment["CAPTURE_UI_STORE_ID"] = store
         app.launchEnvironment["CAPTURE_UI_STYLE"] = dark ? "dark" : "light"
+        if separateComposer { app.launchEnvironment["CAPTURE_UI_COMPOSER"] = "share" }
         if let clipboard { app.launchEnvironment["CAPTURE_UI_CLIPBOARD"] = clipboard }
         app.launchArguments += ["-AppleInterfaceStyle", dark ? "Dark" : "Light"]
         if large { app.launchArguments += ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"] }
@@ -46,7 +47,7 @@ final class CaptureUITests: XCTestCase {
     }
 
     private func captureTabAppearance(dark: Bool, large: Bool) {
-        let app = launch("empty", dark: dark, large: large)
+        let app = launch("empty", dark: dark, large: large, separateComposer: true)
         let capture = app.tabBars.buttons["Capture"]
         XCTAssertEqual(capture.label, "Capture")
         XCTAssertTrue(capture.isSelected)
