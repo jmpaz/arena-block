@@ -427,8 +427,10 @@ public final class CaptureSession {
             let newIdentity = Self.singleThreadSourceIdentity(text, roles: keepingRoles ? draft?.sourceRoles : nil)
             // An existing stored draft keeps its old choice until its source is edited.
             // Keep an explicit opt-out while editing the same post.
-            draft?.threadExpansion = newIdentity == nil ? nil :
-                (newIdentity == oldIdentity && draft?.threadExpansion == .off ? .off : .on)
+            let currentExpansion = draft?.threadExpansion
+            let updatedExpansion: CaptureThreadExpansion? = newIdentity == nil ? nil :
+                (newIdentity == oldIdentity && currentExpansion == .off ? .off : .on)
+            draft?.threadExpansion = updatedExpansion
         }
         if !keepingRoles { draft?.sourceRoles = nil }
         if startingEmpty { draft?.videoFrameThresholdSeconds = autoFrameThresholdSeconds }
