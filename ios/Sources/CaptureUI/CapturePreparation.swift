@@ -21,7 +21,7 @@ final class CapturePreparation {
             guard snapshot.sourceRefs.count == 1, snapshot.supplementaryRefs.isEmpty,
                   let url = try? CaptureInput.singleURL(snapshot.url),
                   ["https", "http"].contains(url.scheme?.lowercased() ?? "") else {
-                throw CaptureError.message("An original link capture needs exactly one supported link.")
+                throw CaptureError.message("Choose one supported link for this capture.")
             }
             var prepared = PreparedCapture(payload: ["value": .string(url.absoluteString), "original_source_url": .string(url.absoluteString)], update: [:])
             if let title = snapshot.title { prepared.payload["title"] = .string(title); prepared.update["title"] = .string(title) }
@@ -35,7 +35,7 @@ final class CapturePreparation {
             for ref in refs + extras {
                 let item = try decode(runtime.source(ref))
                 guard item["kind"]?.string == "social" else {
-                    throw CaptureError.message("Additional posts must be supported source posts. No block was created.")
+                    throw CaptureError.message("Add supported posts here. No block was created.")
                 }
             }
         }
@@ -66,10 +66,10 @@ final class CapturePreparation {
         let policy = try snapshot.pendingMediaChoices?.applying(to: snapshot.policy, sources: sources) ?? snapshot.policy
         let requested = policy["selectedMedia"]?.array.compactMap(\.string) ?? []
         let available = Set(sources.array.flatMap { $0["media"]?.array ?? [] }.compactMap { $0["ref"]?.string })
-        guard Set(requested).isSubset(of: available) else { throw CaptureError.message("Some selected media is unavailable. Retry this capture; no block was created.") }
+        guard Set(requested).isSubset(of: available) else { throw CaptureError.message("Some selected media is unavailable. No block was created. Try again.") }
         let effectivePolicy = try CaptureSourcePolicy.composing(policy, sources: sources)
         let composed = try decode(runtime.compose(postsJSON: json(sources), policyJSON: json(effectivePolicy)))
-        guard let original = composed["plan"] else { throw CaptureError.message("The source could not be composed.") }
+        guard let original = composed["plan"] else { throw CaptureError.message("Couldn't prepare this capture.") }
         var edits: [String: JSONValue] = [:]
         if let title = snapshot.title { edits["title"] = .string(title) }
         if let description = snapshot.description {
@@ -77,9 +77,9 @@ final class CapturePreparation {
             else { edits["markdown"] = .string(description); edits["description"] = .string("") }
         }
         let edited = try decode(runtime.edit(planJSON: json(original), editsJSON: json(.object(edits))))
-        guard let plan = edited["plan"] else { throw CaptureError.message("The submitted capture could not be prepared.") }
+        guard let plan = edited["plan"] else { throw CaptureError.message("Couldn't prepare this capture.") }
         let selected = Set(plan["block"]?["selectedMedia"]?.array.compactMap(\.string) ?? [])
-        guard policy["media"] != .string("selected") || selected == Set(requested) else { throw CaptureError.message("The selected media could not be composed. No block was created.") }
+        guard policy["media"] != .string("selected") || selected == Set(requested) else { throw CaptureError.message("Couldn't prepare the selected media. No block was created.") }
         let preview = CapturePreview(kind: "social", url: snapshot.url, plan: plan,
                                      inputRefs: snapshot.sourceRefs, extraInputRefs: snapshot.supplementaryRefs)
         let payload = try decode(runtime.localPayload(planJSON: json(plan), mediaURL: "https://s3.amazonaws.com/arena_images-temp/pending", ingestURL: snapshot.url)).object
@@ -107,10 +107,10 @@ final class CapturePreparation {
             let address = frame?["url"]?.string ?? originalAddress
             try Task.checkCancellation()
             let sources = try decode(await runtime.mediaSources(address))
-            guard let resolved = sources["url"]?.string, let url = URL(string: resolved) else { throw CaptureError.message("The media source could not be resolved.") }
+            guard let resolved = sources["url"]?.string, let url = URL(string: resolved) else { throw CaptureError.message("Couldn't load the media link.") }
             let audioURL: URL?
             if let audio = sources["audioURL"]?.string {
-                guard let parsed = URL(string: audio) else { throw CaptureError.message("The media audio source could not be resolved.") }
+                guard let parsed = URL(string: audio) else { throw CaptureError.message("Couldn't load the audio link.") }
                 audioURL = parsed
             } else { audioURL = nil }
             let staged = try await NativeMediaRenderer.stage(ref: ref, kind: kind, source: url, directory: directory, audioSource: audioURL)
@@ -136,7 +136,7 @@ final class CapturePreparation {
         guard assets.allSatisfy({ asset in
             asset["kind"]?.string == "image" || frames.contains { $0["ref"]?.string == asset["ref"]?.string && $0["url"]?.string != nil }
         }) else {
-            throw CaptureError.message("A full video preview is unavailable before Save. Choose Frame to preview this selection.")
+            throw CaptureError.message("Choose Frame to preview this video.")
         }
         #if DEBUG && targetEnvironment(simulator)
         if ProcessInfo.processInfo.environment["CAPTURE_UI_FIXTURE"] != nil,
@@ -155,11 +155,11 @@ final class CapturePreparation {
         var media: [NativeStagedMedia] = [], probes: [String: JSONValue] = [:]
         for asset in assets {
             try Task.checkCancellation()
-            guard let ref = asset["ref"]?.string else { throw CaptureError.message("A selected image is missing its reference.") }
+            guard let ref = asset["ref"]?.string else { throw CaptureError.message("A selected image is unavailable. Reload the source.") }
             let frame = frames.first { $0["ref"]?.string == ref }
             guard let address = (frame == nil ? asset["url"] : frame?["url"])?.string,
                   let originalURL = URL(string: address) else {
-                throw CaptureError.message("A selected image has no preview address.")
+                throw CaptureError.message("No preview is available for a selected image.")
             }
 
             let sourceURL: URL
@@ -172,14 +172,14 @@ final class CapturePreparation {
             } else {
                 let sources = try decode(await runtime.mediaSources(address))
                 guard let resolved = sources["url"]?.string, let url = URL(string: resolved) else {
-                    throw CaptureError.message("The preview image source could not be resolved.")
+                    throw CaptureError.message("Couldn't load the image preview.")
                 }
                 sourceURL = url
             }
             #else
             let sources = try decode(await runtime.mediaSources(address))
             guard let resolved = sources["url"]?.string, let url = URL(string: resolved) else {
-                throw CaptureError.message("The preview image source could not be resolved.")
+                throw CaptureError.message("Couldn't load the image preview.")
             }
             sourceURL = url
             #endif
@@ -189,7 +189,7 @@ final class CapturePreparation {
             if sourceURL.isFileURL {
                 guard ProcessInfo.processInfo.environment["CAPTURE_UI_FIXTURE"] != nil,
                       sourceURL.standardizedFileURL.path.hasPrefix(container.standardizedFileURL.path + "/") else {
-                    throw CaptureError.message("This preview image does not have a secure source address.")
+                    throw CaptureError.message("The image preview needs an HTTPS link.")
                 }
                 guard let source = CGImageSourceCreateWithURL(sourceURL as CFURL, nil),
                       let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
@@ -212,7 +212,7 @@ final class CapturePreparation {
         let recipe = try decode(runtime.renderRecipe(planJSON: json(plan), probesJSON: json(.object(probes))))
         let layout = try NativeMediaRecipe(json: recipe)
         guard layout.kind != "video" else {
-            throw CaptureError.message("A full video preview is unavailable before Save. Choose Frame to preview this selection.")
+            throw CaptureError.message("Choose Frame to preview this video.")
         }
         let rendered = try await NativeMediaRenderer.render(recipe: layout, media: media, directory: directory)
         try Task.checkCancellation()

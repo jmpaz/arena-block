@@ -28,7 +28,7 @@ final class CaptureUITests: XCTestCase {
     private func enableAutomaticPaste(_ app: XCUIApplication) {
         app.tabBars.buttons["Settings"].tap()
         app.swipeUp()
-        let toggle = app.switches["Paste automatically on open"]
+        let toggle = app.switches["Paste on open"]
         XCTAssertTrue(toggle.waitForExistence(timeout: 5))
         if toggle.value as? String != "1" {
             toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.5)).tap()
@@ -74,8 +74,8 @@ final class CaptureUITests: XCTestCase {
         let firstURL = "https://x.com/example/status/123"
         let valid = launch("empty", store: store, clipboard: firstURL)
         valid.tabBars.buttons["Settings"].tap()
-        for _ in 0..<5 where !valid.switches["Paste automatically on open"].isHittable { valid.swipeUp() }
-        XCTAssertEqual(valid.switches["Paste automatically on open"].value as? String, "1")
+        for _ in 0..<5 where !valid.switches["Paste on open"].isHittable { valid.swipeUp() }
+        XCTAssertEqual(valid.switches["Paste on open"].value as? String, "1")
         valid.tabBars.buttons["Capture"].tap()
         let source = valid.descendants(matching: .any)["capture.source.1"].firstMatch
         _ = XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", firstURL), object: source)], timeout: 5)
@@ -490,7 +490,9 @@ final class CaptureUITests: XCTestCase {
         XCTAssertTrue(save.isEnabled)
         save.tap()
         XCTAssertTrue(app.staticTexts["Queued"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Source · x.com/example/status/123"].exists)
+        let summary = app.staticTexts.matching(NSPredicate(format: "identifier BEGINSWITH %@", "capture.source-summary.")).firstMatch
+        XCTAssertEqual(summary.label, "Source link")
+        XCTAssertEqual(summary.value as? String, "https://x.com/example/status/123")
         XCTAssertFalse(app.staticTexts["Saved to Are.na"].exists)
         XCTAssertFalse(app.descendants(matching: .any)["capture.title"].exists)
         XCTAssertFalse(app.descendants(matching: .any)["capture.description"].exists)

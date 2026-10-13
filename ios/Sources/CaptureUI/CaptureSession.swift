@@ -308,7 +308,7 @@ public final class CaptureSession {
                                                                currentDefaultID: defaultChannel?.id, alreadyConfigured: nowConfigured) else { return }
             let storedPolicy = try store.value(DefaultChannelPolicy.self, account: account.id, kind: "defaultPolicy", id: "default")
             try setDefault(channel, seededPolicy: storedPolicy == nil ? DefaultChannelPolicy(mode: initialDefaultMode) : nil)
-        } catch { problem = "The configured default could not be loaded. Choose a default in Settings. " + error.localizedDescription }
+        } catch { problem = "Couldn't load the default channel. Choose one in Settings. " + error.localizedDescription }
     }
 
     func remember(_ channels: [Channel]) throws {
@@ -445,7 +445,7 @@ public final class CaptureSession {
         guard let current = draft, current.pendingMediaChoices == nil else { return true }
         guard current.media == .selected || current.videoFrames?.isEmpty == false else { return true }
         guard let oldPreview = preview ?? current.previewSnapshot else {
-            problem = "Read the current source before changing options with selected media."
+            problem = "Load the source before changing media options."
             return false
         }
         do {
@@ -731,7 +731,7 @@ public final class CaptureSession {
                     for item in urls + extraURLs {
                         let candidate = try JSONDecoder().decode(JSONValue.self, from: Data(try core().source(item.absoluteString).utf8))
                         guard candidate["kind"]?.string == "social" else {
-                            throw CaptureError.message("Additional posts must be supported source posts. Capture ordinary links separately.")
+                            throw CaptureError.message("Add supported posts here. Save other links separately.")
                         }
                     }
                 }
@@ -758,7 +758,7 @@ public final class CaptureSession {
                     let policy = try policyForResolvedSources(sources)
                     let effectivePolicy = try CaptureSourcePolicy.composing(policy, sources: sources)
                     let response = try JSONDecoder().decode(JSONValue.self, from: Data(try core().compose(postsJSON: posts, policyJSON: json(effectivePolicy)).utf8))
-                    guard let plan = response["plan"] else { throw CaptureError.message("The source could not be composed.") }
+                    guard let plan = response["plan"] else { throw CaptureError.message("Couldn't prepare this capture.") }
                     // The provider has already supplied the writing and media
                     // choices. Publishing stages full-resolution media after
                     // durable Save; a preview must not download a long video.
@@ -892,7 +892,7 @@ public final class CaptureSession {
 
     /// Shortcuts uses exactly the same durable command without replacing the user's composer.
     @discardableResult public func submitLink(_ url: URL, title: String? = nil, description: String? = nil, media: MediaPolicy = .auto, channelIDs: [Int] = []) throws -> UUID {
-        guard let account else { throw CaptureError.message("Connect Are.na before submitting a capture.") }
+        guard let account else { throw CaptureError.message("Connect Are.na to save.") }
         var capture = CaptureDraft(accountID: account.id, defaultChannel: defaultChannel, input: url.absoluteString)
         capture.videoFrameThresholdSeconds = autoFrameThresholdSeconds
         if Self.singleThreadSourceIdentity(capture.input, roles: nil) != nil { capture.threadExpansion = .on }
@@ -904,7 +904,7 @@ public final class CaptureSession {
                 guard let channel = (cached + recent + (defaultChannel.map { [$0] } ?? [])).first(where: { $0.id == id }) else { throw CaptureError.message("Open the app and select this channel before using it in Shortcuts.") }
                 capture.selection.toggle(channel)
             }
-            guard seen.count <= 20 else { throw CaptureError.message("Choose at most twenty destinations.") }
+            guard seen.count <= 20 else { throw CaptureError.message("Choose up to 20 channels.") }
         }
         let id = try commitSubmission(capture)
         continueSubmittedWork(id)
@@ -1261,9 +1261,9 @@ public final class CaptureSession {
             try store.transaction {
                 if var job = try store.value(DeliveryJob.self, account: 0, kind: "delivery", id: previous.id.uuidString) {
                     guard job.stage == .attention, job.transferID == nil, job.draft.blockID == nil else {
-                        throw CaptureError.message("Capture is still checking the earlier save. Wait for that check to finish before allowing another submission.")
+                        throw CaptureError.message("Wait until the earlier save has been checked.")
                     }
-                    job.problem = "You chose to make another capture after inspecting Are.na. This earlier outcome remains unconfirmed."
+                    job.problem = "This earlier save remains unconfirmed."
                     job.draft.problem = job.problem
                     try store.save(job, account: 0, kind: "delivery", id: previous.id.uuidString)
                     try store.save(job.draft, account: previous.accountID, kind: "draft", id: previous.id.uuidString)
@@ -1293,7 +1293,7 @@ public final class CaptureSession {
         resolution?.cancel(); generation = UUID(); preview = nil
         do {
             guard try store.value(DeletedCapture.self, account: value.accountID, kind: "deletedDraft", id: value.id.uuidString) == nil else {
-                throw CaptureError.message("This draft was deleted. Restore it from Deleted Drafts.")
+                throw CaptureError.message("Restore this draft from Deleted captures.")
             }
             var restored = try store.value(CaptureDraft.self, account: value.accountID, kind: "draft", id: value.id.uuidString) ?? value
             restored.recoverAfterInterruption()
@@ -1397,7 +1397,7 @@ public final class CaptureSession {
         return try store.values(PendingShare.self, account: 0, kind: "incoming").flatMap(\.urls).filter { seen.insert($0).inserted }
     }
 
-    public func reportInputFailure(_ message: String = "No readable link was received. Copy the link and paste it in Capture.") { problem = message }
+    public func reportInputFailure(_ message: String = "Couldn't read the link. Paste it in Capture.") { problem = message }
 }
 
 enum CaptureVideoChoice: Hashable { case none, video, frame }

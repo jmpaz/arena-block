@@ -9,13 +9,13 @@ public struct CaptureConnectionProvenance: Codable, Equatable, Sendable {
 
     public init(draft: CaptureDraft, prepared: PreparedCapture, createdAt: Date = Date()) throws {
         guard let channelID = draft.provenanceChannelID, draft.selection.channels.contains(where: { $0.id == channelID }) else {
-            throw CaptureError.message("Save provenance requires the default channel among the approved destinations.")
+            throw CaptureError.message("Include the default channel to save capture details.")
         }
         struct Snapshot: Encodable { let draft: CaptureDraft; let prepared: PreparedCapture }
         let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]; encoder.dateEncodingStrategy = .iso8601
         var approved = draft; approved.provenanceSnapshotJSON = nil; approved.provenanceConnectionID = nil
         let bytes = try encoder.encode(Snapshot(draft: approved, prepared: prepared))
-        guard bytes.count <= 2 * 1024 * 1024 else { throw CaptureError.message("The private provenance snapshot exceeds 2 MiB. No block was created.") }
+        guard bytes.count <= 2 * 1024 * 1024 else { throw CaptureError.message("Capture details exceed the 2 MiB limit. No block was created.") }
         snapshotJSON = String(decoding: bytes, as: UTF8.self)
         self.channelID = channelID
         metadata = [
@@ -35,14 +35,14 @@ public struct CaptureConnectionProvenance: Codable, Equatable, Sendable {
         func checked(_ patch: [String: JSONValue]) throws -> [String: JSONValue] {
             let merged = current.merging(patch) { _, new in new }
             guard merged.count <= 50, try JSONEncoder().encode(merged).count <= 32 * 1024 else {
-                throw CaptureError.message("The default connection has no room for save provenance. The block is retained.")
+                throw CaptureError.message("Capture details exceed the limit for this block. Review this save in History.")
             }
             return patch
         }
         let sameEvent = current["ac_capture_id"] == nil || current["ac_capture_id"] == metadata["ac_capture_id"]
         if sameEvent {
             for (key, value) in metadata where current[key] != nil && current[key] != value {
-                throw CaptureError.message("The default connection records different original provenance. The block is retained.")
+                throw CaptureError.message("Saved capture details differ from this capture. Review this save in History.")
             }
             return try checked(metadata)
         }

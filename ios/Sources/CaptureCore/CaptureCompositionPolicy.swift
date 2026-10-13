@@ -93,14 +93,14 @@ public struct CaptureMediaChoiceAnchors: Codable, Sendable {
         for source in sources.array {
             let media = source["media"]?.array ?? []
             guard media.isEmpty || source["canonicalUrl"]?.string != nil else {
-                throw CaptureError.message("A source with selected media has no stable identity. No block was created.")
+                throw CaptureError.message("Couldn't identify the source for the selected media. No block was created.")
             }
             let sourceURL = source["canonicalUrl"]?.string ?? ""
             let identity = URL(string: sourceURL).map(CaptureInput.canonicalSourceIdentity) ?? sourceURL
             for asset in media {
                 guard let ref = asset["ref"]?.string, let url = asset["url"]?.string,
                       let kind = asset["kind"]?.string else {
-                    throw CaptureError.message("A selected media item has incomplete source details. No block was created.")
+                    throw CaptureError.message("The source details for selected media are incomplete. No block was created.")
                 }
                 let key = "\(identity)\u{1F}\(url)\u{1F}\(kind)"
                 let occurrence = occurrences[key, default: 0]
@@ -108,7 +108,7 @@ public struct CaptureMediaChoiceAnchors: Codable, Sendable {
                 let anchor = CaptureMediaAnchor(source: identity, url: url, kind: kind, occurrence: occurrence)
                 guard byRef.updateValue(anchor, forKey: ref) == nil,
                       byAnchor.updateValue(ref, forKey: anchor) == nil else {
-                    throw CaptureError.message("The source has ambiguous media references. No block was created.")
+                    throw CaptureError.message("Couldn't identify the selected media. No block was created.")
                 }
             }
         }
@@ -117,13 +117,13 @@ public struct CaptureMediaChoiceAnchors: Codable, Sendable {
 
     public static func capture(preview: CapturePreview, selected: [String]?, frames: [String]?) throws -> Self {
         guard let sources = preview.plan?["sources"] else {
-            throw CaptureError.message("Read the source before changing selected media and post options.")
+            throw CaptureError.message("Load the source before changing media or post options.")
         }
         let index = try indexes(in: sources).byRef
         func anchors(_ refs: [String]?) throws -> [CaptureMediaAnchor]? {
             try refs?.map { ref in
                 guard let anchor = index[ref] else {
-                    throw CaptureError.message("A chosen media item is missing from the current source. Review media before saving.")
+                    throw CaptureError.message("Selected media is missing from the source. Review it before saving.")
                 }
                 return anchor
             }
@@ -136,7 +136,7 @@ public struct CaptureMediaChoiceAnchors: Codable, Sendable {
         func refs(_ anchors: [CaptureMediaAnchor]) throws -> [String] {
             try anchors.map { anchor in
                 guard let ref = index[anchor] else {
-                    throw CaptureError.message("A chosen media item changed after the source options changed. Review those options before saving; no block was created.")
+                    throw CaptureError.message("Selected media changed after you changed the source options. Review your selection before saving. No block was created.")
                 }
                 return ref
             }
@@ -191,7 +191,7 @@ public enum CaptureSourcePolicy {
         let annotated = posts.contains { $0["selection"] != nil }
         guard annotated else { return policy }
         guard posts.allSatisfy({ ["primary", "extra"].contains($0["selection"]?["role"]?.string ?? "") }) else {
-            throw CaptureError.message("The resolved source roles are incomplete. Retry this capture; no block was created.")
+            throw CaptureError.message("Couldn't prepare every selected post. No block was created. Try again.")
         }
         var object = policy.object
         object["mediaOnlyPosts"] = .array(posts.enumerated().compactMap { index, post in

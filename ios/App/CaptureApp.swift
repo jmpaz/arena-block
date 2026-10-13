@@ -268,7 +268,7 @@ enum ShortcutCaptureMedia: String, AppEnum {
 
 struct SubmitCaptureIntent: AppIntent {
     static var title: LocalizedStringResource = "Save Link to Are.na"
-    static var description = IntentDescription("Queue a link using your connected account and default channel, or cached channel IDs. Check History for its progress.")
+    static var description = IntentDescription("Save a link to Are.na. Check its progress in Capture's History.")
     static var openAppWhenRun = false
     @Parameter(title: "URL") var url: URL
     @Parameter(title: "Title") var captureTitle: String?

@@ -45,10 +45,10 @@ public struct NativeMediaRecipe: Sendable {
         self.duration = duration; self.fps = fps; self.audioRefs = audioRefs; self.maximumBytes = maximumBytes
     }
     public init(json: JSONValue) throws {
-        guard let kind = json["kind"]?.string, let width = json["width"]?.int, let height = json["height"]?.int else { throw CaptureError.message("The shared engine returned an invalid media recipe.") }
+        guard let kind = json["kind"]?.string, let width = json["width"]?.int, let height = json["height"]?.int else { throw CaptureError.message("Couldn't prepare the selected media.") }
         func number(_ value: JSONValue?) -> Double { if case .number(let n) = value { return n }; return 0 }
         let tiles = try (json["tiles"]?.array ?? []).map { tile -> Tile in
-            guard let ref = tile["ref"]?.string, let rect = tile["rect"] else { throw CaptureError.message("A media tile is incomplete.") }
+            guard let ref = tile["ref"]?.string, let rect = tile["rect"] else { throw CaptureError.message("The selected media layout is incomplete.") }
             return Tile(ref: ref, rect: CGRect(x: number(rect["x"]), y: number(rect["y"]), width: number(rect["width"]), height: number(rect["height"])))
         }
         self.init(kind: kind, width: width, height: height, tiles: tiles, duration: number(json["duration"]), fps: number(json["fps"]), audioRefs: json["audio"]?.array.compactMap(\.string) ?? [], maximumBytes: (kind == "video" ? 250 : 20) * 1024 * 1024)
@@ -115,7 +115,7 @@ public enum NativeMediaRenderer {
         defer { try? FileManager.default.removeItem(at: audioFile) }
         guard let response = response as? HTTPURLResponse, (200..<300).contains(response.statusCode),
               let bytes = try audioFile.resourceValues(forKeys: [.fileSizeKey]).fileSize, bytes > 0, bytes <= 500 * 1024 * 1024 else {
-            throw CaptureError.message("The video’s audio could not be downloaded. Capture will not save a silent substitute.")
+            throw CaptureError.message("Couldn't download the video's audio.")
         }
         let localAudio = directory.appendingPathComponent(UUID().uuidString).appendingPathExtension("m4a")
         try FileManager.default.moveItem(at: audioFile, to: localAudio)
@@ -197,14 +197,14 @@ public enum NativeMediaRenderer {
         guard recipe.width > 0, recipe.height > 0, recipe.width <= 16384, recipe.height <= 16384, !recipe.tiles.isEmpty else { throw CaptureError.message("The media layout is invalid.") }
         guard recipe.width * recipe.height <= 4096 * 4096 else { throw CaptureError.message("This composition is too large to render safely on this device.") }
         let assets = Dictionary(media.map { ($0.ref, $0) }, uniquingKeysWith: { first, _ in first })
-        guard recipe.tiles.allSatisfy({ assets[$0.ref] != nil && $0.rect.width > 0 && $0.rect.height > 0 && $0.rect.minX >= 0 && $0.rect.minY >= 0 && $0.rect.maxX <= CGFloat(recipe.width) && $0.rect.maxY <= CGFloat(recipe.height) }) else { throw CaptureError.message("The media layout references a missing file or invalid tile.") }
+        guard recipe.tiles.allSatisfy({ assets[$0.ref] != nil && $0.rect.width > 0 && $0.rect.height > 0 && $0.rect.minX >= 0 && $0.rect.minY >= 0 && $0.rect.maxX <= CGFloat(recipe.width) && $0.rect.maxY <= CGFloat(recipe.height) }) else { throw CaptureError.message("The selected media is missing or its layout is invalid.") }
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let file = directory.appendingPathComponent(UUID().uuidString).appendingPathExtension(recipe.kind == "video" ? "mp4" : "jpg")
         do {
             if recipe.kind == "video" { try await renderVideo(recipe: recipe, assets: assets, file: file) }
             else { try renderImage(recipe: recipe, assets: assets, file: file) }
             let bytes = try file.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
-            guard bytes > 0, bytes <= recipe.maximumBytes else { throw CaptureError.message("The rendered media exceeds Are.na’s upload limit. Choose fewer media items.") }
+            guard bytes > 0, bytes <= recipe.maximumBytes else { throw CaptureError.message("The media exceeds Are.na's upload limit. Choose fewer items.") }
             return NativeRenderedMedia(fileURL: file, contentType: recipe.kind == "video" ? "video/mp4" : "image/jpeg", byteCount: bytes)
         } catch { try? FileManager.default.removeItem(at: file); throw error }
     }
@@ -220,7 +220,7 @@ public enum NativeMediaRenderer {
     }
 
     private static func renderImage(recipe: NativeMediaRecipe, assets: [String: NativeStagedMedia], file: URL) throws {
-        guard let context = CGContext(data: nil, width: recipe.width, height: recipe.height, bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue) else { throw CaptureError.message("There is not enough memory to compose these images.") }
+        guard let context = CGContext(data: nil, width: recipe.width, height: recipe.height, bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue) else { throw CaptureError.message("There is not enough memory to combine these images.") }
         context.setFillColor(CGColor(gray: 0, alpha: 1))
         context.fill(CGRect(x: 0, y: 0, width: recipe.width, height: recipe.height))
         for tile in recipe.tiles {
@@ -235,9 +235,9 @@ public enum NativeMediaRenderer {
             context.draw(image, in: CGRect(x: rect.midX - size.width / 2, y: rect.midY - size.height / 2, width: size.width, height: size.height))
             context.restoreGState()
         }
-        guard let image = context.makeImage(), let destination = CGImageDestinationCreateWithURL(file as CFURL, UTType.jpeg.identifier as CFString, 1, nil) else { throw CaptureError.message("The composed image could not be encoded.") }
+        guard let image = context.makeImage(), let destination = CGImageDestinationCreateWithURL(file as CFURL, UTType.jpeg.identifier as CFString, 1, nil) else { throw CaptureError.message("Couldn't prepare the combined image.") }
         CGImageDestinationAddImage(destination, image, [kCGImageDestinationLossyCompressionQuality: 0.92] as CFDictionary)
-        guard CGImageDestinationFinalize(destination) else { throw CaptureError.message("The composed image could not be saved.") }
+        guard CGImageDestinationFinalize(destination) else { throw CaptureError.message("Couldn't save the combined image.") }
     }
 
     private static func renderVideo(recipe: NativeMediaRecipe, assets: [String: NativeStagedMedia], file: URL) async throws {

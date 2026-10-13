@@ -52,7 +52,7 @@ public struct CaptureRootView: View {
             if session.account == nil {
                 NavigationStack {
                     if isExtension {
-                        ContentUnavailableView("Connect Are.na first", systemImage: "link", description: Text("Open Capture to connect your account. Your shared link is waiting there."))
+                        ContentUnavailableView("Connect Are.na first", systemImage: "link", description: Text("Open Capture to connect Are.na."))
                             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { completion?() } } }
                     } else { ConnectView(session: session) }
                 }
@@ -180,7 +180,7 @@ public struct CaptureRootView: View {
                 if let result = session.draft { Section { deliveryStatus(result) } }
                 Section {
                     if let block = session.savedBlock { BlockContentView(block: block, showTitle: false) }
-                    else { Text("Your block is saved.").foregroundStyle(.secondary) }
+                    else { Text("Saved to Are.na.").foregroundStyle(.secondary) }
                 }
             } else {
                 if let current = session.draft, pending || current.phase == .uncertain {
@@ -399,9 +399,9 @@ public struct CaptureRootView: View {
                   !UIAccessibility.isSwitchControlRunning else { return }
             savedNotice = nil
         }
-        .confirmationDialog("Allow another save?", isPresented: $retryConfirmation, titleVisibility: .visible) {
+        .confirmationDialog("Save again?", isPresented: $retryConfirmation, titleVisibility: .visible) {
             Button("I checked; save again") { session.retryAfterInspection() }
-        } message: { Text("If the earlier save reached Are.na, another save may create a duplicate block.") }
+        } message: { Text("Check your channels in Are.na first. Saving again may create a duplicate block.") }
       }
     }
 
@@ -416,7 +416,7 @@ public struct CaptureRootView: View {
             }
             if !isExtension, value.canAddPlacements {
                 Divider()
-                Button("Add placements") { session.addPlacements(to: value) }
+                Button("Add to channels") { session.addPlacements(to: value) }
                     .foregroundStyle(.primary)
                     .disabled(session.busy).accessibilityIdentifier("capture.add-placements")
             }
@@ -670,7 +670,7 @@ public struct CaptureRootView: View {
         } else if compositionPreviewIsLoading {
             HStack(spacing: 10) {
                 ProgressView()
-                Text("Preparing selected media…")
+                Text("Preparing media")
                 Spacer(minLength: 8)
                 Button("Cancel preview") { resetCompositionPreview() }
                     .frame(minHeight: 44)
@@ -678,20 +678,20 @@ public struct CaptureRootView: View {
             }.font(.subheadline)
         } else if compositionPreviewURL != nil {
             HStack {
-                Label("Selected composition", systemImage: "checkmark.circle")
+                Label("Media preview", systemImage: "checkmark.circle")
                 Spacer(minLength: 8)
                 Button("Hide preview") { resetCompositionPreview() }
                     .frame(minHeight: 44)
                     .accessibilityIdentifier("capture.composition-preview.hide")
             }.font(.subheadline)
         } else {
-            Button("Preview composition", systemImage: "eye") { startCompositionPreview() }
+            Button("Preview media", systemImage: "eye") { startCompositionPreview() }
                 .font(.subheadline)
                 .frame(minHeight: 44, alignment: .leading)
                 .accessibilityIdentifier("capture.composition-preview.start")
         }
         if let compositionPreviewProblem {
-            Text("Preview unavailable · \(compositionPreviewProblem)")
+            Text("Preview unavailable: \(compositionPreviewProblem)")
                 .font(.footnote).foregroundStyle(.secondary)
                 .accessibilityIdentifier("capture.composition-preview.problem")
         }
@@ -793,7 +793,7 @@ public struct CaptureRootView: View {
                 }.frame(width: 22, height: 22).accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(reading ? "Reading link" : "Couldn’t read this link").font(.subheadline.weight(.medium))
-                    Text(session.draft?.problem.map(CaptureSourceAccess.message) ?? "You can edit or save while it loads.")
+                    Text(session.draft?.problem.map(CaptureSourceAccess.message) ?? "")
                         .font(.footnote).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                         .opacity(reading && session.draft?.problem != nil ? 0 : 1)
                         .accessibilityHidden(reading && session.draft?.problem != nil)
@@ -831,7 +831,7 @@ public struct CaptureRootView: View {
                 Text("Use original link").frame(maxWidth: .infinity, minHeight: 44, alignment: .leading).contentShape(Rectangle())
             }
             .buttonStyle(.plain).accessibilityIdentifier("capture.original-link.choose")
-            Text("You can save the URL without its Reddit content or media.")
+            Text("Reddit content and media won't be included.")
                 .font(.footnote).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
         }
     }

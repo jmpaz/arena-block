@@ -135,7 +135,7 @@ final class CaptureDelivery {
     func persistSubmission(draft: CaptureDraft, prepared: PreparedCapture, media: URL?, contentType: String?) throws -> UUID {
         var snapshot = draft
         snapshot.phase = .queued; snapshot.updatedAt = Date(); snapshot.problem = nil
-        guard !snapshot.selection.channels.isEmpty, snapshot.selection.channels.count <= 20 else { throw CaptureError.message("Choose between one and twenty destinations before submitting.") }
+        guard !snapshot.selection.channels.isEmpty, snapshot.selection.channels.count <= 20 else { throw CaptureError.message("Choose 1 to 20 channels.") }
         let provenance = snapshot.provenanceChannelID == nil ? nil : try CaptureConnectionProvenance(draft: snapshot, prepared: prepared)
         snapshot.provenanceSnapshotJSON = provenance?.snapshotJSON
         try store.transaction {
@@ -143,13 +143,13 @@ final class CaptureDelivery {
             if try store.value(CaptureDraft.self, account: snapshot.accountID, kind: "draft", id: snapshot.id.uuidString)?.phase == .saved { return }
             if let key = snapshot.publicationKey {
                 guard try store.reservePublication(account: snapshot.accountID, key: key, draftID: snapshot.id) else {
-                    throw CaptureError.message("This source already has a pending capture. Check its progress in History.")
+                    throw CaptureError.message("An earlier save for this source is pending. Check History.")
                 }
                 snapshot.blockID = try store.value(Int.self, account: snapshot.accountID, kind: "published", id: key)
             }
             if snapshot.isPlacementOnly {
                 guard snapshot.blockID != nil, media == nil, prepared.update.isEmpty else {
-                    throw CaptureError.message("Choose placements for the existing block without changing its content.")
+                    throw CaptureError.message("Edit the saved block in Are.na. Use Capture to add channels.")
                 }
             }
             var job = DeliveryJob(id: snapshot.id, draft: snapshot, prepared: prepared, mediaPath: media?.path, mediaType: contentType, ingestBase: ingestBase, reuseExisting: snapshot.blockID != nil, stage: .destinations)
@@ -165,12 +165,12 @@ final class CaptureDelivery {
     /// Synchronous transaction: no provider, media, credential or Are.na read before acceptance.
     func persistQueuedSubmission(draft: CaptureDraft) throws -> UUID {
         if let existing = try store.value(DeliveryJob.self, account: 0, kind: "delivery", id: draft.id.uuidString) {
-            guard existing.draft.accountID == draft.accountID else { throw CaptureError.message("This submission belongs to a different account.") }
+            guard existing.draft.accountID == draft.accountID else { throw CaptureError.message("Reconnect the account used for this save.") }
             return draft.id
         }
         if try store.value(CaptureDraft.self, account: draft.accountID, kind: "draft", id: draft.id.uuidString)?.phase == .saved { return draft.id }
         var snapshot = draft
-        guard !snapshot.selection.channels.isEmpty, snapshot.selection.channels.count <= 20 else { throw CaptureError.message("Choose between one and twenty destinations before submitting.") }
+        guard !snapshot.selection.channels.isEmpty, snapshot.selection.channels.count <= 20 else { throw CaptureError.message("Choose 1 to 20 channels.") }
         let submission = snapshot.isPlacementOnly ? nil : try CaptureSubmissionSnapshot(draft: snapshot)
         if snapshot.isPlacementOnly, snapshot.blockID == nil { throw CaptureError.message("The existing block is unavailable.") }
         snapshot.phase = .queued; snapshot.problem = nil; snapshot.updatedAt = Date()
@@ -213,7 +213,7 @@ final class CaptureDelivery {
         guard var job = try store.value(DeliveryJob.self, account: 0, kind: "delivery", id: id.uuidString) else { return }
         if job.stage == .queued { job.stage = .reading; job = try save(job); changed?() }
         if job.stage == .reading {
-            guard let submission = job.submission else { throw CaptureError.message("The submitted source snapshot is unavailable.") }
+            guard let submission = job.submission else { throw CaptureError.message("The source for this save is unavailable.") }
             try Task.checkCancellation()
             let result: CapturePreparedSource
             if let readSource { result = try await readSource(submission) }
@@ -234,7 +234,7 @@ final class CaptureDelivery {
                 job.draft.provenanceSnapshotJSON = job.provenance?.snapshotJSON
             }
             try store.transaction {
-                guard try store.reservePublication(account: job.draft.accountID, key: key, draftID: job.id) else { throw CaptureError.message("This source already has a pending capture. Check its progress in History.") }
+                guard try store.reservePublication(account: job.draft.accountID, key: key, draftID: job.id) else { throw CaptureError.message("An earlier save for this source is pending. Check History.") }
                 job.draft.blockID = try store.value(Int.self, account: job.draft.accountID, kind: "published", id: key)
                 job.reuseExisting = job.draft.blockID != nil
                 if job.reuseExisting == true { job.stage = .destinations; job.mediaPath = nil }
@@ -243,7 +243,7 @@ final class CaptureDelivery {
             changed?()
         }
         if job.stage == .rendering {
-            guard let plan = job.draft.previewSnapshot?.plan, !job.draft.previewSnapshot!.selectedMedia.isEmpty else { throw CaptureError.message("The queued media plan is unavailable. No block was created.") }
+            guard let plan = job.draft.previewSnapshot?.plan, !job.draft.previewSnapshot!.selectedMedia.isEmpty else { throw CaptureError.message("The selected media is unavailable. No block was created.") }
             if let path = job.mediaPath, FileManager.default.fileExists(atPath: path) {
                 job.mediaType = URL(fileURLWithPath: path).pathExtension.lowercased() == "mp4" ? "video/mp4" : "image/jpeg"
             } else {
@@ -437,24 +437,24 @@ final class CaptureDelivery {
         if job.stage == .reconcile { return }
         if job.draft.blockID != nil {
             if job.stage != .connections { job.stage = .connections; job.page = 1; job.scanningConnected = nil }
-            job.problem = "Stopping: checking the block's actual placements before pausing."
+            job.problem = "Checking channels before pausing."
             return
         }
         if job.draft.phase == .uncertain {
             job.stage = .reconcile; job.page = 1
-            job.problem = "Stopping: checking whether Are.na created the block."
+            job.problem = "Checking the save before pausing."
             return
         }
         if job.stage == .create, job.attemptedChannelIDs?.isEmpty == false {
             job.stage = .reconcile; job.page = 1; job.draft.phase = .uncertain
-            job.problem = "Stopping: checking whether Are.na created the block."
+            job.problem = "Checking the save before pausing."
             return
         }
         if job.stage != .attention { job.resumeStage = job.stage }
         job.stage = .attention
         job.problem = job.draft.phase == .uncertain
-            ? "Stopped with an unconfirmed earlier create. Check status before continuing."
-            : "Stopped before a block was created. Continue Save resumes this same submission."
+            ? "The earlier save is unconfirmed. Check its status before continuing."
+            : "No block was created."
     }
 
     private func finishAdoptedSession(_ identifier: String) {
@@ -578,13 +578,13 @@ final class CaptureDelivery {
             guard ![.done, .attention].contains(job.stage) else { return }
             try Task.checkCancellation()
             guard let token = try credentials.read("arena.\(job.draft.accountID)"), !token.isEmpty else {
-                job.resumeStage = job.stage; job.stage = .attention; job.problem = "Reconnect this Are.na account to finish saving."
+                job.resumeStage = job.stage; job.stage = .attention; job.problem = "Reconnect Are.na to finish saving."
                 job = try save(job); return
             }
             if [.create, .connect, .provenanceWrite].contains(job.stage) {
                 let api = ArenaAPI(token: token)
                 let account = try await api.me()
-                guard account.id == job.draft.accountID else { throw CaptureError.message("The authenticated account changed. Reconnect the original account to finish this capture.") }
+                guard account.id == job.draft.accountID else { throw CaptureError.message("Reconnect the account used for this save.") }
                 if let provenance = job.provenance {
                     _ = try CaptureDefaultRoute.verifiedProvenanceChannel(try await api.channel(String(provenance.channelID)), accountID: job.draft.accountID, expectedChannelID: provenance.channelID)
                 }
@@ -632,7 +632,7 @@ final class CaptureDelivery {
             var job = source
             if job.attemptedChannelIDs != nil, [.create, .connect].contains(job.stage),
                let target = job.stage == .create ? job.draft.selection.channels.first?.id : job.draft.selection.channels.first(where: { !job.connected.contains($0.id) })?.id {
-                if job.stage == .connect, job.attemptedChannelIDs?.contains(target) == true { throw CaptureError.message("The earlier placement is unconfirmed. Check this capture before continuing.") }
+                if job.stage == .connect, job.attemptedChannelIDs?.contains(target) == true { throw CaptureError.message("An earlier channel addition is unconfirmed. Check this save before continuing.") }
                 if job.attemptedChannelIDs?.contains(target) != true { job.attemptedChannelIDs?.append(target) }
             }
             job.transferID = transferID; job.transferSession = ownIdentifier; job.transferStarted = Date()
@@ -643,7 +643,7 @@ final class CaptureDelivery {
 
     func request(_ job: DeliveryJob, token: String) throws -> (request: URLRequest, body: Data?, file: URL?) {
         if job.draft.isPlacementOnly, [.presign, .upload, .create, .update].contains(job.stage) {
-            throw CaptureError.message("This operation only adds placements to the existing block.")
+            throw CaptureError.message("Edit the saved block in Are.na. Use Capture to add channels.")
         }
         let base = "https://api.are.na/v3/"
         var address: String
@@ -698,13 +698,13 @@ final class CaptureDelivery {
             body = .object(fields)
         case .reconcile: address = base + "users/\(job.draft.accountID)/contents?type=Block&sort=created_at_desc&per=100&page=\(job.page)"
         case .provenanceContents:
-            guard let provenance = job.provenance else { throw CaptureError.message("The retained provenance target is missing.") }
+            guard let provenance = job.provenance else { throw CaptureError.message("The channel for capture details is unavailable.") }
             address = base + "channels/\(provenance.channelID)/contents?per=100&page=\(job.page)"
         case .provenanceRead, .provenanceVerify:
-            guard let connectionID = job.provenanceConnectionID else { throw CaptureError.message("The default connection is unconfirmed.") }
+            guard let connectionID = job.provenanceConnectionID else { throw CaptureError.message("The default-channel save is unconfirmed.") }
             address = base + "connections/\(connectionID)"
         case .provenanceWrite:
-            guard let connectionID = job.provenanceConnectionID, let patch = job.provenancePatch else { throw CaptureError.message("The retained provenance update is missing.") }
+            guard let connectionID = job.provenanceConnectionID, let patch = job.provenancePatch else { throw CaptureError.message("The capture details are unavailable.") }
             address = base + "connections/\(connectionID)"; method = "PUT"; body = .object(["metadata": .object(patch)])
         case .queued, .reading, .rendering, .done, .attention: throw CaptureError.message("This capture has no pending transfer.")
         }
@@ -733,11 +733,11 @@ final class CaptureDelivery {
                 }
             } else if job.stage == .create, result.error != nil || result.status == nil || result.status == 408 || (result.status ?? 0) >= 500 {
                 job.stage = .reconcile; job.draft.phase = .uncertain; job.page = 1
-                job.problem = "Checking Are.na before retrying this submission."
+                job.problem = "Checking the earlier save."
             } else if job.stage == .upload && result.status == 403 { job.stage = .presign }
             else if result.status == 429 || result.status == nil || (result.status ?? 0) >= 500 {
                 if job.attempts < 8 { job.notBefore = result.retryAfter ?? Date().addingTimeInterval(min(900, pow(2, Double(job.attempts)) * 5)) }
-                else { job.resumeStage = job.stage; job.stage = .attention; job.problem = "Saving paused after repeated connection failures." }
+                else { job.resumeStage = job.stage; job.stage = .attention; job.problem = "Connection failed. Saving is paused." }
             } else {
                 job.resumeStage = job.stage; job.stage = .attention
                 job.problem = result.status == 401 ? "Reconnect Are.na to finish this capture." : "Are.na could not finish this capture (HTTP \(result.status ?? 0))."
@@ -752,10 +752,10 @@ final class CaptureDelivery {
         } else { json = received }
         switch job.stage {
         case .destinations:
-            guard json?["can"]?["add_to"] == .bool(true) else { fail(&job, "You can no longer add to one of the selected channels. Your submitted capture is retained in History."); return }
+            guard json?["can"]?["add_to"] == .bool(true) else { fail(&job, "You can no longer add to a selected channel. Review this save in History."); return }
             if let provenance = job.provenance, job.draft.selection.channels[job.destinationIndex ?? 0].id == provenance.channelID,
                (json?["id"]?.int != provenance.channelID || json?["owner"]?["id"]?.int != job.draft.accountID || json?["owner"]?["type"]?.string != "User" || json?["visibility"]?.string != "private") {
-                fail(&job, "The default is no longer verified as your private channel. Your submitted capture is retained in History.")
+                fail(&job, "Couldn't confirm your private default channel. Review this save in History.")
                 return
             }
             job.destinationIndex = (job.destinationIndex ?? 0) + 1
@@ -793,25 +793,25 @@ final class CaptureDelivery {
                     try runtime.verify(planJSON: String(decoding: JSONEncoder().encode(plan), as: UTF8.self), blockJSON: String(decoding: JSONEncoder().encode(block), as: UTF8.self))
                     if ["link", "image"].contains(plan["block"]?["kind"]?.string ?? ""),
                        try runtime.copiedCover(blockJSON: String(decoding: JSONEncoder().encode(block), as: UTF8.self)).isEmpty {
-                        fail(&job, "Are.na did not retain the approved cover image. Open the block to inspect it."); return
+                        fail(&job, "The saved cover image is missing. Open the block in Are.na."); return
                     }
                 } catch { fail(&job, error.localizedDescription); return }
             }
             for (key, expected) in job.prepared.update where expected != .null {
                 let actual = block[key]?["markdown"] ?? block[key]
-                guard actual == expected || (expected == .string("") && (actual == nil || actual == .null)) else { fail(&job, "The saved \(key) differs from the approved capture. Open the block to inspect it."); return }
+                guard actual == expected || (expected == .string("") && (actual == nil || actual == .null)) else { fail(&job, "The saved \(key) differs from your capture. Open the block in Are.na."); return }
             }
             job.block = block; job.contentVerified = true; job.stage = .connections; job.page = 1; job.scanningConnected = nil
         case .connections:
             guard let data = json?["data"], case .array(let rows) = data,
                   let pagination = json?["meta"]?["has_more_pages"], case .bool(let hasMore) = pagination,
                   rows.allSatisfy({ ($0["id"]?.int ?? 0) > 0 }) else {
-                fail(&job, "Are.na returned an incomplete connections page. Confirmed placements are retained for review."); return
+                fail(&job, "Couldn't check every channel. Review the block's channels in Are.na."); return
             }
             job.scanningConnected = (job.scanningConnected ?? []).union(rows.compactMap { $0["id"]?.int })
             if hasMore {
                 guard let page = json?["meta"]?["next_page"]?.int, page > job.page else {
-                    fail(&job, "Are.na returned incomplete connections pagination. Confirmed placements are retained for review."); return
+                    fail(&job, "Couldn't check every channel. Review the block's channels in Are.na."); return
                 }
                 job.page = page; return
             }
@@ -820,8 +820,8 @@ final class CaptureDelivery {
             if job.stopRequestedAt != nil {
                 job.stage = .attention
                 job.problem = job.connected.isEmpty
-                    ? "Stopped. The block exists, but no selected placement was confirmed. Continue Save uses this same block."
-                    : "Stopped after checking the block. Confirmed placements are shown; Continue Save uses this same block."
+                    ? "The block exists. Check its channels in Are.na before continuing."
+                    : "Continue uses the same block."
                 return
             }
             let missing = job.draft.selection.channels.map(\.id).filter { !job.connected.contains($0) }
@@ -831,10 +831,10 @@ final class CaptureDelivery {
             } else if missing.isEmpty {
                 job.stage = job.provenance == nil ? .done : .provenanceContents; job.page = 1
             } else if let attempted = job.attemptedChannelIDs {
-                if attempted.contains(missing[0]) { fail(&job, "The earlier placement is unconfirmed. Inspect its connections in Are.na before continuing.") }
+                if attempted.contains(missing[0]) { fail(&job, "An earlier channel addition is unconfirmed. Check the block's channels in Are.na before continuing.") }
                 else { job.connectionAttempts = 0; job.stage = .connect }
             } else if job.reuseExisting == true, (job.connectionAttempts ?? 0) < 3 { job.stage = .connect }
-            else { fail(&job, "The block exists, but some destinations were not confirmed. Inspect its connections in Are.na.") }
+            else { fail(&job, "Some channels are unconfirmed. Check the block's channels in Are.na.") }
         case .connect:
             job.connectionAttempts = (job.connectionAttempts ?? 0) + 1
             job.stage = .connections; job.page = 1; job.scanningConnected = nil
@@ -843,36 +843,36 @@ final class CaptureDelivery {
             if job.page == 1 { job.reconcileCandidateID = nil }
             guard let data = json?["data"], case .array(let rows) = data,
                   let pagination = json?["meta"]?["has_more_pages"], case .bool(let hasMore) = pagination else {
-                fail(&job, "Are.na returned an incomplete creation readback. Check your destinations before deciding to submit again.")
+                fail(&job, "Couldn't confirm this save. Check your channels in Are.na before saving again.")
                 job.draft.phase = .uncertain; return
             }
             for row in rows where row["metadata"]?["arena_capture_id"]?.string == job.id.uuidString {
                 guard let id = row["id"]?.int, id > 0,
                       job.reconcileCandidateID == nil || job.reconcileCandidateID == id else {
-                    fail(&job, "More than one block matches this capture. Check your destinations before continuing.")
+                    fail(&job, "Multiple blocks match this capture. Check your channels in Are.na before continuing.")
                     job.draft.phase = .uncertain; return
                 }
                 job.reconcileCandidateID = id
             }
             if hasMore {
                 guard job.page < 10, let page = json?["meta"]?["next_page"]?.int, page > job.page else {
-                    fail(&job, "Are.na did not complete the creation readback. Check your destinations before deciding to submit again.")
+                    fail(&job, "Couldn't confirm this save. Check your channels in Are.na before saving again.")
                     job.draft.phase = .uncertain; return
                 }
                 job.page = page
             } else if let id = job.reconcileCandidateID {
                 job.draft.blockID = id; job.reconcileCandidateID = nil; job.stage = .read
             } else {
-                fail(&job, "Are.na did not confirm whether this capture was created. Check your destinations before deciding to submit again.")
+                fail(&job, "Couldn't confirm this save. Check your channels in Are.na before saving again.")
                 job.draft.phase = .uncertain
             }
         case .provenanceContents:
             let matches = json?["data"]?.array.filter { $0["id"]?.int == job.draft.blockID && $0["type"]?.string != "Channel" } ?? []
-            guard matches.count <= 1 else { fail(&job, "The default has ambiguous connections for this block. Provenance was not changed."); return }
+            guard matches.count <= 1 else { fail(&job, "Couldn't confirm this block in the default channel. Capture details were not changed."); return }
             if let match = matches.first {
                 guard let connectionID = match["connection"]?["id"]?.int, connectionID > 0,
                       job.provenanceConnectionID == nil || job.provenanceConnectionID == connectionID else {
-                    fail(&job, "The default connection could not be identified. Provenance was not changed."); return
+                    fail(&job, "Couldn't confirm this block in the default channel. Capture details were not changed."); return
                 }
                 job.provenanceConnectionID = connectionID
                 // A placement is unique within its channel. Once this row identifies
@@ -883,20 +883,20 @@ final class CaptureDelivery {
             }
             if json?["meta"]?["has_more_pages"] == .bool(true) {
                 guard job.page < 3, let page = json?["meta"]?["next_page"]?.int, page > job.page else {
-                    fail(&job, "The default connection exceeded the bounded verification scan. The block is retained."); return
+                    fail(&job, "Couldn't confirm the default-channel save. Open the block in Are.na."); return
                 }
                 job.page = page
-            } else { fail(&job, "The default placement is unconfirmed. Provenance was not changed.") }
+            } else { fail(&job, "The default-channel save is unconfirmed. Capture details were not changed.") }
         case .provenanceRead, .provenanceVerify:
             guard let connectionID = job.provenanceConnectionID, json?["id"]?.int == connectionID,
                   json?["connected_by"]?["id"]?.int == job.draft.accountID, let provenance = job.provenance else {
-                fail(&job, "The default connection belongs to a different actor. Provenance was not changed."); return
+                fail(&job, "Couldn't verify this block in the default channel. Capture details are unconfirmed."); return
             }
             let current = json?["metadata"]?.object ?? [:]
             if job.verifyingFirstProvenance == true {
                 if job.attemptedChannelIDs?.contains(provenance.channelID) == true,
                    !provenance.metadata.allSatisfy({ current[$0.key] == $0.value }) {
-                    fail(&job, "The first placement's provenance is unconfirmed. Later placements were not sent."); return
+                    fail(&job, "The default-channel capture details are unconfirmed. Other channels have not been added."); return
                 }
                 job.verifyingFirstProvenance = false; job.firstProvenanceVerified = true
                 job.stage = .connections; job.page = 1; job.scanningConnected = nil; job.connectionAttempts = 0
@@ -904,7 +904,7 @@ final class CaptureDelivery {
             }
             if job.stage == .provenanceVerify {
                 guard let patch = job.provenancePatch, patch.allSatisfy({ current[$0.key] == $0.value }) else {
-                    fail(&job, "Save provenance was not confirmed. The block is retained; retry the same capture."); return
+                    fail(&job, "Couldn't confirm the capture details. Retry this capture."); return
                 }
                 job.draft.provenanceConnectionID = connectionID; job.stage = .done
             } else {
@@ -943,7 +943,7 @@ final class CaptureDelivery {
             let complete = Set(job.draft.selection.channels.map(\.id)).isSubset(of: job.connected)
             if job.draft.blockID == nil {
                 job.resumeStage = .reconcile; job.stage = .attention; job.draft.phase = .uncertain
-                job.problem = "The block identity is unconfirmed. Check this capture before continuing."
+                job.problem = "Couldn't confirm the block. Check this save before continuing."
             } else if job.contentVerified != true {
                 job.stage = .read; job.page = 1
             } else if !complete {

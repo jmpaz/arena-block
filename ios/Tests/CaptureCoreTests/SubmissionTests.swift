@@ -671,7 +671,7 @@ final class SubmissionTests: XCTestCase {
             job.stage = .provenanceRead; job.verifyingFirstProvenance = true
             delivery.consume(try self.connection(metadata: [:]), job: &job)
             XCTAssertEqual(job.stage, .attention)
-            XCTAssertTrue(job.problem?.contains("Later placements were not sent") == true)
+            XCTAssertTrue(job.problem?.contains("Other channels have not been added") == true)
         }
     }
 

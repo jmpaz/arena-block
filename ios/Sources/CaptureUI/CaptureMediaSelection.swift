@@ -190,7 +190,7 @@ struct CaptureMediaSelection: View {
             .pickerStyle(.segmented)
             .accessibilityIdentifier("capture.media.choice.\(asset.id)")
             if usesAutomaticFrame {
-                Text("A frame is used for videos over the selected duration.")
+                Text("For long videos, select Frame.")
                     .font(.footnote).foregroundStyle(.secondary)
             }
             if asset.posterURL == nil {

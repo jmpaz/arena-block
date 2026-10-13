@@ -54,7 +54,7 @@ final class ShareViewController: UIViewController {
         if urls.isEmpty { session.reportInputFailure() }
         else {
             session.receive(urls: urls)
-            if unreadable { session.reportInputFailure("Some shared items could not be read. The links shown here were received; copy any missing link separately.") }
+            if unreadable { session.reportInputFailure("Some shared items could not be read. Paste any missing links.") }
         }
     }
 }

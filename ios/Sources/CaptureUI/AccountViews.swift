@@ -28,13 +28,13 @@ struct ConnectView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 Spacer(minLength: 40)
-                Text("A place for\nwhat you find.").font(.largeTitle).fontWeight(.medium)
-                Text("Capture links and social posts into your Are.na channels, with their words and media intact.")
+                Text("Capture").font(.largeTitle).fontWeight(.medium)
+                Text("Save links and posts to Are.na.")
                     .font(.title3).foregroundStyle(.secondary)
                 if oauthAvailable {
                 Button(connecting ? "Connecting…" : "Connect Are.na") {
                     guard let window else { session.problem = "The account window is not ready. Try again."; return }
-                    guard !session.clientID.isEmpty, !session.clientID.contains("$(") else { session.problem = "OAuth is not configured for this build. You can connect with a personal access token below."; return }
+                    guard !session.clientID.isEmpty, !session.clientID.contains("$(") else { session.problem = "Use a personal access token to connect."; return }
                     connecting = true
                     Task {
                         defer { connecting = false; oauth = nil }
@@ -47,11 +47,10 @@ struct ConnectView: View {
                     }
                 }.buttonStyle(.borderedProminent).controlSize(.large).disabled(connecting || session.busy)
                 }
-                Text("You choose where each capture goes.").font(.callout).foregroundStyle(.secondary)
                 DisclosureGroup("Use a personal access token", isExpanded: $tokenEntry) {
                     VStack(alignment: .leading, spacing: 16) {
-                        Link("Create a token on Are.na ↗", destination: URL(string: "https://www.are.na/developers/personal-access-tokens")!)
-                        Text("Choose write access. Your token is stored in the device Keychain.").font(.callout).foregroundStyle(.secondary)
+                        Link("Create a token on Are.na", destination: URL(string: "https://www.are.na/developers/personal-access-tokens")!)
+                        Text("Enable write access. Capture stores the token in the device Keychain.").font(.callout).foregroundStyle(.secondary)
                         SecureField("Access token", text: $token).textInputAutocapitalization(.never).autocorrectionDisabled()
                             .textFieldStyle(.roundedBorder)
                         Button("Connect with token") { Task { await session.connect(token: token); if session.account != nil { token = "" } } }
@@ -96,10 +95,10 @@ struct SettingsView: View {
                         .contentShape(Rectangle())
                     }.buttonStyle(.plain)
                     if session.defaultChannel != nil {
-                        Toggle("Also on every save", isOn: Binding(get: { session.defaultPolicy.mode == .always }, set: {
+                        Toggle("Include on every save", isOn: Binding(get: { session.defaultPolicy.mode == .always }, set: {
                             do { try session.setDefaultMode($0 ? .always : .fallback) } catch { problem = error.localizedDescription }
                         }))
-                        Toggle("Keep original capture details", isOn: Binding(get: { session.defaultPolicy.provenance }, set: {
+                        Toggle("Save capture details", isOn: Binding(get: { session.defaultPolicy.provenance }, set: {
                             do { try session.setDefaultProvenance($0) } catch { problem = error.localizedDescription }
                         }))
                         Button("Remove default", role: .destructive) {
@@ -107,16 +106,16 @@ struct SettingsView: View {
                         }
                     }
                 } header: { Text("Default destination") } footer: {
-                    Text(session.defaultPolicy.mode == .always
-                         ? "Capture details are available with your own private channel."
-                         : "New captures start here.")
+                    if session.defaultChannel != nil {
+                        Text("To save capture details, choose a private channel on your account.")
+                    }
                 }
                 Section {
-                    Text("Unedited drafts move to Deleted captures after 24 hours. Drafts with an edited title or description stay until you delete them.")
+                    Text("Unedited drafts move to Deleted captures after 24 hours. Drafts with title or description edits stay until you delete them.")
                         .font(.footnote).foregroundStyle(.secondary)
                 } header: { Text("Drafts") }
                 Section {
-                    Picker("Auto frame videos over", selection: Binding(
+                    Picker("Use a frame for videos over", selection: Binding(
                         get: { session.autoFrameThresholdSeconds }, set: session.setAutoFrameThreshold)) {
                         Text("1 min").tag(60)
                         Text("2 min").tag(120)
@@ -124,17 +123,15 @@ struct SettingsView: View {
                         Text("10 min").tag(600)
                     }
                     .accessibilityIdentifier("settings.auto-frame-threshold")
-                } header: { Text("Video captures") } footer: {
-                    Text("Applies to new captures. Existing drafts keep their video choice.")
-                }
+                } header: { Text("Video defaults") }
                 Section {
-                    Toggle("Paste automatically on open", isOn: Binding(get: { session.automaticPaste }, set: {
+                    Toggle("Paste on open", isOn: Binding(get: { session.automaticPaste }, set: {
                         session.automaticPaste = $0
                         session.defaults.set($0, forKey: "automaticPaste.\(account.id)")
                         session.defaults.synchronize()
                     }))
                 } header: { Text("Clipboard") } footer: {
-                    Text("Only fills an empty capture. iOS may ask permission to paste.")
+                    Text("Fills an empty capture. iOS may ask for paste permission.")
                 }
             }
 
@@ -148,7 +145,7 @@ struct SettingsView: View {
         .sheet(isPresented: $defaultSetup) { NavigationStack { ChannelPicker(session: session, choosingDefault: true) }.presentationDetents([.medium, .large], selection: $defaultPickerDetent).presentationBackground(Color(uiColor: .systemBackground)).presentationDragIndicator(.visible) }
         .confirmationDialog("Disconnect Are.na?", isPresented: $disconnect, titleVisibility: .visible) {
             Button("Disconnect", role: .destructive) { session.disconnect(); dismiss() }
-        } message: { Text("Your drafts stay on this device and are available when you reconnect the same account.") }
+        } message: { Text("Reconnect the same account to access your drafts on this device.") }
     }
 }
 
@@ -176,7 +173,7 @@ struct DraftsView: View {
         List {
             if let problem { Text(problem).foregroundStyle(.secondary) }
             if captures.isEmpty {
-                ContentUnavailableView("No captures yet", systemImage: "clock", description: Text("Your captures on this device appear here, including anything still waiting to save."))
+                ContentUnavailableView("No captures yet", systemImage: "clock")
             } else if visible.isEmpty { ContentUnavailableView.search(text: query) }
             else {
                 ForEach(visible) { draft in
@@ -265,15 +262,15 @@ struct HistoryRow: View {
     static func status(_ draft: CaptureDraft) -> String {
         if draft.deliveryState?.operationID == draft.id, draft.deliveryState?.stopRequested == true {
             if draft.deliveryState?.stage != .attention { return "Stopping" }
-            return draft.phase == .uncertain ? "Outcome unconfirmed" : "Save paused"
+            return draft.phase == .uncertain ? "Save unconfirmed" : "Save paused"
         }
         if draft.problem != nil && [.queued, .checking].contains(draft.phase) { return "Waiting to retry" }
         return switch draft.phase {
         case .saved: "Saved"
         case .queued: "Waiting to save"
         case .creating, .checking: "Saving"
-        case .uncertain: "Check save outcome"
-        case .failed: "Source unavailable"
+        case .uncertain: "Check save status"
+        case .failed: "Needs attention"
         default: "Draft"
         }
     }
@@ -353,7 +350,7 @@ struct CaptureDetailView: View {
             }
             if current.canAddPlacements {
                 Section {
-                    Button("Add placements") { addPlacements(current) }
+                    Button("Add to channels") { addPlacements(current) }
                         .disabled(session.busy).accessibilityIdentifier("history.add-placements")
                 }
             }

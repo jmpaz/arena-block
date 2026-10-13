@@ -72,7 +72,7 @@ public extension CapturePreview {
         guard (plan?["sources"]?.array ?? []).contains(where: {
             $0["threadCoverage"]?["replyGaps"]?.array.isEmpty == false
         }) else { return nil }
-        return "Public thread snapshot. Some conversation replies weren’t returned."
+        return "Some replies are unavailable."
     }
 }
 

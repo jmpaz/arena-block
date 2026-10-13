@@ -126,7 +126,7 @@ public enum CaptureDefaultRoute {
     public static func verifiedProvenanceChannel(_ channel: Channel, accountID: Int, expectedChannelID: Int) throws -> Channel {
         guard channel.id == expectedChannelID, channel.owner.id == accountID, channel.owner.type == "User",
               channel.visibility == "private", channel.can?.addTo == true else {
-            throw CaptureError.message("The provenance default must be your private, writable channel. Check its access before continuing.")
+            throw CaptureError.message("Choose a private default channel on your account with write access.")
         }
         return channel
     }

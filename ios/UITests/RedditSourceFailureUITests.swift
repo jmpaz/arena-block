@@ -36,7 +36,7 @@ final class RedditSourceFailureUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["Save interrupted"].exists)
         XCTAssertTrue(app.buttons["capture.preparation.edit"].isHittable)
         XCTAssertTrue(app.links["capture.failed-source.open"].exists || app.buttons["capture.failed-source.open"].exists)
-        XCTAssertTrue(app.staticTexts["Nothing was sent to Are.na. Your link and destinations are kept."].exists)
+        XCTAssertTrue(app.staticTexts["No block was created."].exists)
         shot("reddit-denied-share-regular", app)
         if #available(iOS 17.0, *) {
             try app.performAccessibilityAudit(for: [.elementDetection, .hitRegion, .sufficientElementDescription, .trait])

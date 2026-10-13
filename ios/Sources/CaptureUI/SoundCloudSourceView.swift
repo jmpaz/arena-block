@@ -42,7 +42,7 @@ struct SoundCloudSourceView: View {
                             .font(.caption).foregroundStyle(.secondary)
                     } else {
                         if let duration { Text(duration).font(.caption.monospacedDigit()).foregroundStyle(.secondary) }
-                        Text("Original audio stays on SoundCloud; this device saves its source link.")
+                        Text("Capture saves the SoundCloud link.")
                             .font(.caption).foregroundStyle(.secondary)
                     }
                 }

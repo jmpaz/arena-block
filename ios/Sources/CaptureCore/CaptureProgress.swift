@@ -12,13 +12,13 @@ public enum CaptureDeliveryStage: String, Codable, Sendable {
         case .presign, .upload: "Uploading media"
         case .create: "Saving to Are.na"
         case .read: "Processing block"
-        case .update: "Applying approved writing"
+        case .update: "Updating block"
         case .verify: "Checking block"
-        case .connections: "Checking placements"
-        case .connect: "Adding placements"
+        case .connections: "Checking channels"
+        case .connect: "Adding to channels"
         case .reconcile: "Checking earlier save"
-        case .provenanceContents, .provenanceRead, .provenanceVerify: "Checking save provenance"
-        case .provenanceWrite: "Saving provenance"
+        case .provenanceContents, .provenanceRead, .provenanceVerify: "Finishing save"
+        case .provenanceWrite: "Finishing save"
         case .done: "Saved to Are.na"
         case .attention: "Save interrupted"
         }
@@ -81,7 +81,7 @@ public struct CaptureContinuedProgress: Equatable, Sendable {
         } else {
             title = state.title
         }
-        subtitle = "\(confirmed) of \(selected) placements confirmed"
+        subtitle = "\(confirmed) of \(selected) channels confirmed"
     }
 }
 

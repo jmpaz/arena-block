@@ -24,20 +24,22 @@ struct CaptureStatusView: View {
         if state == nil && draft.phase == .saved { return draft.statusChannels.count }
         return draft.statusChannels.filter { state?.confirmedChannelIDs.contains($0.id) == true }.count
     }
-    private var sourceTitle: String? {
+    private var sourceTitle: (text: String, label: String, value: String)? {
         if let name = draft.savedBlock?["title"]?.string ?? draft.titleOverride ?? draft.previewSnapshot?.title,
-           !name.isEmpty { return name }
+           !name.isEmpty { return (name, name, "") }
         let rows = draft.input.components(separatedBy: "\n").filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-        if rows.count > 1 { return "\(rows.count) source posts" }
+        if rows.count > 1 { return ("\(rows.count) posts", "\(rows.count) posts", "") }
         guard let url = rows.first.flatMap(URL.init(string:)), let host = url.host else { return nil }
-        return "Source · \(host)\(url.path)"
+        return ("\(host)\(url.path)", "Source link", url.absoluteString)
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             if showTitle, let name = sourceTitle {
-                Text(name).font(.subheadline.weight(.medium))
+                Text(name.text).font(.subheadline.weight(.medium))
                     .foregroundStyle(Color.primary.opacity(0.75)).lineLimit(2)
+                    .accessibilityLabel(name.label).accessibilityValue(name.value)
+                    .accessibilityIdentifier("capture.source-summary.\(draft.id)")
             }
             Label(title, systemImage: draft.phase == .saved ? "checkmark.circle.fill" : state?.preparationFailureStage != nil ? "exclamationmark.circle" : "arrow.triangle.2.circlepath")
                 .font(.headline.weight(.semibold))
@@ -45,10 +47,10 @@ struct CaptureStatusView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .accessibilityIdentifier("capture.status.\(draft.id)")
             if state?.preparationFailureStage != nil {
-                Text("Nothing was sent to Are.na. Your link and destinations are kept.")
+                Text("No block was created.")
                     .font(.callout).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                Text("Selected destinations").font(.footnote.weight(.medium)).foregroundStyle(.secondary)
+                Text("Selected channels").font(.footnote.weight(.medium)).foregroundStyle(.secondary)
             } else if draft.statusChannels.count > 1 {
                 Text(dynamicTypeSize.isAccessibilitySize
                      ? "\(confirmedCount)/\(draft.statusChannels.count) confirmed"
@@ -65,7 +67,7 @@ struct CaptureStatusView: View {
                 destinationRows
             }
             if let date = state?.notBefore, date > Date() {
-                Text("Waiting until \(date.formatted(date: .omitted, time: .shortened)) to check again.")
+                Text("Trying again at \(date.formatted(date: .omitted, time: .shortened)).")
                     .font(.callout).foregroundStyle(.secondary)
             }
             if let problem = draft.problem { Text(CaptureSourceAccess.message(problem)).font(.callout).foregroundStyle(Color.primary.opacity(0.75)) }

@@ -21,14 +21,14 @@ final class DeliveryTests: XCTestCase {
         progress = CaptureContinuedProgress(state: state, selectedChannelIDs: selected)
         XCTAssertEqual(progress.completedUnits, 2)
         XCTAssertTrue(progress.isQuantifiable)
-        XCTAssertEqual(progress.subtitle, "1 of 2 placements confirmed")
+        XCTAssertEqual(progress.subtitle, "1 of 2 channels confirmed")
         XCTAssertFalse(progress.isDone)
 
         // A complete server scan may reveal that a formerly confirmed placement is gone.
         state.confirmedChannelIDs = []
         progress = CaptureContinuedProgress(state: state, selectedChannelIDs: selected)
         XCTAssertEqual(progress.completedUnits, 1)
-        XCTAssertEqual(progress.subtitle, "0 of 2 placements confirmed")
+        XCTAssertEqual(progress.subtitle, "0 of 2 channels confirmed")
         XCTAssertFalse(progress.isDone)
     }
 
