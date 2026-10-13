@@ -38,11 +38,11 @@ struct SoundCloudSourceView: View {
                         .font(.caption).foregroundStyle(.secondary)
                     if !artists.isEmpty { Text(artists).font(.subheadline).lineLimit(2) }
                     if kind == "playlist" {
-                        Text("\(details?["declaredTrackCount"]?.int ?? 0) tracks in source order")
+                        Text("\(details?["declaredTrackCount"]?.int ?? 0) tracks")
                             .font(.caption).foregroundStyle(.secondary)
                     } else {
                         if let duration { Text(duration).font(.caption.monospacedDigit()).foregroundStyle(.secondary) }
-                        Text("Capture saves the SoundCloud link.")
+                        Text("Link only")
                             .font(.caption).foregroundStyle(.secondary)
                     }
                 }

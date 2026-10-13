@@ -50,7 +50,7 @@ struct ConnectView: View {
                 DisclosureGroup("Use a personal access token", isExpanded: $tokenEntry) {
                     VStack(alignment: .leading, spacing: 16) {
                         Link("Create a token on Are.na", destination: URL(string: "https://www.are.na/developers/personal-access-tokens")!)
-                        Text("Enable write access. Capture stores the token in the device Keychain.").font(.callout).foregroundStyle(.secondary)
+                        Text("Write access required.").font(.callout).foregroundStyle(.secondary)
                         SecureField("Access token", text: $token).textInputAutocapitalization(.never).autocorrectionDisabled()
                             .textFieldStyle(.roundedBorder)
                         Button("Connect with token") { Task { await session.connect(token: token); if session.account != nil { token = "" } } }
@@ -105,15 +105,13 @@ struct SettingsView: View {
                             do { try session.clearDefault() } catch { problem = error.localizedDescription }
                         }
                     }
-                } header: { Text("Default destination") } footer: {
-                    if session.defaultChannel != nil {
-                        Text("To save capture details, choose a private channel on your account.")
-                    }
-                }
+                } header: { Text("Default channel") }
                 Section {
-                    Text("Unedited drafts move to Deleted captures after 24 hours. Drafts with title or description edits stay until you delete them.")
-                        .font(.footnote).foregroundStyle(.secondary)
-                } header: { Text("Drafts") }
+                    LabeledContent("Unedited drafts", value: "24 hours")
+                    NavigationLink("Deleted captures") { DeletedDraftsView(session: session) }
+                } header: { Text("Draft retention") } footer: {
+                    Text("Unedited drafts move to Deleted captures. Edited drafts stay until you delete them.")
+                }
                 Section {
                     Picker("Use a frame for videos over", selection: Binding(
                         get: { session.autoFrameThresholdSeconds }, set: session.setAutoFrameThreshold)) {
@@ -130,9 +128,7 @@ struct SettingsView: View {
                         session.defaults.set($0, forKey: "automaticPaste.\(account.id)")
                         session.defaults.synchronize()
                     }))
-                } header: { Text("Clipboard") } footer: {
-                    Text("Fills an empty capture. iOS may ask for paste permission.")
-                }
+                } header: { Text("Clipboard") }
             }
 
         }
@@ -145,7 +141,7 @@ struct SettingsView: View {
         .sheet(isPresented: $defaultSetup) { NavigationStack { ChannelPicker(session: session, choosingDefault: true) }.presentationDetents([.medium, .large], selection: $defaultPickerDetent).presentationBackground(Color(uiColor: .systemBackground)).presentationDragIndicator(.visible) }
         .confirmationDialog("Disconnect Are.na?", isPresented: $disconnect, titleVisibility: .visible) {
             Button("Disconnect", role: .destructive) { session.disconnect(); dismiss() }
-        } message: { Text("Reconnect the same account to access your drafts on this device.") }
+        }
     }
 }
 
@@ -171,8 +167,10 @@ struct DraftsView: View {
 
     var body: some View {
         List {
-            if let problem { Text(problem).foregroundStyle(.secondary) }
-            if captures.isEmpty {
+            if let problem {
+                ContentUnavailableView("History couldn’t load", systemImage: "exclamationmark.triangle", description: Text(problem))
+                Button("Try again") { reload() }
+            } else if captures.isEmpty {
                 ContentUnavailableView("No captures yet", systemImage: "clock")
             } else if visible.isEmpty { ContentUnavailableView.search(text: query) }
             else {
@@ -264,7 +262,7 @@ struct HistoryRow: View {
             if draft.deliveryState?.stage != .attention { return "Stopping" }
             return draft.phase == .uncertain ? "Save unconfirmed" : "Save paused"
         }
-        if draft.problem != nil && [.queued, .checking].contains(draft.phase) { return "Waiting to retry" }
+        if draft.problem != nil && [.queued, .checking].contains(draft.phase) { return "Save interrupted" }
         return switch draft.phase {
         case .saved: "Saved"
         case .queued: "Waiting to save"
@@ -396,9 +394,11 @@ struct DeletedDraftsView: View {
 
     var body: some View {
         List {
-            if let problem { Text(problem).foregroundStyle(.secondary) }
-            if deleted.isEmpty { ContentUnavailableView("No deleted captures", systemImage: "trash") }
-            ForEach(deleted) { capture in
+            if let problem {
+                ContentUnavailableView("Deleted captures couldn’t load", systemImage: "exclamationmark.triangle", description: Text(problem))
+                Button("Try again") { reload() }
+            } else if deleted.isEmpty { ContentUnavailableView("No deleted captures", systemImage: "trash") }
+            else { ForEach(deleted) { capture in
                 HStack {
                     HistoryRow(draft: capture.draft)
                     Spacer()
@@ -407,7 +407,7 @@ struct DeletedDraftsView: View {
                         catch { problem = error.localizedDescription }
                     }.buttonStyle(.borderless).accessibilityIdentifier("history.restore.\(capture.id)")
                 }
-            }
+            } }
         }.navigationTitle("Deleted captures")
             .task { reload() }.onChange(of: session.deliveryRevision) { reload() }
     }

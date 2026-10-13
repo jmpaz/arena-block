@@ -6,7 +6,7 @@ import { deflateSync } from "node:zlib";
 export const extensionIconSizes = [16, 32, 48, 64, 128] as const;
 export const extensionIcons = Object.fromEntries(extensionIconSizes.map(size => [size, `icons/icon-${size}.png`]));
 
-type Appearance = "light" | "dark" | "tinted" | "extension";
+type Appearance = "light" | "dark" | "tinted" | "extension" | "tab";
 
 function pngChunk(type: string, data: Uint8Array): Buffer {
   const body = Buffer.concat([Buffer.from(type), data]);
@@ -59,16 +59,34 @@ export async function renderIcon(svg: string, size: number, appearance: Appearan
     context.roundRect(0, 0, size, size, size / 8);
     context.fill();
   }
-  let scaled = svg.replace('width="100" height="100"', `width="${size}" height="${size}"`);
-  if (appearance !== "extension") {
+  const rasterSize = appearance === "tab" ? 512 : size;
+  let scaled = svg.replace('width="100" height="100"', `width="${rasterSize}" height="${rasterSize}"`);
+  if (appearance !== "extension" && appearance !== "tab") {
     scaled = scaled.replace('<g color=', '<g transform="translate(8 8) scale(.84)" color=');
   }
   if (appearance === "dark" || appearance === "tinted") {
     scaled = scaled.replace('color="#111111"', `color="${appearance === "dark" ? "#E6E6E6" : "#FFFFFF"}"`);
   }
   const image = await loadImage(Buffer.from(scaled));
-  if (image.width !== size || image.height !== size) throw new Error("Mark must use a 100 by 100 SVG canvas");
-  context.drawImage(image, 0, 0);
+  if (image.width !== rasterSize || image.height !== rasterSize) throw new Error("Mark must use a 100 by 100 SVG canvas");
+  if (appearance === "tab") {
+    const sample = createCanvas(rasterSize, rasterSize).getContext("2d");
+    sample.drawImage(image, 0, 0);
+    const pixels = sample.getImageData(0, 0, rasterSize, rasterSize).data;
+    let left = rasterSize, top = rasterSize, right = -1, bottom = -1;
+    for (let y = 0; y < rasterSize; y++) {
+      for (let x = 0; x < rasterSize; x++) {
+        if (pixels[(y * rasterSize + x) * 4 + 3] === 0) continue;
+        left = Math.min(left, x); right = Math.max(right, x);
+        top = Math.min(top, y); bottom = Math.max(bottom, y);
+      }
+    }
+    if (right < left) throw new Error("Tab mark is empty");
+    const width = right - left + 1, height = bottom - top + 1;
+    const scale = size * (22 / 24) / Math.max(width, height);
+    context.drawImage(image, left, top, width, height,
+      (size - width * scale) / 2, (size - height * scale) / 2, width * scale, height * scale);
+  } else { context.drawImage(image, 0, 0); }
   return appearance === "light" || appearance === "tinted"
     ? encodeOpaquePNG(context.getImageData(0, 0, size, size).data, size, appearance === "tinted")
     : canvas.encodeSync("png");
@@ -93,6 +111,16 @@ export async function iconFiles(root: string): Promise<Map<string, Buffer>> {
   }));
   for (const appearance of ["light", "dark", "tinted"] as const) {
     files.set(`${appIcon}/icon-${appearance}.png`, await renderIcon(svg, 1024, appearance));
+  }
+  const tabCatalog = "ios/Sources/CaptureUI/Resources/Assets.xcassets";
+  const tabImage = `${tabCatalog}/CaptureTab.imageset`;
+  files.set(`${tabCatalog}/Contents.json`, json({ info }));
+  files.set(`${tabImage}/Contents.json`, json({
+    images: [1, 2, 3].map(scale => ({ filename: `capture-tab-${scale}x.png`, idiom: "universal", scale: `${scale}x` })),
+    info, properties: { "template-rendering-intent": "template" },
+  }));
+  for (const scale of [1, 2, 3]) {
+    files.set(`${tabImage}/capture-tab-${scale}x.png`, await renderIcon(svg, 24 * scale, "tab"));
   }
   return files;
 }

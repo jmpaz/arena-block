@@ -189,15 +189,8 @@ struct CaptureMediaSelection: View {
             }
             .pickerStyle(.segmented)
             .accessibilityIdentifier("capture.media.choice.\(asset.id)")
-            if usesAutomaticFrame {
-                Text("For long videos, select Frame.")
-                    .font(.footnote).foregroundStyle(.secondary)
-            }
             if asset.posterURL == nil {
                 Text("Frame unavailable for this source")
-                    .font(.footnote).foregroundStyle(.secondary)
-            } else if included && (usesAutomaticFrame || usesFrame(asset.id)) {
-                Text("Uses the poster frame shown above")
                     .font(.footnote).foregroundStyle(.secondary)
             }
         } else {

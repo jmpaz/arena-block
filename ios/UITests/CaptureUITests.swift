@@ -45,6 +45,30 @@ final class CaptureUITests: XCTestCase {
         screenshot("empty-capture-light", app: app)
     }
 
+    private func captureTabAppearance(dark: Bool, large: Bool) {
+        let app = launch("empty", dark: dark, large: large)
+        let capture = app.tabBars.buttons["Capture"]
+        XCTAssertEqual(capture.label, "Capture")
+        XCTAssertTrue(capture.isSelected)
+        screenshot("capture-mark-selected-\(dark ? "dark" : "light")", app: app)
+        app.tabBars.buttons["History"].tap()
+        XCTAssertFalse(capture.isSelected)
+        XCTAssertTrue(app.staticTexts["No captures yet"].waitForExistence(timeout: 5))
+        screenshot("capture-mark-unselected-\(dark ? "dark" : "light")", app: app)
+        app.tabBars.buttons["Settings"].tap()
+        app.swipeUp()
+        let deleted = app.buttons["Deleted captures"]
+        for _ in 0..<4 where !deleted.isHittable { app.swipeUp() }
+        XCTAssertTrue(deleted.isHittable)
+        screenshot("settings-retention-\(dark ? "dark" : "light")", app: app)
+        deleted.tap()
+        XCTAssertTrue(app.staticTexts["No deleted captures"].waitForExistence(timeout: 5))
+        screenshot("deleted-captures-empty-\(dark ? "dark" : "light")", app: app)
+    }
+
+    func testCaptureTabMarkAndRetentionLight() { captureTabAppearance(dark: false, large: false) }
+    func testCaptureTabMarkAndRetentionLargeDark() { captureTabAppearance(dark: true, large: true) }
+
     func testAutomaticPasteIgnoresPlainAndInvalidClipboardOnCleanLaunch() {
         let store = UUID().uuidString
         let setup = launch("empty", store: store, clipboard: "")
@@ -536,7 +560,7 @@ final class CaptureUITests: XCTestCase {
         let source = app.descendants(matching: .any)["capture.soundcloud.source"].firstMatch
         for _ in 0..<5 where !source.isHittable { app.swipeUp() }
         XCTAssertTrue(source.waitForExistence(timeout: 5))
-        XCTAssertTrue(source.label.contains("2 tracks in source order"))
+        XCTAssertTrue(source.label.contains("2 tracks"))
         XCTAssertTrue(app.buttons["capture.resolved-link"].exists)
         screenshot("soundcloud-playlist-source", app: app)
     }

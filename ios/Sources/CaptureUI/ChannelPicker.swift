@@ -470,7 +470,7 @@ struct ChannelPicker: View {
             else if account.supportsSearch { result = try await api.search(term, scope: scope, page: page) }
             else {
                 guard ticket == requestID else { return }
-                problem = "Search across Are.na requires Premium. You can still search your channels on this device."
+                problem = "Search across Are.na requires Premium."
                 return
             }
             try Task.checkCancellation()

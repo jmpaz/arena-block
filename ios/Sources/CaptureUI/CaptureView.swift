@@ -61,7 +61,14 @@ public struct CaptureRootView: View {
             } else {
                 TabView(selection: $tab) {
                     NavigationStack { composer }
-                        .tabItem { Label("Capture", systemImage: "square.and.pencil") }.tag(CaptureTab.capture)
+                        .tabItem {
+                            Label {
+                                Text("Capture")
+                            } icon: {
+                                Image("CaptureTab", bundle: .module).renderingMode(.template)
+                                    .accessibilityHidden(true)
+                            }
+                        }.tag(CaptureTab.capture)
                     NavigationStack(path: $historyPath) {
                         DraftsView(session: session, resume: { draft in
                             session.resumeFromHistory(draft)
@@ -661,7 +668,7 @@ public struct CaptureRootView: View {
             guard let ref = asset["ref"]?.string else { return false }
             return selected.contains(ref) && asset["kind"]?.string == "video" && !frames.contains(ref)
         }
-        return hasFullVideo ? "Full video preview is unavailable before Save. Choose Frame to preview this selection." : nil
+        return hasFullVideo ? "Video preview unavailable" : nil
     }
 
     @ViewBuilder private var compositionPreviewControls: some View {

@@ -42,3 +42,23 @@ test("browser PNGs provide exact dimensions and a white backing", async () => {
     expect([...context.getImageData(0, 0, 1, 1).data][3]).toBeLessThan(255);
   }
 });
+
+test("Capture tab assets provide a transparent template at each display scale", async () => {
+  const path = join(root, "ios/Sources/CaptureUI/Resources/Assets.xcassets/CaptureTab.imageset");
+  const catalog = await Bun.file(join(path, "Contents.json")).json();
+  expect(catalog.properties["template-rendering-intent"]).toBe("template");
+  for (const scale of [1, 2, 3]) {
+    const size = 24 * scale;
+    const image = await loadImage(join(path, `capture-tab-${scale}x.png`));
+    expect([image.width, image.height]).toEqual([size, size]);
+    const context = createCanvas(size, size).getContext("2d");
+    context.drawImage(image, 0, 0);
+    const pixels = context.getImageData(0, 0, size, size).data;
+    expect([...context.getImageData(0, 0, 1, 1).data][3]).toBe(0);
+    expect([...context.getImageData(size - 1, size - 1, 1, 1).data][3]).toBe(0);
+    const rows = Array.from({ length: size }, (_, y) =>
+      Array.from({ length: size }, (_, x) => pixels[(y * size + x) * 4 + 3]!).some(alpha => alpha > 127));
+    expect(rows.filter(Boolean).length).toBeGreaterThanOrEqual(20 * scale);
+    expect(rows.filter(Boolean).length).toBeLessThanOrEqual(22 * scale);
+  }
+});

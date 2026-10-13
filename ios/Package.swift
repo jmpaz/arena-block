@@ -12,7 +12,7 @@ let package = Package(
     targets: [
         .target(name: "CaptureRuntime", resources: [.process("Resources")]),
         .target(name: "CaptureCore", dependencies: ["CaptureRuntime"], linkerSettings: [.linkedLibrary("sqlite3")]),
-        .target(name: "CaptureUI", dependencies: ["CaptureCore", "CaptureRuntime"]),
+        .target(name: "CaptureUI", dependencies: ["CaptureCore", "CaptureRuntime"], resources: [.process("Resources")]),
         .testTarget(name: "CaptureCoreTests", dependencies: ["CaptureCore", "CaptureRuntime", "CaptureUI"])
     ]
 )

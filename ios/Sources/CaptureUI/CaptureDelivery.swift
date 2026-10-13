@@ -149,7 +149,7 @@ final class CaptureDelivery {
             }
             if snapshot.isPlacementOnly {
                 guard snapshot.blockID != nil, media == nil, prepared.update.isEmpty else {
-                    throw CaptureError.message("Edit the saved block in Are.na. Use Capture to add channels.")
+                    throw CaptureError.message("Edit the saved block in Are.na.")
                 }
             }
             var job = DeliveryJob(id: snapshot.id, draft: snapshot, prepared: prepared, mediaPath: media?.path, mediaType: contentType, ingestBase: ingestBase, reuseExisting: snapshot.blockID != nil, stage: .destinations)
@@ -643,7 +643,7 @@ final class CaptureDelivery {
 
     func request(_ job: DeliveryJob, token: String) throws -> (request: URLRequest, body: Data?, file: URL?) {
         if job.draft.isPlacementOnly, [.presign, .upload, .create, .update].contains(job.stage) {
-            throw CaptureError.message("Edit the saved block in Are.na. Use Capture to add channels.")
+            throw CaptureError.message("Edit the saved block in Are.na.")
         }
         let base = "https://api.are.na/v3/"
         var address: String

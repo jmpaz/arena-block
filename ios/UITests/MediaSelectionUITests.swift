@@ -132,7 +132,7 @@ final class MediaSelectionUITests: XCTestCase {
         let choice = app.segmentedControls["capture.media.choice.1.1"]
         visible(choice, app: app)
         choice.buttons["Video"].tap()
-        XCTAssertTrue(app.staticTexts["Full video preview is unavailable before Save. Choose Frame to preview this selection."].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Video preview unavailable"].waitForExistence(timeout: 10))
         XCTAssertFalse(app.buttons["capture.composition-preview.start"].exists)
         XCTAssertTrue(app.navigationBars.buttons["Save"].isEnabled)
         choice.buttons["Frame"].tap()

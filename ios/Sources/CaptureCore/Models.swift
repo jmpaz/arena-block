@@ -342,7 +342,7 @@ public enum CaptureError: LocalizedError, Sendable {
     public var errorDescription: String? {
         switch self {
         case .message(let text): text
-        case .http(401, _): "Are.na did not accept the access token (HTTP 401). Check that you copied the complete token, then try connecting again."
+        case .http(401, _): "Are.na did not accept this token (HTTP 401)."
         case .http(403, _): "This account does not have access to that action."
         case .http(404, _): "This item is unavailable or private."
         case .http(_, let text): text
