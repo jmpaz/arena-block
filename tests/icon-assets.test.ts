@@ -23,7 +23,7 @@ test("iOS inputs preserve the mark and provide valid appearance pixels", async (
     const context = createCanvas(1024, 1024).getContext("2d");
     context.drawImage(image, 0, 0);
     const pixel = (x: number, y: number) => [...context.getImageData(x, y, 1, 1).data];
-    expect(pixel(760, 760)).toEqual(appearance === "light" ? [17, 17, 17, 255]
+    expect(pixel(710, 670)).toEqual(appearance === "light" ? [17, 17, 17, 255]
       : appearance === "dark" ? [230, 230, 230, 255] : [255, 255, 255, 255]);
     expect(pixel(102, 102)).toEqual(appearance === "light" ? [255, 255, 255, 255]
       : appearance === "dark" ? [0, 0, 0, 0] : [0, 0, 0, 255]);
