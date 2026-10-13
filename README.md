@@ -1,8 +1,10 @@
-<img src="assets/extension/icon-64.png" width="32" height="32" alt="Arena Block" />
+<img src="assets/mark.svg" width="32" height="32" alt="Arena Block" />
 
 # arena-block
 
-Arena Block captures social posts as editable Are.na blocks. Use the CLI to inspect a plan before saving, the iOS app to capture on a device, or the browser extension to capture from a page.
+Arena Block captures social posts as editable Are.na blocks.
+
+Available as a [CLI](docs/development.md), [iOS app](ios/README.md) and [browser extension](extension/README.md).
 
 ## Development
 
