@@ -1,0 +1,103 @@
+{
+  "schemaVersion": 1,
+  "sources": [
+    {
+      "provider": "bluesky",
+      "id": "3mxjzbrinf22d",
+      "canonicalUrl": "https://bsky.app/profile/writer-bsky.example/post/3mxjzbrinf22d",
+      "selection": {
+        "role": "primary",
+        "origin": "explicit",
+        "declaredIndex": 1
+      },
+      "author": {
+        "handle": "writer-bsky.example",
+        "name": "Example writer"
+      },
+      "text": "Fictional entry 24.\nLocal source and media selection example.",
+      "postedAt": "2026-10-10T17:29:43.189Z",
+      "media": [
+        {
+          "ref": "1.1",
+          "kind": "image",
+          "url": "https://reference.example/ref_013",
+          "width": 1024,
+          "height": 766,
+          "alt": "A fictional test image."
+        }
+      ]
+    },
+    {
+      "provider": "bluesky",
+      "id": "3mxjzmgx6sc2d",
+      "canonicalUrl": "https://bsky.app/profile/writer-bsky.example/post/3mxjzmgx6sc2d",
+      "selection": {
+        "role": "primary",
+        "origin": "expanded",
+        "parentUri": "at://did:plc:pu2ln7ey5emgy37ovouqnncg/app.bsky.feed.post/3mxjzbrinf22d"
+      },
+      "author": {
+        "handle": "writer-bsky.example",
+        "name": "Example writer"
+      },
+      "text": "Fictional entry 48.\nLocal source and media selection example.",
+      "postedAt": "2026-10-10T17:35:41.237Z",
+      "media": []
+    },
+    {
+      "provider": "bluesky",
+      "id": "3mxk2eqkcks2d",
+      "canonicalUrl": "https://bsky.app/profile/writer-bsky.example/post/3mxk2eqkcks2d",
+      "selection": {
+        "role": "primary",
+        "origin": "expanded",
+        "parentUri": "at://did:plc:pu2ln7ey5emgy37ovouqnncg/app.bsky.feed.post/3mxjzmgx6sc2d"
+      },
+      "author": {
+        "handle": "writer-bsky.example",
+        "name": "Example writer"
+      },
+      "text": "Fixture entry 1. Café 👋 reference.example/ref_0... \nA fictional post for local composition tests.",
+      "postedAt": "2026-10-10T17:49:16.607Z",
+      "media": []
+    },
+    {
+      "provider": "bluesky",
+      "id": "3mxk2iwcjec2a",
+      "canonicalUrl": "https://bsky.app/profile/writer-bsky.example/post/3mxk2iwcjec2a",
+      "selection": {
+        "role": "primary",
+        "origin": "expanded",
+        "parentUri": "at://did:plc:pu2ln7ey5emgy37ovouqnncg/app.bsky.feed.post/3mxk2eqkcks2d"
+      },
+      "author": {
+        "handle": "writer-bsky.example",
+        "name": "Example writer"
+      },
+      "text": "Fictional entry 55.\nLocal source and media selection example.",
+      "postedAt": "2026-10-10T17:51:36.861Z",
+      "media": []
+    }
+  ],
+  "policy": {
+    "media": "all",
+    "selectedMedia": [],
+    "threadExpansion": "on",
+    "quote": "block",
+    "separator": "auto"
+  },
+  "block": {
+    "kind": "link",
+    "title": "Post by @writer-bsky.example",
+    "markdown": "Fictional entry 24.\nLocal source and media selection example.\n\n*[image]*\n\n---\n\nFictional entry 48.\nLocal source and media selection example.\n\n---\n\nFixture entry 1. Café 👋 reference.example/ref_0... \nA fictional post for local composition tests.\n\n---\n\nFictional entry 55.\nLocal source and media selection example.",
+    "canonicalSource": "https://bsky.app/profile/writer-bsky.example/post/3mxjzbrinf22d",
+    "selectedMedia": [
+      "1.1"
+    ],
+    "layout": {
+      "kind": "media",
+      "ref": "1.1"
+    }
+  },
+  "hash": "918d0a27c69b14e51c0dc0f74b588c8e36e9345edbb97521ab6d735413f787b4"
+}

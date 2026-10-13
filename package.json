@@ -1,0 +1,39 @@
+{
+  "name": "arena-block",
+  "version": "0.1.0",
+  "description": "Compose social posts into intentional Are.na blocks",
+  "type": "module",
+  "module": "src/index.ts",
+  "bin": {
+    "arena-block": "src/cli.ts"
+  },
+  "scripts": {
+    "start": "bun run src/cli.ts serve",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "check": "bun run typecheck && bun test",
+    "build:ios-core": "bun run ios/scripts/build-core.ts",
+    "icons:generate": "bun run scripts/generate-icons.ts",
+    "icons:check": "bun run scripts/generate-icons.ts --check",
+    "extension:build": "bun run extension/build.ts",
+    "extension:typecheck": "bun node_modules/typescript/bin/tsc --project extension/tsconfig.json --noEmit",
+    "extension:dev": "bun run extension/dev.ts"
+  },
+  "dependencies": {
+    "@atcute/bluesky": "^4.0.14",
+    "@atcute/client": "^5.1.1",
+    "@atcute/lexicons": "^2.0.2",
+    "@napi-rs/canvas": "^0.1.80",
+    "abort-controller": "^3.0.0",
+    "commander": "^14.0.1",
+    "core-js-pure": "^3.50.0",
+    "turndown": "^7.2.4",
+    "whatwg-fetch": "^3.6.20",
+    "zod": "^4.3.5"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/turndown": "^5.0.6",
+    "typescript": "^5.9.3"
+  }
+}

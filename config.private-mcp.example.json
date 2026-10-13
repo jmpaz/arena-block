@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "defaultDestinations": [],
+  "provenance": { "local": false, "remoteSnapshot": "none" },
+  "credentialProfiles": {
+    "shared": { "arenaTokenEnv": "ARENA_WRITE_ACCESS_TOKEN" }
+  },
+  "clients": { "cli": "shared", "mcpLocal": "shared", "mcpRemote": "shared" }
+}

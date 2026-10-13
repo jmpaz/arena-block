@@ -1,0 +1,65 @@
+import { expect, test } from "bun:test";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { webPlan } from "../packages/core/capture.ts";
+import { handle } from "../extension/native-host.ts";
+
+function frame(value: unknown): Buffer {
+  const body = Buffer.from(JSON.stringify(value));
+  const header = Buffer.alloc(4);
+  header.writeUInt32LE(body.length);
+  return Buffer.concat([header, body]);
+}
+
+test("native host save uses a retained ID and never returns the daemon bearer", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "arena-block-host-test-"));
+  const configPath = join(directory, "config.json");
+  await writeFile(configPath, JSON.stringify({ schemaVersion: 1 }));
+  const oldToken = process.env.ARENA_BLOCK_ACCESS_TOKEN;
+  const oldEndpoint = process.env.ARENA_BLOCK_ENDPOINT;
+  const oldConfig = process.env.ARENA_BLOCK_CONFIG;
+  process.env.ARENA_BLOCK_ACCESS_TOKEN = "test-token";
+  process.env.ARENA_BLOCK_ENDPOINT = "http://127.0.0.1:8790";
+  process.env.ARENA_BLOCK_CONFIG = configPath;
+  const calls: { path: string; body?: any }[] = [];
+  const fakeFetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    expect(new Headers(init?.headers).get("authorization")).toBe("Bearer test-token");
+    const url = new URL(String(input));
+    const body = init?.body ? JSON.parse(String(init.body)) : undefined;
+    calls.push({ path: `${url.pathname}${url.search}`, body });
+    return Response.json({ saveId: body.snapshot.saveId, phase: "prepared" }, { status: 202 });
+  }) as typeof fetch;
+  try {
+    const saveId = crypto.randomUUID();
+    const plan = webPlan({ url: "https://example.com/story" });
+    const result = await handle({ id: "b", action: "save", saveId, plan, destinations: ["test-channel"] }, fakeFetch);
+    expect(result).toEqual({ saveId, phase: "prepared" });
+    expect(JSON.stringify(result)).not.toContain("test-token");
+    expect(calls.map(call => call.path)).toEqual(["/v1/saves?async=1"]);
+    expect(calls[0]?.body.snapshot.saveId).toBe(saveId);
+    expect(calls[0]?.body.snapshot.routing.destinations).toEqual(["test-channel"]);
+    expect(calls[0]?.body.snapshot.origin).toBe("cli");
+  } finally {
+    if (oldToken === undefined) delete process.env.ARENA_BLOCK_ACCESS_TOKEN; else process.env.ARENA_BLOCK_ACCESS_TOKEN = oldToken;
+    if (oldEndpoint === undefined) delete process.env.ARENA_BLOCK_ENDPOINT; else process.env.ARENA_BLOCK_ENDPOINT = oldEndpoint;
+    if (oldConfig === undefined) delete process.env.ARENA_BLOCK_CONFIG; else process.env.ARENA_BLOCK_CONFIG = oldConfig;
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("native messaging rejects unknown actions before contacting a daemon", async () => {
+  const child = Bun.spawn(["bun", "extension/native-host.ts"], {
+    cwd: join(import.meta.dir, ".."), stdin: "pipe", stdout: "pipe", stderr: "pipe",
+    env: { PATH: process.env.PATH ?? "" },
+  });
+  child.stdin.write(frame({ id: "bad", action: "fetch", url: "https://example.com" }));
+  child.stdin.end();
+  const [output, exit] = await Promise.all([new Response(child.stdout).arrayBuffer(), child.exited]);
+  expect(exit).toBe(0);
+  const buffer = Buffer.from(output);
+  const length = buffer.readUInt32LE(0);
+  const reply = JSON.parse(buffer.subarray(4, 4 + length).toString("utf8"));
+  expect(reply.ok).toBe(false);
+  expect(reply.value).toBeUndefined();
+});

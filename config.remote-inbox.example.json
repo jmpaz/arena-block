@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "remoteInbox": {
+    "channel": "your-private-inbox",
+    "mode": "fallback"
+  },
+  "defaultDestinations": [],
+  "provenance": {
+    "local": true,
+    "remoteSnapshot": "full"
+  },
+  "credentialProfiles": {
+    "shared": {
+      "arenaTokenEnv": "ARENA_WRITE_ACCESS_TOKEN"
+    },
+    "assistant": {
+      "arenaTokenEnv": "ARENA_ASSISTANT_WRITE_ACCESS_TOKEN"
+    }
+  },
+  "clients": {
+    "cli": "shared",
+    "mcpLocal": "assistant",
+    "mcpRemote": "assistant"
+  }
+}

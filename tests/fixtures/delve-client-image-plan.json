@@ -1,0 +1,112 @@
+{
+  "schemaVersion": 1,
+  "sources": [
+    {
+      "provider": "delve",
+      "id": "3mxkblxc32s2d",
+      "canonicalUrl": "https://delve.town/profile/did:plc:2vb3emjr2ttkwc2dj534fdqj/post/3mxkblxc32s2d",
+      "selection": {
+        "role": "primary",
+        "origin": "explicit",
+        "declaredIndex": 1
+      },
+      "author": {
+        "handle": "writer-delve.example"
+      },
+      "text": "Fixture entry 17. Café 👋 @example \nA fictional post for local composition tests.",
+      "postedAt": "2026-10-10T19:58:34.750Z",
+      "media": [
+        {
+          "ref": "1.1",
+          "kind": "image",
+          "url": "https://api.delve.town/img/feed_fullsize/plain/did:plc:2vb3emjr2ttkwc2dj534fdqj/bafyreib3bqiw2sdl3uicg4xmr35xr3sitf3mrb7q7kfjud4wpraqxe5zla",
+          "width": 1179,
+          "height": 2077,
+          "alt": ""
+        }
+      ],
+      "atproto": {
+        "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxkblxc32s2d",
+        "cid": "bafyreihtkgozswkfmljqjtbaaifofcu2tc3fxumxcogmgzc52mh57ripdi",
+        "authorDid": "did:plc:2vb3emjr2ttkwc2dj534fdqj",
+        "record": {
+          "$type": "town.delve.feed.post",
+          "createdAt": "2026-10-10T19:58:34.750Z",
+          "embed": {
+            "$type": "town.delve.embed.images",
+            "images": [
+              {
+                "alt": "",
+                "aspectRatio": {
+                  "height": 2077,
+                  "width": 1179
+                },
+                "image": {
+                  "$type": "blob",
+                  "ref": {
+                    "$link": "bafyreib3bqiw2sdl3uicg4xmr35xr3sitf3mrb7q7kfjud4wpraqxe5zla"
+                  },
+                  "mimeType": "image/jpeg",
+                  "size": 860386
+                }
+              }
+            ]
+          },
+          "facets": [
+            {
+              "index": {
+                "byteStart": 29,
+                "byteEnd": 37
+              },
+              "features": [
+                {
+                  "$type": "town.delve.richtext.facet#mention",
+                  "did": "did:plc:2xzdbdynhxxhoolqintjjcwd"
+                }
+              ]
+            }
+          ],
+          "langs": [
+            "en"
+          ],
+          "text": "Fixture entry 17. Café 👋 @example \nA fictional post for local composition tests."
+        }
+      },
+      "facets": [
+        {
+          "index": {
+            "byteStart": 29,
+            "byteEnd": 37
+          },
+          "features": [
+            {
+              "$type": "town.delve.richtext.facet#mention",
+              "did": "did:plc:2xzdbdynhxxhoolqintjjcwd"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "policy": {
+    "media": "all",
+    "selectedMedia": [],
+    "threadExpansion": "off",
+    "quote": "block",
+    "separator": "auto"
+  },
+  "block": {
+    "kind": "link",
+    "title": "Post by @writer-delve.example",
+    "markdown": "Fixture entry 17. Café 👋 [@example](<https://delve.town/profile/did:plc:2xzdbdynhxxhoolqintjjcwd>) \nA fictional post for local composition tests.\n\n*[image]*",
+    "canonicalSource": "https://delve.town/profile/did:plc:2vb3emjr2ttkwc2dj534fdqj/post/3mxkblxc32s2d",
+    "selectedMedia": [
+      "1.1"
+    ],
+    "layout": {
+      "kind": "media",
+      "ref": "1.1"
+    }
+  },
+  "hash": "12650f968e15f682803729b2b0d655f179a0cd32c3b1d48c79d8abc7ad3bbdc7"
+}

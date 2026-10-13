@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Arena Block</title>
+  <link rel="stylesheet" href="editor.css">
+  <script src="editor.js" defer></script>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar"><span class="brand"><span class="mark" aria-hidden="true">a.</span><span>Capture</span></span><button id="new-capture" class="header-action" type="button" aria-label="New capture" title="New capture">New</button><button id="back-to-capture" class="back-button" type="button" hidden>Done</button></header>
+    <div class="viewport">
+      <div id="capture-view">
+        <section id="capture-preview" class="capture-preview" aria-label="Source preview">
+          <img id="capture-preview-image" alt="" referrerpolicy="no-referrer" hidden>
+          <div class="capture-preview-copy"><span id="capture-preview-meta"></span><h1 id="capture-preview-title">Add a source</h1><p id="capture-preview-excerpt"></p><button id="preview-source" class="quiet" type="button" hidden>Preview</button></div>
+        </section>
+        <p id="status" class="status" role="status" aria-live="polite"></p>
+        <details id="earlier-saves" class="intake" hidden><summary>Earlier saves <span id="earlier-count"></span></summary><div id="earlier-save-list"></div></details>
+        <section class="destination" aria-labelledby="save-heading"><div class="section-head"><h2 id="save-heading">Add to</h2><button id="choose-channel" class="quiet" type="button">Choose channels</button></div><div id="selected-channels" class="selected-channels" aria-label="Selected channels"></div><span id="selected-count" class="visually-hidden">0 / 20</span></section>
+        <details id="composition" class="composition" hidden>
+          <summary id="block-heading">Edit block</summary>
+          <p id="composition-empty" class="composition-empty">A preview appears after you add a source.</p>
+          <div id="composition-fields" hidden>
+            <label for="title">Title</label><input id="title" type="text" maxlength="512">
+            <details id="writing-details" open><summary>Text</summary><label for="writing" class="visually-hidden">Text</label><textarea id="writing" rows="5"></textarea></details>
+            <label for="description">Description</label><textarea id="description" rows="3"></textarea>
+            <div id="media-section" hidden><div class="section-head"><h3>Media</h3><span id="media-count"></span><button id="single-media-toggle" class="media-toggle" type="button" hidden aria-pressed="true">Included</button></div><div id="media-hero" hidden></div><ol id="media-list" class="media-list"></ol><label id="audio-label" for="audio-choice" hidden>Audio track</label><select id="audio-choice" hidden></select></div>
+            <div class="result-bar"><span id="block-kind"></span><a id="source-link" target="_blank" rel="noreferrer noopener"></a></div>
+          </div>
+        </details>
+        <details id="source-details" class="intake"><summary>Edit sources <span id="source-count"></span></summary>
+          <div class="section-head"><h2 id="source-heading">Source links</h2><button id="add-current" class="quiet" type="button" hidden>Use current page</button></div>
+          <label for="primary" class="visually-hidden">Source links, one per line</label>
+          <textarea id="primary" rows="3" spellcheck="false" placeholder="Paste a link"></textarea>
+          <div class="source-actions"><button id="resolve" class="quiet" type="button">Preview</button><button id="resolve-local" class="quiet" type="button" hidden>Try local helper</button></div>
+          <details id="extra-details"><summary>Add posts for media</summary><label for="extras" class="visually-hidden">Links used only for media</label><textarea id="extras" rows="3" spellcheck="false" placeholder="One link per line"></textarea></details>
+          <details id="capture-options"><summary>Capture options</summary><div class="options">
+            <label for="media-policy">Media</label><select id="media-policy"><option value="auto">Auto</option><option value="all">All</option><option value="images">Images</option><option value="video">Video</option><option value="audio">Audio</option><option value="none">None</option></select>
+            <label for="thread-policy">Connected posts</label><select id="thread-policy"><option value="auto">Auto</option><option value="on">On</option><option value="off">Off</option></select>
+          </div><details><summary>Composition</summary><div class="options">
+            <label for="quote-policy">Quotes</label><select id="quote-policy"><option value="block">In block</option><option value="sequence">In sequence</option><option value="omit">Omit</option></select>
+            <label for="quote-depth">Quote depth</label><select id="quote-depth"><option value="2">2</option><option value="0">0</option><option value="1">1</option><option value="3">3</option><option value="4">4</option><option value="full">Full</option></select>
+            <label for="quote-dates">Quote dates</label><select id="quote-dates"><option value="auto">Auto</option><option value="source">Source</option><option value="none">None</option></select>
+            <label for="separator-policy">Post separators</label><select id="separator-policy"><option value="auto">Auto</option><option value="always">Always</option><option value="never">Never</option></select>
+          </div></details></details>
+        </details>
+      </div>
+      <section id="channel-view" class="channel-view" aria-label="Choose channels" hidden>
+        <button id="connect-arena" class="quiet" type="button" hidden>Connect Are.na</button>
+        <div id="picker-preview" class="picker-preview" hidden><img id="picker-preview-image" alt="" referrerpolicy="no-referrer" hidden><div><strong id="picker-preview-title"></strong><span id="picker-preview-source"></span></div></div>
+        <label for="channel" class="visually-hidden">Search channels</label><div class="channel-row"><input id="channel" type="search" autocomplete="off" spellcheck="false" placeholder="Search channels"></div>
+        <div class="picker-selection"><div class="section-head"><h2>Selected</h2><button id="clear-channels" class="quiet" type="button" hidden>Clear</button></div><div id="picker-selected-channels" class="selected-channels" aria-label="Selected channels in picker"></div></div>
+        <button id="add-channel" type="button" hidden>Add channel by slug</button><button id="load-channels" type="button" hidden>Browse channels</button>
+        <div id="channel-results" class="channel-results" hidden><div class="channel-scopes" role="group" aria-label="Channel search scope"><button type="button" data-channel-scope="my" aria-pressed="true">My Are.na</button><button type="button" data-channel-scope="following" aria-pressed="false">My network</button><button type="button" data-channel-scope="all" aria-pressed="false">All</button></div><div id="channel-list" class="channel-list"></div><div class="channel-list-footer"><span id="channel-progress" role="status" aria-live="polite"></span><button id="more-channels" class="quiet" type="button" hidden>Load more</button></div></div>
+        <details class="channel-default"><summary>Default channel</summary><label for="default-channel">Channel slug or ID</label><input id="default-channel" type="text" autocomplete="off" placeholder="Optional"><label for="default-mode">Use default</label><select id="default-mode"><option value="fallback">When no channel is chosen</option><option value="always">With every save</option></select></details>
+      </section>
+    </div>
+    <footer class="save-section"><button id="save" class="primary" type="button">Choose a channel</button><p id="save-status" class="status" role="status" aria-live="polite"></p><button id="check-save" class="quiet" type="button" hidden>Check save status</button></footer>
+  </main>
+</body>
+</html>

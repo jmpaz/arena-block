@@ -1,0 +1,2467 @@
+{
+  "selected": {
+    "thread": {
+      "post": {
+        "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7nb7vfk2u",
+        "cid": "bafyreiceeovr36zck7fnjeisoaifpnjrzwtrylhmz3etxqmfqdsc43kd6i",
+        "author": {
+          "did": "did:plc:2vb3emjr2ttkwc2dj534fdqj",
+          "handle": "writer-delve.example",
+          "displayName": "",
+          "avatar": "https://api.delve.town/img/avatar/plain/did:plc:2vb3emjr2ttkwc2dj534fdqj/bafyreidmwya74xyjlhjpjjpahr63yjzvtvm3rz4gmp26xzptygw4szfdim",
+          "associated": {
+            "activitySubscription": {
+              "allowSubscriptions": "followers"
+            }
+          },
+          "labels": [],
+          "createdAt": "2026-09-29T22:43:44.539Z"
+        },
+        "record": {
+          "$type": "town.delve.feed.post",
+          "createdAt": "2026-10-08T10:07:32.805Z",
+          "facets": [
+            {
+              "$type": "town.delve.richtext.facet",
+              "features": [
+                {
+                  "$type": "town.delve.richtext.facet#mention",
+                  "did": "did:plc:pnj2ffpp3a5lmwdsepnwn7ia"
+                }
+              ],
+              "index": {
+                "byteStart": 29,
+                "byteEnd": 37
+              }
+            },
+            {
+              "$type": "town.delve.richtext.facet",
+              "features": [
+                {
+                  "$type": "town.delve.richtext.facet#mention",
+                  "did": "did:plc:rmnvnzvip5exqy2zb5yxjxwb"
+                }
+              ],
+              "index": {
+                "byteStart": 38,
+                "byteEnd": 46
+              }
+            },
+            {
+              "$type": "town.delve.richtext.facet",
+              "features": [
+                {
+                  "$type": "town.delve.richtext.facet#mention",
+                  "did": "did:plc:nr5pgd4aaynv7zimlzc3ip6s"
+                }
+              ],
+              "index": {
+                "byteStart": 47,
+                "byteEnd": 55
+              }
+            },
+            {
+              "$type": "town.delve.richtext.facet",
+              "features": [
+                {
+                  "$type": "town.delve.richtext.facet#mention",
+                  "did": "did:plc:ecooapxkdssrpjaciov3ry43"
+                }
+              ],
+              "index": {
+                "byteStart": 56,
+                "byteEnd": 64
+              }
+            },
+            {
+              "$type": "town.delve.richtext.facet",
+              "features": [
+                {
+                  "$type": "town.delve.richtext.facet#mention",
+                  "did": "did:plc:4qrmqflsbew6j2u6iflx65zz"
+                }
+              ],
+              "index": {
+                "byteStart": 65,
+                "byteEnd": 73
+              }
+            },
+            {
+              "$type": "town.delve.richtext.facet",
+              "features": [
+                {
+                  "$type": "town.delve.richtext.facet#mention",
+                  "did": "did:plc:xiibchoxixigrjeglw6m77kh"
+                }
+              ],
+              "index": {
+                "byteStart": 74,
+                "byteEnd": 82
+              }
+            },
+            {
+              "$type": "town.delve.richtext.facet",
+              "features": [
+                {
+                  "$type": "town.delve.richtext.facet#mention",
+                  "did": "did:plc:rxsjtoli3v4uptcpwyrbcanr"
+                }
+              ],
+              "index": {
+                "byteStart": 83,
+                "byteEnd": 91
+              }
+            },
+            {
+              "$type": "town.delve.richtext.facet",
+              "features": [
+                {
+                  "$type": "town.delve.richtext.facet#mention",
+                  "did": "did:plc:lazfetww2zyh2rwg6tt3ylqi"
+                }
+              ],
+              "index": {
+                "byteStart": 92,
+                "byteEnd": 100
+              }
+            },
+            {
+              "$type": "town.delve.richtext.facet",
+              "features": [
+                {
+                  "$type": "town.delve.richtext.facet#mention",
+                  "did": "did:plc:e6rafo2x7y52ua52se4tjgpn"
+                }
+              ],
+              "index": {
+                "byteStart": 101,
+                "byteEnd": 109
+              }
+            },
+            {
+              "$type": "town.delve.richtext.facet",
+              "features": [
+                {
+                  "$type": "town.delve.richtext.facet#mention",
+                  "did": "did:plc:oq4i2u7dsivdl2byrplodfyr"
+                }
+              ],
+              "index": {
+                "byteStart": 110,
+                "byteEnd": 118
+              }
+            },
+            {
+              "$type": "town.delve.richtext.facet",
+              "features": [
+                {
+                  "$type": "town.delve.richtext.facet#mention",
+                  "did": "did:plc:qnvq7jg4owjecviwjqybrppr"
+                }
+              ],
+              "index": {
+                "byteStart": 119,
+                "byteEnd": 127
+              }
+            },
+            {
+              "$type": "town.delve.richtext.facet",
+              "features": [
+                {
+                  "$type": "town.delve.richtext.facet#mention",
+                  "did": "did:plc:4klzl5ra2r77vbvpon3u45vd"
+                }
+              ],
+              "index": {
+                "byteStart": 128,
+                "byteEnd": 136
+              }
+            }
+          ],
+          "langs": [
+            "en"
+          ],
+          "reply": {
+            "parent": {
+              "cid": "bafyreigvo4fl2log2xh3xp6e2ejv7cqiggewusfemc5ezgsa7utwmccjca",
+              "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7fekwnk2u"
+            },
+            "root": {
+              "cid": "bafyreigvo4fl2log2xh3xp6e2ejv7cqiggewusfemc5ezgsa7utwmccjca",
+              "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7fekwnk2u"
+            }
+          },
+          "text": "Fixture entry 12. Café 👋 @example @example @example @example @example @example @example @example @example @example @example @example \nA fictional post for local composition tests."
+        },
+        "bookmarkCount": 0,
+        "replyCount": 16,
+        "repostCount": 0,
+        "likeCount": 8,
+        "quoteCount": 0,
+        "indexedAt": "2026-10-08T10:07:32.805Z",
+        "labels": []
+      },
+      "parent": {
+        "post": {
+          "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7fekwnk2u",
+          "cid": "bafyreigvo4fl2log2xh3xp6e2ejv7cqiggewusfemc5ezgsa7utwmccjca",
+          "author": {
+            "did": "did:plc:2vb3emjr2ttkwc2dj534fdqj",
+            "handle": "writer-delve.example",
+            "displayName": "",
+            "avatar": "https://api.delve.town/img/avatar/plain/did:plc:2vb3emjr2ttkwc2dj534fdqj/bafyreidmwya74xyjlhjpjjpahr63yjzvtvm3rz4gmp26xzptygw4szfdim",
+            "associated": {
+              "activitySubscription": {
+                "allowSubscriptions": "followers"
+              }
+            },
+            "labels": [],
+            "createdAt": "2026-09-29T22:43:44.539Z"
+          },
+          "record": {
+            "$type": "town.delve.feed.post",
+            "createdAt": "2026-10-08T10:03:07.878Z",
+            "langs": [
+              "en"
+            ],
+            "text": "Fictional entry 110.\nLocal source and media selection example."
+          },
+          "bookmarkCount": 0,
+          "replyCount": 2,
+          "repostCount": 1,
+          "likeCount": 11,
+          "quoteCount": 0,
+          "indexedAt": "2026-10-08T10:03:07.878Z",
+          "labels": []
+        },
+        "threadContext": {},
+        "$type": "town.delve.feed.defs#threadViewPost"
+      },
+      "replies": [
+        {
+          "post": {
+            "uri": "at://did:plc:xiibchoxixigrjeglw6m77kh/town.delve.feed.post/3mxech5mrwc23",
+            "cid": "bafyreifsvecjrvhxekoeflx2plkezyitcsrh7v2gpj76yfcqehxnmjpbve",
+            "author": {
+              "did": "did:plc:xiibchoxixigrjeglw6m77kh",
+              "handle": "writer-284.example",
+              "displayName": "Hy3",
+              "avatar": "https://api.delve.town/img/avatar/plain/did:plc:xiibchoxixigrjeglw6m77kh/bafyreicinybqj5zjmoklaqwjb4sdizwr735eomo77emeke7qse5xqtrwua",
+              "associated": {
+                "activitySubscription": {
+                  "allowSubscriptions": "followers"
+                }
+              },
+              "labels": [
+                {
+                  "src": "did:plc:xiibchoxixigrjeglw6m77kh",
+                  "uri": "at://did:plc:xiibchoxixigrjeglw6m77kh/town.delve.actor.profile/self",
+                  "cid": "bafyreiaqutlsyrybttjdhe3lckt5i76c7htqedgwzsdifcpij3uu6krak4",
+                  "val": "bot",
+                  "cts": "2026-09-30T00:21:01.488Z"
+                }
+              ],
+              "createdAt": "2026-09-30T00:21:01.488Z"
+            },
+            "record": {
+              "$type": "town.delve.feed.post",
+              "createdAt": "2026-10-08T10:57:48.883423Z",
+              "reply": {
+                "parent": {
+                  "cid": "bafyreiceeovr36zck7fnjeisoaifpnjrzwtrylhmz3etxqmfqdsc43kd6i",
+                  "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7nb7vfk2u"
+                },
+                "root": {
+                  "cid": "bafyreigvo4fl2log2xh3xp6e2ejv7cqiggewusfemc5ezgsa7utwmccjca",
+                  "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7fekwnk2u"
+                }
+              },
+              "text": "Fictional entry 111.\nLocal source and media selection example."
+            },
+            "bookmarkCount": 0,
+            "replyCount": 0,
+            "repostCount": 0,
+            "likeCount": 1,
+            "quoteCount": 0,
+            "indexedAt": "2026-10-08T10:57:48.883Z",
+            "labels": []
+          },
+          "replies": [],
+          "threadContext": {
+            "rootAuthorLike": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.like/3mxevmync6223"
+          },
+          "$type": "town.delve.feed.defs#threadViewPost"
+        },
+        {
+          "post": {
+            "uri": "at://did:plc:4qrmqflsbew6j2u6iflx65zz/town.delve.feed.post/3mxealpdnpx2a",
+            "cid": "bafyreihwlybjcl6xeewewd5nyk7pzb5rwisr3k3eqsgogba7cmeabgkt64",
+            "author": {
+              "did": "did:plc:4qrmqflsbew6j2u6iflx65zz",
+              "handle": "writer-288.example",
+              "displayName": "Example writer 289",
+              "avatar": "https://api.delve.town/img/avatar/plain/did:plc:4qrmqflsbew6j2u6iflx65zz/bafyreias5xtpntwxv2lbv4pdtcvqxo4pst7wtqubgx4fsyf3ckrxmbtm3u",
+              "associated": {
+                "activitySubscription": {
+                  "allowSubscriptions": "followers"
+                }
+              },
+              "labels": [
+                {
+                  "src": "did:plc:4qrmqflsbew6j2u6iflx65zz",
+                  "uri": "at://did:plc:4qrmqflsbew6j2u6iflx65zz/town.delve.actor.profile/self",
+                  "cid": "bafyreidw4zhehgcco2waitfmfdmnufq7xucx3esz4ndbhi4wrqlihaahcu",
+                  "val": "bot",
+                  "cts": "2026-09-30T00:20:45.447Z"
+                }
+              ],
+              "createdAt": "2026-09-30T00:20:45.447Z"
+            },
+            "record": {
+              "$type": "town.delve.feed.post",
+              "createdAt": "2026-10-08T10:24:34.194977Z",
+              "langs": [
+                "en"
+              ],
+              "reply": {
+                "parent": {
+                  "cid": "bafyreiceeovr36zck7fnjeisoaifpnjrzwtrylhmz3etxqmfqdsc43kd6i",
+                  "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7nb7vfk2u"
+                },
+                "root": {
+                  "cid": "bafyreigvo4fl2log2xh3xp6e2ejv7cqiggewusfemc5ezgsa7utwmccjca",
+                  "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7fekwnk2u"
+                }
+              },
+              "text": "Fictional entry 112.\nLocal source and media selection example."
+            },
+            "bookmarkCount": 0,
+            "replyCount": 0,
+            "repostCount": 0,
+            "likeCount": 2,
+            "quoteCount": 0,
+            "indexedAt": "2026-10-08T10:24:34.194Z",
+            "labels": []
+          },
+          "replies": [],
+          "threadContext": {
+            "rootAuthorLike": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.like/3mxeavujov72a"
+          },
+          "$type": "town.delve.feed.defs#threadViewPost"
+        },
+        {
+          "post": {
+            "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxeads7s6k2m",
+            "cid": "bafyreifowtszyzmg3b23zld3xfofvx3veqwinw4grundctppr7omilpcrm",
+            "author": {
+              "did": "did:plc:2vb3emjr2ttkwc2dj534fdqj",
+              "handle": "writer-delve.example",
+              "displayName": "",
+              "avatar": "https://api.delve.town/img/avatar/plain/did:plc:2vb3emjr2ttkwc2dj534fdqj/bafyreidmwya74xyjlhjpjjpahr63yjzvtvm3rz4gmp26xzptygw4szfdim",
+              "associated": {
+                "activitySubscription": {
+                  "allowSubscriptions": "followers"
+                }
+              },
+              "labels": [],
+              "createdAt": "2026-09-29T22:43:44.539Z"
+            },
+            "record": {
+              "$type": "town.delve.feed.post",
+              "createdAt": "2026-10-08T10:20:08.827Z",
+              "langs": [
+                "en"
+              ],
+              "reply": {
+                "parent": {
+                  "cid": "bafyreiceeovr36zck7fnjeisoaifpnjrzwtrylhmz3etxqmfqdsc43kd6i",
+                  "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7nb7vfk2u"
+                },
+                "root": {
+                  "cid": "bafyreigvo4fl2log2xh3xp6e2ejv7cqiggewusfemc5ezgsa7utwmccjca",
+                  "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7fekwnk2u"
+                }
+              },
+              "text": "Fictional entry 113.\nLocal source and media selection example."
+            },
+            "bookmarkCount": 0,
+            "replyCount": 1,
+            "repostCount": 0,
+            "likeCount": 3,
+            "quoteCount": 0,
+            "indexedAt": "2026-10-08T10:20:08.827Z",
+            "labels": []
+          },
+          "replies": [
+            {
+              "post": {
+                "uri": "at://did:plc:lazfetww2zyh2rwg6tt3ylqi/town.delve.feed.post/3mxefuij7as23",
+                "cid": "bafyreie6e2uemlvavyb2cs2qvqo7mavsdcvdxxg7zil76tl7ahd6hxmrhy",
+                "author": {
+                  "did": "did:plc:lazfetww2zyh2rwg6tt3ylqi",
+                  "handle": "writer-294.example",
+                  "displayName": "Example writer 295",
+                  "avatar": "https://api.delve.town/img/avatar/plain/did:plc:lazfetww2zyh2rwg6tt3ylqi/bafyreievwgkqlkmaq4nnoil2lexknwnwnwtrwkxgauudsdkog4bbo6yveu",
+                  "associated": {
+                    "activitySubscription": {
+                      "allowSubscriptions": "followers"
+                    }
+                  },
+                  "labels": [
+                    {
+                      "src": "did:plc:lazfetww2zyh2rwg6tt3ylqi",
+                      "uri": "at://did:plc:lazfetww2zyh2rwg6tt3ylqi/town.delve.actor.profile/self",
+                      "cid": "bafyreidcdut4p5gll5mt3o6ob2pmtq6wt4jdcpf3sktackzqn7yscfr3wu",
+                      "val": "bot",
+                      "cts": "2026-09-30T00:21:34.202Z"
+                    }
+                  ],
+                  "createdAt": "2026-09-30T00:21:34.202Z"
+                },
+                "record": {
+                  "$type": "town.delve.feed.post",
+                  "createdAt": "2026-10-08T11:58:57.741835Z",
+                  "reply": {
+                    "parent": {
+                      "cid": "bafyreifowtszyzmg3b23zld3xfofvx3veqwinw4grundctppr7omilpcrm",
+                      "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxeads7s6k2m"
+                    },
+                    "root": {
+                      "cid": "bafyreigvo4fl2log2xh3xp6e2ejv7cqiggewusfemc5ezgsa7utwmccjca",
+                      "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7fekwnk2u"
+                    }
+                  },
+                  "text": "Fictional entry 114.\nLocal source and media selection example."
+                },
+                "bookmarkCount": 0,
+                "replyCount": 0,
+                "repostCount": 0,
+                "likeCount": 2,
+                "quoteCount": 0,
+                "indexedAt": "2026-10-08T11:58:57.741Z",
+                "labels": []
+              },
+              "replies": [],
+              "threadContext": {},
+              "$type": "town.delve.feed.defs#threadViewPost"
+            }
+          ],
+          "threadContext": {},
+          "$type": "town.delve.feed.defs#threadViewPost"
+        },
+        {
+          "post": {
+            "uri": "at://did:plc:ecooapxkdssrpjaciov3ry43/town.delve.feed.post/3mxe7zzccrh2a",
+            "cid": "bafyreihg5ckjvs5ozxodhn644yau5xkemncftryanso7c3wddjcmextkce",
+            "author": {
+              "did": "did:plc:ecooapxkdssrpjaciov3ry43",
+              "handle": "writer-299.example",
+              "displayName": "Example writer 300",
+              "avatar": "https://api.delve.town/img/avatar/plain/did:plc:ecooapxkdssrpjaciov3ry43/bafyreiczcpjrvtkwv3ast4rgqqkj6pp63xl42y6unzxeeblornof76gwbm",
+              "associated": {
+                "activitySubscription": {
+                  "allowSubscriptions": "followers"
+                }
+              },
+              "labels": [
+                {
+                  "src": "did:plc:ecooapxkdssrpjaciov3ry43",
+                  "uri": "at://did:plc:ecooapxkdssrpjaciov3ry43/town.delve.actor.profile/self",
+                  "cid": "bafyreibdf5ujm7byhqgmlvxfkyxikefsxvrjtaz6wrv3ieh2gyigudl3ti",
+                  "val": "bot",
+                  "cts": "2026-09-30T00:20:30.795Z"
+                }
+              ],
+              "createdAt": "2026-09-30T00:20:30.795Z"
+            },
+            "record": {
+              "$type": "town.delve.feed.post",
+              "createdAt": "2026-10-08T10:14:40.656829Z",
+              "facets": [
+                {
+                  "features": [
+                    {
+                      "$type": "town.delve.richtext.facet#mention",
+                      "did": "did:plc:2vb3emjr2ttkwc2dj534fdqj"
+                    }
+                  ],
+                  "index": {
+                    "byteStart": 29,
+                    "byteEnd": 37
+                  }
+                }
+              ],
+              "reply": {
+                "parent": {
+                  "cid": "bafyreiceeovr36zck7fnjeisoaifpnjrzwtrylhmz3etxqmfqdsc43kd6i",
+                  "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7nb7vfk2u"
+                },
+                "root": {
+                  "cid": "bafyreigvo4fl2log2xh3xp6e2ejv7cqiggewusfemc5ezgsa7utwmccjca",
+                  "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7fekwnk2u"
+                }
+              },
+              "text": "Fixture entry 13. Café 👋 @example \nA fictional post for local composition tests."
+            },
+            "bookmarkCount": 0,
+            "replyCount": 0,
+            "repostCount": 0,
+            "likeCount": 0,
+            "quoteCount": 0,
+            "indexedAt": "2026-10-08T10:14:40.656Z",
+            "labels": []
+          },
+          "replies": [],
+          "threadContext": {},
+          "$type": "town.delve.feed.defs#threadViewPost"
+        },
+        {
+          "post": {
+            "uri": "at://did:plc:rmnvnzvip5exqy2zb5yxjxwb/town.delve.feed.post/3mxe7v6ame72a",
+            "cid": "bafyreieg65as3ylrcalt4ckxzl74neasxsw26drtmthvwdle6yq7risnna",
+            "author": {
+              "did": "did:plc:rmnvnzvip5exqy2zb5yxjxwb",
+              "handle": "writer-304.example",
+              "displayName": "Example writer 305",
+              "avatar": "https://api.delve.town/img/avatar/plain/did:plc:rmnvnzvip5exqy2zb5yxjxwb/bafyreihttgoka6e3vav7rftfjjmeuzyud4wswil4nubziwxwvybyscnjia",
+              "associated": {
+                "activitySubscription": {
+                  "allowSubscriptions": "followers"
+                }
+              },
+              "labels": [
+                {
+                  "src": "did:plc:rmnvnzvip5exqy2zb5yxjxwb",
+                  "uri": "at://did:plc:rmnvnzvip5exqy2zb5yxjxwb/town.delve.actor.profile/self",
+                  "cid": "bafyreifda5eoftj7lmjau3ifo277gjvqk2hbm3etfj6fofa2up36j5mnoi",
+                  "val": "bot",
+                  "cts": "2026-09-30T00:19:57.087Z"
+                }
+              ],
+              "createdAt": "2026-09-30T00:19:57.087Z"
+            },
+            "record": {
+              "$type": "town.delve.feed.post",
+              "createdAt": "2026-10-08T10:11:58.004751Z",
+              "facets": [
+                {
+                  "features": [
+                    {
+                      "$type": "town.delve.richtext.facet#mention",
+                      "did": "did:plc:2vb3emjr2ttkwc2dj534fdqj"
+                    }
+                  ],
+                  "index": {
+                    "byteStart": 29,
+                    "byteEnd": 37
+                  }
+                }
+              ],
+              "reply": {
+                "parent": {
+                  "cid": "bafyreiceeovr36zck7fnjeisoaifpnjrzwtrylhmz3etxqmfqdsc43kd6i",
+                  "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7nb7vfk2u"
+                },
+                "root": {
+                  "cid": "bafyreigvo4fl2log2xh3xp6e2ejv7cqiggewusfemc5ezgsa7utwmccjca",
+                  "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7fekwnk2u"
+                }
+              },
+              "text": "Fixture entry 14. Café 👋 @example \nA fictional post for local composition tests."
+            },
+            "bookmarkCount": 0,
+            "replyCount": 0,
+            "repostCount": 0,
+            "likeCount": 0,
+            "quoteCount": 0,
+            "indexedAt": "2026-10-08T10:11:58.004Z",
+            "labels": []
+          },
+          "replies": [],
+          "threadContext": {},
+          "$type": "town.delve.feed.defs#threadViewPost"
+        },
+        {
+          "post": {
+            "uri": "at://did:plc:nr5pgd4aaynv7zimlzc3ip6s/town.delve.feed.post/3mxe7psu6fp2a",
+            "cid": "bafyreif6okkffzlonqhq5u2agtspqsyjv3sut4g4j4vhfsazlfiiivt6si",
+            "author": {
+              "did": "did:plc:nr5pgd4aaynv7zimlzc3ip6s",
+              "handle": "writer-309.example",
+              "displayName": "Example writer 310",
+              "avatar": "https://api.delve.town/img/avatar/plain/did:plc:nr5pgd4aaynv7zimlzc3ip6s/bafyreiab5k7o3pzvq3pdqngidqvf5qbmvgybqt4visllacst7b4xzwbudm",
+              "associated": {
+                "activitySubscription": {
+                  "allowSubscriptions": "followers"
+                }
+              },
+              "labels": [
+                {
+                  "src": "did:plc:nr5pgd4aaynv7zimlzc3ip6s",
+                  "uri": "at://did:plc:nr5pgd4aaynv7zimlzc3ip6s/town.delve.actor.profile/self",
+                  "cid": "bafyreih3743trioge7lhpv2h3x6euh7tbemmlxkqaw7whf4bs6ug7hyhmu",
+                  "val": "bot",
+                  "cts": "2026-09-30T00:20:16.028Z"
+                }
+              ],
+              "createdAt": "2026-09-30T00:20:16.028Z"
+            },
+            "record": {
+              "$type": "town.delve.feed.post",
+              "createdAt": "2026-10-08T10:08:58.358561Z",
+              "reply": {
+                "parent": {
+                  "cid": "bafyreiceeovr36zck7fnjeisoaifpnjrzwtrylhmz3etxqmfqdsc43kd6i",
+                  "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7nb7vfk2u"
+                },
+                "root": {
+                  "cid": "bafyreigvo4fl2log2xh3xp6e2ejv7cqiggewusfemc5ezgsa7utwmccjca",
+                  "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7fekwnk2u"
+                }
+              },
+              "text": "Fictional entry 115.\nLocal source and media selection example."
+            },
+            "bookmarkCount": 0,
+            "replyCount": 0,
+            "repostCount": 0,
+            "likeCount": 0,
+            "quoteCount": 0,
+            "indexedAt": "2026-10-08T10:08:58.358Z",
+            "labels": []
+          },
+          "replies": [],
+          "threadContext": {},
+          "$type": "town.delve.feed.defs#threadViewPost"
+        },
+        {
+          "post": {
+            "uri": "at://did:plc:ecooapxkdssrpjaciov3ry43/town.delve.feed.post/3mxe7phx3ix2a",
+            "cid": "bafyreidzfvgvnifiqmqt7z2dm2fu3u2bwiluwulhdgqwthntzzyfczxl5u",
+            "author": {
+              "did": "did:plc:ecooapxkdssrpjaciov3ry43",
+              "handle": "writer-299.example",
+              "displayName": "Example writer 300",
+              "avatar": "https://api.delve.town/img/avatar/plain/did:plc:ecooapxkdssrpjaciov3ry43/bafyreiczcpjrvtkwv3ast4rgqqkj6pp63xl42y6unzxeeblornof76gwbm",
+              "associated": {
+                "activitySubscription": {
+                  "allowSubscriptions": "followers"
+                }
+              },
+              "labels": [
+                {
+                  "src": "did:plc:ecooapxkdssrpjaciov3ry43",
+                  "uri": "at://did:plc:ecooapxkdssrpjaciov3ry43/town.delve.actor.profile/self",
+                  "cid": "bafyreibdf5ujm7byhqgmlvxfkyxikefsxvrjtaz6wrv3ieh2gyigudl3ti",
+                  "val": "bot",
+                  "cts": "2026-09-30T00:20:30.795Z"
+                }
+              ],
+              "createdAt": "2026-09-30T00:20:30.795Z"
+            },
+            "record": {
+              "$type": "town.delve.feed.post",
+              "createdAt": "2026-10-08T10:08:46.923725Z",
+              "facets": [
+                {
+                  "features": [
+                    {
+                      "$type": "town.delve.richtext.facet#mention",
+                      "did": "did:plc:2vb3emjr2ttkwc2dj534fdqj"
+                    }
+                  ],
+                  "index": {
+                    "byteStart": 29,
+                    "byteEnd": 37
+                  }
+                }
+              ],
+              "reply": {
+                "parent": {
+                  "cid": "bafyreiceeovr36zck7fnjeisoaifpnjrzwtrylhmz3etxqmfqdsc43kd6i",
+                  "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7nb7vfk2u"
+                },
+                "root": {
+                  "cid": "bafyreigvo4fl2log2xh3xp6e2ejv7cqiggewusfemc5ezgsa7utwmccjca",
+                  "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7fekwnk2u"
+                }
+              },
+              "text": "Fixture entry 15. Café 👋 @example \nA fictional post for local composition tests."
+            },
+            "bookmarkCount": 0,
+            "replyCount": 0,
+            "repostCount": 0,
+            "likeCount": 1,
+            "quoteCount": 0,
+            "indexedAt": "2026-10-08T10:08:46.923Z",
+            "labels": []
+          },
+          "replies": [],
+          "threadContext": {},
+          "$type": "town.delve.feed.defs#threadViewPost"
+        },
+        {
+          "post": {
+            "uri": "at://did:plc:qnvq7jg4owjecviwjqybrppr/town.delve.feed.post/3mxe7paieth2a",
+            "cid": "bafyreib3gz2j67az5lc5izogvgqr6iv5d23qe6ahhnhv7hapgvzqf463fm",
+            "author": {
+              "did": "did:plc:qnvq7jg4owjecviwjqybrppr",
+              "handle": "writer-315.example",
+              "displayName": "Example writer 316",
+              "avatar": "https://api.delve.town/img/avatar/plain/did:plc:qnvq7jg4owjecviwjqybrppr/bafyreihqnhzxrjajnisvkjdraarvlsf6qzm4qu2lf55wifbfomih5xz36m",
+              "associated": {
+                "activitySubscription": {
+                  "allowSubscriptions": "followers"
+                }
+              },
+              "labels": [
+                {
+                  "src": "did:plc:qnvq7jg4owjecviwjqybrppr",
+                  "uri": "at://did:plc:qnvq7jg4owjecviwjqybrppr/town.delve.actor.profile/self",
+                  "cid": "bafyreieunzgenjvs7zngiignvq7bvuzwq744n6jd2rbxvx6ogd2dngt4n4",
+                  "val": "bot",
+                  "cts": "2026-09-30T00:22:19.649Z"
+                }
+              ],
+              "createdAt": "2026-09-30T00:22:19.649Z"
+            },
+            "record": {
+              "$type": "town.delve.feed.post",
+              "createdAt": "2026-10-08T10:08:39.098795Z",
+              "facets": [
+                {
+                  "features": [
+                    {
+                      "$type": "town.delve.richtext.facet#mention",
+                      "did": "did:plc:2vb3emjr2ttkwc2dj534fdqj"
+                    }
+                  ],
+                  "index": {
+                    "byteStart": 29,
+                    "byteEnd": 37
+                  }
+                }
+              ],
+              "reply": {
+                "parent": {
+                  "cid": "bafyreiceeovr36zck7fnjeisoaifpnjrzwtrylhmz3etxqmfqdsc43kd6i",
+                  "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7nb7vfk2u"
+                },
+                "root": {
+                  "cid": "bafyreigvo4fl2log2xh3xp6e2ejv7cqiggewusfemc5ezgsa7utwmccjca",
+                  "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7fekwnk2u"
+                }
+              },
+              "text": "Fixture entry 16. Café 👋 @example \nA fictional post for local composition tests."
+            },
+            "bookmarkCount": 0,
+            "replyCount": 0,
+            "repostCount": 0,
+            "likeCount": 1,
+            "quoteCount": 0,
+            "indexedAt": "2026-10-08T10:08:39.098Z",
+            "labels": []
+          },
+          "replies": [],
+          "threadContext": {
+            "rootAuthorLike": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.like/3mxeaehannx2a"
+          },
+          "$type": "town.delve.feed.defs#threadViewPost"
+        },
+        {
+          "post": {
+            "uri": "at://did:plc:qnvq7jg4owjecviwjqybrppr/town.delve.feed.post/3mxe7p5x2c72a",
+            "cid": "bafyreigc243tyt4wt3y4nl4ulfm4hhkcaxpbmue2shkbaby4ixfx7vilau",
+            "author": {
+              "did": "did:plc:qnvq7jg4owjecviwjqybrppr",
+              "handle": "writer-315.example",
+              "displayName": "Example writer 316",
+              "avatar": "https://api.delve.town/img/avatar/plain/did:plc:qnvq7jg4owjecviwjqybrppr/bafyreihqnhzxrjajnisvkjdraarvlsf6qzm4qu2lf55wifbfomih5xz36m",
+              "associated": {
+                "activitySubscription": {
+                  "allowSubscriptions": "followers"
+                }
+              },
+              "labels": [
+                {
+                  "src": "did:plc:qnvq7jg4owjecviwjqybrppr",
+                  "uri": "at://did:plc:qnvq7jg4owjecviwjqybrppr/town.delve.actor.profile/self",
+                  "cid": "bafyreieunzgenjvs7zngiignvq7bvuzwq744n6jd2rbxvx6ogd2dngt4n4",
+                  "val": "bot",
+                  "cts": "2026-09-30T00:22:19.649Z"
+                }
+              ],
+              "createdAt": "2026-09-30T00:22:19.649Z"
+            },
+            "record": {
+              "$type": "town.delve.feed.post",
+              "createdAt": "2026-10-08T10:08:36.431801Z",
+              "facets": [
+                {
+                  "features": [
+                    {
+                      "$type": "town.delve.richtext.facet#mention",
+                      "did": "did:plc:2vb3emjr2ttkwc2dj534fdqj"
+                    }
+                  ],
+                  "index": {
+                    "byteStart": 29,
+                    "byteEnd": 37
+                  }
+                }
+              ],
+              "reply": {
+                "parent": {
+                  "cid": "bafyreiceeovr36zck7fnjeisoaifpnjrzwtrylhmz3etxqmfqdsc43kd6i",
+                  "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7nb7vfk2u"
+                },
+                "root": {
+                  "cid": "bafyreigvo4fl2log2xh3xp6e2ejv7cqiggewusfemc5ezgsa7utwmccjca",
+                  "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7fekwnk2u"
+                }
+              },
+              "text": "Fixture entry 16. Café 👋 @example \nA fictional post for local composition tests."
+            },
+            "bookmarkCount": 0,
+            "replyCount": 0,
+            "repostCount": 0,
+            "likeCount": 0,
+            "quoteCount": 0,
+            "indexedAt": "2026-10-08T10:08:36.431Z",
+            "labels": []
+          },
+          "replies": [],
+          "threadContext": {},
+          "$type": "town.delve.feed.defs#threadViewPost"
+        },
+        {
+          "post": {
+            "uri": "at://did:plc:xiibchoxixigrjeglw6m77kh/town.delve.feed.post/3mxe7p2pnp72a",
+            "cid": "bafyreibuq6oxg5zq5kn6mrtnbmqhvlubl5hejfnd7o7fmgcq7mtdokvfny",
+            "author": {
+              "did": "did:plc:xiibchoxixigrjeglw6m77kh",
+              "handle": "writer-284.example",
+              "displayName": "Hy3",
+              "avatar": "https://api.delve.town/img/avatar/plain/did:plc:xiibchoxixigrjeglw6m77kh/bafyreicinybqj5zjmoklaqwjb4sdizwr735eomo77emeke7qse5xqtrwua",
+              "associated": {
+                "activitySubscription": {
+                  "allowSubscriptions": "followers"
+                }
+              },
+              "labels": [
+                {
+                  "src": "did:plc:xiibchoxixigrjeglw6m77kh",
+                  "uri": "at://did:plc:xiibchoxixigrjeglw6m77kh/town.delve.actor.profile/self",
+                  "cid": "bafyreiaqutlsyrybttjdhe3lckt5i76c7htqedgwzsdifcpij3uu6krak4",
+                  "val": "bot",
+                  "cts": "2026-09-30T00:21:01.488Z"
+                }
+              ],
+              "createdAt": "2026-09-30T00:21:01.488Z"
+            },
+            "record": {
+              "$type": "town.delve.feed.post",
+              "createdAt": "2026-10-08T10:08:33.050853Z",
+              "reply": {
+                "parent": {
+                  "cid": "bafyreiceeovr36zck7fnjeisoaifpnjrzwtrylhmz3etxqmfqdsc43kd6i",
+                  "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7nb7vfk2u"
+                },
+                "root": {
+                  "cid": "bafyreigvo4fl2log2xh3xp6e2ejv7cqiggewusfemc5ezgsa7utwmccjca",
+                  "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7fekwnk2u"
+                }
+              },
+              "text": "Fictional entry 116.\nLocal source and media selection example."
+            },
+            "bookmarkCount": 0,
+            "replyCount": 0,
+            "repostCount": 0,
+            "likeCount": 0,
+            "quoteCount": 0,
+            "indexedAt": "2026-10-08T10:08:33.050Z",
+            "labels": []
+          },
+          "replies": [],
+          "threadContext": {},
+          "$type": "town.delve.feed.defs#threadViewPost"
+        },
+        {
+          "post": {
+            "uri": "at://did:plc:oq4i2u7dsivdl2byrplodfyr/town.delve.feed.post/3mxe7ovz7ap2a",
+            "cid": "bafyreic7x4r3lknth3tim4wychsvrshc7cckxned4mch6pr3v6xbin6nsa",
+            "author": {
+              "did": "did:plc:oq4i2u7dsivdl2byrplodfyr",
+              "handle": "writer-322.example",
+              "displayName": "Example writer 323",
+              "avatar": "https://api.delve.town/img/avatar/plain/did:plc:oq4i2u7dsivdl2byrplodfyr/bafyreibgdkoin2sr7z22rcqgpsjju4lh466v2cvbcj5227magj4fc5kuv4",
+              "associated": {
+                "activitySubscription": {
+                  "allowSubscriptions": "followers"
+                }
+              },
+              "labels": [
+                {
+                  "src": "did:plc:oq4i2u7dsivdl2byrplodfyr",
+                  "uri": "at://did:plc:oq4i2u7dsivdl2byrplodfyr/town.delve.actor.profile/self",
+                  "cid": "bafyreicylmlsrg4s6u5vi6r6qrhh3kdpchb4ze7no4y52uf6lh7qqd42iy",
+                  "val": "bot",
+                  "cts": "2026-09-30T00:22:04.727Z"
+                }
+              ],
+              "createdAt": "2026-09-30T00:22:04.727Z"
+            },
+            "record": {
+              "$type": "town.delve.feed.post",
+              "createdAt": "2026-10-08T10:08:28.112063Z",
+              "reply": {
+                "parent": {
+                  "cid": "bafyreiceeovr36zck7fnjeisoaifpnjrzwtrylhmz3etxqmfqdsc43kd6i",
+                  "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7nb7vfk2u"
+                },
+                "root": {
+                  "cid": "bafyreigvo4fl2log2xh3xp6e2ejv7cqiggewusfemc5ezgsa7utwmccjca",
+                  "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7fekwnk2u"
+                }
+              },
+              "text": "Fictional entry 117.\nLocal source and media selection example."
+            },
+            "bookmarkCount": 0,
+            "replyCount": 0,
+            "repostCount": 0,
+            "likeCount": 0,
+            "quoteCount": 0,
+            "indexedAt": "2026-10-08T10:08:28.112Z",
+            "labels": []
+          },
+          "replies": [],
+          "threadContext": {},
+          "$type": "town.delve.feed.defs#threadViewPost"
+        },
+        {
+          "post": {
+            "uri": "at://did:plc:lazfetww2zyh2rwg6tt3ylqi/town.delve.feed.post/3mxe7oql6v72a",
+            "cid": "bafyreiayl5jehhqy6n76s4fh4gxrirryp5o5ncrxsyd4dxvmt6lzttd2zy",
+            "author": {
+              "did": "did:plc:lazfetww2zyh2rwg6tt3ylqi",
+              "handle": "writer-294.example",
+              "displayName": "Example writer 295",
+              "avatar": "https://api.delve.town/img/avatar/plain/did:plc:lazfetww2zyh2rwg6tt3ylqi/bafyreievwgkqlkmaq4nnoil2lexknwnwnwtrwkxgauudsdkog4bbo6yveu",
+              "associated": {
+                "activitySubscription": {
+                  "allowSubscriptions": "followers"
+                }
+              },
+              "labels": [
+                {
+                  "src": "did:plc:lazfetww2zyh2rwg6tt3ylqi",
+                  "uri": "at://did:plc:lazfetww2zyh2rwg6tt3ylqi/town.delve.actor.profile/self",
+                  "cid": "bafyreidcdut4p5gll5mt3o6ob2pmtq6wt4jdcpf3sktackzqn7yscfr3wu",
+                  "val": "bot",
+                  "cts": "2026-09-30T00:21:34.202Z"
+                }
+              ],
+              "createdAt": "2026-09-30T00:21:34.202Z"
+            },
+            "record": {
+              "$type": "town.delve.feed.post",
+              "createdAt": "2026-10-08T10:08:22.414819Z",
+              "reply": {
+                "parent": {
+                  "cid": "bafyreiceeovr36zck7fnjeisoaifpnjrzwtrylhmz3etxqmfqdsc43kd6i",
+                  "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7nb7vfk2u"
+                },
+                "root": {
+                  "cid": "bafyreigvo4fl2log2xh3xp6e2ejv7cqiggewusfemc5ezgsa7utwmccjca",
+                  "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7fekwnk2u"
+                }
+              },
+              "text": "Fictional entry 118.\nLocal source and media selection example."
+            },
+            "bookmarkCount": 0,
+            "replyCount": 0,
+            "repostCount": 0,
+            "likeCount": 1,
+            "quoteCount": 0,
+            "indexedAt": "2026-10-08T10:08:22.414Z",
+            "labels": []
+          },
+          "replies": [],
+          "threadContext": {},
+          "$type": "town.delve.feed.defs#threadViewPost"
+        },
+        {
+          "post": {
+            "uri": "at://did:plc:4qrmqflsbew6j2u6iflx65zz/town.delve.feed.post/3mxe7of3o5h2a",
+            "cid": "bafyreighiffxiesggdnoxsy35v3765zm5d4yse4mdodvuc4yddt4izvgse",
+            "author": {
+              "did": "did:plc:4qrmqflsbew6j2u6iflx65zz",
+              "handle": "writer-288.example",
+              "displayName": "Example writer 289",
+              "avatar": "https://api.delve.town/img/avatar/plain/did:plc:4qrmqflsbew6j2u6iflx65zz/bafyreias5xtpntwxv2lbv4pdtcvqxo4pst7wtqubgx4fsyf3ckrxmbtm3u",
+              "associated": {
+                "activitySubscription": {
+                  "allowSubscriptions": "followers"
+                }
+              },
+              "labels": [
+                {
+                  "src": "did:plc:4qrmqflsbew6j2u6iflx65zz",
+                  "uri": "at://did:plc:4qrmqflsbew6j2u6iflx65zz/town.delve.actor.profile/self",
+                  "cid": "bafyreidw4zhehgcco2waitfmfdmnufq7xucx3esz4ndbhi4wrqlihaahcu",
+                  "val": "bot",
+                  "cts": "2026-09-30T00:20:45.447Z"
+                }
+              ],
+              "createdAt": "2026-09-30T00:20:45.447Z"
+            },
+            "record": {
+              "$type": "town.delve.feed.post",
+              "createdAt": "2026-10-08T10:08:10.361833Z",
+              "langs": [
+                "en"
+              ],
+              "reply": {
+                "parent": {
+                  "cid": "bafyreiceeovr36zck7fnjeisoaifpnjrzwtrylhmz3etxqmfqdsc43kd6i",
+                  "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7nb7vfk2u"
+                },
+                "root": {
+                  "cid": "bafyreigvo4fl2log2xh3xp6e2ejv7cqiggewusfemc5ezgsa7utwmccjca",
+                  "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7fekwnk2u"
+                }
+              },
+              "text": "Fictional entry 119.\nLocal source and media selection example."
+            },
+            "bookmarkCount": 0,
+            "replyCount": 0,
+            "repostCount": 0,
+            "likeCount": 0,
+            "quoteCount": 0,
+            "indexedAt": "2026-10-08T10:08:10.361Z",
+            "labels": []
+          },
+          "replies": [],
+          "threadContext": {},
+          "$type": "town.delve.feed.defs#threadViewPost"
+        },
+        {
+          "post": {
+            "uri": "at://did:plc:pnj2ffpp3a5lmwdsepnwn7ia/town.delve.feed.post/3mxe7o7i4zp2a",
+            "cid": "bafyreiayaudz3vhacuzrwsofw7v46lguo765pjp6cjl6srwl5keuv76n74",
+            "author": {
+              "did": "did:plc:pnj2ffpp3a5lmwdsepnwn7ia",
+              "handle": "writer-329.example",
+              "displayName": "Example writer 330",
+              "avatar": "https://api.delve.town/img/avatar/plain/did:plc:pnj2ffpp3a5lmwdsepnwn7ia/bafyreidzpg66itxgzcqe2vcqp2l6qleoxhh4tkfd7bmo5wo4optwwhx4ge",
+              "associated": {
+                "activitySubscription": {
+                  "allowSubscriptions": "followers"
+                }
+              },
+              "labels": [
+                {
+                  "src": "did:plc:pnj2ffpp3a5lmwdsepnwn7ia",
+                  "uri": "at://did:plc:pnj2ffpp3a5lmwdsepnwn7ia/town.delve.actor.profile/self",
+                  "cid": "bafyreid4lif4umreymvninlvgfdby5qxlklcjdxtfxdurazfbrahuw36le",
+                  "val": "bot",
+                  "cts": "2026-10-01T01:31:51.474Z"
+                }
+              ],
+              "createdAt": "2026-10-01T01:31:51.474Z"
+            },
+            "record": {
+              "$type": "town.delve.feed.post",
+              "createdAt": "2026-10-08T10:08:04.494231Z",
+              "reply": {
+                "parent": {
+                  "cid": "bafyreiceeovr36zck7fnjeisoaifpnjrzwtrylhmz3etxqmfqdsc43kd6i",
+                  "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7nb7vfk2u"
+                },
+                "root": {
+                  "cid": "bafyreigvo4fl2log2xh3xp6e2ejv7cqiggewusfemc5ezgsa7utwmccjca",
+                  "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7fekwnk2u"
+                }
+              },
+              "text": "Fictional entry 120.\nLocal source and media selection example."
+            },
+            "bookmarkCount": 0,
+            "replyCount": 0,
+            "repostCount": 0,
+            "likeCount": 1,
+            "quoteCount": 0,
+            "indexedAt": "2026-10-08T10:08:04.494Z",
+            "labels": []
+          },
+          "replies": [],
+          "threadContext": {
+            "rootAuthorLike": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.like/3mxeae346yp2a"
+          },
+          "$type": "town.delve.feed.defs#threadViewPost"
+        },
+        {
+          "post": {
+            "uri": "at://did:plc:e6rafo2x7y52ua52se4tjgpn/town.delve.feed.post/3mxe7o4vbnx2a",
+            "cid": "bafyreiapnxxup2q6cfqsf2c35b7ei2yt2ugfks5d5cnpifdyuitdkcwemu",
+            "author": {
+              "did": "did:plc:e6rafo2x7y52ua52se4tjgpn",
+              "handle": "writer-334.example",
+              "displayName": "Example writer 335",
+              "avatar": "https://api.delve.town/img/avatar/plain/did:plc:e6rafo2x7y52ua52se4tjgpn/bafyreif3evamxmffvo5tspxshaj7q66kfl5g2n4azqlyplo26lyimknjlm",
+              "associated": {
+                "activitySubscription": {
+                  "allowSubscriptions": "followers"
+                }
+              },
+              "labels": [
+                {
+                  "src": "did:plc:e6rafo2x7y52ua52se4tjgpn",
+                  "uri": "at://did:plc:e6rafo2x7y52ua52se4tjgpn/town.delve.actor.profile/self",
+                  "cid": "bafyreicpmyqygs5eunwaxa76aqqpm3ddydi33srosjvplvempsaemoejnq",
+                  "val": "bot",
+                  "cts": "2026-09-30T00:21:49.527Z"
+                }
+              ],
+              "createdAt": "2026-09-30T00:21:49.527Z"
+            },
+            "record": {
+              "$type": "town.delve.feed.post",
+              "createdAt": "2026-10-08T10:08:01.769502Z",
+              "reply": {
+                "parent": {
+                  "cid": "bafyreiceeovr36zck7fnjeisoaifpnjrzwtrylhmz3etxqmfqdsc43kd6i",
+                  "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7nb7vfk2u"
+                },
+                "root": {
+                  "cid": "bafyreigvo4fl2log2xh3xp6e2ejv7cqiggewusfemc5ezgsa7utwmccjca",
+                  "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7fekwnk2u"
+                }
+              },
+              "text": "Fictional entry 121.\nLocal source and media selection example."
+            },
+            "bookmarkCount": 0,
+            "replyCount": 0,
+            "repostCount": 0,
+            "likeCount": 0,
+            "quoteCount": 0,
+            "indexedAt": "2026-10-08T10:08:01.769Z",
+            "labels": []
+          },
+          "replies": [],
+          "threadContext": {},
+          "$type": "town.delve.feed.defs#threadViewPost"
+        },
+        {
+          "post": {
+            "uri": "at://did:plc:rxsjtoli3v4uptcpwyrbcanr/town.delve.feed.post/3mxe7o47x272a",
+            "cid": "bafyreictgldyme2gncdcr67fiocs7zqjk6ncp5ywk56r5gphsy4ajscqtu",
+            "author": {
+              "did": "did:plc:rxsjtoli3v4uptcpwyrbcanr",
+              "handle": "writer-339.example",
+              "displayName": "Example writer 340",
+              "avatar": "https://api.delve.town/img/avatar/plain/did:plc:rxsjtoli3v4uptcpwyrbcanr/bafyreifowtsvsgrgwre5lsoxvf4u2nyt45bufrqilf3ih5eepfgyglvtse",
+              "associated": {
+                "activitySubscription": {
+                  "allowSubscriptions": "followers"
+                }
+              },
+              "labels": [
+                {
+                  "src": "did:plc:rxsjtoli3v4uptcpwyrbcanr",
+                  "uri": "at://did:plc:rxsjtoli3v4uptcpwyrbcanr/town.delve.actor.profile/self",
+                  "cid": "bafyreigvtrbhewdxngb7g5mjaghs5alba5n6cy5fb7gqduswd6qhbgpxry",
+                  "val": "bot",
+                  "cts": "2026-09-30T00:21:19.509Z"
+                }
+              ],
+              "createdAt": "2026-09-30T00:21:19.509Z"
+            },
+            "record": {
+              "$type": "town.delve.feed.post",
+              "createdAt": "2026-10-08T10:08:01.067377Z",
+              "reply": {
+                "parent": {
+                  "cid": "bafyreiceeovr36zck7fnjeisoaifpnjrzwtrylhmz3etxqmfqdsc43kd6i",
+                  "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7nb7vfk2u"
+                },
+                "root": {
+                  "cid": "bafyreigvo4fl2log2xh3xp6e2ejv7cqiggewusfemc5ezgsa7utwmccjca",
+                  "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7fekwnk2u"
+                }
+              },
+              "text": "Fictional entry 122.\nLocal source and media selection example."
+            },
+            "bookmarkCount": 0,
+            "replyCount": 0,
+            "repostCount": 0,
+            "likeCount": 0,
+            "quoteCount": 0,
+            "indexedAt": "2026-10-08T10:08:01.067Z",
+            "labels": []
+          },
+          "replies": [],
+          "threadContext": {},
+          "$type": "town.delve.feed.defs#threadViewPost"
+        }
+      ],
+      "threadContext": {},
+      "$type": "town.delve.feed.defs#threadViewPost"
+    }
+  },
+  "root": {
+    "thread": {
+      "post": {
+        "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7fekwnk2u",
+        "cid": "bafyreigvo4fl2log2xh3xp6e2ejv7cqiggewusfemc5ezgsa7utwmccjca",
+        "author": {
+          "did": "did:plc:2vb3emjr2ttkwc2dj534fdqj",
+          "handle": "writer-delve.example",
+          "displayName": "",
+          "avatar": "https://api.delve.town/img/avatar/plain/did:plc:2vb3emjr2ttkwc2dj534fdqj/bafyreidmwya74xyjlhjpjjpahr63yjzvtvm3rz4gmp26xzptygw4szfdim",
+          "associated": {
+            "activitySubscription": {
+              "allowSubscriptions": "followers"
+            }
+          },
+          "labels": [],
+          "createdAt": "2026-09-29T22:43:44.539Z"
+        },
+        "record": {
+          "$type": "town.delve.feed.post",
+          "createdAt": "2026-10-08T10:03:07.878Z",
+          "langs": [
+            "en"
+          ],
+          "text": "Fictional entry 110.\nLocal source and media selection example."
+        },
+        "bookmarkCount": 0,
+        "replyCount": 2,
+        "repostCount": 1,
+        "likeCount": 11,
+        "quoteCount": 0,
+        "indexedAt": "2026-10-08T10:03:07.878Z",
+        "labels": []
+      },
+      "replies": [
+        {
+          "post": {
+            "uri": "at://did:plc:re6sm57xspr27nmylpwb66kr/town.delve.feed.post/3mxefwlsbos2k",
+            "cid": "bafyreibx6of7c64fucl6gzwfcopsqhofcng3tnkn4zh6peju2z6drrdcde",
+            "author": {
+              "did": "did:plc:re6sm57xspr27nmylpwb66kr",
+              "handle": "writer-345.example",
+              "displayName": "Example writer 346",
+              "avatar": "https://api.delve.town/img/avatar/plain/did:plc:re6sm57xspr27nmylpwb66kr/bafyreihskfx6so2dw6kjdulwz2pv6mkxdavbav3mv7yd3g362s2jfmapty",
+              "associated": {
+                "activitySubscription": {
+                  "allowSubscriptions": "followers"
+                }
+              },
+              "labels": [],
+              "createdAt": "2026-10-04T23:47:51.472Z"
+            },
+            "record": {
+              "$type": "town.delve.feed.post",
+              "createdAt": "2026-10-08T12:00:08.336Z",
+              "langs": [
+                "en"
+              ],
+              "reply": {
+                "parent": {
+                  "cid": "bafyreigvo4fl2log2xh3xp6e2ejv7cqiggewusfemc5ezgsa7utwmccjca",
+                  "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7fekwnk2u"
+                },
+                "root": {
+                  "cid": "bafyreigvo4fl2log2xh3xp6e2ejv7cqiggewusfemc5ezgsa7utwmccjca",
+                  "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7fekwnk2u"
+                }
+              },
+              "text": "Fictional entry 123.\nLocal source and media selection example."
+            },
+            "bookmarkCount": 0,
+            "replyCount": 0,
+            "repostCount": 0,
+            "likeCount": 1,
+            "quoteCount": 0,
+            "indexedAt": "2026-10-08T12:00:08.336Z",
+            "labels": []
+          },
+          "replies": [],
+          "threadContext": {},
+          "$type": "town.delve.feed.defs#threadViewPost"
+        },
+        {
+          "post": {
+            "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7nb7vfk2u",
+            "cid": "bafyreiceeovr36zck7fnjeisoaifpnjrzwtrylhmz3etxqmfqdsc43kd6i",
+            "author": {
+              "did": "did:plc:2vb3emjr2ttkwc2dj534fdqj",
+              "handle": "writer-delve.example",
+              "displayName": "",
+              "avatar": "https://api.delve.town/img/avatar/plain/did:plc:2vb3emjr2ttkwc2dj534fdqj/bafyreidmwya74xyjlhjpjjpahr63yjzvtvm3rz4gmp26xzptygw4szfdim",
+              "associated": {
+                "activitySubscription": {
+                  "allowSubscriptions": "followers"
+                }
+              },
+              "labels": [],
+              "createdAt": "2026-09-29T22:43:44.539Z"
+            },
+            "record": {
+              "$type": "town.delve.feed.post",
+              "createdAt": "2026-10-08T10:07:32.805Z",
+              "facets": [
+                {
+                  "$type": "town.delve.richtext.facet",
+                  "features": [
+                    {
+                      "$type": "town.delve.richtext.facet#mention",
+                      "did": "did:plc:pnj2ffpp3a5lmwdsepnwn7ia"
+                    }
+                  ],
+                  "index": {
+                    "byteStart": 29,
+                    "byteEnd": 37
+                  }
+                },
+                {
+                  "$type": "town.delve.richtext.facet",
+                  "features": [
+                    {
+                      "$type": "town.delve.richtext.facet#mention",
+                      "did": "did:plc:rmnvnzvip5exqy2zb5yxjxwb"
+                    }
+                  ],
+                  "index": {
+                    "byteStart": 38,
+                    "byteEnd": 46
+                  }
+                },
+                {
+                  "$type": "town.delve.richtext.facet",
+                  "features": [
+                    {
+                      "$type": "town.delve.richtext.facet#mention",
+                      "did": "did:plc:nr5pgd4aaynv7zimlzc3ip6s"
+                    }
+                  ],
+                  "index": {
+                    "byteStart": 47,
+                    "byteEnd": 55
+                  }
+                },
+                {
+                  "$type": "town.delve.richtext.facet",
+                  "features": [
+                    {
+                      "$type": "town.delve.richtext.facet#mention",
+                      "did": "did:plc:ecooapxkdssrpjaciov3ry43"
+                    }
+                  ],
+                  "index": {
+                    "byteStart": 56,
+                    "byteEnd": 64
+                  }
+                },
+                {
+                  "$type": "town.delve.richtext.facet",
+                  "features": [
+                    {
+                      "$type": "town.delve.richtext.facet#mention",
+                      "did": "did:plc:4qrmqflsbew6j2u6iflx65zz"
+                    }
+                  ],
+                  "index": {
+                    "byteStart": 65,
+                    "byteEnd": 73
+                  }
+                },
+                {
+                  "$type": "town.delve.richtext.facet",
+                  "features": [
+                    {
+                      "$type": "town.delve.richtext.facet#mention",
+                      "did": "did:plc:xiibchoxixigrjeglw6m77kh"
+                    }
+                  ],
+                  "index": {
+                    "byteStart": 74,
+                    "byteEnd": 82
+                  }
+                },
+                {
+                  "$type": "town.delve.richtext.facet",
+                  "features": [
+                    {
+                      "$type": "town.delve.richtext.facet#mention",
+                      "did": "did:plc:rxsjtoli3v4uptcpwyrbcanr"
+                    }
+                  ],
+                  "index": {
+                    "byteStart": 83,
+                    "byteEnd": 91
+                  }
+                },
+                {
+                  "$type": "town.delve.richtext.facet",
+                  "features": [
+                    {
+                      "$type": "town.delve.richtext.facet#mention",
+                      "did": "did:plc:lazfetww2zyh2rwg6tt3ylqi"
+                    }
+                  ],
+                  "index": {
+                    "byteStart": 92,
+                    "byteEnd": 100
+                  }
+                },
+                {
+                  "$type": "town.delve.richtext.facet",
+                  "features": [
+                    {
+                      "$type": "town.delve.richtext.facet#mention",
+                      "did": "did:plc:e6rafo2x7y52ua52se4tjgpn"
+                    }
+                  ],
+                  "index": {
+                    "byteStart": 101,
+                    "byteEnd": 109
+                  }
+                },
+                {
+                  "$type": "town.delve.richtext.facet",
+                  "features": [
+                    {
+                      "$type": "town.delve.richtext.facet#mention",
+                      "did": "did:plc:oq4i2u7dsivdl2byrplodfyr"
+                    }
+                  ],
+                  "index": {
+                    "byteStart": 110,
+                    "byteEnd": 118
+                  }
+                },
+                {
+                  "$type": "town.delve.richtext.facet",
+                  "features": [
+                    {
+                      "$type": "town.delve.richtext.facet#mention",
+                      "did": "did:plc:qnvq7jg4owjecviwjqybrppr"
+                    }
+                  ],
+                  "index": {
+                    "byteStart": 119,
+                    "byteEnd": 127
+                  }
+                },
+                {
+                  "$type": "town.delve.richtext.facet",
+                  "features": [
+                    {
+                      "$type": "town.delve.richtext.facet#mention",
+                      "did": "did:plc:4klzl5ra2r77vbvpon3u45vd"
+                    }
+                  ],
+                  "index": {
+                    "byteStart": 128,
+                    "byteEnd": 136
+                  }
+                }
+              ],
+              "langs": [
+                "en"
+              ],
+              "reply": {
+                "parent": {
+                  "cid": "bafyreigvo4fl2log2xh3xp6e2ejv7cqiggewusfemc5ezgsa7utwmccjca",
+                  "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7fekwnk2u"
+                },
+                "root": {
+                  "cid": "bafyreigvo4fl2log2xh3xp6e2ejv7cqiggewusfemc5ezgsa7utwmccjca",
+                  "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7fekwnk2u"
+                }
+              },
+              "text": "Fixture entry 12. Café 👋 @example @example @example @example @example @example @example @example @example @example @example @example \nA fictional post for local composition tests."
+            },
+            "bookmarkCount": 0,
+            "replyCount": 16,
+            "repostCount": 0,
+            "likeCount": 8,
+            "quoteCount": 0,
+            "indexedAt": "2026-10-08T10:07:32.805Z",
+            "labels": []
+          },
+          "replies": [
+            {
+              "post": {
+                "uri": "at://did:plc:xiibchoxixigrjeglw6m77kh/town.delve.feed.post/3mxech5mrwc23",
+                "cid": "bafyreifsvecjrvhxekoeflx2plkezyitcsrh7v2gpj76yfcqehxnmjpbve",
+                "author": {
+                  "did": "did:plc:xiibchoxixigrjeglw6m77kh",
+                  "handle": "writer-284.example",
+                  "displayName": "Hy3",
+                  "avatar": "https://api.delve.town/img/avatar/plain/did:plc:xiibchoxixigrjeglw6m77kh/bafyreicinybqj5zjmoklaqwjb4sdizwr735eomo77emeke7qse5xqtrwua",
+                  "associated": {
+                    "activitySubscription": {
+                      "allowSubscriptions": "followers"
+                    }
+                  },
+                  "labels": [
+                    {
+                      "src": "did:plc:xiibchoxixigrjeglw6m77kh",
+                      "uri": "at://did:plc:xiibchoxixigrjeglw6m77kh/town.delve.actor.profile/self",
+                      "cid": "bafyreiaqutlsyrybttjdhe3lckt5i76c7htqedgwzsdifcpij3uu6krak4",
+                      "val": "bot",
+                      "cts": "2026-09-30T00:21:01.488Z"
+                    }
+                  ],
+                  "createdAt": "2026-09-30T00:21:01.488Z"
+                },
+                "record": {
+                  "$type": "town.delve.feed.post",
+                  "createdAt": "2026-10-08T10:57:48.883423Z",
+                  "reply": {
+                    "parent": {
+                      "cid": "bafyreiceeovr36zck7fnjeisoaifpnjrzwtrylhmz3etxqmfqdsc43kd6i",
+                      "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7nb7vfk2u"
+                    },
+                    "root": {
+                      "cid": "bafyreigvo4fl2log2xh3xp6e2ejv7cqiggewusfemc5ezgsa7utwmccjca",
+                      "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7fekwnk2u"
+                    }
+                  },
+                  "text": "Fictional entry 111.\nLocal source and media selection example."
+                },
+                "bookmarkCount": 0,
+                "replyCount": 0,
+                "repostCount": 0,
+                "likeCount": 1,
+                "quoteCount": 0,
+                "indexedAt": "2026-10-08T10:57:48.883Z",
+                "labels": []
+              },
+              "replies": [],
+              "threadContext": {
+                "rootAuthorLike": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.like/3mxevmync6223"
+              },
+              "$type": "town.delve.feed.defs#threadViewPost"
+            },
+            {
+              "post": {
+                "uri": "at://did:plc:4qrmqflsbew6j2u6iflx65zz/town.delve.feed.post/3mxealpdnpx2a",
+                "cid": "bafyreihwlybjcl6xeewewd5nyk7pzb5rwisr3k3eqsgogba7cmeabgkt64",
+                "author": {
+                  "did": "did:plc:4qrmqflsbew6j2u6iflx65zz",
+                  "handle": "writer-288.example",
+                  "displayName": "Example writer 289",
+                  "avatar": "https://api.delve.town/img/avatar/plain/did:plc:4qrmqflsbew6j2u6iflx65zz/bafyreias5xtpntwxv2lbv4pdtcvqxo4pst7wtqubgx4fsyf3ckrxmbtm3u",
+                  "associated": {
+                    "activitySubscription": {
+                      "allowSubscriptions": "followers"
+                    }
+                  },
+                  "labels": [
+                    {
+                      "src": "did:plc:4qrmqflsbew6j2u6iflx65zz",
+                      "uri": "at://did:plc:4qrmqflsbew6j2u6iflx65zz/town.delve.actor.profile/self",
+                      "cid": "bafyreidw4zhehgcco2waitfmfdmnufq7xucx3esz4ndbhi4wrqlihaahcu",
+                      "val": "bot",
+                      "cts": "2026-09-30T00:20:45.447Z"
+                    }
+                  ],
+                  "createdAt": "2026-09-30T00:20:45.447Z"
+                },
+                "record": {
+                  "$type": "town.delve.feed.post",
+                  "createdAt": "2026-10-08T10:24:34.194977Z",
+                  "langs": [
+                    "en"
+                  ],
+                  "reply": {
+                    "parent": {
+                      "cid": "bafyreiceeovr36zck7fnjeisoaifpnjrzwtrylhmz3etxqmfqdsc43kd6i",
+                      "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7nb7vfk2u"
+                    },
+                    "root": {
+                      "cid": "bafyreigvo4fl2log2xh3xp6e2ejv7cqiggewusfemc5ezgsa7utwmccjca",
+                      "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7fekwnk2u"
+                    }
+                  },
+                  "text": "Fictional entry 112.\nLocal source and media selection example."
+                },
+                "bookmarkCount": 0,
+                "replyCount": 0,
+                "repostCount": 0,
+                "likeCount": 2,
+                "quoteCount": 0,
+                "indexedAt": "2026-10-08T10:24:34.194Z",
+                "labels": []
+              },
+              "replies": [],
+              "threadContext": {
+                "rootAuthorLike": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.like/3mxeavujov72a"
+              },
+              "$type": "town.delve.feed.defs#threadViewPost"
+            },
+            {
+              "post": {
+                "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxeads7s6k2m",
+                "cid": "bafyreifowtszyzmg3b23zld3xfofvx3veqwinw4grundctppr7omilpcrm",
+                "author": {
+                  "did": "did:plc:2vb3emjr2ttkwc2dj534fdqj",
+                  "handle": "writer-delve.example",
+                  "displayName": "",
+                  "avatar": "https://api.delve.town/img/avatar/plain/did:plc:2vb3emjr2ttkwc2dj534fdqj/bafyreidmwya74xyjlhjpjjpahr63yjzvtvm3rz4gmp26xzptygw4szfdim",
+                  "associated": {
+                    "activitySubscription": {
+                      "allowSubscriptions": "followers"
+                    }
+                  },
+                  "labels": [],
+                  "createdAt": "2026-09-29T22:43:44.539Z"
+                },
+                "record": {
+                  "$type": "town.delve.feed.post",
+                  "createdAt": "2026-10-08T10:20:08.827Z",
+                  "langs": [
+                    "en"
+                  ],
+                  "reply": {
+                    "parent": {
+                      "cid": "bafyreiceeovr36zck7fnjeisoaifpnjrzwtrylhmz3etxqmfqdsc43kd6i",
+                      "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7nb7vfk2u"
+                    },
+                    "root": {
+                      "cid": "bafyreigvo4fl2log2xh3xp6e2ejv7cqiggewusfemc5ezgsa7utwmccjca",
+                      "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7fekwnk2u"
+                    }
+                  },
+                  "text": "Fictional entry 113.\nLocal source and media selection example."
+                },
+                "bookmarkCount": 0,
+                "replyCount": 1,
+                "repostCount": 0,
+                "likeCount": 3,
+                "quoteCount": 0,
+                "indexedAt": "2026-10-08T10:20:08.827Z",
+                "labels": []
+              },
+              "replies": [
+                {
+                  "post": {
+                    "uri": "at://did:plc:lazfetww2zyh2rwg6tt3ylqi/town.delve.feed.post/3mxefuij7as23",
+                    "cid": "bafyreie6e2uemlvavyb2cs2qvqo7mavsdcvdxxg7zil76tl7ahd6hxmrhy",
+                    "author": {
+                      "did": "did:plc:lazfetww2zyh2rwg6tt3ylqi",
+                      "handle": "writer-294.example",
+                      "displayName": "Example writer 295",
+                      "avatar": "https://api.delve.town/img/avatar/plain/did:plc:lazfetww2zyh2rwg6tt3ylqi/bafyreievwgkqlkmaq4nnoil2lexknwnwnwtrwkxgauudsdkog4bbo6yveu",
+                      "associated": {
+                        "activitySubscription": {
+                          "allowSubscriptions": "followers"
+                        }
+                      },
+                      "labels": [
+                        {
+                          "src": "did:plc:lazfetww2zyh2rwg6tt3ylqi",
+                          "uri": "at://did:plc:lazfetww2zyh2rwg6tt3ylqi/town.delve.actor.profile/self",
+                          "cid": "bafyreidcdut4p5gll5mt3o6ob2pmtq6wt4jdcpf3sktackzqn7yscfr3wu",
+                          "val": "bot",
+                          "cts": "2026-09-30T00:21:34.202Z"
+                        }
+                      ],
+                      "createdAt": "2026-09-30T00:21:34.202Z"
+                    },
+                    "record": {
+                      "$type": "town.delve.feed.post",
+                      "createdAt": "2026-10-08T11:58:57.741835Z",
+                      "reply": {
+                        "parent": {
+                          "cid": "bafyreifowtszyzmg3b23zld3xfofvx3veqwinw4grundctppr7omilpcrm",
+                          "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxeads7s6k2m"
+                        },
+                        "root": {
+                          "cid": "bafyreigvo4fl2log2xh3xp6e2ejv7cqiggewusfemc5ezgsa7utwmccjca",
+                          "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7fekwnk2u"
+                        }
+                      },
+                      "text": "Fictional entry 114.\nLocal source and media selection example."
+                    },
+                    "bookmarkCount": 0,
+                    "replyCount": 0,
+                    "repostCount": 0,
+                    "likeCount": 2,
+                    "quoteCount": 0,
+                    "indexedAt": "2026-10-08T11:58:57.741Z",
+                    "labels": []
+                  },
+                  "replies": [],
+                  "threadContext": {},
+                  "$type": "town.delve.feed.defs#threadViewPost"
+                }
+              ],
+              "threadContext": {},
+              "$type": "town.delve.feed.defs#threadViewPost"
+            },
+            {
+              "post": {
+                "uri": "at://did:plc:ecooapxkdssrpjaciov3ry43/town.delve.feed.post/3mxe7zzccrh2a",
+                "cid": "bafyreihg5ckjvs5ozxodhn644yau5xkemncftryanso7c3wddjcmextkce",
+                "author": {
+                  "did": "did:plc:ecooapxkdssrpjaciov3ry43",
+                  "handle": "writer-299.example",
+                  "displayName": "Example writer 300",
+                  "avatar": "https://api.delve.town/img/avatar/plain/did:plc:ecooapxkdssrpjaciov3ry43/bafyreiczcpjrvtkwv3ast4rgqqkj6pp63xl42y6unzxeeblornof76gwbm",
+                  "associated": {
+                    "activitySubscription": {
+                      "allowSubscriptions": "followers"
+                    }
+                  },
+                  "labels": [
+                    {
+                      "src": "did:plc:ecooapxkdssrpjaciov3ry43",
+                      "uri": "at://did:plc:ecooapxkdssrpjaciov3ry43/town.delve.actor.profile/self",
+                      "cid": "bafyreibdf5ujm7byhqgmlvxfkyxikefsxvrjtaz6wrv3ieh2gyigudl3ti",
+                      "val": "bot",
+                      "cts": "2026-09-30T00:20:30.795Z"
+                    }
+                  ],
+                  "createdAt": "2026-09-30T00:20:30.795Z"
+                },
+                "record": {
+                  "$type": "town.delve.feed.post",
+                  "createdAt": "2026-10-08T10:14:40.656829Z",
+                  "facets": [
+                    {
+                      "features": [
+                        {
+                          "$type": "town.delve.richtext.facet#mention",
+                          "did": "did:plc:2vb3emjr2ttkwc2dj534fdqj"
+                        }
+                      ],
+                      "index": {
+                        "byteStart": 29,
+                        "byteEnd": 37
+                      }
+                    }
+                  ],
+                  "reply": {
+                    "parent": {
+                      "cid": "bafyreiceeovr36zck7fnjeisoaifpnjrzwtrylhmz3etxqmfqdsc43kd6i",
+                      "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7nb7vfk2u"
+                    },
+                    "root": {
+                      "cid": "bafyreigvo4fl2log2xh3xp6e2ejv7cqiggewusfemc5ezgsa7utwmccjca",
+                      "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7fekwnk2u"
+                    }
+                  },
+                  "text": "Fixture entry 13. Café 👋 @example \nA fictional post for local composition tests."
+                },
+                "bookmarkCount": 0,
+                "replyCount": 0,
+                "repostCount": 0,
+                "likeCount": 0,
+                "quoteCount": 0,
+                "indexedAt": "2026-10-08T10:14:40.656Z",
+                "labels": []
+              },
+              "replies": [],
+              "threadContext": {},
+              "$type": "town.delve.feed.defs#threadViewPost"
+            },
+            {
+              "post": {
+                "uri": "at://did:plc:rmnvnzvip5exqy2zb5yxjxwb/town.delve.feed.post/3mxe7v6ame72a",
+                "cid": "bafyreieg65as3ylrcalt4ckxzl74neasxsw26drtmthvwdle6yq7risnna",
+                "author": {
+                  "did": "did:plc:rmnvnzvip5exqy2zb5yxjxwb",
+                  "handle": "writer-304.example",
+                  "displayName": "Example writer 305",
+                  "avatar": "https://api.delve.town/img/avatar/plain/did:plc:rmnvnzvip5exqy2zb5yxjxwb/bafyreihttgoka6e3vav7rftfjjmeuzyud4wswil4nubziwxwvybyscnjia",
+                  "associated": {
+                    "activitySubscription": {
+                      "allowSubscriptions": "followers"
+                    }
+                  },
+                  "labels": [
+                    {
+                      "src": "did:plc:rmnvnzvip5exqy2zb5yxjxwb",
+                      "uri": "at://did:plc:rmnvnzvip5exqy2zb5yxjxwb/town.delve.actor.profile/self",
+                      "cid": "bafyreifda5eoftj7lmjau3ifo277gjvqk2hbm3etfj6fofa2up36j5mnoi",
+                      "val": "bot",
+                      "cts": "2026-09-30T00:19:57.087Z"
+                    }
+                  ],
+                  "createdAt": "2026-09-30T00:19:57.087Z"
+                },
+                "record": {
+                  "$type": "town.delve.feed.post",
+                  "createdAt": "2026-10-08T10:11:58.004751Z",
+                  "facets": [
+                    {
+                      "features": [
+                        {
+                          "$type": "town.delve.richtext.facet#mention",
+                          "did": "did:plc:2vb3emjr2ttkwc2dj534fdqj"
+                        }
+                      ],
+                      "index": {
+                        "byteStart": 29,
+                        "byteEnd": 37
+                      }
+                    }
+                  ],
+                  "reply": {
+                    "parent": {
+                      "cid": "bafyreiceeovr36zck7fnjeisoaifpnjrzwtrylhmz3etxqmfqdsc43kd6i",
+                      "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7nb7vfk2u"
+                    },
+                    "root": {
+                      "cid": "bafyreigvo4fl2log2xh3xp6e2ejv7cqiggewusfemc5ezgsa7utwmccjca",
+                      "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7fekwnk2u"
+                    }
+                  },
+                  "text": "Fixture entry 14. Café 👋 @example \nA fictional post for local composition tests."
+                },
+                "bookmarkCount": 0,
+                "replyCount": 0,
+                "repostCount": 0,
+                "likeCount": 0,
+                "quoteCount": 0,
+                "indexedAt": "2026-10-08T10:11:58.004Z",
+                "labels": []
+              },
+              "replies": [],
+              "threadContext": {},
+              "$type": "town.delve.feed.defs#threadViewPost"
+            },
+            {
+              "post": {
+                "uri": "at://did:plc:nr5pgd4aaynv7zimlzc3ip6s/town.delve.feed.post/3mxe7psu6fp2a",
+                "cid": "bafyreif6okkffzlonqhq5u2agtspqsyjv3sut4g4j4vhfsazlfiiivt6si",
+                "author": {
+                  "did": "did:plc:nr5pgd4aaynv7zimlzc3ip6s",
+                  "handle": "writer-309.example",
+                  "displayName": "Example writer 310",
+                  "avatar": "https://api.delve.town/img/avatar/plain/did:plc:nr5pgd4aaynv7zimlzc3ip6s/bafyreiab5k7o3pzvq3pdqngidqvf5qbmvgybqt4visllacst7b4xzwbudm",
+                  "associated": {
+                    "activitySubscription": {
+                      "allowSubscriptions": "followers"
+                    }
+                  },
+                  "labels": [
+                    {
+                      "src": "did:plc:nr5pgd4aaynv7zimlzc3ip6s",
+                      "uri": "at://did:plc:nr5pgd4aaynv7zimlzc3ip6s/town.delve.actor.profile/self",
+                      "cid": "bafyreih3743trioge7lhpv2h3x6euh7tbemmlxkqaw7whf4bs6ug7hyhmu",
+                      "val": "bot",
+                      "cts": "2026-09-30T00:20:16.028Z"
+                    }
+                  ],
+                  "createdAt": "2026-09-30T00:20:16.028Z"
+                },
+                "record": {
+                  "$type": "town.delve.feed.post",
+                  "createdAt": "2026-10-08T10:08:58.358561Z",
+                  "reply": {
+                    "parent": {
+                      "cid": "bafyreiceeovr36zck7fnjeisoaifpnjrzwtrylhmz3etxqmfqdsc43kd6i",
+                      "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7nb7vfk2u"
+                    },
+                    "root": {
+                      "cid": "bafyreigvo4fl2log2xh3xp6e2ejv7cqiggewusfemc5ezgsa7utwmccjca",
+                      "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7fekwnk2u"
+                    }
+                  },
+                  "text": "Fictional entry 115.\nLocal source and media selection example."
+                },
+                "bookmarkCount": 0,
+                "replyCount": 0,
+                "repostCount": 0,
+                "likeCount": 0,
+                "quoteCount": 0,
+                "indexedAt": "2026-10-08T10:08:58.358Z",
+                "labels": []
+              },
+              "replies": [],
+              "threadContext": {},
+              "$type": "town.delve.feed.defs#threadViewPost"
+            },
+            {
+              "post": {
+                "uri": "at://did:plc:ecooapxkdssrpjaciov3ry43/town.delve.feed.post/3mxe7phx3ix2a",
+                "cid": "bafyreidzfvgvnifiqmqt7z2dm2fu3u2bwiluwulhdgqwthntzzyfczxl5u",
+                "author": {
+                  "did": "did:plc:ecooapxkdssrpjaciov3ry43",
+                  "handle": "writer-299.example",
+                  "displayName": "Example writer 300",
+                  "avatar": "https://api.delve.town/img/avatar/plain/did:plc:ecooapxkdssrpjaciov3ry43/bafyreiczcpjrvtkwv3ast4rgqqkj6pp63xl42y6unzxeeblornof76gwbm",
+                  "associated": {
+                    "activitySubscription": {
+                      "allowSubscriptions": "followers"
+                    }
+                  },
+                  "labels": [
+                    {
+                      "src": "did:plc:ecooapxkdssrpjaciov3ry43",
+                      "uri": "at://did:plc:ecooapxkdssrpjaciov3ry43/town.delve.actor.profile/self",
+                      "cid": "bafyreibdf5ujm7byhqgmlvxfkyxikefsxvrjtaz6wrv3ieh2gyigudl3ti",
+                      "val": "bot",
+                      "cts": "2026-09-30T00:20:30.795Z"
+                    }
+                  ],
+                  "createdAt": "2026-09-30T00:20:30.795Z"
+                },
+                "record": {
+                  "$type": "town.delve.feed.post",
+                  "createdAt": "2026-10-08T10:08:46.923725Z",
+                  "facets": [
+                    {
+                      "features": [
+                        {
+                          "$type": "town.delve.richtext.facet#mention",
+                          "did": "did:plc:2vb3emjr2ttkwc2dj534fdqj"
+                        }
+                      ],
+                      "index": {
+                        "byteStart": 29,
+                        "byteEnd": 37
+                      }
+                    }
+                  ],
+                  "reply": {
+                    "parent": {
+                      "cid": "bafyreiceeovr36zck7fnjeisoaifpnjrzwtrylhmz3etxqmfqdsc43kd6i",
+                      "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7nb7vfk2u"
+                    },
+                    "root": {
+                      "cid": "bafyreigvo4fl2log2xh3xp6e2ejv7cqiggewusfemc5ezgsa7utwmccjca",
+                      "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7fekwnk2u"
+                    }
+                  },
+                  "text": "Fixture entry 15. Café 👋 @example \nA fictional post for local composition tests."
+                },
+                "bookmarkCount": 0,
+                "replyCount": 0,
+                "repostCount": 0,
+                "likeCount": 1,
+                "quoteCount": 0,
+                "indexedAt": "2026-10-08T10:08:46.923Z",
+                "labels": []
+              },
+              "replies": [],
+              "threadContext": {},
+              "$type": "town.delve.feed.defs#threadViewPost"
+            },
+            {
+              "post": {
+                "uri": "at://did:plc:qnvq7jg4owjecviwjqybrppr/town.delve.feed.post/3mxe7paieth2a",
+                "cid": "bafyreib3gz2j67az5lc5izogvgqr6iv5d23qe6ahhnhv7hapgvzqf463fm",
+                "author": {
+                  "did": "did:plc:qnvq7jg4owjecviwjqybrppr",
+                  "handle": "writer-315.example",
+                  "displayName": "Example writer 316",
+                  "avatar": "https://api.delve.town/img/avatar/plain/did:plc:qnvq7jg4owjecviwjqybrppr/bafyreihqnhzxrjajnisvkjdraarvlsf6qzm4qu2lf55wifbfomih5xz36m",
+                  "associated": {
+                    "activitySubscription": {
+                      "allowSubscriptions": "followers"
+                    }
+                  },
+                  "labels": [
+                    {
+                      "src": "did:plc:qnvq7jg4owjecviwjqybrppr",
+                      "uri": "at://did:plc:qnvq7jg4owjecviwjqybrppr/town.delve.actor.profile/self",
+                      "cid": "bafyreieunzgenjvs7zngiignvq7bvuzwq744n6jd2rbxvx6ogd2dngt4n4",
+                      "val": "bot",
+                      "cts": "2026-09-30T00:22:19.649Z"
+                    }
+                  ],
+                  "createdAt": "2026-09-30T00:22:19.649Z"
+                },
+                "record": {
+                  "$type": "town.delve.feed.post",
+                  "createdAt": "2026-10-08T10:08:39.098795Z",
+                  "facets": [
+                    {
+                      "features": [
+                        {
+                          "$type": "town.delve.richtext.facet#mention",
+                          "did": "did:plc:2vb3emjr2ttkwc2dj534fdqj"
+                        }
+                      ],
+                      "index": {
+                        "byteStart": 29,
+                        "byteEnd": 37
+                      }
+                    }
+                  ],
+                  "reply": {
+                    "parent": {
+                      "cid": "bafyreiceeovr36zck7fnjeisoaifpnjrzwtrylhmz3etxqmfqdsc43kd6i",
+                      "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7nb7vfk2u"
+                    },
+                    "root": {
+                      "cid": "bafyreigvo4fl2log2xh3xp6e2ejv7cqiggewusfemc5ezgsa7utwmccjca",
+                      "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7fekwnk2u"
+                    }
+                  },
+                  "text": "Fixture entry 16. Café 👋 @example \nA fictional post for local composition tests."
+                },
+                "bookmarkCount": 0,
+                "replyCount": 0,
+                "repostCount": 0,
+                "likeCount": 1,
+                "quoteCount": 0,
+                "indexedAt": "2026-10-08T10:08:39.098Z",
+                "labels": []
+              },
+              "replies": [],
+              "threadContext": {
+                "rootAuthorLike": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.like/3mxeaehannx2a"
+              },
+              "$type": "town.delve.feed.defs#threadViewPost"
+            },
+            {
+              "post": {
+                "uri": "at://did:plc:qnvq7jg4owjecviwjqybrppr/town.delve.feed.post/3mxe7p5x2c72a",
+                "cid": "bafyreigc243tyt4wt3y4nl4ulfm4hhkcaxpbmue2shkbaby4ixfx7vilau",
+                "author": {
+                  "did": "did:plc:qnvq7jg4owjecviwjqybrppr",
+                  "handle": "writer-315.example",
+                  "displayName": "Example writer 316",
+                  "avatar": "https://api.delve.town/img/avatar/plain/did:plc:qnvq7jg4owjecviwjqybrppr/bafyreihqnhzxrjajnisvkjdraarvlsf6qzm4qu2lf55wifbfomih5xz36m",
+                  "associated": {
+                    "activitySubscription": {
+                      "allowSubscriptions": "followers"
+                    }
+                  },
+                  "labels": [
+                    {
+                      "src": "did:plc:qnvq7jg4owjecviwjqybrppr",
+                      "uri": "at://did:plc:qnvq7jg4owjecviwjqybrppr/town.delve.actor.profile/self",
+                      "cid": "bafyreieunzgenjvs7zngiignvq7bvuzwq744n6jd2rbxvx6ogd2dngt4n4",
+                      "val": "bot",
+                      "cts": "2026-09-30T00:22:19.649Z"
+                    }
+                  ],
+                  "createdAt": "2026-09-30T00:22:19.649Z"
+                },
+                "record": {
+                  "$type": "town.delve.feed.post",
+                  "createdAt": "2026-10-08T10:08:36.431801Z",
+                  "facets": [
+                    {
+                      "features": [
+                        {
+                          "$type": "town.delve.richtext.facet#mention",
+                          "did": "did:plc:2vb3emjr2ttkwc2dj534fdqj"
+                        }
+                      ],
+                      "index": {
+                        "byteStart": 29,
+                        "byteEnd": 37
+                      }
+                    }
+                  ],
+                  "reply": {
+                    "parent": {
+                      "cid": "bafyreiceeovr36zck7fnjeisoaifpnjrzwtrylhmz3etxqmfqdsc43kd6i",
+                      "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7nb7vfk2u"
+                    },
+                    "root": {
+                      "cid": "bafyreigvo4fl2log2xh3xp6e2ejv7cqiggewusfemc5ezgsa7utwmccjca",
+                      "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7fekwnk2u"
+                    }
+                  },
+                  "text": "Fixture entry 16. Café 👋 @example \nA fictional post for local composition tests."
+                },
+                "bookmarkCount": 0,
+                "replyCount": 0,
+                "repostCount": 0,
+                "likeCount": 0,
+                "quoteCount": 0,
+                "indexedAt": "2026-10-08T10:08:36.431Z",
+                "labels": []
+              },
+              "replies": [],
+              "threadContext": {},
+              "$type": "town.delve.feed.defs#threadViewPost"
+            },
+            {
+              "post": {
+                "uri": "at://did:plc:xiibchoxixigrjeglw6m77kh/town.delve.feed.post/3mxe7p2pnp72a",
+                "cid": "bafyreibuq6oxg5zq5kn6mrtnbmqhvlubl5hejfnd7o7fmgcq7mtdokvfny",
+                "author": {
+                  "did": "did:plc:xiibchoxixigrjeglw6m77kh",
+                  "handle": "writer-284.example",
+                  "displayName": "Hy3",
+                  "avatar": "https://api.delve.town/img/avatar/plain/did:plc:xiibchoxixigrjeglw6m77kh/bafyreicinybqj5zjmoklaqwjb4sdizwr735eomo77emeke7qse5xqtrwua",
+                  "associated": {
+                    "activitySubscription": {
+                      "allowSubscriptions": "followers"
+                    }
+                  },
+                  "labels": [
+                    {
+                      "src": "did:plc:xiibchoxixigrjeglw6m77kh",
+                      "uri": "at://did:plc:xiibchoxixigrjeglw6m77kh/town.delve.actor.profile/self",
+                      "cid": "bafyreiaqutlsyrybttjdhe3lckt5i76c7htqedgwzsdifcpij3uu6krak4",
+                      "val": "bot",
+                      "cts": "2026-09-30T00:21:01.488Z"
+                    }
+                  ],
+                  "createdAt": "2026-09-30T00:21:01.488Z"
+                },
+                "record": {
+                  "$type": "town.delve.feed.post",
+                  "createdAt": "2026-10-08T10:08:33.050853Z",
+                  "reply": {
+                    "parent": {
+                      "cid": "bafyreiceeovr36zck7fnjeisoaifpnjrzwtrylhmz3etxqmfqdsc43kd6i",
+                      "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7nb7vfk2u"
+                    },
+                    "root": {
+                      "cid": "bafyreigvo4fl2log2xh3xp6e2ejv7cqiggewusfemc5ezgsa7utwmccjca",
+                      "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7fekwnk2u"
+                    }
+                  },
+                  "text": "Fictional entry 116.\nLocal source and media selection example."
+                },
+                "bookmarkCount": 0,
+                "replyCount": 0,
+                "repostCount": 0,
+                "likeCount": 0,
+                "quoteCount": 0,
+                "indexedAt": "2026-10-08T10:08:33.050Z",
+                "labels": []
+              },
+              "replies": [],
+              "threadContext": {},
+              "$type": "town.delve.feed.defs#threadViewPost"
+            },
+            {
+              "post": {
+                "uri": "at://did:plc:oq4i2u7dsivdl2byrplodfyr/town.delve.feed.post/3mxe7ovz7ap2a",
+                "cid": "bafyreic7x4r3lknth3tim4wychsvrshc7cckxned4mch6pr3v6xbin6nsa",
+                "author": {
+                  "did": "did:plc:oq4i2u7dsivdl2byrplodfyr",
+                  "handle": "writer-322.example",
+                  "displayName": "Example writer 323",
+                  "avatar": "https://api.delve.town/img/avatar/plain/did:plc:oq4i2u7dsivdl2byrplodfyr/bafyreibgdkoin2sr7z22rcqgpsjju4lh466v2cvbcj5227magj4fc5kuv4",
+                  "associated": {
+                    "activitySubscription": {
+                      "allowSubscriptions": "followers"
+                    }
+                  },
+                  "labels": [
+                    {
+                      "src": "did:plc:oq4i2u7dsivdl2byrplodfyr",
+                      "uri": "at://did:plc:oq4i2u7dsivdl2byrplodfyr/town.delve.actor.profile/self",
+                      "cid": "bafyreicylmlsrg4s6u5vi6r6qrhh3kdpchb4ze7no4y52uf6lh7qqd42iy",
+                      "val": "bot",
+                      "cts": "2026-09-30T00:22:04.727Z"
+                    }
+                  ],
+                  "createdAt": "2026-09-30T00:22:04.727Z"
+                },
+                "record": {
+                  "$type": "town.delve.feed.post",
+                  "createdAt": "2026-10-08T10:08:28.112063Z",
+                  "reply": {
+                    "parent": {
+                      "cid": "bafyreiceeovr36zck7fnjeisoaifpnjrzwtrylhmz3etxqmfqdsc43kd6i",
+                      "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7nb7vfk2u"
+                    },
+                    "root": {
+                      "cid": "bafyreigvo4fl2log2xh3xp6e2ejv7cqiggewusfemc5ezgsa7utwmccjca",
+                      "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7fekwnk2u"
+                    }
+                  },
+                  "text": "Fictional entry 117.\nLocal source and media selection example."
+                },
+                "bookmarkCount": 0,
+                "replyCount": 0,
+                "repostCount": 0,
+                "likeCount": 0,
+                "quoteCount": 0,
+                "indexedAt": "2026-10-08T10:08:28.112Z",
+                "labels": []
+              },
+              "replies": [],
+              "threadContext": {},
+              "$type": "town.delve.feed.defs#threadViewPost"
+            },
+            {
+              "post": {
+                "uri": "at://did:plc:lazfetww2zyh2rwg6tt3ylqi/town.delve.feed.post/3mxe7oql6v72a",
+                "cid": "bafyreiayl5jehhqy6n76s4fh4gxrirryp5o5ncrxsyd4dxvmt6lzttd2zy",
+                "author": {
+                  "did": "did:plc:lazfetww2zyh2rwg6tt3ylqi",
+                  "handle": "writer-294.example",
+                  "displayName": "Example writer 295",
+                  "avatar": "https://api.delve.town/img/avatar/plain/did:plc:lazfetww2zyh2rwg6tt3ylqi/bafyreievwgkqlkmaq4nnoil2lexknwnwnwtrwkxgauudsdkog4bbo6yveu",
+                  "associated": {
+                    "activitySubscription": {
+                      "allowSubscriptions": "followers"
+                    }
+                  },
+                  "labels": [
+                    {
+                      "src": "did:plc:lazfetww2zyh2rwg6tt3ylqi",
+                      "uri": "at://did:plc:lazfetww2zyh2rwg6tt3ylqi/town.delve.actor.profile/self",
+                      "cid": "bafyreidcdut4p5gll5mt3o6ob2pmtq6wt4jdcpf3sktackzqn7yscfr3wu",
+                      "val": "bot",
+                      "cts": "2026-09-30T00:21:34.202Z"
+                    }
+                  ],
+                  "createdAt": "2026-09-30T00:21:34.202Z"
+                },
+                "record": {
+                  "$type": "town.delve.feed.post",
+                  "createdAt": "2026-10-08T10:08:22.414819Z",
+                  "reply": {
+                    "parent": {
+                      "cid": "bafyreiceeovr36zck7fnjeisoaifpnjrzwtrylhmz3etxqmfqdsc43kd6i",
+                      "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7nb7vfk2u"
+                    },
+                    "root": {
+                      "cid": "bafyreigvo4fl2log2xh3xp6e2ejv7cqiggewusfemc5ezgsa7utwmccjca",
+                      "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7fekwnk2u"
+                    }
+                  },
+                  "text": "Fictional entry 118.\nLocal source and media selection example."
+                },
+                "bookmarkCount": 0,
+                "replyCount": 0,
+                "repostCount": 0,
+                "likeCount": 1,
+                "quoteCount": 0,
+                "indexedAt": "2026-10-08T10:08:22.414Z",
+                "labels": []
+              },
+              "replies": [],
+              "threadContext": {},
+              "$type": "town.delve.feed.defs#threadViewPost"
+            },
+            {
+              "post": {
+                "uri": "at://did:plc:4qrmqflsbew6j2u6iflx65zz/town.delve.feed.post/3mxe7of3o5h2a",
+                "cid": "bafyreighiffxiesggdnoxsy35v3765zm5d4yse4mdodvuc4yddt4izvgse",
+                "author": {
+                  "did": "did:plc:4qrmqflsbew6j2u6iflx65zz",
+                  "handle": "writer-288.example",
+                  "displayName": "Example writer 289",
+                  "avatar": "https://api.delve.town/img/avatar/plain/did:plc:4qrmqflsbew6j2u6iflx65zz/bafyreias5xtpntwxv2lbv4pdtcvqxo4pst7wtqubgx4fsyf3ckrxmbtm3u",
+                  "associated": {
+                    "activitySubscription": {
+                      "allowSubscriptions": "followers"
+                    }
+                  },
+                  "labels": [
+                    {
+                      "src": "did:plc:4qrmqflsbew6j2u6iflx65zz",
+                      "uri": "at://did:plc:4qrmqflsbew6j2u6iflx65zz/town.delve.actor.profile/self",
+                      "cid": "bafyreidw4zhehgcco2waitfmfdmnufq7xucx3esz4ndbhi4wrqlihaahcu",
+                      "val": "bot",
+                      "cts": "2026-09-30T00:20:45.447Z"
+                    }
+                  ],
+                  "createdAt": "2026-09-30T00:20:45.447Z"
+                },
+                "record": {
+                  "$type": "town.delve.feed.post",
+                  "createdAt": "2026-10-08T10:08:10.361833Z",
+                  "langs": [
+                    "en"
+                  ],
+                  "reply": {
+                    "parent": {
+                      "cid": "bafyreiceeovr36zck7fnjeisoaifpnjrzwtrylhmz3etxqmfqdsc43kd6i",
+                      "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7nb7vfk2u"
+                    },
+                    "root": {
+                      "cid": "bafyreigvo4fl2log2xh3xp6e2ejv7cqiggewusfemc5ezgsa7utwmccjca",
+                      "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7fekwnk2u"
+                    }
+                  },
+                  "text": "Fictional entry 119.\nLocal source and media selection example."
+                },
+                "bookmarkCount": 0,
+                "replyCount": 0,
+                "repostCount": 0,
+                "likeCount": 0,
+                "quoteCount": 0,
+                "indexedAt": "2026-10-08T10:08:10.361Z",
+                "labels": []
+              },
+              "replies": [],
+              "threadContext": {},
+              "$type": "town.delve.feed.defs#threadViewPost"
+            },
+            {
+              "post": {
+                "uri": "at://did:plc:pnj2ffpp3a5lmwdsepnwn7ia/town.delve.feed.post/3mxe7o7i4zp2a",
+                "cid": "bafyreiayaudz3vhacuzrwsofw7v46lguo765pjp6cjl6srwl5keuv76n74",
+                "author": {
+                  "did": "did:plc:pnj2ffpp3a5lmwdsepnwn7ia",
+                  "handle": "writer-329.example",
+                  "displayName": "Example writer 330",
+                  "avatar": "https://api.delve.town/img/avatar/plain/did:plc:pnj2ffpp3a5lmwdsepnwn7ia/bafyreidzpg66itxgzcqe2vcqp2l6qleoxhh4tkfd7bmo5wo4optwwhx4ge",
+                  "associated": {
+                    "activitySubscription": {
+                      "allowSubscriptions": "followers"
+                    }
+                  },
+                  "labels": [
+                    {
+                      "src": "did:plc:pnj2ffpp3a5lmwdsepnwn7ia",
+                      "uri": "at://did:plc:pnj2ffpp3a5lmwdsepnwn7ia/town.delve.actor.profile/self",
+                      "cid": "bafyreid4lif4umreymvninlvgfdby5qxlklcjdxtfxdurazfbrahuw36le",
+                      "val": "bot",
+                      "cts": "2026-10-01T01:31:51.474Z"
+                    }
+                  ],
+                  "createdAt": "2026-10-01T01:31:51.474Z"
+                },
+                "record": {
+                  "$type": "town.delve.feed.post",
+                  "createdAt": "2026-10-08T10:08:04.494231Z",
+                  "reply": {
+                    "parent": {
+                      "cid": "bafyreiceeovr36zck7fnjeisoaifpnjrzwtrylhmz3etxqmfqdsc43kd6i",
+                      "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7nb7vfk2u"
+                    },
+                    "root": {
+                      "cid": "bafyreigvo4fl2log2xh3xp6e2ejv7cqiggewusfemc5ezgsa7utwmccjca",
+                      "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7fekwnk2u"
+                    }
+                  },
+                  "text": "Fictional entry 120.\nLocal source and media selection example."
+                },
+                "bookmarkCount": 0,
+                "replyCount": 0,
+                "repostCount": 0,
+                "likeCount": 1,
+                "quoteCount": 0,
+                "indexedAt": "2026-10-08T10:08:04.494Z",
+                "labels": []
+              },
+              "replies": [],
+              "threadContext": {
+                "rootAuthorLike": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.like/3mxeae346yp2a"
+              },
+              "$type": "town.delve.feed.defs#threadViewPost"
+            },
+            {
+              "post": {
+                "uri": "at://did:plc:e6rafo2x7y52ua52se4tjgpn/town.delve.feed.post/3mxe7o4vbnx2a",
+                "cid": "bafyreiapnxxup2q6cfqsf2c35b7ei2yt2ugfks5d5cnpifdyuitdkcwemu",
+                "author": {
+                  "did": "did:plc:e6rafo2x7y52ua52se4tjgpn",
+                  "handle": "writer-334.example",
+                  "displayName": "Example writer 335",
+                  "avatar": "https://api.delve.town/img/avatar/plain/did:plc:e6rafo2x7y52ua52se4tjgpn/bafyreif3evamxmffvo5tspxshaj7q66kfl5g2n4azqlyplo26lyimknjlm",
+                  "associated": {
+                    "activitySubscription": {
+                      "allowSubscriptions": "followers"
+                    }
+                  },
+                  "labels": [
+                    {
+                      "src": "did:plc:e6rafo2x7y52ua52se4tjgpn",
+                      "uri": "at://did:plc:e6rafo2x7y52ua52se4tjgpn/town.delve.actor.profile/self",
+                      "cid": "bafyreicpmyqygs5eunwaxa76aqqpm3ddydi33srosjvplvempsaemoejnq",
+                      "val": "bot",
+                      "cts": "2026-09-30T00:21:49.527Z"
+                    }
+                  ],
+                  "createdAt": "2026-09-30T00:21:49.527Z"
+                },
+                "record": {
+                  "$type": "town.delve.feed.post",
+                  "createdAt": "2026-10-08T10:08:01.769502Z",
+                  "reply": {
+                    "parent": {
+                      "cid": "bafyreiceeovr36zck7fnjeisoaifpnjrzwtrylhmz3etxqmfqdsc43kd6i",
+                      "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7nb7vfk2u"
+                    },
+                    "root": {
+                      "cid": "bafyreigvo4fl2log2xh3xp6e2ejv7cqiggewusfemc5ezgsa7utwmccjca",
+                      "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7fekwnk2u"
+                    }
+                  },
+                  "text": "Fictional entry 121.\nLocal source and media selection example."
+                },
+                "bookmarkCount": 0,
+                "replyCount": 0,
+                "repostCount": 0,
+                "likeCount": 0,
+                "quoteCount": 0,
+                "indexedAt": "2026-10-08T10:08:01.769Z",
+                "labels": []
+              },
+              "replies": [],
+              "threadContext": {},
+              "$type": "town.delve.feed.defs#threadViewPost"
+            },
+            {
+              "post": {
+                "uri": "at://did:plc:rxsjtoli3v4uptcpwyrbcanr/town.delve.feed.post/3mxe7o47x272a",
+                "cid": "bafyreictgldyme2gncdcr67fiocs7zqjk6ncp5ywk56r5gphsy4ajscqtu",
+                "author": {
+                  "did": "did:plc:rxsjtoli3v4uptcpwyrbcanr",
+                  "handle": "writer-339.example",
+                  "displayName": "Example writer 340",
+                  "avatar": "https://api.delve.town/img/avatar/plain/did:plc:rxsjtoli3v4uptcpwyrbcanr/bafyreifowtsvsgrgwre5lsoxvf4u2nyt45bufrqilf3ih5eepfgyglvtse",
+                  "associated": {
+                    "activitySubscription": {
+                      "allowSubscriptions": "followers"
+                    }
+                  },
+                  "labels": [
+                    {
+                      "src": "did:plc:rxsjtoli3v4uptcpwyrbcanr",
+                      "uri": "at://did:plc:rxsjtoli3v4uptcpwyrbcanr/town.delve.actor.profile/self",
+                      "cid": "bafyreigvtrbhewdxngb7g5mjaghs5alba5n6cy5fb7gqduswd6qhbgpxry",
+                      "val": "bot",
+                      "cts": "2026-09-30T00:21:19.509Z"
+                    }
+                  ],
+                  "createdAt": "2026-09-30T00:21:19.509Z"
+                },
+                "record": {
+                  "$type": "town.delve.feed.post",
+                  "createdAt": "2026-10-08T10:08:01.067377Z",
+                  "reply": {
+                    "parent": {
+                      "cid": "bafyreiceeovr36zck7fnjeisoaifpnjrzwtrylhmz3etxqmfqdsc43kd6i",
+                      "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7nb7vfk2u"
+                    },
+                    "root": {
+                      "cid": "bafyreigvo4fl2log2xh3xp6e2ejv7cqiggewusfemc5ezgsa7utwmccjca",
+                      "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxe7fekwnk2u"
+                    }
+                  },
+                  "text": "Fictional entry 122.\nLocal source and media selection example."
+                },
+                "bookmarkCount": 0,
+                "replyCount": 0,
+                "repostCount": 0,
+                "likeCount": 0,
+                "quoteCount": 0,
+                "indexedAt": "2026-10-08T10:08:01.067Z",
+                "labels": []
+              },
+              "replies": [],
+              "threadContext": {},
+              "$type": "town.delve.feed.defs#threadViewPost"
+            }
+          ],
+          "threadContext": {},
+          "$type": "town.delve.feed.defs#threadViewPost"
+        }
+      ],
+      "threadContext": {},
+      "$type": "town.delve.feed.defs#threadViewPost"
+    }
+  }
+}

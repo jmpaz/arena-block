@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "sources": [
+    {
+      "provider": "bluesky",
+      "id": "3mxk2eqkcks2d",
+      "canonicalUrl": "https://bsky.app/profile/writer-bsky.example/post/3mxk2eqkcks2d",
+      "author": {
+        "handle": "writer-bsky.example",
+        "name": "Example writer"
+      },
+      "text": "Fixture entry 1. Café 👋 reference.example/ref_0... \nA fictional post for local composition tests.",
+      "postedAt": "2026-10-10T17:49:16.607Z",
+      "media": [],
+      "selection": {
+        "role": "primary",
+        "origin": "explicit",
+        "declaredIndex": 1
+      }
+    }
+  ],
+  "policy": {
+    "media": "all",
+    "selectedMedia": [],
+    "threadExpansion": "off",
+    "quote": "block",
+    "separator": "auto"
+  },
+  "block": {
+    "kind": "text",
+    "title": "Example reference",
+    "markdown": "also in medicine we already have healthcare depending on mathematical objects that not only no one understands, but are actively kept secret, obscure and maximally sloppified en.wikipedia.org/wiki/Epic_Sy..., because all software is math, all math is software",
+    "canonicalSource": "https://bsky.app/profile/writer-bsky.example/post/3mxk2eqkcks2d",
+    "selectedMedia": []
+  },
+  "hash": "67adb6ed38ba528cc4bf38b5f5521d7ea95c1970141ab803e148a39b1bf25813"
+}

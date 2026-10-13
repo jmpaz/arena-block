@@ -1,0 +1,254 @@
+{
+  "source": "Fictional response data for local regression tests.",
+  "posts": [
+    {
+      "id": "99999999999999999002",
+      "url": "https://x.com/example_writer/status/99999999999999999002",
+      "text": "1/n 11 squares.\nThanks to @reader_a, @reader_b for the fictional example.",
+      "author": {
+        "screen_name": "example_writer"
+      },
+      "created_at": "Tue Oct 06 16:29:17 +0000 2026",
+      "replying_to_status": null,
+      "media": {
+        "all": [
+          {
+            "type": "photo",
+            "id": "99999999999999999001",
+            "url": "https://reference.example/ref_056.jpg",
+            "width": 1230,
+            "height": 1252
+          }
+        ],
+        "photos": [
+          {
+            "type": "photo",
+            "id": "99999999999999999001",
+            "url": "https://reference.example/ref_056.jpg",
+            "width": 1230,
+            "height": 1252
+          }
+        ]
+      },
+      "raw_text": {
+        "text": "1/n 11 squares.\nThanks to @reader_a, @reader_b for the fictional example.",
+        "display_text_range": [
+          0,
+          73
+        ],
+        "facets": [
+          {
+            "type": "mention",
+            "indices": [
+              26,
+              35
+            ],
+            "original": "reader_a",
+            "id": "700"
+          },
+          {
+            "type": "mention",
+            "indices": [
+              37,
+              46
+            ],
+            "original": "reader_b",
+            "id": "701"
+          }
+        ]
+      }
+    },
+    {
+      "id": "99999999999999999003",
+      "url": "https://x.com/example_writer/status/99999999999999999003",
+      "text": "@reader_a @reader_b @reader_c @reader_d @reader_e 2/n Fictional sequence entry 2.",
+      "author": {
+        "screen_name": "example_writer"
+      },
+      "created_at": "Tue Oct 06 16:29:46 +0000 2026",
+      "replying_to_status": "99999999999999999002",
+      "raw_text": {
+        "text": "@reader_a @reader_b @reader_c @reader_d @reader_e 2/n Fictional sequence entry 2.",
+        "display_text_range": [
+          50,
+          81
+        ],
+        "facets": [
+          {
+            "type": "mention",
+            "indices": [
+              0,
+              9
+            ],
+            "original": "reader_a",
+            "id": "700"
+          },
+          {
+            "type": "mention",
+            "indices": [
+              10,
+              19
+            ],
+            "original": "reader_b",
+            "id": "701"
+          },
+          {
+            "type": "mention",
+            "indices": [
+              20,
+              29
+            ],
+            "original": "reader_c",
+            "id": "702"
+          },
+          {
+            "type": "mention",
+            "indices": [
+              30,
+              39
+            ],
+            "original": "reader_d",
+            "id": "703"
+          },
+          {
+            "type": "mention",
+            "indices": [
+              40,
+              49
+            ],
+            "original": "reader_e",
+            "id": "704"
+          }
+        ]
+      }
+    },
+    {
+      "id": "99999999999999999004",
+      "url": "https://x.com/example_writer/status/99999999999999999004",
+      "text": "@reader_a @reader_b @reader_c @reader_d @reader_e 3/n Fictional sequence entry 3.",
+      "author": {
+        "screen_name": "example_writer"
+      },
+      "created_at": "Tue Oct 06 16:29:56 +0000 2026",
+      "replying_to_status": "99999999999999999003",
+      "raw_text": {
+        "text": "@reader_a @reader_b @reader_c @reader_d @reader_e 3/n Fictional sequence entry 3.",
+        "display_text_range": [
+          50,
+          81
+        ],
+        "facets": [
+          {
+            "type": "mention",
+            "indices": [
+              0,
+              9
+            ],
+            "original": "reader_a",
+            "id": "700"
+          },
+          {
+            "type": "mention",
+            "indices": [
+              10,
+              19
+            ],
+            "original": "reader_b",
+            "id": "701"
+          },
+          {
+            "type": "mention",
+            "indices": [
+              20,
+              29
+            ],
+            "original": "reader_c",
+            "id": "702"
+          },
+          {
+            "type": "mention",
+            "indices": [
+              30,
+              39
+            ],
+            "original": "reader_d",
+            "id": "703"
+          },
+          {
+            "type": "mention",
+            "indices": [
+              40,
+              49
+            ],
+            "original": "reader_e",
+            "id": "704"
+          }
+        ]
+      }
+    },
+    {
+      "id": "99999999999999999005",
+      "url": "https://x.com/example_writer/status/99999999999999999005",
+      "text": "@reader_a @reader_b @reader_c @reader_d @reader_e 4/n Fictional sequence entry 4.\nA short paper explains the example.",
+      "author": {
+        "screen_name": "example_writer"
+      },
+      "created_at": "Tue Oct 06 16:30:24 +0000 2026",
+      "replying_to_status": "99999999999999999004",
+      "raw_text": {
+        "text": "@reader_a @reader_b @reader_c @reader_d @reader_e 4/n Fictional sequence entry 4.\nA short paper explains the example.",
+        "display_text_range": [
+          50,
+          117
+        ],
+        "facets": [
+          {
+            "type": "mention",
+            "indices": [
+              0,
+              9
+            ],
+            "original": "reader_a",
+            "id": "700"
+          },
+          {
+            "type": "mention",
+            "indices": [
+              10,
+              19
+            ],
+            "original": "reader_b",
+            "id": "701"
+          },
+          {
+            "type": "mention",
+            "indices": [
+              20,
+              29
+            ],
+            "original": "reader_c",
+            "id": "702"
+          },
+          {
+            "type": "mention",
+            "indices": [
+              30,
+              39
+            ],
+            "original": "reader_d",
+            "id": "703"
+          },
+          {
+            "type": "mention",
+            "indices": [
+              40,
+              49
+            ],
+            "original": "reader_e",
+            "id": "704"
+          }
+        ]
+      }
+    }
+  ]
+}

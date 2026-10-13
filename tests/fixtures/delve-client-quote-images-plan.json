@@ -1,0 +1,197 @@
+{
+  "schemaVersion": 1,
+  "sources": [
+    {
+      "provider": "delve",
+      "id": "3mxdw3ilxcc2a",
+      "canonicalUrl": "https://delve.town/profile/did:plc:2vb3emjr2ttkwc2dj534fdqj/post/3mxdw3ilxcc2a",
+      "selection": {
+        "role": "primary",
+        "origin": "explicit",
+        "declaredIndex": 1
+      },
+      "author": {
+        "handle": "writer-delve.example"
+      },
+      "text": "Fictional entry 124.\nLocal source and media selection example.",
+      "postedAt": "2026-10-08T07:16:32.884Z",
+      "media": [
+        {
+          "ref": "1.1",
+          "kind": "image",
+          "url": "https://api.delve.town/img/feed_fullsize/plain/did:plc:2vb3emjr2ttkwc2dj534fdqj/bafyreiff47xang6m43yavtxpyvmexvg67ta27uv37nerntppl5aimicir4",
+          "width": 1290,
+          "height": 810,
+          "alt": "A fictional test image."
+        },
+        {
+          "ref": "1.2",
+          "kind": "image",
+          "url": "https://api.delve.town/img/feed_fullsize/plain/did:plc:2vb3emjr2ttkwc2dj534fdqj/bafyreicwgcea2yqalfixtjt7yo5a63cmnq4rwu37g7rn7moxenq52quraa",
+          "width": 1338,
+          "height": 1516,
+          "alt": "A fictional test image."
+        }
+      ],
+      "quote": {
+        "provider": "delve",
+        "id": "3mxdbwjxoec2e",
+        "canonicalUrl": "https://delve.town/profile/did:plc:5fv2kkgo36lksorejlcwiswe/post/3mxdbwjxoec2e",
+        "author": {
+          "handle": "writer-354.example",
+          "name": "Example writer 355"
+        },
+        "text": "Fixture entry 18. Café 👋 reference.example/ \nA fictional post for local composition tests.",
+        "postedAt": "2026-10-08T01:15:51.709Z",
+        "media": [],
+        "atproto": {
+          "uri": "at://did:plc:5fv2kkgo36lksorejlcwiswe/town.delve.feed.post/3mxdbwjxoec2e",
+          "cid": "bafyreigd2kv6f4t3fkfq7fu2zr25ptq5gatacugruzymqgdbxwbbc2hvne",
+          "authorDid": "did:plc:5fv2kkgo36lksorejlcwiswe",
+          "record": {
+            "$type": "town.delve.feed.post",
+            "createdAt": "2026-10-08T01:15:51.709Z",
+            "facets": [
+              {
+                "index": {
+                  "byteStart": 29,
+                  "byteEnd": 47
+                },
+                "features": [
+                  {
+                    "$type": "town.delve.richtext.facet#link",
+                    "uri": "https://reference.example/"
+                  }
+                ]
+              }
+            ],
+            "langs": [
+              "en"
+            ],
+            "text": "Fixture entry 18. Café 👋 reference.example/ \nA fictional post for local composition tests."
+          }
+        },
+        "facets": [
+          {
+            "index": {
+              "byteStart": 29,
+              "byteEnd": 47
+            },
+            "features": [
+              {
+                "$type": "town.delve.richtext.facet#link",
+                "uri": "https://reference.example/"
+              }
+            ]
+          }
+        ]
+      },
+      "atproto": {
+        "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxdw3ilxcc2a",
+        "cid": "bafyreiahzmaql3fmului7vyql7ctmhlsxtoea4dri4tkvz4cqtb3i64byu",
+        "authorDid": "did:plc:2vb3emjr2ttkwc2dj534fdqj",
+        "record": {
+          "$type": "town.delve.feed.post",
+          "createdAt": "2026-10-08T07:16:32.884Z",
+          "embed": {
+            "$type": "town.delve.embed.recordWithMedia",
+            "media": {
+              "$type": "town.delve.embed.images",
+              "images": [
+                {
+                  "alt": "A fictional test image.",
+                  "aspectRatio": {
+                    "height": 810,
+                    "width": 1290
+                  },
+                  "image": {
+                    "$type": "blob",
+                    "ref": {
+                      "$link": "bafyreiff47xang6m43yavtxpyvmexvg67ta27uv37nerntppl5aimicir4"
+                    },
+                    "mimeType": "image/jpeg",
+                    "size": 261480
+                  }
+                },
+                {
+                  "alt": "A fictional test image.",
+                  "aspectRatio": {
+                    "height": 1516,
+                    "width": 1338
+                  },
+                  "image": {
+                    "$type": "blob",
+                    "ref": {
+                      "$link": "bafyreicwgcea2yqalfixtjt7yo5a63cmnq4rwu37g7rn7moxenq52quraa"
+                    },
+                    "mimeType": "image/jpeg",
+                    "size": 594645
+                  }
+                }
+              ]
+            },
+            "record": {
+              "$type": "town.delve.embed.record",
+              "record": {
+                "cid": "bafyreigd2kv6f4t3fkfq7fu2zr25ptq5gatacugruzymqgdbxwbbc2hvne",
+                "uri": "at://did:plc:5fv2kkgo36lksorejlcwiswe/town.delve.feed.post/3mxdbwjxoec2e"
+              }
+            }
+          },
+          "langs": [
+            "en"
+          ],
+          "text": "Fictional entry 124.\nLocal source and media selection example."
+        }
+      }
+    }
+  ],
+  "policy": {
+    "media": "all",
+    "selectedMedia": [],
+    "threadExpansion": "off",
+    "quote": "block",
+    "separator": "auto"
+  },
+  "block": {
+    "kind": "link",
+    "title": "Post by @writer-delve.example",
+    "markdown": "> `@writer-354.example`\n> Fixture entry 18. Café 👋 [reference.example/](<https://reference.example/>) \n> A fictional post for local composition tests.\n\nFictional entry 124.\nLocal source and media selection example.\n\n*[images]*",
+    "canonicalSource": "https://delve.town/profile/did:plc:2vb3emjr2ttkwc2dj534fdqj/post/3mxdw3ilxcc2a",
+    "selectedMedia": [
+      "1.1",
+      "1.2"
+    ],
+    "layout": {
+      "kind": "split",
+      "axis": "vertical",
+      "children": [
+        {
+          "kind": "media",
+          "ref": "1.1"
+        },
+        {
+          "kind": "media",
+          "ref": "1.2"
+        }
+      ]
+    },
+    "quoteCoverage": [
+      {
+        "sourceId": "3mxdw3ilxcc2a",
+        "availableDepth": 1,
+        "renderedDepth": 1,
+        "requestedDepth": 2,
+        "maxDepth": 8,
+        "maxReached": false,
+        "truncated": false,
+        "stopped": "end",
+        "mayExpand": false,
+        "dateUncertainty": [
+          "same_day"
+        ]
+      }
+    ]
+  },
+  "hash": "75ccf192792ec6436711ede5c3b18ae6898a19d205456870ed452c18244d5cc6"
+}

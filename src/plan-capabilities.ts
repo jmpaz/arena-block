@@ -1,0 +1,14 @@
+import type { BlockPlan, ResolvedPost } from "./types.ts";
+
+/** Capabilities required to retain protocol provenance in a publication capsule. */
+export function requiredPlanCapabilities(plan: BlockPlan): string[] {
+  const required = new Set<string>();
+  const visit = (post: ResolvedPost): void => {
+    if (post.provider === "delve") required.add("delve-posts-v1");
+    if (post.atproto || post.facets || post.external || post.embeddedRecord) required.add("atproto-post-records-v1");
+    if (post.threadCoverage) required.add("bluesky-thread-coverage-v1");
+    if (post.quote) visit(post.quote);
+  };
+  plan.sources.forEach(visit);
+  return [...required];
+}

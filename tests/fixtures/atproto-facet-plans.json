@@ -1,0 +1,292 @@
+[
+  {
+    "case": "bluesky-url",
+    "plan": {
+      "schemaVersion": 1,
+      "sources": [
+        {
+          "provider": "bluesky",
+          "id": "3mxk2eqkcks2d",
+          "canonicalUrl": "https://bsky.app/profile/writer-bsky.example/post/3mxk2eqkcks2d",
+          "selection": {
+            "role": "primary",
+            "origin": "explicit",
+            "declaredIndex": 1
+          },
+          "author": {
+            "handle": "writer-bsky.example",
+            "name": "Example writer"
+          },
+          "text": "Fixture entry 1. Café 👋 reference.example/ref_0... \nA fictional post for local composition tests.",
+          "postedAt": "2026-10-10T17:49:16.607Z",
+          "media": [],
+          "atproto": {
+            "uri": "at://did:plc:pu2ln7ey5emgy37ovouqnncg/app.bsky.feed.post/3mxk2eqkcks2d",
+            "cid": "bafyreiczmguqjnmpvussq6f6kkftipq3l6ojzzyq22xzjlp4ksgsp5dhum",
+            "authorDid": "did:plc:pu2ln7ey5emgy37ovouqnncg",
+            "record": {
+              "$type": "app.bsky.feed.post",
+              "createdAt": "2026-10-10T17:49:16.607Z",
+              "embed": {
+                "$type": "app.bsky.embed.external",
+                "external": {
+                  "description": "",
+                  "thumb": {
+                    "$type": "blob",
+                    "ref": {
+                      "$link": "bafyreiekx36qizzbte3jdutibrvwz7vkdbhrjitctcxeo3yalaavvisxde"
+                    },
+                    "mimeType": "image/jpeg",
+                    "size": 156750
+                  },
+                  "title": "Example reference",
+                  "uri": "https://reference.example/ref_001"
+                }
+              },
+              "facets": [
+                {
+                  "features": [
+                    {
+                      "$type": "app.bsky.richtext.facet#link",
+                      "uri": "https://reference.example/ref_001"
+                    }
+                  ],
+                  "index": {
+                    "byteStart": 28,
+                    "byteEnd": 54
+                  }
+                }
+              ],
+              "langs": [
+                "en"
+              ],
+              "reply": {
+                "parent": {
+                  "cid": "bafyreiboooka6w2n4wsvuh4d36qaocegnnm3khve6xbot3zhjanfjmh44m",
+                  "uri": "at://did:plc:pu2ln7ey5emgy37ovouqnncg/app.bsky.feed.post/3mxjzmgx6sc2d"
+                },
+                "root": {
+                  "cid": "bafyreiebo47j6gitluqyeu7ua2j37rhdbyrj54ghtgrhy6dzuq7usjlrue",
+                  "uri": "at://did:plc:pu2ln7ey5emgy37ovouqnncg/app.bsky.feed.post/3mxjzbrinf22d"
+                }
+              },
+              "text": "Fixture entry 1. Café 👋 reference.example/ref_0... \nA fictional post for local composition tests."
+            },
+            "reply": {
+              "root": {
+                "uri": "at://did:plc:pu2ln7ey5emgy37ovouqnncg/app.bsky.feed.post/3mxjzbrinf22d",
+                "cid": "bafyreiebo47j6gitluqyeu7ua2j37rhdbyrj54ghtgrhy6dzuq7usjlrue"
+              },
+              "parent": {
+                "uri": "at://did:plc:pu2ln7ey5emgy37ovouqnncg/app.bsky.feed.post/3mxjzmgx6sc2d",
+                "cid": "bafyreiboooka6w2n4wsvuh4d36qaocegnnm3khve6xbot3zhjanfjmh44m"
+              }
+            }
+          },
+          "facets": [
+            {
+              "index": {
+                "byteStart": 28,
+                "byteEnd": 54
+              },
+              "features": [
+                {
+                  "$type": "app.bsky.richtext.facet#link",
+                  "uri": "https://reference.example/ref_001"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "policy": {
+        "media": "all",
+        "selectedMedia": [],
+        "threadExpansion": "off",
+        "quote": "block",
+        "separator": "auto"
+      },
+      "block": {
+        "kind": "text",
+        "title": "Post by @writer-bsky.example",
+        "markdown": "Fixture entry 1. Café 👋 [https://reference.example/ref\\_001](<https://reference.example/ref_001>) \nA fictional post for local composition tests.",
+        "canonicalSource": "https://bsky.app/profile/writer-bsky.example/post/3mxk2eqkcks2d",
+        "selectedMedia": []
+      },
+      "hash": "222f808681002f3da7117ff97958128b3bfeb296fd7a8c680f65fc41fb15c032"
+    }
+  },
+  {
+    "case": "delve-url-quote-card",
+    "plan": {
+      "schemaVersion": 1,
+      "sources": [
+        {
+          "provider": "delve",
+          "id": "3mxjqkycz7c2e",
+          "canonicalUrl": "https://delve.town/profile/did:plc:2vb3emjr2ttkwc2dj534fdqj/post/3mxjqkycz7c2e",
+          "selection": {
+            "role": "primary",
+            "origin": "explicit",
+            "declaredIndex": 1
+          },
+          "author": {
+            "handle": "writer-delve.example"
+          },
+          "text": "Fixture entry 2. Café 👋 reference.example/ref_0... \nA fictional post for local composition tests.",
+          "postedAt": "2026-10-10T14:53:48.665Z",
+          "media": [],
+          "quote": {
+            "provider": "delve",
+            "id": "3mxjoxgdedk27",
+            "canonicalUrl": "https://delve.town/profile/did:plc:vjswazbmm3hqvwmmxtw7q77u/post/3mxjoxgdedk27",
+            "author": {
+              "handle": "quoted-writer.example",
+              "name": "Example writer 11"
+            },
+            "text": "Fictional entry 23.\nLocal source and media selection example.",
+            "postedAt": "2026-10-10T14:24:58.527Z",
+            "media": [],
+            "atproto": {
+              "uri": "at://did:plc:vjswazbmm3hqvwmmxtw7q77u/town.delve.feed.post/3mxjoxgdedk27",
+              "cid": "bafyreiao2i3xra76h54gdjfyew5t3pnqcfzps53h5irn7pgmmy6zjh3424",
+              "authorDid": "did:plc:vjswazbmm3hqvwmmxtw7q77u",
+              "record": {
+                "$type": "town.delve.feed.post",
+                "createdAt": "2026-10-10T14:24:58.527Z",
+                "langs": [
+                  "en"
+                ],
+                "reply": {
+                  "parent": {
+                    "cid": "bafyreihqsppayivv5lfykyjlkiw3emm3myog2d73o5zd6iealffxep3tve",
+                    "uri": "at://did:plc:nr5pgd4aaynv7zimlzc3ip6s/town.delve.feed.post/3mxiywvinbq2f"
+                  },
+                  "root": {
+                    "cid": "bafyreicbi7dc46tzwdr34g6dxscxtjglrfmtik3qtmqddwjv2em3fjumqi",
+                    "uri": "at://did:plc:sygoiqhru55pmb7nwedr2o32/town.delve.feed.post/3mxhzalyazc2h"
+                  }
+                },
+                "text": "Fictional entry 23.\nLocal source and media selection example."
+              },
+              "reply": {
+                "root": {
+                  "uri": "at://did:plc:sygoiqhru55pmb7nwedr2o32/town.delve.feed.post/3mxhzalyazc2h",
+                  "cid": "bafyreicbi7dc46tzwdr34g6dxscxtjglrfmtik3qtmqddwjv2em3fjumqi"
+                },
+                "parent": {
+                  "uri": "at://did:plc:nr5pgd4aaynv7zimlzc3ip6s/town.delve.feed.post/3mxiywvinbq2f",
+                  "cid": "bafyreihqsppayivv5lfykyjlkiw3emm3myog2d73o5zd6iealffxep3tve"
+                }
+              }
+            }
+          },
+          "atproto": {
+            "uri": "at://did:plc:2vb3emjr2ttkwc2dj534fdqj/town.delve.feed.post/3mxjqkycz7c2e",
+            "cid": "bafyreifavwue7yymvndbrc265rbxiieuczjyb76vod66civ4pbu7djjeyq",
+            "authorDid": "did:plc:2vb3emjr2ttkwc2dj534fdqj",
+            "record": {
+              "$type": "town.delve.feed.post",
+              "createdAt": "2026-10-10T14:53:48.665Z",
+              "embed": {
+                "$type": "town.delve.embed.recordWithMedia",
+                "media": {
+                  "$type": "town.delve.embed.external",
+                  "external": {
+                    "description": "Fictional reference for local tests.",
+                    "thumb": {
+                      "$type": "blob",
+                      "ref": {
+                        "$link": "bafyreiaflif3rruum7352s2c3dapjn55dj7r5ata5mwy643e4jzyinlp6u"
+                      },
+                      "mimeType": "image/jpeg",
+                      "size": 187537
+                    },
+                    "title": "Example reference",
+                    "uri": "https://reference.example/ref_002"
+                  }
+                },
+                "record": {
+                  "$type": "town.delve.embed.record",
+                  "record": {
+                    "cid": "bafyreiao2i3xra76h54gdjfyew5t3pnqcfzps53h5irn7pgmmy6zjh3424",
+                    "uri": "at://did:plc:vjswazbmm3hqvwmmxtw7q77u/town.delve.feed.post/3mxjoxgdedk27"
+                  }
+                }
+              },
+              "facets": [
+                {
+                  "index": {
+                    "byteStart": 28,
+                    "byteEnd": 54
+                  },
+                  "features": [
+                    {
+                      "$type": "town.delve.richtext.facet#link",
+                      "uri": "https://reference.example/ref_002"
+                    }
+                  ]
+                }
+              ],
+              "langs": [
+                "en"
+              ],
+              "text": "Fixture entry 2. Café 👋 reference.example/ref_0... \nA fictional post for local composition tests."
+            }
+          },
+          "facets": [
+            {
+              "index": {
+                "byteStart": 28,
+                "byteEnd": 54
+              },
+              "features": [
+                {
+                  "$type": "town.delve.richtext.facet#link",
+                  "uri": "https://reference.example/ref_002"
+                }
+              ]
+            }
+          ],
+          "external": {
+            "url": "https://reference.example/ref_002",
+            "title": "Example reference",
+            "description": "Fictional reference for local tests.",
+            "thumbnailUrl": "https://api.delve.town/img/feed_thumbnail/plain/did:plc:2vb3emjr2ttkwc2dj534fdqj/bafyreiaflif3rruum7352s2c3dapjn55dj7r5ata5mwy643e4jzyinlp6u"
+          }
+        }
+      ],
+      "policy": {
+        "media": "all",
+        "selectedMedia": [],
+        "threadExpansion": "off",
+        "quote": "block",
+        "separator": "auto"
+      },
+      "block": {
+        "kind": "text",
+        "title": "Post by @writer-delve.example",
+        "markdown": "> `@quoted-writer.example`\n> Fictional entry 23.\n> Local source and media selection example.\n\nFixture entry 2. Café 👋 [https://reference.example/ref\\_002](<https://reference.example/ref_002>) \nA fictional post for local composition tests.\n\n[Example reference](<https://reference.example/ref_002>)\n\nFictional reference for local tests.",
+        "canonicalSource": "https://delve.town/profile/did:plc:2vb3emjr2ttkwc2dj534fdqj/post/3mxjqkycz7c2e",
+        "selectedMedia": [],
+        "quoteCoverage": [
+          {
+            "sourceId": "3mxjqkycz7c2e",
+            "availableDepth": 1,
+            "renderedDepth": 1,
+            "requestedDepth": 2,
+            "maxDepth": 8,
+            "maxReached": false,
+            "truncated": false,
+            "stopped": "end",
+            "mayExpand": false,
+            "dateUncertainty": [
+              "same_day"
+            ]
+          }
+        ]
+      },
+      "hash": "197d51ca5ab8fa21fbcc716a8eabaeadcd9ffbf83fdd523ff17aaf80b4e1c37d"
+    }
+  }
+]
