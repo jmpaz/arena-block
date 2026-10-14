@@ -1,4 +1,8 @@
-<img src="assets/mark.svg" width="32" height="32" alt="Arena Block" />
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/mark-dark.svg" />
+  <source media="(prefers-color-scheme: light)" srcset="assets/mark.svg" />
+  <img src="assets/mark.svg" width="32" height="32" alt="Arena Block" />
+</picture>
 
 # arena-block
 

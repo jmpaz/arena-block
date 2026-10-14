@@ -95,6 +95,7 @@ export async function renderIcon(svg: string, size: number, appearance: Appearan
 export async function iconFiles(root: string): Promise<Map<string, Buffer>> {
   const svg = await readFile(join(root, "assets/mark.svg"), "utf8");
   const files = new Map<string, Buffer>();
+  files.set("assets/mark-dark.svg", Buffer.from(svg.replace('color="#111111"', 'color="#E6E6E6"')));
   for (const size of extensionIconSizes) {
     files.set(`assets/extension/icon-${size}.png`, await renderIcon(svg, size, "extension"));
   }
