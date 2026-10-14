@@ -81,6 +81,20 @@ test("native host checks Forum Magnum capability before submitting a save", asyn
     const result = await handle(request, fakeFetch);
     expect(result).toEqual({ saveId, phase: "prepared" });
     expect(calls).toEqual(["GET /v1/version", "GET /v1/version", "POST /v1/saves?async=1"]);
+    const combined = composePlan([
+      ...Array.from({ length: 21 }, (_, index) => ({ provider: "x" as const, id: String(index + 1),
+        canonicalUrl: `https://x.com/writer/status/${index + 1}`, author: { handle: "writer" },
+        text: `Part ${index + 1}`, media: [] })),
+      plan.sources[0]!,
+    ], { threadExpansion: "on" });
+    const combinedId = crypto.randomUUID();
+    const combinedRequest = { id: "combined", action: "save" as const, saveId: combinedId,
+      plan: combined, destinations: ["test-channel"] };
+    await expect(handle(combinedRequest, fakeFetch)).rejects.toThrow("No save was submitted");
+    expect(calls.at(-1)).toBe("GET /v1/version");
+    capabilities = ["forum-magnum-posts-v1", "expanded-source-count-32-v1"];
+    expect(await handle(combinedRequest, fakeFetch)).toEqual({ saveId: combinedId, phase: "prepared" });
+    expect(calls.slice(-2)).toEqual(["GET /v1/version", "POST /v1/saves?async=1"]);
   } finally {
     if (oldToken === undefined) delete process.env.ARENA_BLOCK_ACCESS_TOKEN; else process.env.ARENA_BLOCK_ACCESS_TOKEN = oldToken;
     if (oldEndpoint === undefined) delete process.env.ARENA_BLOCK_ENDPOINT; else process.env.ARENA_BLOCK_ENDPOINT = oldEndpoint;

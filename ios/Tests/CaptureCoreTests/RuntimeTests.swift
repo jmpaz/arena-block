@@ -41,6 +41,28 @@ final class RuntimeTests: XCTestCase {
         }
     }
 
+    func testBundledCoreRetainsExpandedThreadAndForumComment() async throws {
+        try await MainActor.run {
+            let runtime = try CaptureRuntime()
+            var posts: [[String: Any]] = (1...21).map { index in
+                ["provider": "x", "id": String(index), "canonicalUrl": "https://x.com/author/status/\(index)",
+                 "author": ["handle": "author"], "text": "Part \(index)", "media": []]
+            }
+            posts.append(["provider": "forum_magnum", "id": "7C9iqsDCdxC2PfKDf",
+                          "canonicalUrl": "https://www.lesswrong.com/posts/6eaKqtmDuo6CmkqMK/?commentId=7C9iqsDCdxC2PfKDf",
+                          "author": ["handle": "smitop"], "text": "A public comment", "media": []])
+            let encoded = String(decoding: try JSONSerialization.data(withJSONObject: posts), as: UTF8.self)
+            let result = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(runtime.compose(postsJSON: encoded).utf8)) as? [String: Any])
+            let plan = try XCTUnwrap(result["plan"] as? [String: Any])
+            let retained = try XCTUnwrap(plan["sources"] as? [[String: Any]])
+            XCTAssertEqual(retained.count, 22)
+            XCTAssertEqual(retained.last?["provider"] as? String, "forum_magnum")
+            XCTAssertEqual(retained.last?["id"] as? String, "7C9iqsDCdxC2PfKDf")
+            XCTAssertEqual(try runtime.source("https://www.lesswrong.com/posts/6eaKqtmDuo6CmkqMK/loops-s-shortform#comment-7C9iqsDCdxC2PfKDf"),
+                           #"{"kind":"social","url":"https://www.lesswrong.com/posts/6eaKqtmDuo6CmkqMK/?commentId=7C9iqsDCdxC2PfKDf"}"#)
+        }
+    }
+
     func testDelveProtocolMetadataSurvivesNativeEditAndPayload() async throws {
         try await MainActor.run {
             let runtime = try CaptureRuntime()

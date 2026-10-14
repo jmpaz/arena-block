@@ -1,4 +1,4 @@
-import { compositionPolicySchema, MAX_QUOTE_DEPTH, type MediaAsset, type QuoteCoverage, type ResolvedPost } from "../types.ts";
+import { compositionPolicySchema, MAX_EXPANDED_SOURCE_POSTS, MAX_QUOTE_DEPTH, type MediaAsset, type QuoteCoverage, type ResolvedPost } from "../types.ts";
 import type { ParsedSource } from "../url.ts";
 import type { SocialProvider, SourceResolutionPolicy } from "./provider.ts";
 import { renderedQuoteDepth } from "../quote-policy.ts";
@@ -143,6 +143,10 @@ function quoteReference(tweet: Json): { hasQuote: boolean; authorKnown?: boolean
 }
 
 class SourceReadError extends Error { constructor(message: string, readonly status?: number) { super(message); } }
+function tombstoneReason(value: Json): string {
+  const reason = string(value.reason);
+  return reason && ["deleted", "private", "suspended", "blocked", "unavailable"].includes(reason) ? reason : "unavailable";
+}
 
 export class XProvider implements SocialProvider {
   private readonly cache = new Map<string, { tweet: Json; expiresAt: number }>();
@@ -155,22 +159,48 @@ export class XProvider implements SocialProvider {
                        policy: Partial<SourceResolutionPolicy> = {}): Promise<{ posts: ResolvedPost[]; seedId: string }> {
     if (source.provider !== "x") throw new Error("x.com thread import needs an x.com post");
     const bounded = signal ? AbortSignal.any([signal, AbortSignal.timeout(60_000)]) : AbortSignal.timeout(60_000);
-    const response = await this.fetcher(`${this.apiBase}/2/thread/${source.id}`, {
-      headers: { accept: "application/json", "user-agent": "arena-block/0.1" },
-      signal: bounded, redirect: "error", credentials: "omit",
-    });
+    let response: Response;
+    try {
+      response = await this.fetcher(`${this.apiBase}/2/thread/${source.id}`, {
+        headers: { accept: "application/json", "user-agent": "arena-block/0.1" },
+        signal: bounded, redirect: "error", credentials: "omit",
+      });
+    } catch {
+      abort(bounded);
+      throw new SourceReadError("x.com thread discovery could not reach the public source");
+    }
     abort(bounded);
-    if (!response.ok || response.redirected) throw new SourceReadError(`x.com thread read failed (${response.status}); add posts explicitly or turn thread import off`, response.status);
+    if (response.redirected) throw new SourceReadError("x.com thread read unexpectedly redirected");
+    if (response.status === 429) throw new SourceReadError("x.com thread discovery is rate limited (HTTP 429); retry later", 429);
+    if (response.status === 401 || response.status === 403) throw new SourceReadError(`x.com thread discovery was denied by the public source (HTTP ${response.status}); the thread may require access`, response.status);
+    if (response.status === 404 || response.status === 410) throw new SourceReadError(`x.com thread source is unavailable (HTTP ${response.status}); it may have been removed`, response.status);
+    if (!response.ok) throw new SourceReadError(`x.com thread discovery failed (HTTP ${response.status})`, response.status);
     const text = await response.text(); abort(bounded);
     if (text.length > 8 * 1024 * 1024) throw new SourceReadError("x.com thread response exceeds the bounded read limit");
-    const payload = object(JSON.parse(text));
+    let payload: Json | undefined;
+    try { payload = object(JSON.parse(text)); }
+    catch { throw new SourceReadError("x.com thread discovery returned invalid JSON"); }
+    const code = number(payload?.code);
+    if (code === 429) throw new SourceReadError("x.com thread discovery is rate limited (source status 429); retry later", code);
+    const status = object(payload?.status);
+    if (status?.type === "tombstone") throw new SourceReadError(`x.com requested post is ${tombstoneReason(status)}`);
+    if (code === 401 || code === 403) throw new SourceReadError(`x.com thread discovery was denied by the public source (source status ${code}); the thread may require access`, code);
+    if (code === 404 || code === 410) throw new SourceReadError(`x.com thread source is unavailable (source status ${code}); it may have been removed`, code);
+    if (code !== 200) throw new SourceReadError(`x.com thread discovery returned source status ${code ?? "missing"}`, code);
+    if (!status) throw new SourceReadError("x.com thread discovery returned no requested post");
+    if (string(status.id) !== source.id) throw new SourceReadError(`x.com thread discovery returned a different source post (requested ${source.id}, received ${string(status.id) ?? "none"})`);
     const chain = payload?.thread;
-    if (number(payload?.code) !== 200 || !Array.isArray(chain) || chain.length < 1 || chain.length > 20
-      || string(object(payload?.status)?.id) !== source.id) {
-      throw new SourceReadError("x.com thread is unavailable or outside the 20-post import limit; add posts explicitly");
-    }
+    if (!Array.isArray(chain)) throw new SourceReadError("x.com thread discovery returned no thread array");
+    if (!chain.length) throw new SourceReadError("x.com thread discovery returned an empty thread");
+    const cursor = object(payload?.cursor);
+    if (payload?.truncated === true || payload?.has_more === true || string(cursor?.bottom) || string(cursor?.next))
+      throw new SourceReadError("x.com thread discovery returned a paginated or truncated thread; a complete import is unavailable");
     const tweets = chain.map(object);
     if (tweets.some(tweet => !tweet)) throw new SourceReadError("x.com thread contains an unreadable post; add posts explicitly");
+    const tombstone = tweets.find(tweet => tweet?.type === "tombstone");
+    if (tombstone) throw new SourceReadError(`x.com thread contains a ${tombstoneReason(tombstone)} post (${string(tombstone.id) ?? "unknown id"}); complete import is unavailable`);
+    if (chain.length > MAX_EXPANDED_SOURCE_POSTS)
+      throw new SourceReadError(`x.com thread has ${chain.length} posts, above the ${MAX_EXPANDED_SOURCE_POSTS}-post import limit`);
     const firstAuthor = object(tweets[0]!.author);
     const authorID = string(firstAuthor?.id);
     const authorHandle = string(firstAuthor?.screen_name)?.toLowerCase();
@@ -183,9 +213,10 @@ export class XProvider implements SocialProvider {
         : string(author?.screen_name)?.toLowerCase() === authorHandle;
       const parent = object(tweet!.replying_to);
       const parentID = string(parent?.status) ?? string(tweet!.replying_to_status);
-      if (!id || !/^\d+$/.test(id) || seen.has(id) || !sameAuthor || !string(author?.screen_name)) {
+      if (!id || !/^\d+$/.test(id) || seen.has(id) || !string(author?.screen_name)) {
         throw new SourceReadError("x.com thread identity or order is inconsistent; select posts explicitly");
       }
+      if (!sameAuthor) throw new SourceReadError(`x.com thread contains a post by another author (${id}); select the desired branch explicitly`);
       seen.add(id);
       if (index > 0 && parentID !== (string(tweets[index - 1]!.id) ?? string(tweets[index - 1]!.id_str))) {
         throw new SourceReadError("x.com thread branches or skips a reply; select the desired posts explicitly");
@@ -195,6 +226,11 @@ export class XProvider implements SocialProvider {
       }
     }
     if (!seen.has(source.id)) throw new SourceReadError("The requested x.com post is missing from its thread");
+    const member = tweets.find(tweet => (string(tweet?.id) ?? string(tweet?.id_str)) === source.id)!;
+    const memberAuthor = object(member.author), statusAuthor = object(status.author);
+    const memberAuthorId = string(memberAuthor?.id), statusAuthorId = string(statusAuthor?.id);
+    if (statusAuthorId && memberAuthorId && statusAuthorId !== memberAuthorId)
+      throw new SourceReadError("x.com thread discovery returned a source author mismatch");
     for (const tweet of tweets) {
       const id = string(tweet!.id) ?? string(tweet!.id_str)!;
       if (this.cache.size >= 128) this.cache.delete(this.cache.keys().next().value!);

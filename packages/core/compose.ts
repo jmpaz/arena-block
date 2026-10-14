@@ -6,7 +6,7 @@ import type {
   MediaAsset,
   ResolvedPost,
 } from "./types.ts";
-import { compositionPolicySchema, DEFAULT_QUOTE_DEPTH, MAX_QUOTE_DEPTH, SCHEMA_VERSION } from "./types.ts";
+import { compositionPolicySchema, DEFAULT_QUOTE_DEPTH, MAX_EXPANDED_SOURCE_POSTS, MAX_QUOTE_DEPTH, SCHEMA_VERSION } from "./types.ts";
 import { combineAspects, explicitAudio, mediaAspect, tileRects, IMAGE_RECIPE_LONG_EDGE, IMAGE_RECIPE_MIN_TILE, VIDEO_RECIPE_LONG_EDGE, VIDEO_RECIPE_MIN_TILE, even } from "./render-recipe.ts";
 import { atprotoMarkdown } from "./providers/atproto-post.ts";
 import { availableQuoteNodes, quoteDateLabel, renderedQuoteDepth } from "./quote-policy.ts";
@@ -306,7 +306,7 @@ export function composePlan(
   policyInput: Partial<CompositionPolicy> = {},
 ): BlockPlan {
   if (!posts.length) throw new Error("At least one resolved post is required");
-  if (posts.length > 20) throw new Error("At most 20 source posts are supported");
+  if (posts.length > MAX_EXPANDED_SOURCE_POSTS) throw new Error(`At most ${MAX_EXPANDED_SOURCE_POSTS} resolved source posts are supported`);
   const policy = compositionPolicySchema.parse(policyInput);
   if (["all", "images"].includes(policy.media)) {
     const issue = posts.flatMap(post => post.mediaIssues ?? [])[0];

@@ -181,10 +181,14 @@ export type LayoutNode =
       children: LayoutNode[];
     };
 
+// Explicit requests remain limited to 20 refs; a provider-observed thread can
+// contain more posts while still producing one bounded immutable plan.
+export const MAX_EXPANDED_SOURCE_POSTS = 32;
+
 export const blockPlanSchema = z.object({
   schemaVersion: z.literal(SCHEMA_VERSION),
   hash: z.string().regex(/^[a-f0-9]{64}$/),
-  sources: z.array(resolvedPostSchema).min(1).max(20),
+  sources: z.array(resolvedPostSchema).min(1).max(MAX_EXPANDED_SOURCE_POSTS),
   policy: compositionPolicySchema,
   block: z.object({
     kind: z.enum(["text", "image", "link", "video", "audio", "url"]),

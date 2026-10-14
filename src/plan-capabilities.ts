@@ -1,8 +1,9 @@
 import type { BlockPlan, ResolvedPost } from "./types.ts";
 
-/** Capabilities required to retain protocol provenance in a publication capsule. */
+/** Collect the receiver capabilities needed before submitting a publication capsule. */
 export function requiredPlanCapabilities(plan: BlockPlan): string[] {
   const required = new Set<string>();
+  if (plan.sources.length > 20) required.add("expanded-source-count-32-v1");
   const visit = (post: ResolvedPost): void => {
     if (post.provider === "delve") required.add("delve-posts-v1");
     if (post.provider === "forum_magnum") required.add("forum-magnum-posts-v1");

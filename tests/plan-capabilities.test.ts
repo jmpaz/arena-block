@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { ArenaBlockClient } from "../src/client.ts";
 import { composePlan, planHash } from "../src/compose.ts";
 import { requiredPlanCapabilities } from "../src/plan-capabilities.ts";
-import type { ResolvedPost } from "../src/types.ts";
+import { blockPlanSchema, type ResolvedPost } from "../src/types.ts";
 
 const post: ResolvedPost = { provider: "delve", id: "a", canonicalUrl: "https://delve.town/profile/author.delve.town/post/a",
   author: { handle: "author.delve.town" }, text: "Original Delve text", media: [],
@@ -58,6 +58,43 @@ test("existing provider plans keep their publication contract", async () => {
   const { daemon, reads } = client();
   await expect(daemon.publish(legacy, ["channel"])).rejects.toThrow("mock publication reached");
   expect(reads).toEqual([{ path: "/v1/publications", method: "POST" }]);
+});
+
+test("a 21-post plan is schema-valid but cannot reach an older 20-post receiver", async () => {
+  const posts: ResolvedPost[] = Array.from({ length: 21 }, (_, index) => ({
+    provider: "x", id: String(index + 1), canonicalUrl: `https://x.com/author/status/${index + 1}`,
+    author: { handle: "author" }, text: `Part ${index + 1}`, media: [],
+  }));
+  const expanded = composePlan(posts, { threadExpansion: "on" });
+  expect(blockPlanSchema.parse(expanded)).toEqual(expanded);
+  expect(requiredPlanCapabilities(expanded)).toEqual(["expanded-source-count-32-v1"]);
+  const older = client(["atproto-post-records-v1", "delve-posts-v1", "bluesky-thread-coverage-v1"]);
+  await expect(older.daemon.publish(expanded, ["first", "second"])).rejects.toThrow("No save was submitted");
+  expect(older.reads).toEqual([{ path: "/v1/version", method: "GET" }]);
+  const matching = client(requiredPlanCapabilities(expanded));
+  await expect(matching.daemon.publish(expanded, ["first", "second"])).rejects.toThrow("mock publication reached");
+  expect(matching.reads).toEqual([{ path: "/v1/version", method: "GET" }, { path: "/v1/publications", method: "POST" }]);
+});
+
+test("a combined expanded thread and Forum Magnum source requires both receiver capabilities", async () => {
+  const posts: ResolvedPost[] = Array.from({ length: 21 }, (_, index) => ({
+    provider: "x", id: String(index + 1), canonicalUrl: `https://x.com/author/status/${index + 1}`,
+    author: { handle: "author" }, text: `Part ${index + 1}`, media: [],
+  }));
+  posts.push({ provider: "forum_magnum", id: "CommentABC123",
+    canonicalUrl: "https://www.lesswrong.com/posts/PostABC123/?commentId=CommentABC123",
+    author: { handle: "writer" }, text: "A public comment", media: [] });
+  const combined = composePlan(posts, { threadExpansion: "on" });
+  expect(blockPlanSchema.parse(combined)).toEqual(combined);
+  expect(requiredPlanCapabilities(combined)).toEqual(["expanded-source-count-32-v1", "forum-magnum-posts-v1"]);
+  for (const partial of [["expanded-source-count-32-v1"], ["forum-magnum-posts-v1"]]) {
+    const older = client(partial);
+    await expect(older.daemon.publish(combined, ["channel"])).rejects.toThrow("No save was submitted");
+    expect(older.reads).toEqual([{ path: "/v1/version", method: "GET" }]);
+  }
+  const matching = client(requiredPlanCapabilities(combined));
+  await expect(matching.daemon.publish(combined, ["channel"])).rejects.toThrow("mock publication reached");
+  expect(matching.reads).toEqual([{ path: "/v1/version", method: "GET" }, { path: "/v1/publications", method: "POST" }]);
 });
 
 test("native Bluesky coverage cannot be submitted to a daemon that would drop it", async () => {

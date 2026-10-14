@@ -1,4 +1,4 @@
-import { compositionPolicySchema, type CompositionPolicy, type ResolvedPost } from "../types.ts";
+import { compositionPolicySchema, MAX_EXPANDED_SOURCE_POSTS, type CompositionPolicy, type ResolvedPost } from "../types.ts";
 import { parseSource } from "../url.ts";
 import { explicitSelections, selectionIdentity } from "../source-selection.ts";
 import { DelveProvider } from "./delve.ts";
@@ -130,7 +130,7 @@ export class SocialResolver {
       seen.add(key);
       return true;
     });
-    if (posts.length > 20) throw new Error("Expanded source selection exceeds 20 posts; turn thread expansion off or choose posts explicitly");
+    if (posts.length > MAX_EXPANDED_SOURCE_POSTS) throw new Error(`Expanded source selection exceeds ${MAX_EXPANDED_SOURCE_POSTS} posts; choose a smaller source set`);
     const effective = compositionPolicySchema.parse({ ...policy,
       ...(extraRefs.length || policyInput.mediaOnlyPosts?.length
         ? { mediaOnlyPosts: posts.flatMap((post, index) => post.selection?.role === "extra" ? [index + 1] : []) } : {}) });

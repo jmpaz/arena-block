@@ -61,11 +61,11 @@ TikTok and Instagram carousels preserve source order. Photo mosaics omit soundtr
 
 Hacker News links must identify comments. Lobsters accepts `/c/ID` and story links ending in `#c_ID`. Comment capture preserves paragraphs and formatting, uses the source URL field and records the UTC creation time in the description. Unavailable comments return an error.
 
-For a Quick Take, copy its comment permalink from LessWrong. A Shortform container without a body cannot become a text block by itself. The same comment capture accepts `?commentId=ID`, a comment path, or a comment hash. GreaterWrong post and comment links resolve through the public LessWrong API. Capture keeps the comment's author, date, formatting, links, quotes and image references. An embedded frame stays a link.
+For a Quick Take or Shortform entry, copy its comment permalink. A bare Shortform container has no body to capture. Use `?commentId=ID`, a comment path, or a comment hash. GreaterWrong links resolve through LessWrong's public API. The resulting plan includes the selected comment's author, date, formatting, links, quotes and image references. Embedded frames appear as links.
 
-With one Forum Magnum comment URL, automatic expansion adds available parents, up to six levels. `--thread-expansion off` keeps the selected comment alone. `on` also adds up to eight direct replies and bounded same-author continuations. When you supply several comment URLs, they stay in your chosen order. Deleted, private and unavailable content returns an error.
+For a single comment URL, the default expansion follows up to six available parents. Use `--thread-expansion off` to capture only the selected comment. Use `on` to include up to eight direct replies and bounded same-author continuations. When you list several comment URLs, the result follows your order. Deleted, private and unavailable content returns an error.
 
-The daemon must advertise `forum-magnum-posts-v1` before it accepts a Forum Magnum plan. Local planning and rendering work without the daemon.
+Before submitting a Forum Magnum plan, the client checks the receiver for `forum-magnum-posts-v1`. You can plan and render locally without a receiver.
 
 For SoundCloud, planning preserves track or playlist metadata. Original-download availability depends on the public source. An unavailable verified file URL remains a source link.
 
@@ -77,7 +77,7 @@ Use `--media auto|none|images|video|audio|all`, or explicit media references, ac
 
 The title identifies the first author. A speaker change adds that author's label. `--separator auto|always|never` controls dividers between contributions. Quote depth, dates and inclusion follow the composition policy. Each quoted post retains its own author and source information.
 
-Bluesky and Delvetown thread expansion follows returned author/reply relationships. The client preserves expansion on/off choices. x.com thread import uses the available author chain or exact post links. Provider responses can omit replies or branches, so imported selections describe their observed scope.
+For Bluesky and Delvetown, thread expansion follows the returned author and reply relationships. For x.com, import an observed author chain or enter exact post links. The client accepts up to 32 posts from an observed expanded thread and up to 20 explicit links. Before submitting a plan with more than 20 posts, it checks the receiver for `expanded-source-count-32-v1`. If a provider omits replies or branches, the result describes the scope it returned.
 
 For local image previews:
 

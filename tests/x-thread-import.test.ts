@@ -2,6 +2,10 @@ import { expect, test } from "bun:test";
 import { composePlan } from "../src/compose.ts";
 import { SocialResolver } from "../src/providers/index.ts";
 import { XProvider } from "../src/providers/x.ts";
+import { blockPlanSchema, MAX_EXPANDED_SOURCE_POSTS } from "../src/types.ts";
+import { requiredPlanCapabilities } from "../src/plan-capabilities.ts";
+import { parseSource } from "../src/url.ts";
+import { captureRenderRecipe } from "../packages/core/render-recipe.ts";
 
 const ids = ["99999999999999999002", "99999999999999999003", "99999999999999999004", "99999999999999999005"];
 const tweets = ids.map((id, index) => ({
@@ -64,4 +68,62 @@ test("media-only extras append after imported text and retain their role", async
   const plan = composePlan(selected.posts, selected.policy);
   expect(plan.block.markdown).not.toContain("Supplementary prose");
   expect(plan.block.selectedMedia).toEqual(["1.1", "5.1"]);
+});
+
+test("the observed 21-post Argon thread keeps every ordered image and its root quote", async () => {
+  const observed = await Bun.file(new URL("./fixtures/x-argon-thread-public.json", import.meta.url)).json();
+  const quote = observed.thread[0].quote;
+  const provider = new XProvider("https://source.test", async input => {
+    const url = String(input);
+    if (url.includes("/2/thread/")) return Response.json(observed);
+    if (url.endsWith(`/status/${quote.id}`)) return Response.json({ code: 200, tweet: quote });
+    return new Response("unexpected source read", { status: 404 });
+  });
+  const selected = await new SocialResolver({ x: provider }).resolveComposition([observed.source], [],
+    { media: "all", threadExpansion: "on" });
+  const plan = composePlan(selected.posts, selected.policy);
+  expect(plan.sources.map(post => post.id)).toEqual(observed.thread.map((tweet: { id: string }) => tweet.id));
+  expect(plan.sources).toHaveLength(21);
+  expect(plan.sources.every(post => post.media.length === 1)).toBe(true);
+  expect(plan.sources[0]?.quote?.id).toBe("2110039322229649783");
+  expect(plan.sources[0]?.quote?.author.handle).toBe("GeminiApp");
+  expect(plan.sources[20]?.replyTo?.id).toBe(plan.sources[19]?.id);
+  expect(plan.sources[20]?.selection?.parentUri).toBe(plan.sources[19]?.canonicalUrl);
+  expect(plan.block.selectedMedia).toEqual(Array.from({ length: 21 }, (_, index) => `${index + 1}.1`));
+  const recipe = captureRenderRecipe(plan, {})!;
+  expect(recipe.tiles.map(tile => tile.ref)).toEqual(plan.block.selectedMedia);
+  expect(recipe.tiles.every(tile => tile.kind === "image")).toBe(true);
+  expect(Math.min(...recipe.tiles.map(tile => Math.min(tile.rect.width, tile.rect.height)))).toBeGreaterThanOrEqual(256);
+  expect(plan.block.markdown).toContain("Argon is also 34% faster at high effort");
+  expect(plan.hash).toBe("99d148a18238be969afd19676488860cf5d17d81d74ece4ebfdc1d4f1cc920a9");
+  expect(blockPlanSchema.parse(plan)).toEqual(plan);
+  expect(requiredPlanCapabilities(plan)).toEqual(["expanded-source-count-32-v1"]);
+});
+
+test("x.com thread failures identify access, discovery, pagination, source mismatch, and genuine cap", async () => {
+  const source = parseSource(`https://x.com/mathmaker/status/${ids[1]}`);
+  const cases: Array<{ response: Response; error: RegExp }> = [
+    { response: new Response("limited", { status: 429 }), error: /rate limited.*429/ },
+    { response: new Response("denied", { status: 403 }), error: /denied.*403/ },
+    { response: Response.json({ code: 403, status: null }), error: /denied.*403/ },
+    { response: Response.json({ code: 200, status: { type: "tombstone", reason: "private", id: ids[1] }, thread: [] }), error: /requested post is private/ },
+    { response: Response.json({ code: 404, status: { type: "tombstone", reason: "deleted", id: ids[1] }, thread: [] }), error: /requested post is deleted/ },
+    { response: Response.json({ code: 200, status: tweets[1] }), error: /no thread array/ },
+    { response: Response.json({ code: 200, status: tweets[1], thread: tweets, cursor: { bottom: "more" } }), error: /paginated or truncated/ },
+    { response: Response.json({ code: 200, status: tweets[0], thread: tweets }), error: /different source post/ },
+    { response: Response.json({ code: 200, status: tweets[1], thread: Array.from({ length: MAX_EXPANDED_SOURCE_POSTS + 1 }, (_, index) => ({ ...tweets[0], id: String(index + 1) })) }), error: /33 posts, above the 32-post import limit/ },
+    { response: Response.json({ code: 200, status: tweets[1], thread: [tweets[0], { type: "tombstone", reason: "deleted", id: ids[1] }] }), error: /contains a deleted post/ },
+  ];
+  for (const { response, error } of cases) {
+    const provider = new XProvider("https://source.test", async () => response.clone());
+    await expect(provider.discoverLinear(source)).rejects.toThrow(error);
+  }
+  await expect(new XProvider("https://source.test", async () => { throw new TypeError("offline"); })
+    .discoverLinear(source)).rejects.toThrow(/could not reach the public source/);
+  const foreign = tweets.map((tweet, index) => index === 2 ? { ...tweet, author: { id: "foreign", screen_name: "foreign" } } : tweet);
+  await expect(new XProvider("https://source.test", async () => Response.json({ code: 200, status: tweets[1], thread: foreign }))
+    .discoverLinear(source)).rejects.toThrow(/another author/);
+  await expect(new XProvider("https://source.test", async () => Response.json({ code: 200,
+    status: { ...tweets[1], author: { id: "foreign", screen_name: "foreign" } }, thread: tweets }))
+    .discoverLinear(source)).rejects.toThrow(/source author mismatch/);
 });

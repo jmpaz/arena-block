@@ -77,7 +77,7 @@ export class ArenaBlockClient {
       if (required.length) {
         const serving = buildInfoSchema.parse(await this.request("/v1/version", undefined, signal));
         const missing = required.filter(capability => !serving.planCapabilities?.includes(capability));
-        if (missing.length) throw new PublicationError(`Daemon does not support this source plan (${missing.join(", ")}). Local resolve, plan and render are available; install a matching daemon before publishing. No save was submitted.`);
+        if (missing.length) throw new PublicationError(`Daemon does not support this plan (${missing.join(", ")}). Local resolve, plan and render are available; install a matching daemon before publishing. No save was submitted.`);
       }
     }
     const serialized = body === undefined ? undefined : JSON.stringify(body);

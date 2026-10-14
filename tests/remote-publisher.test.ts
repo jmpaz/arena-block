@@ -10,7 +10,7 @@ import { prepareSaveIntent } from "../src/save-intent.ts";
 import { userConfigSchema } from "../src/config.ts";
 import { readProvenanceMetadata, mergedMetadata, type Metadata } from "../src/connection-metadata.ts";
 import { createService, loadServiceConfig } from "../src/service.ts";
-import type { PublishRequest } from "../src/types.ts";
+import type { BlockPlan, PublishRequest } from "../src/types.ts";
 import type { RemoteProvenancePolicy } from "../src/remote-save.ts";
 import { saveSnapshotSchema } from "../src/provenance-schema.ts";
 import { qualificationPlan, qualificationRequests, qualificationBoundaryPatch, QUALIFICATION_APPROVAL } from "./fixtures/qualification-fixtures.ts";
@@ -19,8 +19,8 @@ import { runApprovedQualification, verifyCompletedQualification } from "./fixtur
 const directories: string[] = [];
 afterEach(async () => { await Promise.all(directories.splice(0).map(path => rm(path, { recursive: true, force: true }))); });
 const policy: RemoteProvenancePolicy = { inboxChannel: "901", mode: "full", credentialProfile: "shared", expectedAccountId: 47 };
-function request(text = "Fictional qualification text. No source was fetched.", destinations = ["901", "active"]): PublishRequest {
-  const plan = composePlan([{ provider: "x", id: "1", canonicalUrl: "https://x.com/fictional_fixture/status/1", author: { handle: "fictional_fixture" }, text, media: [] }], { media: "none" });
+function request(text = "Fictional qualification text. No source was fetched.", destinations = ["901", "active"], suppliedPlan?: BlockPlan): PublishRequest {
+  const plan = suppliedPlan ?? composePlan([{ provider: "x", id: "1", canonicalUrl: "https://x.com/fictional_fixture/status/1", author: { handle: "fictional_fixture" }, text, media: [] }], { media: "none" });
   const config = userConfigSchema.parse({ remoteInbox: { channel: "901", mode: "always" }, provenance: { remoteSnapshot: "full" }, credentialProfiles: { shared: { arenaTokenEnv: "ARENA_WRITE_ACCESS_TOKEN", expectedAccountId: 47 } } });
   const intent = prepareSaveIntent(plan, config, { origin: "cli", initiator: { kind: "human" }, destinations, operation: "publish" });
   return { plan, destinations: intent.snapshot.routing.destinations, force: false, operationId: intent.snapshot.saveId,
@@ -95,6 +95,44 @@ describe("private remote provenance publisher integration", () => {
     const { api, publisher, store } = await harness(); const input = request(undefined, ["901", "active", "902"]);
     const first = await publisher.publish(input), second = await publisher.publish(input);
     expect(second.id).toBe(first.id); expect(api.creates()).toBe(1); expect(api.rows).toHaveLength(2); expect(api.connects()).toBe(1); store.close();
+  });
+  test("a 21-source capsule keeps its immutable receipt across two requested channels and replay", async () => {
+    const expanded = composePlan(Array.from({ length: 21 }, (_, index) => ({
+      provider: "x" as const, id: String(index + 1), canonicalUrl: `https://x.com/fixture/status/${index + 1}`,
+      author: { handle: "fixture" }, text: `Part ${index + 1}`, media: [],
+    })), { media: "none", threadExpansion: "on" });
+    const input = request(undefined, ["901", "active", "later"], expanded);
+    const { api, publisher, store } = await harness();
+    const first = await publisher.publish(input), replay = await publisher.publish(input);
+    expect(first.status).toBe("verified");
+    expect(first.planHash).toBe(expanded.hash);
+    expect(first.destinations).toContain("active");
+    expect(first.destinations).toContain("later");
+    expect(store.remoteSave(input.operationId!)?.intent.snapshot.plan.hash).toBe(expanded.hash);
+    expect(replay.id).toBe(first.id);
+    expect(api.creates()).toBe(1);
+    expect(api.connects()).toBe(2);
+    store.close();
+  });
+  test("a combined expanded thread and Forum Magnum comment stays intact in the saved capsule", async () => {
+    const posts = Array.from({ length: 21 }, (_, index) => ({
+      provider: "x" as const, id: String(index + 1), canonicalUrl: `https://x.com/fixture/status/${index + 1}`,
+      author: { handle: "fixture" }, text: `Part ${index + 1}`, media: [],
+    }));
+    const combined = composePlan([...posts, { provider: "forum_magnum" as const, id: "CommentABC123",
+      canonicalUrl: "https://www.lesswrong.com/posts/PostABC123/?commentId=CommentABC123",
+      author: { handle: "writer" }, text: "A public comment", media: [],
+    }], { media: "none", threadExpansion: "on" });
+    const input = request(undefined, ["901", "active"], combined);
+    const { api, publisher, store } = await harness();
+    const receipt = await publisher.publish(input);
+    expect(receipt.status).toBe("verified");
+    expect(receipt.planHash).toBe(combined.hash);
+    const retained = store.remoteSave(input.operationId!)?.intent.snapshot.plan;
+    expect(retained?.sources).toHaveLength(22);
+    expect(retained?.sources[21]).toMatchObject({ provider: "forum_magnum", id: "CommentABC123", text: "A public comment" });
+    expect(api.creates()).toBe(1);
+    store.close();
   });
   test("finds an old extra placement on page four and proves a missing destination from complete block membership", async () => {
     const { api, publisher, store } = await harness();

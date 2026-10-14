@@ -54,7 +54,8 @@ describe("supplementary media", () => {
 
   test("validates supplementary indexes and source count", () => {
     for (const index of [0, 1, 3, 2.5]) expect(() => composePlan([post(1), post(2)], { mediaOnlyPosts: [index] })).toThrow();
-    expect(() => composePlan(Array.from({ length: 21 }, (_, index) => post(index + 1)))).toThrow(/20/);
+    expect(composePlan(Array.from({ length: 32 }, (_, index) => post(index + 1))).sources).toHaveLength(32);
+    expect(() => composePlan(Array.from({ length: 33 }, (_, index) => post(index + 1)))).toThrow(/32/);
   });
 
   test("empty supplementary posts contribute nothing and ordinary policies stay unchanged", () => {

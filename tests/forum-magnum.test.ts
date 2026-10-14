@@ -5,6 +5,7 @@ import { explicitSelections } from "../packages/core/source-selection.ts";
 import { captureSource } from "../packages/core/capture.ts";
 import { SocialResolver } from "../packages/core/providers/index.ts";
 import { ForumMagnumProvider } from "../packages/core/providers/forum-magnum.ts";
+import { XProvider } from "../packages/core/providers/x.ts";
 import { composePlan } from "../packages/core/compose.ts";
 import { previewFields, requiredOrigins, resolveCapture } from "../extension/src/core.ts";
 import { requiredPlanCapabilities } from "../src/plan-capabilities.ts";
@@ -209,6 +210,29 @@ test("extension preview receives Forum Magnum sources and requests exact public 
   expect(plan.block.kind).toBe("text");
   expect(plan.block.canonicalSource).toBe(sample);
   expect(requiredPlanCapabilities(plan)).toEqual(["forum-magnum-posts-v1"]);
+});
+
+test("extension and CLI agree when an observed x.com thread includes a Forum Magnum source", async () => {
+  const observed = await Bun.file(new URL("./fixtures/x-argon-thread-public.json", import.meta.url)).json();
+  const forumFetch = fixtureFetch().fetcher;
+  const fetcher = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    if (url.includes("api.fxtwitter.com/2/thread/")) return Response.json(observed);
+    if (url.endsWith(`/status/${observed.thread[0].quote.id}`))
+      return Response.json({ code: 200, tweet: observed.thread[0].quote });
+    return forumFetch(input, init);
+  }) as typeof fetch;
+  const policy = { threadExpansion: "on" as const, media: "none" as const };
+  const extensionPlan = await resolveCapture({ primary: [observed.source], extras: [sample], policy }, undefined, fetcher);
+  const cliResolved = await new SocialResolver({ x: new XProvider(undefined, fetcher),
+    forum_magnum: new ForumMagnumProvider(fetcher) }).resolveComposition([observed.source], [sample], policy);
+  const cliPlan = composePlan(cliResolved.posts, cliResolved.policy);
+  expect(extensionPlan).toEqual(cliPlan);
+  expect(extensionPlan.sources).toHaveLength(22);
+  expect(extensionPlan.sources[21]?.provider).toBe("forum_magnum");
+  expect(requiredPlanCapabilities(extensionPlan)).toEqual(["expanded-source-count-32-v1", "forum-magnum-posts-v1"]);
+  expect(requiredOrigins([observed.source, sample])).toEqual(["https://api.fxtwitter.com/*", "https://www.lesswrong.com/*"]);
+  expect(previewFields(extensionPlan)).toEqual(publicationFields(cliPlan));
 });
 
 const liveTest = process.env.FORUM_MAGNUM_LIVE === "1" ? test : test.skip;

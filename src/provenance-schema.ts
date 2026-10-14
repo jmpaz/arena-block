@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { blockPlanSchema } from "./types.ts";
+import { blockPlanSchema, MAX_EXPANDED_SOURCE_POSTS } from "./types.ts";
 
 export const initiatorSchema = z.object({
   kind: z.enum(["human", "agent", "automation", "unknown"]),
@@ -21,7 +21,8 @@ export const saveSnapshotSchema = z.object({
     expectedAccountId: z.number().int().positive().safe().optional(), authenticatedAccountVerified: z.literal(false),
   }).strict(),
   invocation: z.object({ operation: z.enum(["publish", "save-intent", "mcp.preview_save"]), arguments: z.literal("structured_only"), force: z.boolean(),
-    inputs: z.object({ sourceRefs: z.array(z.string().max(8192)).max(20), destinationArgs: z.array(z.string().max(2048)).max(20), basis: z.enum(["declared_arguments", "canonical_from_plan"]) }).strict(),
+    inputs: z.object({ sourceRefs: z.array(z.string().max(8192)).max(MAX_EXPANDED_SOURCE_POSTS), destinationArgs: z.array(z.string().max(2048)).max(20), basis: z.enum(["declared_arguments", "canonical_from_plan"]) }).strict()
+      .refine(value => value.basis !== "declared_arguments" || value.sourceRefs.length <= 20, "Declared input is limited to 20 source references"),
   }).strict(),
   application: z.object({ name: z.literal("arena-block"), version: z.string().min(1).max(100), sourceRevision: z.string().regex(/^[a-f0-9]{40}$/).optional(), sourceId: z.string().min(1).max(150).optional() }).strict(),
   routing: z.object({ requestedDestinations: channelList, activeDestinations: channelList, destinations: channelList.min(1),
