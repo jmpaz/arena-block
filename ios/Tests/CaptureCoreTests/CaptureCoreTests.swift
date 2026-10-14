@@ -229,6 +229,29 @@ final class CaptureCoreTests: XCTestCase {
         XCTAssertNil(CaptureInput.pasteableSourceText("Just some text about Delve"))
     }
 
+    func testForumMagnumClipboardAndSourceRowsKeepDistinctComments() throws {
+        let root = "https://www.lesswrong.com/posts/6eaKqtmDuo6CmkqMK/loops-s-shortform"
+        let first = root + "?commentId=7C9iqsDCdxC2PfKDf"
+        let alternate = "https://greaterwrong.com/posts/6eaKqtmDuo6CmkqMK/loops-s-shortform/comment/7C9iqsDCdxC2PfKDf"
+        let second = root + "#comment-jFB6xwANhpqJkkvc4"
+        let post = URL(string: root)!
+        let firstURL = URL(string: first)!
+        let secondURL = URL(string: second)!
+        XCTAssertTrue(CaptureInput.isForumMagnumComment(firstURL))
+        XCTAssertTrue(CaptureInput.isForumMagnumComment(secondURL))
+        XCTAssertFalse(CaptureInput.isForumMagnumComment(post))
+        XCTAssertEqual(CaptureInput.canonicalSourceIdentity(firstURL),
+                       CaptureInput.canonicalSourceIdentity(URL(string: alternate)!))
+        XCTAssertNotEqual(CaptureInput.canonicalSourceIdentity(firstURL), CaptureInput.canonicalSourceIdentity(secondURL))
+        XCTAssertNotEqual(CaptureInput.canonicalSourceIdentity(firstURL), CaptureInput.canonicalSourceIdentity(post))
+        let selected = try CaptureInput.selectedPosts([first, alternate, second, root].joined(separator: "\n"), roles: nil)
+        XCTAssertEqual(selected.primary.map(\.absoluteString), [first, second, root])
+        XCTAssertEqual(CaptureInput.pasteableSourceText([first, alternate, second, root].joined(separator: "\n")),
+                       [first, second, root].joined(separator: "\n"))
+        XCTAssertNotEqual(CaptureInput.canonicalSourceIdentity(URL(string: root + "#comment-bad")!),
+                          CaptureInput.canonicalSourceIdentity(post))
+    }
+
     func testClipboardIntakeRetainsOnlyExplicitLinks() {
         XCTAssertNil(CaptureInput.pasteableSourceText(""))
         XCTAssertNil(CaptureInput.pasteableSourceText("initially read this as “stochastic” lol"))

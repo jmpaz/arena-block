@@ -51,6 +51,7 @@ export function parseSource(value: string): ParsedSource {
     const queryComments = url.searchParams.getAll("commentId");
     if (queryComments.some(item => !/^[A-Za-z0-9]+$/.test(item))) throw new Error("Invalid Forum Magnum comment ID");
     const fragmentComment = /^#(?:comment-)?([A-Za-z0-9]{12,30})$/.exec(url.hash)?.[1];
+    if (url.hash.startsWith("#comment-") && !fragmentComment) throw new Error("Invalid Forum Magnum comment ID");
     const comments = [pathComment, ...queryComments, fragmentComment].filter((item): item is string => Boolean(item));
     if (comments.some(item => !/^[A-Za-z0-9]+$/.test(item) || item !== comments[0])) throw new Error("Conflicting or invalid Forum Magnum comment IDs");
     const commentId = comments[0];

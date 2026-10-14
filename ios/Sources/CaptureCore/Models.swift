@@ -219,6 +219,48 @@ public enum CaptureInput {
             let provider = host == "delve.town" ? "delve" : "bluesky"
             return "\(provider):\(parts[1].replacingOccurrences(of: "@", with: "").lowercased())/\(parts[3])"
         }
+        if let site = ["lesswrong.com": "lesswrong", "greaterwrong.com": "lesswrong",
+                       "alignmentforum.org": "alignment_forum", "forum.effectivealtruism.org": "ea_forum"][host] {
+            // Match the shared resolver's public post and comment routes. Keep
+            // malformed links distinct so the resolver can reject them later.
+            guard url.scheme?.lowercased() == "https", url.user == nil, url.password == nil,
+                  url.port == nil else { return url.absoluteString }
+            let validID = { (value: String) in value.range(of: #"^[A-Za-z0-9]+$"#, options: .regularExpression) != nil }
+            let postID: String?
+            let pathComment: String?
+            switch parts.count {
+            case 2 where parts[0] == "posts" || parts[0] == "p":
+                postID = parts[1]; pathComment = nil
+            case 3 where parts[0] == "posts":
+                postID = parts[1]
+                pathComment = nil
+            case 4 where parts[0] == "s" && parts[2] == "p":
+                postID = parts[3]; pathComment = nil
+            case 5 where parts[0] == "posts" && parts[3] == "comment":
+                postID = parts[1]; pathComment = parts[4]
+            default:
+                postID = nil; pathComment = nil
+            }
+            guard let postID, validID(postID), pathComment.map(validID) != false else { return url.absoluteString }
+            let queries = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?
+                .filter { $0.name == "commentId" }.map { $0.value ?? "" } ?? []
+            let fragment = url.fragment ?? ""
+            let fragmentID: String?
+            if fragment.hasPrefix("comment-") {
+                let candidate = String(fragment.dropFirst("comment-".count))
+                guard (12...30).contains(candidate.count), validID(candidate) else { return url.absoluteString }
+                fragmentID = candidate
+            }
+            else if (12...30).contains(fragment.count), validID(fragment) { fragmentID = fragment }
+            else { fragmentID = nil }
+            var comments: [String] = []
+            if let pathComment { comments.append(pathComment) }
+            comments.append(contentsOf: queries)
+            if let fragmentID { comments.append(fragmentID) }
+            guard comments.allSatisfy({ validID($0) && $0 == comments.first }) else { return url.absoluteString }
+            let target = comments.first.map { "comment:\(postID):\($0)" } ?? "post:\(postID)"
+            return "forum-magnum:\(site):\(target)"
+        }
         var normalized = URLComponents(url: url, resolvingAgainstBaseURL: false)
         normalized?.fragment = nil
         return normalized?.url?.absoluteString ?? url.absoluteString
@@ -230,6 +272,10 @@ public enum CaptureInput {
     }
 
     public static func isBlueskyPost(_ url: URL) -> Bool { canonicalSourceIdentity(url).hasPrefix("bluesky:") }
+
+    public static func isForumMagnumComment(_ url: URL) -> Bool {
+        canonicalSourceIdentity(url).range(of: #"^forum-magnum:[^:]+:comment:"#, options: .regularExpression) != nil
+    }
 
     public static func urls(in text: String) -> [URL] {
         let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)

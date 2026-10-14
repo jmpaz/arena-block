@@ -11,6 +11,7 @@ import { combineAspects, explicitAudio, mediaAspect, tileRects, IMAGE_RECIPE_LON
 import { atprotoMarkdown } from "./providers/atproto-post.ts";
 import { availableQuoteNodes, quoteDateLabel, renderedQuoteDepth } from "./quote-policy.ts";
 import { soundCloudPlaylistText } from "./soundcloud.ts";
+import { parseSource } from "./url.ts";
 
 function handle(post: ResolvedPost): string {
   return post.author.handle.replace(/^@/, "");
@@ -124,9 +125,13 @@ function renderSequence(posts: ResolvedPost[], policy: CompositionPolicy, frameR
     // remain literal source text.
     const body = renderPost(hasCarriedReplyAddress ? { ...post, text: post.text.slice(post.replyAddressPrefix!.length) } : post,
       policy, frameRefs, sameAuthorReply && !!post.quote);
-    const forumRelation = post.provider === "forum_magnum" && post.replyTo
-      ? `*[Reply to ${post.replyTo.authorHandle ? `@${post.replyTo.authorHandle}` : `comment ${post.replyTo.id}`}](<${new URL(`?commentId=${post.replyTo.id}`, post.canonicalUrl).href}>)*`
-      : "";
+    let forumRelation = "";
+    if (post.provider === "forum_magnum" && post.replyTo) {
+      const source = parseSource(post.canonicalUrl);
+      if (source.provider !== "forum_magnum") throw new Error("Forum Magnum reply has a mismatched source URL");
+      const parentUrl = new URL(`?commentId=${post.replyTo.id}`, source.canonicalUrl).href;
+      forumRelation = `*[Reply to ${post.replyTo.authorHandle ? `@${post.replyTo.authorHandle}` : `comment ${post.replyTo.id}`}](<${parentUrl}>)*`;
+    }
     if (!multiSource) return [forumRelation, body].filter(Boolean).join("\n\n");
     // The title identifies the first speaker. Label turns, not every post;
     // source URLs and exact times remain in plan.sources.

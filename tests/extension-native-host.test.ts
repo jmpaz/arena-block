@@ -3,6 +3,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { webPlan } from "../packages/core/capture.ts";
+import { composePlan } from "../packages/core/compose.ts";
 import { handle } from "../extension/native-host.ts";
 
 function frame(value: unknown): Buffer {
@@ -40,6 +41,46 @@ test("native host save uses a retained ID and never returns the daemon bearer", 
     expect(calls[0]?.body.snapshot.saveId).toBe(saveId);
     expect(calls[0]?.body.snapshot.routing.destinations).toEqual(["test-channel"]);
     expect(calls[0]?.body.snapshot.origin).toBe("cli");
+  } finally {
+    if (oldToken === undefined) delete process.env.ARENA_BLOCK_ACCESS_TOKEN; else process.env.ARENA_BLOCK_ACCESS_TOKEN = oldToken;
+    if (oldEndpoint === undefined) delete process.env.ARENA_BLOCK_ENDPOINT; else process.env.ARENA_BLOCK_ENDPOINT = oldEndpoint;
+    if (oldConfig === undefined) delete process.env.ARENA_BLOCK_CONFIG; else process.env.ARENA_BLOCK_CONFIG = oldConfig;
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("native host checks Forum Magnum capability before submitting a save", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "arena-block-host-capability-"));
+  const configPath = join(directory, "config.json");
+  await writeFile(configPath, JSON.stringify({ schemaVersion: 1 }));
+  const oldToken = process.env.ARENA_BLOCK_ACCESS_TOKEN;
+  const oldEndpoint = process.env.ARENA_BLOCK_ENDPOINT;
+  const oldConfig = process.env.ARENA_BLOCK_CONFIG;
+  process.env.ARENA_BLOCK_ACCESS_TOKEN = "test-token";
+  process.env.ARENA_BLOCK_ENDPOINT = "http://127.0.0.1:8790";
+  process.env.ARENA_BLOCK_CONFIG = configPath;
+  let capabilities: string[] = [];
+  const calls: string[] = [];
+  const fakeFetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = new URL(String(input));
+    calls.push(`${init?.method} ${url.pathname}${url.search}`);
+    if (url.pathname === "/v1/version") return Response.json({ version: "0.1.0", revision: null, sourceId: "fixture",
+      platform: "fixture", schemaVersion: 1, packagePath: null, planCapabilities: capabilities });
+    const body = JSON.parse(String(init?.body));
+    return Response.json({ saveId: body.snapshot.saveId, phase: "prepared" }, { status: 202 });
+  }) as typeof fetch;
+  try {
+    const saveId = crypto.randomUUID();
+    const plan = composePlan([{ provider: "forum_magnum", id: "commentA",
+      canonicalUrl: "https://www.lesswrong.com/posts/postA/?commentId=commentA",
+      author: { handle: "writer" }, text: "A public comment", storyTitle: "A post", media: [] }]);
+    const request = { id: "forum", action: "save" as const, saveId, plan, destinations: ["test-channel"] };
+    await expect(handle(request, fakeFetch)).rejects.toThrow("No save was submitted");
+    expect(calls).toEqual(["GET /v1/version"]);
+    capabilities = ["forum-magnum-posts-v1"];
+    const result = await handle(request, fakeFetch);
+    expect(result).toEqual({ saveId, phase: "prepared" });
+    expect(calls).toEqual(["GET /v1/version", "GET /v1/version", "POST /v1/saves?async=1"]);
   } finally {
     if (oldToken === undefined) delete process.env.ARENA_BLOCK_ACCESS_TOKEN; else process.env.ARENA_BLOCK_ACCESS_TOKEN = oldToken;
     if (oldEndpoint === undefined) delete process.env.ARENA_BLOCK_ENDPOINT; else process.env.ARENA_BLOCK_ENDPOINT = oldEndpoint;

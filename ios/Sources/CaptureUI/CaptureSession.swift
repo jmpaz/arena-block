@@ -425,12 +425,13 @@ public final class CaptureSession {
         if !keepingExpansion {
             let oldIdentity = draft.flatMap { Self.singleThreadSourceIdentity($0.input, roles: $0.sourceRoles) }
             let newIdentity = Self.singleThreadSourceIdentity(text, roles: keepingRoles ? draft?.sourceRoles : nil)
-            // An existing stored draft keeps its old choice until its source is edited.
-            // Keep an explicit opt-out while editing the same post.
+            // Keep the reviewed scope while editing the same source. Forum
+            // comments start with ancestors only; broader replies are opt-in.
             let currentExpansion = draft?.threadExpansion
-            let updatedExpansion: CaptureThreadExpansion? = newIdentity == nil ? nil :
-                (newIdentity == oldIdentity && currentExpansion == .off ? .off : .on)
-            draft?.threadExpansion = updatedExpansion
+            if let newIdentity {
+                let initial = Self.defaultThreadExpansion(for: newIdentity)
+                draft?.threadExpansion = newIdentity == oldIdentity ? (currentExpansion ?? initial) : initial
+            } else { draft?.threadExpansion = nil }
         }
         if !keepingRoles { draft?.sourceRoles = nil }
         if startingEmpty { draft?.videoFrameThresholdSeconds = autoFrameThresholdSeconds }
@@ -512,10 +513,20 @@ public final class CaptureSession {
         return CaptureInput.canonicalSourceIdentity(posts.primary[0]).hasPrefix("x:")
     }
 
+    var canExpandForumMagnumComment: Bool {
+        guard let draft, let posts = try? CaptureInput.selectedPosts(draft.input, roles: draft.sourceRoles),
+              posts.primary.count == 1 else { return false }
+        return CaptureInput.isForumMagnumComment(posts.primary[0])
+    }
+
+    private static func defaultThreadExpansion(for identity: String) -> CaptureThreadExpansion {
+        identity.hasPrefix("forum-magnum:") ? .auto : .on
+    }
+
     private static func singleThreadSourceIdentity(_ input: String, roles: [CaptureSourceRole]?) -> String? {
         guard let posts = try? CaptureInput.selectedPosts(input, roles: roles), posts.primary.count == 1 else { return nil }
         let identity = CaptureInput.canonicalSourceIdentity(posts.primary[0])
-        return ["x:", "bluesky:", "delve:"].contains(where: identity.hasPrefix) ? identity : nil
+        return ["x:", "bluesky:", "delve:", "forum-magnum:"].contains(where: identity.hasPrefix) ? identity : nil
     }
 
     var importsXThread: Bool { draft?.threadExpansion == .on }
@@ -537,6 +548,17 @@ public final class CaptureSession {
               [.editing, .preparing, .ready, .failed].contains(current.phase) else { return }
         let mode: CaptureThreadExpansion = enabled ? .on : .off
         guard current.threadExpansion != mode else { return }
+        guard retainMediaChoicesForSourceOptions() else { return }
+        draft?.threadExpansion = mode
+        setInput(current.input, keepingExpansion: true, keepingRoles: true, preservingChoices: true)
+    }
+
+    var forumMagnumExpansion: CaptureThreadExpansion { draft?.threadExpansion ?? .auto }
+
+    func setForumMagnumExpansion(_ mode: CaptureThreadExpansion) {
+        guard canExpandForumMagnumComment, let current = draft, !busy, current.blockID == nil,
+              [.editing, .preparing, .ready, .failed].contains(current.phase) else { return }
+        guard forumMagnumExpansion != mode else { return }
         guard retainMediaChoicesForSourceOptions() else { return }
         draft?.threadExpansion = mode
         setInput(current.input, keepingExpansion: true, keepingRoles: true, preservingChoices: true)
@@ -897,7 +919,9 @@ public final class CaptureSession {
         guard let account else { throw CaptureError.message("Connect Are.na to save.") }
         var capture = CaptureDraft(accountID: account.id, defaultChannel: defaultChannel, input: url.absoluteString)
         capture.videoFrameThresholdSeconds = autoFrameThresholdSeconds
-        if Self.singleThreadSourceIdentity(capture.input, roles: nil) != nil { capture.threadExpansion = .on }
+        if let identity = Self.singleThreadSourceIdentity(capture.input, roles: nil) {
+            capture.threadExpansion = Self.defaultThreadExpansion(for: identity)
+        }
         capture.titleOverride = title; capture.descriptionOverride = description; capture.media = media
         if !channelIDs.isEmpty {
             capture.selection = DestinationSelection(defaultChannel: nil)
@@ -1115,7 +1139,9 @@ public final class CaptureSession {
                 next.selection = DestinationSelection(defaultChannel: defaultChannel)
             } else { next = CaptureDraft(accountID: account.id, defaultChannel: defaultChannel, input: input) }
             next.videoFrameThresholdSeconds = autoFrameThresholdSeconds
-            if Self.singleThreadSourceIdentity(input, roles: nil) != nil { next.threadExpansion = .on }
+            if let identity = Self.singleThreadSourceIdentity(input, roles: nil) {
+                next.threadExpansion = Self.defaultThreadExpansion(for: identity)
+            }
             var workspace = try store.value(CaptureWorkspace.self, account: account.id, kind: "workspace", id: workspaceID) ?? CaptureWorkspace()
             workspace.activeDraftID = next.hasDraftContent ? next.id : nil
             workspace.emptySelection = next.hasDraftContent ? nil : next.selection

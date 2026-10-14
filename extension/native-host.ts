@@ -3,7 +3,9 @@ import { readSync, writeSync } from "node:fs";
 import { z } from "zod";
 import { blockPlanSchema, planInputSchema } from "../packages/core/types.ts";
 import { loadUserConfig } from "../src/config.ts";
+import { requiredPlanCapabilities } from "../src/plan-capabilities.ts";
 import { prepareSaveIntent } from "../src/save-intent.ts";
+import { buildInfoSchema } from "../src/version.ts";
 
 const hostRequestSchema = z.discriminatedUnion("action", [
   z.object({ id: z.string().max(100), action: z.literal("ping") }).strict(),
@@ -71,6 +73,12 @@ export async function handle(request: HostRequest, fetcher: typeof fetch = fetch
     case "retry": return daemon(`/v1/saves/${request.saveId}/retry?async=1`, "POST", {}, fetcher);
     case "cancel": return daemon(`/v1/saves/${request.saveId}/cancel`, "POST", {}, fetcher);
     case "save": {
+      const required = requiredPlanCapabilities(request.plan);
+      if (required.length) {
+        const serving = buildInfoSchema.parse(await daemon("/v1/version", "GET", undefined, fetcher));
+        const missing = required.filter(capability => !serving.planCapabilities?.includes(capability));
+        if (missing.length) throw new Error(`Daemon does not support this source plan (${missing.join(", ")}). Local resolve, plan and render are available; install a matching daemon before publishing. No save was submitted.`);
+      }
       const config = await loadUserConfig();
       const intent = prepareSaveIntent(request.plan, config, { origin: "cli", operation: "publish",
         initiator: { kind: "human", label: "Arena Block browser extension" }, saveId: request.saveId,

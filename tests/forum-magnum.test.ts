@@ -49,6 +49,7 @@ test("canonical Forum Magnum URLs keep comment and post identities separate", ()
   expect(parseSource(af)).toMatchObject({ provider: "forum_magnum", site: "alignment_forum", commentId: "2CxekqM5fc87mmqXn" });
   expect(() => parseSource(sample + "#anotherCommentId12")).toThrow("Conflicting");
   expect(() => parseSource(sample.split("?")[0]! + "?commentId=")).toThrow("Invalid Forum Magnum comment ID");
+  expect(() => captureSource(sample.split("?")[0]! + "#comment-too-short")).toThrow("Invalid Forum Magnum comment ID");
   expect(() => parseSource("http://www.lesswrong.com/posts/6eaKqtmDuo6CmkqMK")).toThrow("HTTPS");
   expect(() => parseSource("https://www.lesswrong.com/quicktakes")).toThrow("post or comment");
 });
@@ -92,6 +93,17 @@ test("multiple real comment permalinks preserve declared order and actual reply 
   const plan = composePlan(resolved.posts, resolved.policy);
   expect(plan.block.markdown).toContain(`Reply to comment ${parent._id}`);
   expect(plan.block.markdown.indexOf("`@Nanashi`")).toBeLessThan(plan.block.markdown.indexOf("`@estimator`"));
+});
+
+test("reply links from path-style comments resolve to the actual parent", () => {
+  const child = "ChildCommentABC";
+  const parent = "ParentCommentABC";
+  const plan = composePlan([{ provider: "forum_magnum", id: child,
+    canonicalUrl: `https://www.alignmentforum.org/posts/PostID1234/example/comment/${child}`,
+    author: { handle: "commenter" }, text: "A reply", media: [], replyTo: { id: parent } }]);
+  const link = plan.block.markdown.match(/\[Reply to comment ParentCommentABC\]\(<([^>]+)>\)/)?.[1];
+  expect(link).toBeDefined();
+  expect(parseSource(link!)).toMatchObject({ provider: "forum_magnum", id: "PostID1234", commentId: parent });
 });
 
 test("auto includes only real ancestors; on adds bounded replies without siblings", async () => {

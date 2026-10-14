@@ -624,7 +624,19 @@ public struct CaptureRootView: View {
             .contentShape(Rectangle())
             .disabled(locked || session.sourceRows.count >= 20 || session.sourceRows.last?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false)
             .accessibilityIdentifier("capture.source.add")
-            if session.canImportXThread || session.canExpandAtprotoThread {
+            if session.canExpandForumMagnumComment {
+                if !dynamicTypeSize.isAccessibilitySize { Spacer(minLength: 8) }
+                Picker("Comment context", selection: Binding(
+                    get: { session.forumMagnumExpansion },
+                    set: { session.setForumMagnumExpansion($0) })) {
+                    Text("Selected only").tag(CaptureThreadExpansion.off)
+                    Text("With parents").tag(CaptureThreadExpansion.auto)
+                    Text("Nearby replies").tag(CaptureThreadExpansion.on)
+                }
+                .accessibilityIdentifier("capture.comment-context")
+                .accessibilityHint("Parents are limited to six. Nearby replies include up to eight direct replies and same-author continuations.")
+                .disabled(locked)
+            } else if session.canImportXThread || session.canExpandAtprotoThread {
                 if !dynamicTypeSize.isAccessibilitySize { Spacer(minLength: 8) }
                 Toggle("Import thread", isOn: threadBinding)
                     .fixedSize(horizontal: dynamicTypeSize.isAccessibilitySize ? false : true, vertical: false)
