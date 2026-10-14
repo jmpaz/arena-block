@@ -77,7 +77,7 @@ const externalSchema = z.object({ url: z.url(), title: z.string(), description: 
 const embeddedRecordSchema = z.object({ uri: z.string().startsWith("at://"), status: z.enum(["not-found", "blocked", "detached", "unsupported"]), type: z.string().optional() });
 
 export type ResolvedPost = {
-  provider: "reddit" | "x" | "bluesky" | "delve" | "mastodon" | "tiktok" | "instagram" | "hackernews" | "lobsters" | "arena" | "web" | "soundcloud";
+  provider: "reddit" | "x" | "bluesky" | "delve" | "mastodon" | "tiktok" | "instagram" | "hackernews" | "lobsters" | "arena" | "web" | "soundcloud" | "forum_magnum";
   id: string;
   canonicalUrl: string;
   /** How this source entered the ordered composition. Provider reads omit this. */
@@ -113,7 +113,7 @@ export type ResolvedPost = {
 
 export const resolvedPostSchema: z.ZodType<ResolvedPost> = z.lazy(() =>
   z.object({
-    provider: z.enum(["reddit", "x", "bluesky", "delve", "mastodon", "tiktok", "instagram", "hackernews", "lobsters", "arena", "web", "soundcloud"]),
+    provider: z.enum(["reddit", "x", "bluesky", "delve", "mastodon", "tiktok", "instagram", "hackernews", "lobsters", "arena", "web", "soundcloud", "forum_magnum"]),
     id: z.string().min(1),
     canonicalUrl: z.url(),
     selection: z.object({ role: z.enum(["primary", "extra"]), origin: z.enum(["explicit", "expanded"]),

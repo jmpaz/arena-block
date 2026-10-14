@@ -124,11 +124,16 @@ function renderSequence(posts: ResolvedPost[], policy: CompositionPolicy, frameR
     // remain literal source text.
     const body = renderPost(hasCarriedReplyAddress ? { ...post, text: post.text.slice(post.replyAddressPrefix!.length) } : post,
       policy, frameRefs, sameAuthorReply && !!post.quote);
-    if (!multiSource) return body;
+    const forumRelation = post.provider === "forum_magnum" && post.replyTo
+      ? `*[Reply to ${post.replyTo.authorHandle ? `@${post.replyTo.authorHandle}` : `comment ${post.replyTo.id}`}](<${new URL(`?commentId=${post.replyTo.id}`, post.canonicalUrl).href}>)*`
+      : "";
+    if (!multiSource) return [forumRelation, body].filter(Boolean).join("\n\n");
     // The title identifies the first speaker. Label turns, not every post;
     // source URLs and exact times remain in plan.sources.
     const speakerChanged = index > 0 && sourceAuthor(post) !== sourceAuthor(posts[index - 1]!);
-    return [speakerChanged ? `\`${authorTag(post)}\`` : "", body].filter(Boolean).join("\n");
+    const forumHeader = post.provider === "forum_magnum"
+      ? [`\`${authorTag(post)}\``, post.postedAt ? `(${post.postedAt.slice(0, 10)})` : ""].filter(Boolean).join(" ") : "";
+    return [forumHeader || (speakerChanged ? `\`${authorTag(post)}\`` : ""), forumRelation, body].filter(Boolean).join("\n");
   });
   return entries.reduce((rendered, entry, index) => {
     if (!index) return entry;
@@ -300,7 +305,7 @@ export function composePlan(
   const policy = compositionPolicySchema.parse(policyInput);
   if (["all", "images"].includes(policy.media)) {
     const issue = posts.flatMap(post => post.mediaIssues ?? [])[0];
-    if (issue) throw new Error(`Reddit body image ${issue.id ?? issue.url ?? "reference"} is ${issue.status}; choose available media explicitly`);
+    if (issue) throw new Error(`Body media ${issue.id ?? issue.url ?? "reference"} is ${issue.status}; choose available media explicitly`);
   }
   if (posts.some(post => post.provider === "web")) {
     if (posts.length !== 1 || posts[0]!.provider !== "web" || posts[0]!.media.length || policy.media !== "none") {

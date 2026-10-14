@@ -42,6 +42,7 @@ Use `resolve`, `plan`, `publish`, `save`, `status`, `cancel` or `retry` as shown
 | [Delvetown](https://delve.town) | Profile post permalinks, `at://.../town.delve.feed.post/...` | Delvetown AppView and repository records |
 | Mastodon | Public HTTPS post permalinks | The instance's public status API |
 | Reddit | Posts, comments, galleries, share links | Public JSON, with bounded fallback for specified availability failures |
+| LessWrong, Alignment Forum, EA Forum | Post and comment permalinks | Each site's public GraphQL API |
 | TikTok, Instagram | Supported post, video and share permalinks | FxEmbed Atmosphere responses |
 | SoundCloud | Public track and playlist pages | Public page data and available download metadata |
 | Hacker News, Lobsters | Comment permalinks | Public comment APIs |
@@ -59,6 +60,12 @@ Reddit post titles become block titles. Body Markdown and gallery captions becom
 TikTok and Instagram carousels preserve source order. Photo mosaics omit soundtracks. Video mosaics use the selected soundtrack. Public provider access and media URLs can become unavailable, so refresh a stale plan before another acquisition attempt.
 
 Hacker News links must identify comments. Lobsters accepts `/c/ID` and story links ending in `#c_ID`. Comment capture preserves paragraphs and formatting, uses the source URL field and records the UTC creation time in the description. Unavailable comments return an error.
+
+For a Quick Take, copy its comment permalink from LessWrong. A Shortform container without a body cannot become a text block by itself. The same comment capture accepts `?commentId=ID`, a comment path, or a comment hash. GreaterWrong post and comment links resolve through the public LessWrong API. Capture keeps the comment's author, date, formatting, links, quotes and image references. An embedded frame stays a link.
+
+With one Forum Magnum comment URL, automatic expansion adds available parents, up to six levels. `--thread-expansion off` keeps the selected comment alone. `on` also adds up to eight direct replies and bounded same-author continuations. When you supply several comment URLs, they stay in your chosen order. Deleted, private and unavailable content returns an error.
+
+The daemon must advertise `forum-magnum-posts-v1` before it accepts a Forum Magnum plan. Local planning and rendering work without the daemon.
 
 For SoundCloud, planning preserves track or playlist metadata. Original-download availability depends on the public source. An unavailable verified file URL remains a source link.
 

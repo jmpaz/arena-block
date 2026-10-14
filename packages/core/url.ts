@@ -9,6 +9,7 @@ const X_HOSTS = new Set([
 
 export type ParsedSource =
   | { provider: "arena"; id: string; canonicalUrl: string }
+  | { provider: "forum_magnum"; site: "lesswrong" | "alignment_forum" | "ea_forum"; id: string; canonicalUrl: string; commentId?: string }
   | { provider: "reddit"; id: string; canonicalUrl: string; short?: boolean; commentId?: string }
   | { provider: "x"; handle: string; id: string; canonicalUrl: string }
   | { provider: "bluesky"; handle: string; id: string; canonicalUrl: string }
@@ -32,6 +33,31 @@ export function parseSource(value: string): ParsedSource {
   const url = new URL(value);
   const host = url.hostname.toLowerCase().replace(/^www\./, "");
   const parts = url.pathname.split("/").filter(Boolean);
+  const forumSites: Record<string, { site: "lesswrong" | "alignment_forum" | "ea_forum"; origin: string }> = {
+    "lesswrong.com": { site: "lesswrong", origin: "https://www.lesswrong.com" },
+    "greaterwrong.com": { site: "lesswrong", origin: "https://www.lesswrong.com" },
+    "alignmentforum.org": { site: "alignment_forum", origin: "https://www.alignmentforum.org" },
+    "forum.effectivealtruism.org": { site: "ea_forum", origin: "https://forum.effectivealtruism.org" },
+  };
+  const forum = forumSites[host];
+  if (forum) {
+    if (url.protocol !== "https:" || url.username || url.password || url.port) throw new Error("Forum Magnum URLs must use HTTPS without credentials or custom ports");
+    const postId = /^\/posts\/([A-Za-z0-9]+)(?:\/[^/]+)?\/?$/.exec(url.pathname)?.[1]
+      ?? /^\/s\/[A-Za-z0-9]+\/p\/([A-Za-z0-9]+)\/?$/.exec(url.pathname)?.[1]
+      ?? /^\/p\/([A-Za-z0-9]+)\/?$/.exec(url.pathname)?.[1]
+      ?? /^\/posts\/([A-Za-z0-9]+)\/[^/]+\/comment\/[A-Za-z0-9]+\/?$/.exec(url.pathname)?.[1];
+    if (!postId) throw new Error(`Expected a Forum Magnum post or comment permalink: ${value}`);
+    const pathComment = /^\/posts\/[A-Za-z0-9]+\/[^/]+\/comment\/([A-Za-z0-9]+)\/?$/.exec(url.pathname)?.[1];
+    const queryComments = url.searchParams.getAll("commentId");
+    if (queryComments.some(item => !/^[A-Za-z0-9]+$/.test(item))) throw new Error("Invalid Forum Magnum comment ID");
+    const fragmentComment = /^#(?:comment-)?([A-Za-z0-9]{12,30})$/.exec(url.hash)?.[1];
+    const comments = [pathComment, ...queryComments, fragmentComment].filter((item): item is string => Boolean(item));
+    if (comments.some(item => !/^[A-Za-z0-9]+$/.test(item) || item !== comments[0])) throw new Error("Conflicting or invalid Forum Magnum comment IDs");
+    const commentId = comments[0];
+    return { provider: "forum_magnum", site: forum.site, id: postId,
+      canonicalUrl: `${forum.origin}/posts/${postId}/${commentId ? `?commentId=${commentId}` : ""}`,
+      ...(commentId ? { commentId } : {}) };
+  }
   if (["soundcloud.com", "m.soundcloud.com"].includes(host)) {
     if (url.protocol !== "https:" || url.username || url.password || url.port) throw new Error("SoundCloud URLs must use HTTPS without credentials or custom ports");
     if (url.searchParams.has("secret_token")) throw new Error("SoundCloud private links are not supported; use a public track or playlist URL");

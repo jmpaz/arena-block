@@ -1,0 +1,261 @@
+{
+  "lesswrong": {
+    "post": {
+      "_id": "6eaKqtmDuo6CmkqMK",
+      "title": "loops's Shortform",
+      "pageUrl": "https://www.lesswrong.com/posts/6eaKqtmDuo6CmkqMK/loops-s-shortform",
+      "postedAt": "2026-10-13T19:59:43.684Z",
+      "status": 2,
+      "draft": null,
+      "isFuture": false,
+      "shortform": true,
+      "user": {
+        "username": "smitop",
+        "displayName": "loops"
+      }
+    },
+    "comments": [
+      {
+        "_id": "7C9iqsDCdxC2PfKDf",
+        "postId": "6eaKqtmDuo6CmkqMK",
+        "parentCommentId": null,
+        "pageUrl": "https://www.lesswrong.com/posts/6eaKqtmDuo6CmkqMK/loops-s-shortform?commentId=7C9iqsDCdxC2PfKDf",
+        "postedAt": "2026-10-13T19:59:43.684Z",
+        "deleted": false,
+        "deletedPublic": false,
+        "contents": {
+          "html": "<p><span style=\"white-space:pre-wrap\">Anthropic released some documents earlier this year due to the book copyright litigation. I think a few of those documents might be of interest to some people here and haven't gotten much attention.</span></p><ul><li value=\"1\"><a href=\"https://i.sm4.ca/concise-research-roadmap.pdf\" rel=\"noreferrer\"><i><span style=\"white-space:pre-wrap\">Concise Research Roadmap</span></i></a><span style=\"white-space:pre-wrap\"> describes Anthropic's research plans in July 2021</span><span class=\"footnote-reference\" data-footnote-reference=\"\" data-footnote-id=\"z4obm6li3h\" data-footnote-index=\"1\" role=\"doc-noteref\" id=\"fnrefz4obm6li3h\"><sup><a href=\"#fnz4obm6li3h\">[1]</a></sup></span></li><li value=\"2\"><a href=\"https://storage.courtlistener.com/recap/gov.uscourts.cand.434709/gov.uscourts.cand.434709.563.4.pdf\" rel=\"noreferrer\"><i><span style=\"white-space:pre-wrap\">Product visions for early 2025</span></i></a><span style=\"white-space:pre-wrap\"> (written in June 2023) discusses potential use-cases for Claude in the future</span></li><li value=\"3\"><a href=\"https://storage.courtlistener.com/recap/gov.uscourts.cand.434709/gov.uscourts.cand.434709.555.3.pdf\" rel=\"noreferrer\"><i><span style=\"white-space:pre-wrap\">Responsible Scaling as a Framework for Anthropic</span></i></a><span style=\"white-space:pre-wrap\"> discusses the RSP and why Anthropic scales capabilities</span></li></ul><ol class=\"footnote-section footnotes\" data-footnote-section=\"\" role=\"doc-endnotes\"><li class=\"footnote-item\" data-footnote-item=\"\" data-footnote-id=\"z4obm6li3h\" data-footnote-index=\"1\" role=\"doc-endnote\" id=\"fnz4obm6li3h\"><span class=\"footnote-back-link\" data-footnote-back-link=\"\" data-footnote-id=\"z4obm6li3h\"><sup><strong><a href=\"#fnrefz4obm6li3h\">^</a></strong></sup></span><div class=\"footnote-content\" data-footnote-content=\"\"><p><span style=\"white-space:pre-wrap\">I fixed the distortion from the </span><a href=\"https://storage.courtlistener.com/recap/gov.uscourts.cand.434709/gov.uscourts.cand.434709.553.8.pdf\" rel=\"noreferrer\"><span style=\"white-space:pre-wrap\">original PDF</span></a><span style=\"white-space:pre-wrap\"> to make it easier to read. Well actually Claude fixed it but I at least prompted it.</span></p></div></li></ol>"
+        },
+        "user": {
+          "username": "smitop",
+          "displayName": "loops"
+        }
+      }
+    ]
+  },
+  "lesswrong_thread": {
+    "post": {
+      "_id": "a2PHpr9huYkxpNNyx",
+      "title": "The most important meta-skill",
+      "pageUrl": "https://www.lesswrong.com/posts/a2PHpr9huYkxpNNyx/the-most-important-meta-skill",
+      "postedAt": "2015-05-27T15:51:02.150Z",
+      "status": 2,
+      "draft": null,
+      "isFuture": false,
+      "shortform": false,
+      "user": {
+        "username": "Nanashi",
+        "displayName": "Nanashi"
+      }
+    },
+    "comments": [
+      {
+        "_id": "qTyoKrT8s9NT8octc",
+        "postId": "a2PHpr9huYkxpNNyx",
+        "parentCommentId": null,
+        "pageUrl": "https://www.lesswrong.com/posts/a2PHpr9huYkxpNNyx/the-most-important-meta-skill?commentId=qTyoKrT8s9NT8octc",
+        "postedAt": "2015-05-27T17:32:05.243Z",
+        "deleted": false,
+        "deletedPublic": false,
+        "draft": false,
+        "contents": {
+          "html": "<p>Although you were focusing on learning skills, your language example made me think of social ramifications, and I wanted to say that I call things like this 'preprocessing' more generally. It's sort of like a mental version of <a href=\"http://tvtropes.org/pmwiki/pmwiki.php/Main/CrazyPrepared\">Crazy-Prepared</a>. I think of writing as a form of it, and it's one reason I'm glad that most LW users are very far from me in meatspace. I can't imagine having to engage in person on a level that I sometimes must here. I think that there's an experiential component and an innate component, like with most things, and Wei_Dai <a href=\"http://lesswrong.com/lw/cfc/how_can_we_ensure_that_a_friendly_ai_team_will_be/9ow9\">has brought up this difference in passing</a>:</p>\n<blockquote>\n<p>While I look forward to talking to Eliezer and you, I do have a concern, namely that I find Eliezer to be much better (either more natively talented, or more practiced, probably both) than I am at making arguments in real time, while I tend to be better able to hold my own in offline formats like email/blog discussions where I can take my time to figure out what points I want to make. So keep that in mind if the chat ends up being really one-sided.</p>\n</blockquote>\n<p>Some people seem to be able to perform what I consider very complex tasks on a merely perceptual level, and I don't feel like one of these people, so it really helps to do a bit of System 2 planning before situations where others could just go with the flow. I also find that it's a way to make it easier to have more confidence and attention in social situations; you're not worrying about non-social details.</p>\n"
+        },
+        "user": {
+          "username": "Gram_Stone",
+          "displayName": "Gram_Stone"
+        }
+      },
+      {
+        "_id": "jFB6xwANhpqJkkvc4",
+        "postId": "a2PHpr9huYkxpNNyx",
+        "parentCommentId": null,
+        "pageUrl": "https://www.lesswrong.com/posts/a2PHpr9huYkxpNNyx/the-most-important-meta-skill?commentId=jFB6xwANhpqJkkvc4",
+        "postedAt": "2015-05-27T17:33:07.160Z",
+        "deleted": false,
+        "deletedPublic": false,
+        "draft": false,
+        "contents": {
+          "html": "<p>I think that all self-help / &quot;learning to learn&quot; / etc. articles should contain a short summary telling us some reasons to actually believe anything written below. Like references to relevant research, or author's real life achievements, or something. Generally, one shouldn't rely on personal anecdotes; but for self-help, even having a single data point is often too high a standard. </p>\n<p>In your article, I couldn't find <em>a single bit of evidence</em> in support of your claims.</p>\n"
+        },
+        "user": {
+          "username": "estimator",
+          "displayName": "estimator"
+        }
+      },
+      {
+        "_id": "Nzpimbubshmb2dxnL",
+        "postId": "a2PHpr9huYkxpNNyx",
+        "parentCommentId": "jFB6xwANhpqJkkvc4",
+        "pageUrl": "https://www.lesswrong.com/posts/a2PHpr9huYkxpNNyx/the-most-important-meta-skill?commentId=Nzpimbubshmb2dxnL",
+        "postedAt": "2015-05-27T17:37:09.867Z",
+        "deleted": false,
+        "deletedPublic": false,
+        "draft": false,
+        "contents": {
+          "html": "<p>Sure, I could, but would that make you any more likely to accept it? Generally I've found that the more someone expounds on their own credentials, the <strong>less</strong> credible (and likable) they sound. </p>\n<p>If my own personal achievements would genuinely make a difference to you personally, then I'd be glad to tell you them. If not, then I don't quite see the point.</p>\n"
+        },
+        "user": {
+          "username": "Nanashi",
+          "displayName": "Nanashi"
+        }
+      }
+    ]
+  },
+  "shortform_thread": {
+    "post": {
+      "_id": "TJjk5TRywhgrnhzn6",
+      "title": "Andrew_Critch's Shortform",
+      "pageUrl": "https://www.lesswrong.com/posts/TJjk5TRywhgrnhzn6/andrew_critch-s-shortform",
+      "postedAt": "2026-03-01T18:45:55.884Z",
+      "status": 2,
+      "draft": null,
+      "isFuture": false,
+      "shortform": true,
+      "user": {
+        "username": "Andrew_Critch",
+        "displayName": "Andrew_Critch"
+      }
+    },
+    "comments": [
+      {
+        "_id": "hLcibt3RxuQXGhRK3",
+        "postId": "TJjk5TRywhgrnhzn6",
+        "parentCommentId": null,
+        "pageUrl": "https://www.lesswrong.com/posts/TJjk5TRywhgrnhzn6/andrew_critch-s-shortform?commentId=hLcibt3RxuQXGhRK3",
+        "postedAt": "2026-03-05T19:45:50.538Z",
+        "deleted": false,
+        "deletedPublic": false,
+        "draft": false,
+        "contents": {
+          "html": "<p>What's something you believe, that would get negative Karma if earnestly expressed in a normal LessWrong conversation? Write it in quotes. Vote on the meta-claim \"would get negative karma\" using ✔️/ X, where\n✔️ = <em>yes this would get negative karma</em>, and\nX = <em>no this would get positive or nonnegative karma</em>.</p>\n"
+        },
+        "user": {
+          "username": "Andrew_Critch",
+          "displayName": "Andrew_Critch"
+        }
+      },
+      {
+        "_id": "eFwRurEDaCxCLTyR4",
+        "postId": "TJjk5TRywhgrnhzn6",
+        "parentCommentId": "hLcibt3RxuQXGhRK3",
+        "pageUrl": "https://www.lesswrong.com/posts/TJjk5TRywhgrnhzn6/andrew_critch-s-shortform?commentId=eFwRurEDaCxCLTyR4",
+        "postedAt": "2026-03-05T21:56:16.672Z",
+        "deleted": false,
+        "deletedPublic": false,
+        "draft": false,
+        "contents": {
+          "html": "<p>\"Morality is a constructed / evolved coordination technology, and we can evaluate specific implementations by how well they achieve the coordination function.\"</p>"
+        },
+        "user": {
+          "username": "geoffrey-wood",
+          "displayName": "G Wood"
+        }
+      }
+    ]
+  },
+  "alignment_forum": {
+    "post": {
+      "_id": "bxt7uCiHam4QXrQAA",
+      "title": "Cyborgism",
+      "pageUrl": "https://www.alignmentforum.org/posts/bxt7uCiHam4QXrQAA/cyborgism",
+      "postedAt": "2023-02-10T14:47:48.172Z",
+      "status": 2,
+      "draft": null,
+      "isFuture": false,
+      "shortform": false,
+      "user": {
+        "username": "nick_kees",
+        "displayName": "Niki Dupuis"
+      }
+    },
+    "comments": [
+      {
+        "_id": "2CxekqM5fc87mmqXn",
+        "postId": "bxt7uCiHam4QXrQAA",
+        "parentCommentId": null,
+        "pageUrl": "https://www.alignmentforum.org/posts/bxt7uCiHam4QXrQAA/cyborgism?commentId=2CxekqM5fc87mmqXn",
+        "postedAt": "2023-02-10T15:46:07.478Z",
+        "deleted": false,
+        "deletedPublic": false,
+        "draft": false,
+        "contents": {
+          "html": "<p>I disagree with this post for 1 reason:</p>\n<ol>\n<li>Amdahl's law limits how much cyborgism will actually work, and IMO is the reason agents are more effective than simulators.</li>\n</ol>\n<p>On Amdahl's law, John Wentworth's post on the long tail is very relevant here, as it limits the use of cyborgism here:</p>\n<p><a href=\"https://www.lesswrong.com/posts/Nbcs5Fe2cxQuzje4K/value-of-the-long-tail\">https://www.lesswrong.com/posts/Nbcs5Fe2cxQuzje4K/value-of-the-long-tail</a></p>\n"
+        },
+        "user": {
+          "username": "sharmake-farah",
+          "displayName": "Noosphere89"
+        }
+      },
+      {
+        "_id": "RYQDTcLw8mG7twkDE",
+        "postId": "bxt7uCiHam4QXrQAA",
+        "parentCommentId": "2CxekqM5fc87mmqXn",
+        "pageUrl": "https://www.alignmentforum.org/posts/bxt7uCiHam4QXrQAA/cyborgism?commentId=RYQDTcLw8mG7twkDE",
+        "postedAt": "2023-02-10T16:37:01.203Z",
+        "deleted": false,
+        "deletedPublic": false,
+        "draft": false,
+        "contents": {
+          "html": "<p>For context, Amdahl’s law states how fast you can speed up a process is bottlenecked on the serial parts. Eg you can have 100 people help make a cake really quickly, but it still takes ~30 to bake.</p>\n<p>I’m assuming here, the human component is the serial component that we will be bottlenecked on, so will be outcompeted by agents?</p>\n<p>If so, we should try to build the tools and knowledge to keep humans in the loop as far as we can. I agree it will eventually be outcompeted by full AI agency alone, but it isn’t set in stone how far human-steered AI can go.</p>\n"
+        },
+        "user": {
+          "username": "elriggs",
+          "displayName": "Logan Riggs"
+        }
+      }
+    ]
+  },
+  "ea_forum": {
+    "post": {
+      "_id": "ckj6Moau9qpYArHWc",
+      "title": "Want To Be An Expert? Build Deep Models",
+      "pageUrl": "https://forum.effectivealtruism.org/posts/ckj6Moau9qpYArHWc/want-to-be-an-expert-build-deep-models",
+      "postedAt": "2021-12-04T22:20:39.558Z",
+      "status": 2,
+      "draft": null,
+      "isFuture": false,
+      "shortform": false,
+      "user": {
+        "username": "lynettebye",
+        "displayName": "lynettebye"
+      }
+    },
+    "comments": [
+      {
+        "_id": "Myoki5MsXgG8Jmb2J",
+        "postId": "ckj6Moau9qpYArHWc",
+        "parentCommentId": null,
+        "pageUrl": "https://forum.effectivealtruism.org/posts/ckj6Moau9qpYArHWc/want-to-be-an-expert-build-deep-models?commentId=Myoki5MsXgG8Jmb2J",
+        "postedAt": "2021-12-06T08:41:42.256Z",
+        "deleted": false,
+        "deletedPublic": false,
+        "draft": false,
+        "contents": {
+          "html": "<p>What are the sources for your examples? Particularly interested in Al Smith but I imagine other people might be interested in the others as well.&nbsp;</p>"
+        },
+        "user": {
+          "username": "Bluefalcon",
+          "displayName": "Vilfredo's Ghost"
+        }
+      },
+      {
+        "_id": "mDF5YoKvyoiAyAEfJ",
+        "postId": "ckj6Moau9qpYArHWc",
+        "parentCommentId": "Myoki5MsXgG8Jmb2J",
+        "pageUrl": "https://forum.effectivealtruism.org/posts/ckj6Moau9qpYArHWc/want-to-be-an-expert-build-deep-models?commentId=mDF5YoKvyoiAyAEfJ",
+        "postedAt": "2021-12-10T00:41:57.962Z",
+        "deleted": false,
+        "deletedPublic": false,
+        "draft": false,
+        "contents": {
+          "html": "<p>Good question! The Al Smith example is from The Power Broker: Robert Moses and the Fall of New York by Robert Caro. &nbsp;The examples with Sam and Rohin were from personal conversations/interviews. I think I also drew in a bit from Rohin's FAQ <a href=\"https://rohinshah.com/faq-career-advice-for-ai-alignment-researchers/.\">https://rohinshah.com/faq-career-advice-for-ai-alignment-researchers/.</a> The Scott Young example I pieced together from his blog post and book. I tried to link to some of the relevant blog posts &nbsp;above.&nbsp;</p>"
+        },
+        "user": {
+          "username": "lynettebye",
+          "displayName": "lynettebye"
+        }
+      }
+    ]
+  }
+}

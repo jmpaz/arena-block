@@ -10,6 +10,7 @@ import { LobstersProvider } from "./lobsters.ts";
 import { MastodonProvider } from "./mastodon.ts";
 
 import { RedditProvider } from "./reddit.ts";
+import { ForumMagnumProvider } from "./forum-magnum.ts";
 import { AtmosphereProvider } from "./atmosphere.ts";
 import { ArenaMediaProvider } from "./arena-media.ts";
 
@@ -20,6 +21,7 @@ export class SocialResolver {
     this.providers = {
       arena: providers?.arena ?? new ArenaMediaProvider(),
       reddit: providers?.reddit ?? new RedditProvider(),
+      forum_magnum: providers?.forum_magnum ?? new ForumMagnumProvider(),
       tiktok: providers?.tiktok ?? new AtmosphereProvider("tiktok"),
       instagram: providers?.instagram ?? new AtmosphereProvider("instagram"),
       x: providers?.x ?? new XProvider(),
@@ -56,6 +58,7 @@ export class SocialResolver {
     const primaries = selected.filter(item => item.role === "primary");
     const extras = selected.filter(item => item.role === "extra");
     const policy = compositionPolicySchema.parse(policyInput);
+    const singleSource = primaries.length === 1 ? parseSource(primaries[0]!.ref) : undefined;
     let primaryPosts: ResolvedPost[];
     if (primaries.length === 1 && parseSource(primaries[0]!.ref).provider === "x" && policy.threadExpansion === "on") {
       const source = parseSource(primaries[0]!.ref);
@@ -92,6 +95,18 @@ export class SocialResolver {
           ...(explicit ? { declaredIndex: primaries[0]!.declaredIndex } : {}),
           ...(discovered.parentUris.get(uri) ? { parentUri: discovered.parentUris.get(uri) } : {}) } };
       });
+    } else if (singleSource?.provider === "forum_magnum" && singleSource.commentId && policy.threadExpansion !== "off") {
+      const source = singleSource;
+      const provider = this.providers.forum_magnum;
+      if (source.provider !== "forum_magnum" || !(provider instanceof ForumMagnumProvider)) {
+        throw new Error("Forum Magnum comment expansion is unavailable; add comments explicitly");
+      }
+      const discovered = await provider.discoverRelated(source, policy.threadExpansion === "on" ? "on" : "auto", signal);
+      primaryPosts = discovered.posts.map(post => ({ ...post, selection: {
+        role: "primary" as const, origin: post.id === discovered.seedId ? "explicit" as const : "expanded" as const,
+        ...(post.id === discovered.seedId ? { declaredIndex: primaries[0]!.declaredIndex } : {}),
+        ...(post.replyTo ? { parentUri: `forum-magnum:${source.site}:comment:${post.replyTo.id}` } : {}),
+      } }));
     } else {
       primaryPosts = await Promise.all(primaries.map(async item => {
         const source = parseSource(item.ref);

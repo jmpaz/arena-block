@@ -27,6 +27,19 @@ test("legacy daemon receives only a version read for a Delve publication", async
   expect(reads).toEqual([{ path: "/v1/version", method: "GET" }]);
 });
 
+test("an older daemon stops a Forum Magnum publication before submission", async () => {
+  const forumPlan = composePlan([{ provider: "forum_magnum", id: "commentA",
+    canonicalUrl: "https://www.lesswrong.com/posts/postA/?commentId=commentA",
+    author: { handle: "writer" }, text: "A public comment", storyTitle: "A post", media: [] }]);
+  expect(requiredPlanCapabilities(forumPlan)).toEqual(["forum-magnum-posts-v1"]);
+  const older = client(["atproto-post-records-v1", "delve-posts-v1", "bluesky-thread-coverage-v1"]);
+  await expect(older.daemon.publish(forumPlan, ["channel"])).rejects.toThrow("No save was submitted");
+  expect(older.reads).toEqual([{ path: "/v1/version", method: "GET" }]);
+  const matching = client(["forum-magnum-posts-v1"]);
+  await expect(matching.daemon.publish(forumPlan, ["channel"])).rejects.toThrow("mock publication reached");
+  expect(matching.reads).toEqual([{ path: "/v1/version", method: "GET" }, { path: "/v1/publications", method: "POST" }]);
+});
+
 test("an advertised matching daemon may receive the exact immutable Delve plan", async () => {
   const { daemon, reads } = client(requiredPlanCapabilities(plan));
   await expect(daemon.publish(plan, ["channel"])).rejects.toThrow("mock publication reached");

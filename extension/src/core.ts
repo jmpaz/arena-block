@@ -9,6 +9,7 @@ import { HackerNewsProvider } from "../../packages/core/providers/hackernews.ts"
 import { LobstersProvider } from "../../packages/core/providers/lobsters.ts";
 import { MastodonProvider } from "../../packages/core/providers/mastodon.ts";
 import { RedditProvider } from "../../packages/core/providers/reddit.ts";
+import { ForumMagnumProvider } from "../../packages/core/providers/forum-magnum.ts";
 import { NativeSoundCloudProvider } from "../../packages/core/providers/soundcloud-native.ts";
 import { XProvider } from "../../packages/core/providers/x.ts";
 import { compositionPolicySchema, type BlockPlan, type CompositionPolicy } from "../../packages/core/types.ts";
@@ -26,6 +27,7 @@ function resolver(fetcher: typeof fetch = browserFetch): SocialResolver {
   return new SocialResolver({
     arena: new ArenaMediaProvider(fetcher),
     reddit: new RedditProvider(fetcher),
+    forum_magnum: new ForumMagnumProvider(fetcher),
     tiktok: new AtmosphereProvider("tiktok", fetcher),
     instagram: new AtmosphereProvider("instagram", fetcher),
     x: new XProvider(undefined, fetcher),
@@ -77,6 +79,12 @@ export function requiredOrigins(refs: string[]): string[] {
         origins.add("https://vxreddit.com/*");
         origins.add("https://arctic-shift.photon-reddit.com/*");
         break;
+      case "forum_magnum": {
+        const site = parseSource(ref);
+        if (site.provider !== "forum_magnum") break;
+        origins.add(`${site.site === "lesswrong" ? "https://www.lesswrong.com" : site.site === "alignment_forum" ? "https://www.alignmentforum.org" : "https://forum.effectivealtruism.org"}/*`);
+        break;
+      }
       case "instagram": case "tiktok": origins.add("https://api.atmosphere.tools/*"); break;
       case "mastodon": origins.add(`${new URL(ref).origin}/*`); break;
       case "hackernews": origins.add("https://hacker-news.firebaseio.com/*"); break;

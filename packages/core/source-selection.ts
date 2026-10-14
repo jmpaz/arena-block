@@ -12,6 +12,7 @@ function identity(source: ParsedSource): string {
   if (source.provider === "bluesky" || source.provider === "delve") return `${source.provider}:${source.handle.startsWith("did:") ? source.handle : source.handle.toLowerCase()}:${source.id}`;
   if (source.provider === "mastodon") return `mastodon:${source.server}:${source.id}`;
   if (source.provider === "reddit" && source.commentId) return `reddit-comment:${source.commentId}`;
+  if (source.provider === "forum_magnum") return `forum-magnum:${source.site}:${source.commentId ? `comment:${source.commentId}` : `post:${source.id}`}`;
   return `${source.provider}:${source.id}`;
 }
 
