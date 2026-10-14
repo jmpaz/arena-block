@@ -106,7 +106,7 @@ function body(html: string, canonicalUrl: string): Pick<ResolvedPost, "text" | "
     replacement: (content, node) => {
       const raw = node.getAttribute("href");
       if (!raw) return content;
-      const url = raw.startsWith("#") ? raw : sourceLink(raw, canonicalUrl);
+      const url = sourceLink(raw, canonicalUrl);
       return url ? `[${content || converter.escape(url)}](<${url}>)` : content;
     },
   });

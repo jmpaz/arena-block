@@ -1022,10 +1022,11 @@ struct CaptureTextView: View {
     @State private var expanded = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
+        let preview = CaptureMarkdownPreview.render(text)
         VStack(alignment: .leading, spacing: 10) {
-            Text(text).lineLimit(expanded ? nil : 6).textSelection(.enabled)
+            Text(preview).lineLimit(expanded ? nil : 6).textSelection(.enabled)
                 .accessibilityIdentifier("capture.text.content")
-            if text.count > 250 {
+            if preview.characters.count > 250 {
                 Button {
                     if reduceMotion { expanded.toggle() }
                     else { withAnimation(.easeInOut(duration: 0.22)) { expanded.toggle() } }

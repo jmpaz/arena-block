@@ -151,7 +151,7 @@ test("opt-in expansion stops at eight direct replies and follows same-author con
 
 test("rich text keeps authored quote boundaries and stable body media refs", async () => {
   const post = publicExamples.alignment_forum!.post;
-  const html = "<p>Intro <strong>bold</strong> and <a href='/posts/x'>link</a>.</p><blockquote><p>Quoted source words</p></blockquote>" +
+  const html = "<p>Intro <strong>bold</strong>, <a href='/posts/x'>link</a>, and <a href='#footnote-1'>footnote</a>.</p><blockquote><p>Quoted source words</p></blockquote>" +
     "<figure><img src='https://images.example.test/one.png' alt='Diagram'><figcaption>Figure note</figcaption></figure>" +
     "<p><img data-src='/two.png' alt='Second'></p><iframe src='https://www.youtube.com/embed/abc'></iframe>";
   const fetcher = (async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -164,6 +164,7 @@ test("rich text keeps authored quote boundaries and stable body media refs", asy
   expect(plan.posts[0]!.media.map(item => item.url)).toEqual(["https://images.example.test/one.png", "https://www.alignmentforum.org/two.png"]);
   expect(plan.posts[0]!.media.map(item => item.ref)).toEqual(["1.1", "1.2"]);
   expect(plan.posts[0]!.text).toContain("> Quoted source words");
+  expect(plan.posts[0]!.text).toContain(`[footnote](<${post.pageUrl}#footnote-1>)`);
   expect(plan.posts[0]!.text).toContain("*Caption:* Figure note");
   expect(plan.posts[0]!.mediaIssues).toMatchObject([{ status: "unsupported" }]);
   expect(composePlan(plan.posts, plan.policy).block.selectedMedia).toEqual(["1.1", "1.2"]);
