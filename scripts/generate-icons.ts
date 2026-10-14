@@ -126,13 +126,44 @@ export async function iconFiles(root: string): Promise<Map<string, Buffer>> {
   return files;
 }
 
+export function matchingIconPixels(actual: Uint8ClampedArray, expected: Uint8ClampedArray): boolean {
+  if (actual.length !== expected.length || actual.length % 4 !== 0) return false;
+  for (let offset = 0; offset < actual.length; offset += 4) {
+    const alpha = actual[offset + 3]!;
+    const expectedAlpha = expected[offset + 3]!;
+    if (Math.abs(alpha - expectedAlpha) > 1) return false;
+    for (let channel = 0; channel < 3; channel++) {
+      const visible = actual[offset + channel]! * alpha / 255;
+      const expectedVisible = expected[offset + channel]! * expectedAlpha / 255;
+      if (Math.abs(visible - expectedVisible) > 2) return false;
+    }
+  }
+  return true;
+}
+
+async function matchingIconPNG(actual: Buffer, expected: Buffer): Promise<boolean> {
+  if (!actual.subarray(0, 8).equals(expected.subarray(0, 8)) || actual[25] !== expected[25]) return false;
+  const [image, reference] = await Promise.all([loadImage(actual), loadImage(expected)]);
+  if (image.width !== reference.width || image.height !== reference.height) return false;
+  const pixels = (input: typeof image) => {
+    const context = createCanvas(input.width, input.height).getContext("2d");
+    context.drawImage(input, 0, 0);
+    return context.getImageData(0, 0, input.width, input.height).data;
+  };
+  // The tested native renderers differ by one alpha step and up to two visible
+  // color steps. Premultiply colors so invisible RGB bytes do not affect the check.
+  return matchingIconPixels(pixels(image), pixels(reference));
+}
+
 export async function generateIcons(root: string, check = false): Promise<void> {
   for (const [path, bytes] of await iconFiles(root)) {
     const target = join(root, path);
     if (check) {
       let existing: Buffer | undefined;
       try { existing = await readFile(target); } catch {}
-      if (!existing?.equals(bytes)) throw new Error(`Regenerate icon asset: ${path}`);
+      if (existing?.equals(bytes)) continue;
+      if (existing && path.endsWith(".png") && await matchingIconPNG(existing, bytes)) continue;
+      throw new Error(`Regenerate icon asset: ${path}`);
     } else {
       await mkdir(join(target, ".."), { recursive: true });
       await writeFile(target, bytes);

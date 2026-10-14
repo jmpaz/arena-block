@@ -1,12 +1,23 @@
 import { expect, test } from "bun:test";
 import { createCanvas, loadImage } from "@napi-rs/canvas";
-import { extensionIconSizes, generateIcons } from "../scripts/generate-icons.ts";
+import { extensionIconSizes, generateIcons, matchingIconPixels } from "../scripts/generate-icons.ts";
 import { join } from "node:path";
 
 const root = join(import.meta.dir, "..");
 
 test("committed icon assets reproduce from the shared vector source", async () => {
   await generateIcons(root, true);
+});
+
+test("native icon comparison allows bounded rounding and rejects changed artwork", () => {
+  const pixels = (...values: number[]) => new Uint8ClampedArray(values);
+  expect(matchingIconPixels(pixels(17, 17, 17, 255), pixels(19, 19, 19, 255))).toBe(true);
+  expect(matchingIconPixels(pixels(230, 230, 230, 128), pixels(231, 231, 231, 129))).toBe(true);
+  expect(matchingIconPixels(pixels(255, 0, 0, 0), pixels(0, 255, 255, 0))).toBe(true);
+  expect(matchingIconPixels(pixels(17, 17, 17, 255), pixels(20, 20, 20, 255))).toBe(false);
+  expect(matchingIconPixels(pixels(17, 17, 17, 255), pixels(17, 17, 17, 253))).toBe(false);
+  expect(matchingIconPixels(pixels(0, 0, 0, 255, 0, 0, 0, 0), pixels(0, 0, 0, 0, 0, 0, 0, 255))).toBe(false);
+  expect(matchingIconPixels(pixels(0, 0, 0, 255), pixels(0, 0, 0, 255, 0, 0, 0, 0))).toBe(false);
 });
 
 test("iOS inputs preserve the mark and provide valid appearance pixels", async () => {
