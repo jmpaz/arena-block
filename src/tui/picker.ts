@@ -79,7 +79,7 @@ export class PickerView {
   readonly listStart = 2;
 
   constructor(readonly renderer: CliRenderer, readonly model: PickerModel, readonly height: number, readonly opts: { me?: string; previewWidth: number }) {
-    const frame = new BoxRenderable(renderer, { id: "frame", flexDirection: "row", width: "100%", height, backgroundColor: RGBA.defaultBackground() });
+    const frame = new BoxRenderable(renderer, { id: "frame", flexDirection: "row", width: "100%", height });
     const column = new BoxRenderable(renderer, { id: "column", flexDirection: "column", flexGrow: 1, height });
     frame.add(column);
     this.lines = Array.from({ length: height }, (_, i) => {
@@ -164,7 +164,7 @@ export class PickerView {
       const text = truncate(`+ new ${row.visibility} channel "${row.title}"`, w - 18);
       const hint = "^v visibility";
       const gap = " ".repeat(Math.max(1, w - 2 - width(text) - width(hint)));
-      return line(["  ", here ? reverse(paint(text)) : paint(text), lit(gap), dim(hint)]);
+      return line(["  ", here ? reverse(ink.plain(text)) : paint(text), lit(gap), dim(hint)]);
     }
     const c = row.channel;
     const showOwner = c.owner.name !== this.opts.me;
@@ -259,7 +259,7 @@ export async function runPicker(options: PickerOptions): Promise<PickerResult> {
   output.write("\x1b[A");
   const renderer = await createCliRenderer({
     stdin: input as unknown as NodeJS.ReadStream, stdout: output as unknown as NodeJS.WriteStream,
-    screenMode: "split-footer", footerHeight: height, useMouse: true, clearOnShutdown: false,
+    remote: false, screenMode: "split-footer", footerHeight: height, useMouse: true, clearOnShutdown: false,
     exitOnCtrlC: false, useKittyKeyboard: null, targetFps: 60,
   });
   const view = new PickerView(renderer, model, height, { me: options.me, previewWidth });
