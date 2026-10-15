@@ -1105,6 +1105,13 @@ public final class CaptureSession {
 
     public func pauseUnclaimedContinuedSaves() throws -> [UUID] { try delivery.pauseUnclaimedContinued() }
 
+    /// SwiftUI scenes deliver foreground activation even when the application
+    /// delegate does not receive applicationDidBecomeActive.
+    public func prepareForegroundDelivery() throws {
+        guard !isPreviewFixture else { return }
+        for id in try delivery.pauseUnclaimedContinued() { cancelContinuedProcessing?(id) }
+    }
+
     public func pauseContinuedSave(_ id: UUID, receiptID: UUID? = nil) throws {
         try delivery.requestStop(id, receiptID: receiptID, reason: .continuedTaskEnded)
         refreshDelivery()

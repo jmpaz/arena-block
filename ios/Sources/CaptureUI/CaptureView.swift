@@ -115,6 +115,7 @@ public struct CaptureRootView: View {
             session.logLockState("scenePhase.\(phase)")
             #endif
             if phase == .active {
+                do { try session.prepareForegroundDelivery() } catch { session.problem = error.localizedDescription }
                 session.refreshSharedIntake()
                 if !session.busy {
                     do { try session.reloadAccount() } catch { session.problem = error.localizedDescription }
@@ -130,6 +131,9 @@ public struct CaptureRootView: View {
             #if DEBUG
             session.logLockState("sceneTask")
             #endif
+            if scenePhase == .active {
+                do { try session.prepareForegroundDelivery() } catch { session.problem = error.localizedDescription }
+            }
             await session.resumeDelivery()
             refreshContinuationOffer()
             if session.draft?.phase == .editing && session.draft?.input.isEmpty == false { session.resolve() }

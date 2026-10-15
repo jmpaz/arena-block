@@ -83,9 +83,7 @@ final class CaptureApplicationDelegate: NSObject, UIApplicationDelegate {
     func applicationDidBecomeActive(_ application: UIApplication) {
         // A relaunched process has no proof that an unclaimed continued task
         // still owns execution. Persist the fence without assuming why it ended.
-        if let paused = try? Self.session?.pauseUnclaimedContinuedSaves(), #available(iOS 26.0, *) {
-            for id in paused { Self.continuedCoordinator?.cancel(id) }
-        }
+        try? Self.session?.prepareForegroundDelivery()
     }
 
     static func scheduleRecovery() {

@@ -4,6 +4,13 @@ import Foundation
 import CryptoKit
 import Darwin
 
+struct CreateReadbackWindow: Codable {
+    var descendingPages = true
+    var previousPageMinimum: Date?
+    var candidateCreatedAt: Date?
+    var candidateAccountID: Int?
+}
+
 struct DeliveryJob: Codable, Identifiable {
     typealias Stage = CaptureDeliveryStage
     var id: UUID
@@ -70,6 +77,7 @@ struct DeliveryJob: Codable, Identifiable {
     var scanningConnected: Set<Int>?
     // A create readback is only decisive after the bounded scan finishes.
     var reconcileCandidateID: Int?
+    var reconcileWindow: CreateReadbackWindow?
     var block: JSONValue?
     var problem: String?
     var provenance: CaptureConnectionProvenance?
@@ -132,6 +140,9 @@ final class CaptureDelivery {
     // Match the CLI's bounded placement lookup. A confirmed older block can
     // sit beyond the first 300 entries in a manually ordered default channel.
     private static let provenancePageLimit = 20
+    // Admission precedes creation. Include five additional minutes for device
+    // clock skew; a history too dense to cross this boundary remains uncertain.
+    private static let createReadbackClockSkew: TimeInterval = 5 * 60
     let store: CaptureStore
     private let credentials: CredentialStore
     private let directory: URL
@@ -432,9 +443,10 @@ final class CaptureDelivery {
             for id in try store.recordIDs(account: 0, kind: "delivery") {
                 guard !Task.isCancelled else { return }
                 guard let job = try store.projectedValue(CaptureDeliveryProjection.self, account: 0, kind: "delivery", id: id) else { continue }
-                if job.stage == .attention, job.draft.blockID != nil, job.transferID == nil,
+                let stoppedUnknownCreate = job.stopRequestedAt != nil && (job.draft.phase == .uncertain || job.resumeStage == .reconcile)
+                if job.stage == .attention, job.draft.blockID != nil || stoppedUnknownCreate, job.transferID == nil,
                    Date().timeIntervalSince(job.lastReadOnlyReconciliationAt ?? .distantPast) >= 60 {
-                    await inspectRetained(job.id)
+                    await inspectRetained(job.id, minimumInterval: 60)
                     continue
                 }
                 guard job.hasPendingWork,
@@ -495,8 +507,8 @@ final class CaptureDelivery {
         changed?()
     }
 
-    /// Force-quit gives no expiration callback. A foreground relaunch treats any
-    /// unclaimed task as stopped before ordinary recovery can write again.
+    /// A foreground scene has no proof that an unclaimed task still owns
+    /// execution. Fence writes before ordinary recovery without inferring why.
     func pauseUnclaimedContinued() throws -> [UUID] {
         let unclaimed = try continuedOperationIDs().filter { id in
             guard let job = try store.projectedValue(CaptureDeliveryProjection.self, account: 0, kind: "delivery", id: id.uuidString) else { return false }
@@ -754,21 +766,30 @@ final class CaptureDelivery {
 
     /// Reopening the app can reconcile retained remote facts without restarting
     /// any mutation. The persisted fence survives another suspension or crash.
-    private func inspectRetained(_ id: UUID) async {
+    private func inspectRetained(_ id: UUID, minimumInterval: TimeInterval = 0) async {
         do {
-            try store.transaction {
-                guard var job = try store.value(DeliveryJob.self, account: 0, kind: "delivery", id: id.uuidString),
-                      job.stage == .attention, job.transferID == nil, job.draft.blockID != nil else { return }
-                job.readOnlyReconciliation = true; job.lastReadOnlyReconciliationAt = Date()
-                // Previous app versions understand Stop but not the newer
-                // read-only marker, so retain that legacy mutation fence too.
-                job.stopRequestedAt = job.stopRequestedAt ?? Date()
-                job.stage = job.contentVerified == true ? .connections : .read
-                job.page = 1; job.scanningConnected = nil; job.problem = nil; job.notBefore = nil
-                _ = try save(job)
-            }
-            await advance(id)
+            if try prepareRetainedInspection(id, minimumInterval: minimumInterval) { await advance(id) }
         } catch { changed?() }
+    }
+
+    /// Receipt discovery needs no new user command. Keep both modern and legacy
+    /// mutation fences while checking a stopped create whose response was lost.
+    func prepareRetainedInspection(_ id: UUID, minimumInterval: TimeInterval = 0, now: Date = Date()) throws -> Bool {
+        var accepted = false
+        try store.transaction {
+            guard try store.value(PendingTransfer.self, account: 0, kind: "canceledDelivery", id: id.uuidString) == nil,
+                  var job = try store.value(DeliveryJob.self, account: 0, kind: "delivery", id: id.uuidString),
+                  job.canceledAt == nil, job.stage == .attention, job.transferID == nil,
+                  job.draft.blockID != nil || (job.stopRequestedAt != nil && (job.draft.phase == .uncertain || job.resumeStage == .reconcile)),
+                  now.timeIntervalSince(job.lastReadOnlyReconciliationAt ?? .distantPast) >= minimumInterval else { return }
+            job.readOnlyReconciliation = true; job.lastReadOnlyReconciliationAt = now
+            // Older readers understand Stop even if they ignore the newer field.
+            job.stopRequestedAt = job.stopRequestedAt ?? now
+            job.stage = job.draft.blockID == nil ? .reconcile : (job.contentVerified == true ? .connections : .read)
+            job.page = 1; job.scanningConnected = nil; job.problem = nil; job.notBefore = nil
+            _ = try save(job); accepted = true
+        }
+        return accepted
     }
 
     /// Read-only reconciliation is the only work permitted after Stop.
@@ -1001,24 +1022,29 @@ final class CaptureDelivery {
                     let owner = try transport(job.transferSession ?? ownIdentifier)
                     let tasks = await owner.tasks()
                     if let task = tasks.first(where: { $0.taskDescription == transferID }) {
-                        let current = try store.projectedValue(CaptureDeliveryProjection.self, account: 0, kind: "delivery", id: id.uuidString)
-                        let stopping = current == nil || current?.shouldCancelTransferOnStop == true
-                        if stopping { task.cancel() }
-                        else if task.state == .suspended { task.resume() }
-                        return
-                    }
-                    let remaining = 30 - Date().timeIntervalSince(job.transferStarted ?? .distantPast)
-                    if remaining > 0 {
-                        recoveryTasks[id]?.cancel()
-                        recoveryTasks[id] = Task { [weak self] in
-                            try? await Task.sleep(for: .seconds(remaining + 1))
-                            guard !Task.isCancelled else { return }
-                            await self?.advance(id)
+                        if let recovered = try recoverStaleForeignRead(id, transferID: transferID, receiptID: job.receiptID ?? job.id, sessionIdentifier: owner.identifier) {
+                            // A read has no remote effects to undo. Durably fence
+                            // its old identity before permitting a replacement GET.
+                            task.cancel(); job = recovered
+                        } else {
+                            let current = try store.projectedValue(CaptureDeliveryProjection.self, account: 0, kind: "delivery", id: id.uuidString)
+                            let stopping = current == nil || current?.shouldCancelTransferOnStop == true
+                            if stopping { task.cancel() }
+                            else if task.state == .suspended { task.resume() }
+                            if owner.identifier != ownIdentifier, job.stage.permitsStoppedRead, let started = job.transferStarted {
+                                scheduleAdvance(id, after: max(1, 31 - Date().timeIntervalSince(started)))
+                            }
+                            return
                         }
-                        return
+                    } else {
+                        let remaining = 30 - Date().timeIntervalSince(job.transferStarted ?? .distantPast)
+                        if remaining > 0 {
+                            scheduleAdvance(id, after: remaining + 1)
+                            return
+                        }
+                        guard let recovered = try recoverMissingTransfer(id, transferID: transferID) else { return }
+                        job = recovered
                     }
-                    guard let recovered = try recoverMissingTransfer(id, transferID: transferID) else { return }
-                    job = recovered
                 }
             }
             guard ![.done, .attention].contains(job.stage) else { return }
@@ -1085,6 +1111,31 @@ final class CaptureDelivery {
                 _ = try? save(job)
             }
         }
+    }
+
+    private func scheduleAdvance(_ id: UUID, after delay: TimeInterval) {
+        recoveryTasks[id]?.cancel()
+        recoveryTasks[id] = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(delay))
+            guard !Task.isCancelled else { return }
+            await self?.advance(id)
+        }
+    }
+
+    /// A retained foreign GET can be replaced after the previous session lock
+    /// has been acquired. Never apply elapsed-time replay to a mutation.
+    func recoverStaleForeignRead(_ id: UUID, transferID: String, receiptID: UUID, sessionIdentifier: String, now: Date = Date()) throws -> DeliveryJob? {
+        guard sessionIdentifier != ownIdentifier, sessionLocks[sessionIdentifier] != nil else { return nil }
+        var recovered: DeliveryJob?
+        try store.transaction {
+            guard try store.value(PendingTransfer.self, account: 0, kind: "canceledDelivery", id: id.uuidString) == nil,
+                  let current = try store.value(DeliveryJob.self, account: 0, kind: "delivery", id: id.uuidString),
+                  current.canceledAt == nil, current.transferID == transferID, current.transferSession == sessionIdentifier,
+                  (current.receiptID ?? current.id) == receiptID, current.stage.permitsStoppedRead,
+                  let started = current.transferStarted, now.timeIntervalSince(started) > 30 else { return }
+            recovered = try recoverMissingTransfer(id, transferID: transferID)
+        }
+        return recovered
     }
 
     /// Losing the task and its response does not prove that a write failed.
@@ -1414,28 +1465,60 @@ final class CaptureDelivery {
             job.stage = .connections; job.page = 1; job.scanningConnected = nil
         case .reconcile:
             // Restarting at page one must discard a candidate from an interrupted scan.
-            if job.page == 1 { job.reconcileCandidateID = nil }
+            if job.page == 1 { job.reconcileCandidateID = nil; job.reconcileWindow = .init() }
             guard let data = json?["data"], case .array(let rows) = data,
-                  let pagination = json?["meta"]?["has_more_pages"], case .bool(let hasMore) = pagination else {
+                  rows.count <= 100,
+                  let pagination = json?["meta"]?["has_more_pages"], case .bool(let hasMore) = pagination,
+                  json?["meta"]?["current_page"] == nil || json?["meta"]?["current_page"]?.int == job.page,
+                  !hasMore || (!rows.isEmpty && json?["meta"]?["next_page"]?.int == job.page + 1) else {
                 fail(&job, "Couldn't confirm this save. Check your channels in Are.na before saving again.")
                 job.draft.phase = .uncertain; return
             }
-            for row in rows where row["metadata"]?["arena_capture_id"]?.string == job.id.uuidString {
+            // Legacy scans resumed mid-page have no proof of the earlier
+            // ordering. They may finish the old full scan, but cannot stop early.
+            var window = job.reconcileWindow ?? .init(descendingPages: false)
+            let standard = ISO8601DateFormatter()
+            let fractional = ISO8601DateFormatter(); fractional.formatOptions.insert(.withFractionalSeconds)
+            var dates: [Date] = []
+            for row in rows {
+                let created = row["created_at"]?.string.flatMap { standard.date(from: $0) ?? fractional.date(from: $0) }
+                if let created { dates.append(created) } else { window.descendingPages = false }
+                if (row["id"]?.int ?? 0) <= 0 { window.descendingPages = false }
+                guard row["metadata"]?["arena_capture_id"]?.string == job.id.uuidString else { continue }
                 guard let id = row["id"]?.int, id > 0,
                       job.reconcileCandidateID == nil || job.reconcileCandidateID == id else {
                     fail(&job, "Multiple blocks match this capture. Check your channels in Are.na before continuing.")
                     job.draft.phase = .uncertain; return
                 }
                 job.reconcileCandidateID = id
+                window.candidateCreatedAt = created
+                let actors = [row["user"]?["id"]?.int, row["owner"]?["id"]?.int].compactMap { $0 }
+                window.candidateAccountID = !actors.isEmpty && actors.allSatisfy({ $0 == job.draft.accountID }) ? job.draft.accountID : nil
             }
-            if hasMore {
-                guard job.page < 10, let page = json?["meta"]?["next_page"]?.int, page > job.page else {
+            // The API ranks descending pages but hydrates each page in an
+            // arbitrary row order. Validate whole page ranges, not row order.
+            let previousMinimum = window.previousPageMinimum
+            let pageMaximum = dates.max(), pageMinimum = dates.min()
+            if let previousMinimum, let pageMaximum, pageMaximum > previousMinimum { window.descendingPages = false }
+            window.previousPageMinimum = pageMinimum
+            job.reconcileWindow = window
+            let lowerBound = job.createdAt.addingTimeInterval(-Self.createReadbackClockSkew)
+            // Require a wholly older sentinel page after a validated page.
+            // Equal timestamps across a page edge need another strictly older
+            // page, so a boundary tie cannot truncate the causal window.
+            let causalWindowComplete: Bool
+            if let previousMinimum, let pageMaximum {
+                causalWindowComplete = window.descendingPages && pageMaximum < lowerBound && pageMaximum < previousMinimum
+            } else { causalWindowComplete = false }
+            let candidateInsideWindow = window.candidateAccountID == job.draft.accountID && window.candidateCreatedAt.map { $0 >= lowerBound } == true
+            if hasMore && !(causalWindowComplete && candidateInsideWindow) {
+                guard job.page < 10, let page = json?["meta"]?["next_page"]?.int else {
                     fail(&job, "Couldn't confirm this save. Check your channels in Are.na before saving again.")
                     job.draft.phase = .uncertain; return
                 }
                 job.page = page
             } else if let id = job.reconcileCandidateID {
-                job.draft.blockID = id; job.reconcileCandidateID = nil; job.stage = .read
+                job.draft.blockID = id; job.reconcileCandidateID = nil; job.reconcileWindow = nil; job.stage = .read
             } else {
                 fail(&job, "Couldn't confirm this save. Check your channels in Are.na before saving again.")
                 job.draft.phase = .uncertain
