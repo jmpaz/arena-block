@@ -78,6 +78,11 @@ struct DeliveryJob: Codable, Identifiable {
     // A create readback is only decisive after the bounded scan finishes.
     var reconcileCandidateID: Int?
     var reconcileWindow: CreateReadbackWindow?
+    /// UUID readback recovered an existing create whose reply was unavailable.
+    var reconciledCreate: Bool?
+    /// One admission only: an unknown PUT cannot be replayed over a later edit,
+    /// even when that edit happens to restore the generated placeholder.
+    var initialFieldsAttemptedAt: Date?
     var block: JSONValue?
     var problem: String?
     var provenance: CaptureConnectionProvenance?
@@ -974,6 +979,7 @@ final class CaptureDelivery {
     }
 
     private func retainOutcome(_ result: BackgroundHTTPResult, job: inout DeliveryJob, transferID: String, stage: DeliveryJob.Stage, responseMissing: Bool = false) throws {
+        if stage == .update { job.initialFieldsAttemptedAt = job.initialFieldsAttemptedAt ?? job.transferStarted ?? Date() }
         var outcome = CaptureTransferOutcome(transferID: transferID, stage: stage, result: result)
         outcome.operationID = job.id; outcome.receiptID = job.receiptID ?? job.id
         outcome.startedAt = job.transferStarted
@@ -1176,6 +1182,12 @@ final class CaptureDelivery {
             guard !current.writesAreFenced || current.stage.permitsStoppedRead else { return }
             guard source.stage != .connect || source.requiredChannels.contains(where: { !source.connected.contains($0.id) }) else { return }
             var job = source
+            if job.stage == .update {
+                if job.reconciledCreate == true {
+                    guard let observed = current.block, try recoveredCreateNeedsUpdate(current, block: observed) else { return }
+                }
+                job.initialFieldsAttemptedAt = job.initialFieldsAttemptedAt ?? Date()
+            }
             if job.stage == .connect, job.attemptedChannelIDs == nil {
                 let missing = Set(job.requiredChannels.map(\.id)).subtracting(job.connected)
                 guard missing.isSubset(of: job.reaffirmedChannelIDs ?? []) else { throw CaptureError.message("An earlier channel addition is unconfirmed. Check this save before continuing.") }
@@ -1300,6 +1312,42 @@ final class CaptureDelivery {
         return (request, try body.map { try JSONEncoder().encode($0) }, file)
     }
 
+    /// Recovered creates may finish only unchanged generated initial fields.
+    /// Matching final fields need no PUT; an already admitted PUT is read-only
+    /// thereafter, regardless of whether a placeholder later reappears.
+    private func recoveredCreateNeedsUpdate(_ job: DeliveryJob, block: JSONValue) throws -> Bool {
+        let actors = [block["user"]?["id"]?.int, block["owner"]?["id"]?.int].compactMap { $0 }
+        guard let blockID = job.draft.blockID, block["id"]?.int == blockID, !actors.isEmpty,
+              actors.allSatisfy({ $0 == job.draft.accountID }),
+              block["metadata"]?["arena_capture_id"]?.string == job.id.uuidString else {
+            throw CaptureError.message("Couldn't verify the recovered block's identity. Its content has not been changed.")
+        }
+        let hash = job.prepared.payload["metadata"]?["arena_block_plan"]?.string
+        if let hash, block["metadata"]?["arena_block_plan"] != .string(hash) {
+            throw CaptureError.message("The recovered block's capture details differ. Its content has not been changed.")
+        }
+        let generatedHash: String? = hash.flatMap { $0.range(of: #"^[0-9a-f]{64}$"#, options: .regularExpression) == nil ? nil : $0 }
+        var needsUpdate = false
+        for (key, expected) in job.prepared.update {
+            let actual = block[key]?["markdown"] ?? block[key]
+            if actual == expected || (expected == .string("") && (actual == nil || actual == .null))
+                || (expected == .null && actual == nil) { continue }
+            var initial: JSONValue?
+            if let generatedHash, block["metadata"]?["arena_block_plan"] == .string(generatedHash) {
+                if key == "description", job.prepared.payload[key] == .string("arena-block description \(generatedHash)") { initial = job.prepared.payload[key] }
+                if key == "content", job.prepared.payload["value"] == .string("arena-block text \(generatedHash)") { initial = job.prepared.payload["value"] }
+            }
+            guard let initial, actual == initial else {
+                throw CaptureError.message("The saved \(key) differs from this capture. Its content has been left unchanged in Are.na.")
+            }
+            needsUpdate = true
+        }
+        guard !needsUpdate || job.initialFieldsAttemptedAt == nil else {
+            throw CaptureError.message("An earlier content update is unconfirmed. The block has been left unchanged in Are.na.")
+        }
+        return needsUpdate
+    }
+
     func consume(_ result: BackgroundHTTPResult, job: inout DeliveryJob) {
         if job.stage == .destinations, let target = job.placementValidationID,
            !job.requiredChannels.contains(where: { $0.id == target }) {
@@ -1397,7 +1445,14 @@ final class CaptureDelivery {
                 job.stage = .verify
             } else if job.draft.isPlacementOnly {
                 job.contentVerified = true; job.stage = .connections; job.page = 1; job.scanningConnected = nil
-            } else { job.stage = job.reuseExisting == true || job.prepared.update.isEmpty ? .verify : .update }
+            } else if job.reuseExisting == true || job.prepared.update.isEmpty { job.stage = .verify }
+            else if job.reconciledCreate == true {
+                do {
+                    guard let observed = job.block else { throw CaptureError.message("The recovered block could not be read.") }
+                    job.stage = try recoveredCreateNeedsUpdate(job, block: observed) ? .update : .verify
+                }
+                catch { fail(&job, error.localizedDescription) }
+            } else { job.stage = .update }
         case .update: job.stage = .verify
         case .verify:
             guard let block = json else { fail(&job, "The saved block could not be read."); return }
@@ -1525,7 +1580,8 @@ final class CaptureDelivery {
                 }
                 job.page = page
             } else if let id = job.reconcileCandidateID, window.descendingPages, candidateInsideWindow {
-                job.draft.blockID = id; job.reconcileCandidateID = nil; job.reconcileWindow = nil; job.stage = .read
+                job.draft.blockID = id; job.reconcileCandidateID = nil; job.reconcileWindow = nil
+                job.reconciledCreate = true; job.stage = .read
             } else {
                 fail(&job, "Couldn't confirm this save. Check your channels in Are.na before saving again.")
                 job.draft.phase = .uncertain
