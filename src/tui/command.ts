@@ -48,6 +48,9 @@ export async function pickCommand(options: PickOptions): Promise<number> {
     client = new ArenaBlockClient(process.env.ARENA_BLOCK_ENDPOINT ?? "http://127.0.0.1:8790", token);
     const index = await client.channelIndex();
     recents = readRecents(index.accountId);
+    const owners = new Map<string, number>();
+    for (const c of index.channels) owners.set(c.owner.name, (owners.get(c.owner.name) ?? 0) + 1);
+    me = [...owners].sort((a, b) => b[1] - a[1])[0]?.[0];
     if (options.block) {
       const preview = await client.existingBlock(parseArenaBlockUrl(options.block));
       block = { title: preview.title, source: "are.na", kind: preview.type, blockId: preview.blockId, url: preview.blockUrl, alreadyIn: [] };
