@@ -32,6 +32,7 @@ public final class CaptureSession {
     var incomingLinks: [String] = []
     var busy = false
     var deliveryRevision = 0
+    var transferRevision = 0
     public var scheduleRecovery: (() -> Void)?
     public var beginSubmission: (() -> Void)?
     public var startContinuedProcessing: ((UUID) -> Void)?
@@ -202,6 +203,7 @@ public final class CaptureSession {
         try refreshIncoming()
         delivery = try CaptureDelivery(store: store, credentials: credentials, directory: container.appendingPathComponent("delivery"), group: group, identifier: (bundle.bundleIdentifier ?? "capture") + ".delivery", ingestBase: bundle.object(forInfoDictionaryKey: "CaptureIngestBaseURL") as? String)
         delivery.changed = { [weak self] in self?.refreshDelivery() }
+        delivery.progressChanged = { [weak self] in self?.refreshTransferProgress() }
         try delivery.refreshPreparationFailures()
         Task { await configureInitialDefault(); await delivery.resume() }
     }
@@ -1163,6 +1165,19 @@ public final class CaptureSession {
         if let account { recent = (try? store.values(Channel.self, account: account.id, kind: "recent")) ?? recent }
     }
 
+    /// Byte updates do not reschedule BGProcessing, reload recents, or rescan
+    /// History. Only the current detail and system activity observe this signal.
+    private func refreshTransferProgress() {
+        transferRevision += 1
+        if let id = draft?.id, !isAddingPlacements,
+           let transfer = try? store.projectedValue(CaptureDeliveryProjection.self, account: 0, kind: "delivery", id: id.uuidString),
+           let transferID = transfer.transferID,
+           let observed = try? store.projectedValue(CaptureTransferProgress.self, account: 0, kind: "deliveryProgress", id: transferID) {
+            draft?.deliveryState?.transferProgress = observed
+        }
+        deliveryDidChange?()
+    }
+
     var editorTitle: String { draft?.titleOverride ?? preview?.title ?? "" }
     var editorDescription: String {
         if let value = draft?.descriptionOverride { return value }
@@ -1484,7 +1499,13 @@ public final class CaptureSession {
 
     func historyDraft(_ id: UUID) -> CaptureDraft? {
         guard let account else { return nil }
-        return try? store.value(CaptureDraft.self, account: account.id, kind: "draft", id: id.uuidString)
+        guard var value = try? store.value(CaptureDraft.self, account: account.id, kind: "draft", id: id.uuidString) else { return nil }
+        if let transfer = try? store.projectedValue(CaptureDeliveryProjection.self, account: 0, kind: "delivery", id: id.uuidString),
+           let transferID = transfer.transferID,
+           let observed = try? store.projectedValue(CaptureTransferProgress.self, account: 0, kind: "deliveryProgress", id: transferID) {
+            value.deliveryState?.transferProgress = observed
+        }
+        return value
     }
 
     func canDeleteDraft(_ value: CaptureDraft) -> Bool {

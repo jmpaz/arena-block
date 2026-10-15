@@ -417,6 +417,7 @@ struct CaptureDetailView: View {
             latest = session.historyDraft(draft.id)
         }
         .onChange(of: session.deliveryRevision) { latest = session.historyDraft(draft.id) }
+        .onChange(of: session.transferRevision) { latest = session.historyDraft(draft.id) }
         .task(id: current.blockID) {
             guard let id = current.blockID, let api = session.api else { return }
             loading = true

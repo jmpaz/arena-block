@@ -147,6 +147,7 @@ final class CaptureDelivery {
     private var activeContinued: [UUID: UUID] = [:]
     private var retiring = false
     var changed: (() -> Void)?
+    var progressChanged: (() -> Void)?
     var readSource: ((CaptureSubmissionSnapshot) async throws -> CapturePreparedSource)?
     var renderSource: ((JSONValue, UUID) async throws -> NativeRenderedMedia?)?
     private var sourcePreparation: CapturePreparation?
@@ -859,7 +860,7 @@ final class CaptureDelivery {
                 || previous?.waitingForConnectivity != observation.waitingForConnectivity else { return }
         var progress = observation; progress.stage = job.stage
         try store.save(progress, account: 0, kind: "deliveryProgress", id: observation.transferID)
-        changed?()
+        if let progressChanged { progressChanged() } else { changed?() }
     }
 
     private func resumeCompleted(transferID: String) async {
