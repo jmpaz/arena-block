@@ -52,6 +52,11 @@ struct DeliveryJob: Codable, Identifiable {
     var connectionRetryCounts: [Int: Int]?
     var readOnlyReconciliation: Bool?
     var lastReadOnlyReconciliationAt: Date?
+    var lastTransferProgress: CaptureTransferProgress?
+    var lastTransferOutcome: CaptureTransferOutcome?
+    var interruption: CaptureInterruption?
+    var mediaUploadCompletedAt: Date?
+    var uploadAuthorizationRenewals: Int?
     // Persisted before submitting a user-initiated continued-processing task.
     // An unclaimed marker fences automatic writes after an unclean process exit.
     var continuedRequestedAt: Date?
@@ -75,13 +80,20 @@ struct DeliveryJob: Codable, Identifiable {
         return draft.selection.channels.filter { requiredChannelIDs.contains($0.id) }
     }
     var state: CaptureDeliveryState {
-        CaptureDeliveryState(operationID: id, receiptID: receiptID ?? id, stage: canceledAt == nil ? stage : .done,
+        var state = CaptureDeliveryState(operationID: id, receiptID: receiptID ?? id, stage: canceledAt == nil ? stage : .done,
             confirmedChannelIDs: connected.intersection(Set(draft.selection.channels.map(\.id))),
             contentVerified: contentVerified == true || (stage == .done && canceledAt == nil), notBefore: notBefore,
             stopRequested: stopRequestedAt != nil, canceledAt: canceledAt,
             canceledWithUnconfirmedRequest: canceledAt == nil ? nil : hasUnconfirmedBlockRequest,
             confirmedOnceChannelIDs: confirmedOnceChannelIDs, attemptedChannelIDs: attemptedChannelIDs,
             preparationFailureStage: preparationFailureStage)
+        let effective = stage == .attention ? resumeStage : stage
+        state.preparationCompleted = effective.map { ![.queued, .reading, .rendering, .attention].contains($0) } ?? false
+        state.mediaUploadRequired = mediaPath != nil
+        state.mediaUploadCompleted = mediaUploadCompletedAt != nil || (mediaPath != nil && effective.map { [.create, .read, .update, .verify, .connections, .connect, .provenanceContents, .provenanceRead, .provenanceWrite, .provenanceVerify, .done].contains($0) } == true)
+        state.transferProgress = lastTransferProgress
+        state.lastTransferOutcome = lastTransferOutcome; state.interruption = interruption
+        return state
     }
     var hasUnconfirmedBlockRequest: Bool {
         guard draft.blockID == nil else { return false }
@@ -488,7 +500,7 @@ final class CaptureDelivery {
             guard let job = try store.projectedValue(CaptureDeliveryProjection.self, account: 0, kind: "delivery", id: id.uuidString) else { return false }
             return activeContinued[id] != (job.receiptID ?? job.id)
         }
-        for id in unclaimed { try requestStop(id) }
+        for id in unclaimed { try requestStop(id, reason: .executionClaimLost) }
         return unclaimed
     }
 
@@ -531,13 +543,14 @@ final class CaptureDelivery {
 
     /// Persist the request before any in-flight URLSession result is interpreted.
     /// The result can still have created a block or connection; neither is cancelled here.
-    func requestStop(_ id: UUID, receiptID: UUID? = nil) throws {
+    func requestStop(_ id: UUID, receiptID: UUID? = nil, reason: CaptureInterruptionReason = .userPause) throws {
         var accepted = false
         try store.transaction {
             guard var job = try store.value(DeliveryJob.self, account: 0, kind: "delivery", id: id.uuidString),
                   job.stage != .done, job.stopRequestedAt == nil,
                   receiptID == nil || receiptID == (job.receiptID ?? job.id) else { return }
             accepted = true
+            job.interruption = .init(reason: reason, stage: job.stage, transferID: job.transferID)
             job.stopRequestedAt = Date()
             job.continuedRequestedAt = nil
             if job.stage != .attention { job.resumeStage = job.stage }
@@ -699,6 +712,7 @@ final class CaptureDelivery {
                 job.readOnlyReconciliation = nil
                 job.validatedChannelIDs = job.validatedChannelIDs?.subtracting(missing)
                 job.stopRequestedAt = nil; job.problem = nil; job.notBefore = nil; job.attempts = 0; job.page = 1
+                job.interruption = nil; job.uploadAuthorizationRenewals = nil
                 if job.draft.phase == .uncertain || (job.draft.blockID == nil && job.attemptedChannelIDs?.isEmpty == false) {
                     job.stage = .reconcile
                 } else if job.draft.blockID != nil {
@@ -783,6 +797,9 @@ final class CaptureDelivery {
         job.problem = job.draft.phase == .uncertain
             ? "The earlier save is unconfirmed. Check its status before continuing."
             : "No block was created."
+        if let interruption = job.interruption { job.problem = interruption.message + " " + (job.problem ?? "") }
+        if let outcome = job.lastTransferOutcome, outcome.errorCode != NSURLErrorCancelled,
+           let reason = outcome.redactedReason { job.problem = (job.problem ?? "") + " " + reason }
     }
 
     private func finishAdoptedSession(_ identifier: String) {
@@ -810,6 +827,7 @@ final class CaptureDelivery {
         do { transport = try BackgroundHTTP(identifier: identifier, group: group, directory: directory) }
         catch { sessionLocks.removeValue(forKey: identifier); close(descriptor); throw error }
         transport.onResult = { transferID in await self.resumeCompleted(transferID: transferID) }
+        transport.onProgress = { progress in try? await self.recordProgress(progress) }
         transport.onInvalidated = { [weak self] in await self?.releaseSession(identifier) }
         transports[identifier] = transport
         return transport
@@ -820,6 +838,29 @@ final class CaptureDelivery {
         var receiptID: UUID
     }
     private struct PendingTransfer: Decodable { var id: UUID; var transferID: String? }
+
+    /// Compact observations are independent of frozen source payloads. The exact
+    /// admitted transfer and receipt fence all late/reordered delegate callbacks.
+    func recordProgress(_ observation: CaptureTransferProgress) throws {
+        var owner = try store.value(TransferOwner.self, account: 0, kind: "deliveryTransfer", id: observation.transferID)
+        if owner == nil {
+            for raw in try store.recordIDs(account: 0, kind: "delivery") {
+                if let job = try store.projectedValue(CaptureDeliveryProjection.self, account: 0, kind: "delivery", id: raw), job.transferID == observation.transferID {
+                    owner = .init(captureID: job.id, receiptID: job.receiptID ?? job.id); break
+                }
+            }
+        }
+        guard let owner, let job = try store.projectedValue(CaptureDeliveryProjection.self, account: 0, kind: "delivery", id: owner.captureID.uuidString),
+              job.transferID == observation.transferID, (job.receiptID ?? job.id) == owner.receiptID, job.canceledAt == nil else { return }
+        let previous = try store.projectedValue(CaptureTransferProgress.self, account: 0, kind: "deliveryProgress", id: observation.transferID)
+        guard previous == nil || observation.observedAt >= previous!.observedAt else { return }
+        guard previous == nil || observation.completedBytes >= previous!.completedBytes else { return }
+        guard previous?.completedBytes != observation.completedBytes || previous?.expectedBytes != observation.expectedBytes
+                || previous?.waitingForConnectivity != observation.waitingForConnectivity else { return }
+        var progress = observation; progress.stage = job.stage
+        try store.save(progress, account: 0, kind: "deliveryProgress", id: observation.transferID)
+        changed?()
+    }
 
     private func resumeCompleted(transferID: String) async {
         do {
@@ -854,6 +895,7 @@ final class CaptureDelivery {
             guard var current = try store.value(DeliveryJob.self, account: 0, kind: "delivery", id: id.uuidString), current.transferID == transferID else {
                 guard var canceled = try store.value(DeliveryJob.self, account: 0, kind: "canceledDelivery", id: id.uuidString),
                       canceled.canceledAt != nil, canceled.transferID == transferID else { return }
+                try retainOutcome(result, job: &canceled, transferID: transferID, stage: canceled.canceledTransferStage ?? canceled.resumeStage ?? canceled.stage)
                 consumeCanceled(result, job: &canceled)
                 canceled.transferID = nil; canceled.transferSession = nil; canceled.transferStarted = nil
                 canceled.revision = (canceled.revision ?? 0) + 1
@@ -869,6 +911,7 @@ final class CaptureDelivery {
                 accepted = canceled
                 return
             }
+            try retainOutcome(result, job: &current, transferID: transferID, stage: current.stage)
             consume(result, job: &current)
             current.transferID = nil; current.transferSession = nil; current.transferStarted = nil
             if current.writesAreFenced, current.stage != .attention { settleStop(&current) }
@@ -876,6 +919,17 @@ final class CaptureDelivery {
             try store.remove(account: 0, kind: "deliveryTransfer", id: transferID)
         }
         return accepted
+    }
+
+    private func retainOutcome(_ result: BackgroundHTTPResult, job: inout DeliveryJob, transferID: String, stage: DeliveryJob.Stage, responseMissing: Bool = false) throws {
+        var outcome = CaptureTransferOutcome(transferID: transferID, stage: stage, result: result)
+        outcome.operationID = job.id; outcome.receiptID = job.receiptID ?? job.id
+        outcome.startedAt = job.transferStarted
+        if responseMissing { outcome.responseMissing = true; outcome.redactedReason = "The transfer result could not be recovered." }
+        job.lastTransferProgress = try store.projectedValue(CaptureTransferProgress.self, account: 0, kind: "deliveryProgress", id: transferID)
+        outcome.progress = job.lastTransferProgress
+        job.lastTransferOutcome = outcome
+        try store.save(outcome, account: job.draft.accountID, kind: "deliveryAttempt", id: transferID)
     }
 
     private func consumeCanceled(_ result: BackgroundHTTPResult, job: inout DeliveryJob) {
@@ -1015,6 +1069,7 @@ final class CaptureDelivery {
         var recovered: DeliveryJob?
         try store.transaction {
             guard var current = try store.value(DeliveryJob.self, account: 0, kind: "delivery", id: id.uuidString), current.transferID == transferID else { return }
+            try retainOutcome(.init(status: nil, body: Data(), error: nil, retryAfter: nil), job: &current, transferID: transferID, stage: current.stage, responseMissing: true)
             if current.stage == .create { current.stage = .reconcile; current.draft.phase = .uncertain }
             else if current.stage == .connect {
                 current.stage = .connections; current.page = 1; current.scanningConnected = nil
@@ -1062,6 +1117,7 @@ final class CaptureDelivery {
                 if job.attemptedChannelIDs?.contains(target) != true { job.attemptedChannelIDs?.append(target) }
             }
             job.transferID = transferID; job.transferSession = ownIdentifier; job.transferStarted = Date()
+            job.lastTransferProgress = nil
             reserved = try save(job)
             try store.save(TransferOwner(captureID: job.id, receiptID: job.receiptID ?? job.id), account: 0, kind: "deliveryTransfer", id: transferID)
         }
@@ -1193,7 +1249,13 @@ final class CaptureDelivery {
                 // before deciding anything further; never overwrite a later edit.
                 job.stage = .verify
                 job.problem = "Checking the earlier update."
-            } else if job.stage == .upload && result.status == 403 { job.stage = .presign }
+            } else if job.stage == .upload && result.status == 403 {
+                let outcome = CaptureTransferOutcome(transferID: job.transferID ?? "unreserved", stage: .upload, result: result)
+                if outcome.authorizationExpired, (job.uploadAuthorizationRenewals ?? 0) < 2 {
+                    job.uploadAuthorizationRenewals = (job.uploadAuthorizationRenewals ?? 0) + 1
+                    job.stage = .presign
+                } else { fail(&job, outcome.redactedReason ?? "The media upload was rejected (HTTP 403).") }
+            }
             else if result.status == 429 || result.status == nil || (result.status ?? 0) >= 500 {
                 if job.attempts < 8 { job.notBefore = result.retryAfter ?? Date().addingTimeInterval(min(900, pow(2, Double(job.attempts)) * 5)) }
                 else { job.resumeStage = job.stage; job.stage = .attention; job.problem = "Connection failed. Saving is paused." }
@@ -1238,7 +1300,7 @@ final class CaptureDelivery {
             job.uploadedSource = URL(string: "https://s3.amazonaws.com/arena_images-temp/")!.appendingPathComponent(key).absoluteString
             job.uploadExpiry = Date().addingTimeInterval(Double(json?["expires_in"]?.int ?? 3600))
             job.stage = .upload
-        case .upload: job.stage = .create
+        case .upload: job.mediaUploadCompletedAt = Date(); job.stage = .create
         case .create:
             guard let id = json?["id"]?.int else { job.stage = .reconcile; job.draft.phase = .uncertain; return }
             job.draft.blockID = id; job.stage = .read; job.block = json

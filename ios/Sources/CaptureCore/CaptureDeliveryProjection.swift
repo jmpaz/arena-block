@@ -29,6 +29,10 @@ public struct CaptureDeliveryProjection: Decodable, Sendable {
     public var attemptedChannelIDs: [Int]?
     public var readOnlyReconciliation: Bool?
     public var lastReadOnlyReconciliationAt: Date?
+    public var lastTransferProgress: CaptureTransferProgress?
+    public var lastTransferOutcome: CaptureTransferOutcome?
+    public var interruption: CaptureInterruption?
+    public var mediaUploadCompletedAt: Date?
 
     public var hasPendingWork: Bool { canceledAt == nil && ![.done, .attention].contains(stage) }
     public var shouldCancelTransferOnStop: Bool { (stopRequestedAt != nil || readOnlyReconciliation == true || canceledAt != nil) && !stage.permitsStoppedRead }
@@ -39,7 +43,8 @@ public struct CaptureDeliveryProjection: Decodable, Sendable {
               let resumeStage, [.queued, .reading, .rendering].contains(resumeStage) else { return nil }
         return resumeStage
     }
-    public var progress: CaptureContinuedProgress {
+    public var progress: CaptureContinuedProgress { progress(observation: nil) }
+    public func progress(observation: CaptureTransferProgress?) -> CaptureContinuedProgress {
         let selected = Set(draft.selection.channels.map(\.id))
         var state = draft.deliveryState ?? .init(operationID: id, stage: stage)
         state.receiptID = receiptID ?? id
@@ -49,6 +54,13 @@ public struct CaptureDeliveryProjection: Decodable, Sendable {
         state.stopRequested = stopRequestedAt != nil
         state.canceledAt = canceledAt ?? state.canceledAt
         state.notBefore = notBefore
+        let effective = stage == .attention ? resumeStage : stage
+        state.preparationCompleted = effective.map { ![.queued, .reading, .rendering, .attention].contains($0) } ?? false
+        state.mediaUploadRequired = mediaPath != nil
+        state.mediaUploadCompleted = mediaUploadCompletedAt != nil || (mediaPath != nil && effective.map { [.create, .read, .update, .verify, .connections, .connect, .provenanceContents, .provenanceRead, .provenanceWrite, .provenanceVerify, .done].contains($0) } == true)
+        state.transferProgress = observation?.transferID == transferID ? observation : lastTransferProgress
+        state.lastTransferOutcome = lastTransferOutcome ?? state.lastTransferOutcome
+        state.interruption = interruption ?? state.interruption
         return .init(state: state, selectedChannelIDs: selected)
     }
 }

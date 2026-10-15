@@ -293,7 +293,8 @@ struct HistoryRow: View {
         // A retained Stop fence does not override a subsequently confirmed receipt.
         if draft.phase == .saved, draft.deliveryState?.stage == .done { return "Saved" }
         if draft.deliveryState?.operationID == draft.id, draft.deliveryState?.stopRequested == true {
-            if draft.deliveryState?.stage != .attention { return "Stopping" }
+            if draft.deliveryState?.stage != .attention { return draft.deliveryState?.title ?? "Checking save" }
+            if let reason = draft.deliveryState?.interruption?.reason, reason != .userPause { return "Save interrupted" }
             return draft.phase == .uncertain ? "Save unconfirmed" : "Save paused"
         }
         if draft.deliveryState?.stage == .attention { return draft.phase == .uncertain ? "Save unconfirmed" : "Save interrupted" }

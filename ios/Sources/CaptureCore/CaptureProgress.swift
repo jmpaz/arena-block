@@ -46,11 +46,18 @@ public struct CaptureDeliveryState: Codable, Equatable, Sendable {
     public var canceledWithUnconfirmedRequest: Bool?
     public var confirmedOnceChannelIDs: Set<Int>?
     public var attemptedChannelIDs: [Int]?
+    public var preparationCompleted: Bool?
+    public var mediaUploadRequired: Bool?
+    public var mediaUploadCompleted: Bool?
+    public var transferProgress: CaptureTransferProgress?
+    public var lastTransferOutcome: CaptureTransferOutcome?
+    public var interruption: CaptureInterruption?
     /// Only projected from a job whose local preparation failed before any block request.
     public var preparationFailureStage: CaptureDeliveryStage?
 
     public var title: String {
         if canceledAt != nil { return "Canceled" }
+        if stage == .attention, let interruption, interruption.reason != .userPause { return "Save interrupted" }
         if preparationFailureStage == .reading || preparationFailureStage == .queued { return "Couldn’t read source" }
         if preparationFailureStage == .rendering { return "Couldn’t prepare media" }
         return stage.title
@@ -76,11 +83,16 @@ public struct CaptureContinuedProgress: Equatable, Sendable {
     public let completedUnits: Int64
     public let totalUnits: Int64
     public let isQuantifiable: Bool
+    /// System activity work units include actual preparation/upload work while
+    /// confirmed channel counts retain their independent, strict meaning.
+    public let activityCompletedUnits: Int64
+    public let activityTotalUnits: Int64
     public let isDone: Bool
     public let isCanceled: Bool
     public var isTerminal: Bool { isDone || isCanceled || needsAttention }
     public let needsAttention: Bool
     public let waitingToRetry: Bool
+    public let transferStalled: Bool
 
     public init(state: CaptureDeliveryState, selectedChannelIDs: Set<Int>, now: Date = Date()) {
         operationID = state.operationID
@@ -90,23 +102,39 @@ public struct CaptureContinuedProgress: Equatable, Sendable {
         totalUnits = Int64(selected + 1)
         completedUnits = Int64(confirmed + (state.contentVerified ? 1 : 0))
         isCanceled = state.canceledAt != nil
+        let preparation = state.preparationCompleted == true ? Int64(1_000) : 0
+        let hasUpload = state.mediaUploadRequired == true
+        let upload = state.mediaUploadCompleted == true ? Int64(6_000) : Int64((state.transferProgress?.stage == .upload ? state.transferProgress?.fraction ?? 0 : 0) * 6_000)
+        activityTotalUnits = 1_000 + (hasUpload ? 6_000 : 0) + 1_000 + Int64(selected) * 1_000
         isQuantifiable = state.contentVerified || (state.stage == .done && !isCanceled)
         isDone = state.stage == .done && !isCanceled && state.contentVerified
             && selectedChannelIDs.isSubset(of: state.confirmedChannelIDs)
+        activityCompletedUnits = isDone ? activityTotalUnits : min(activityTotalUnits, preparation + (hasUpload ? upload : 0) + (state.contentVerified ? 1_000 : 0) + Int64(confirmed) * 1_000)
         needsAttention = state.stage == .attention && !isCanceled
         waitingToRetry = !isCanceled && !isDone && !needsAttention && (state.notBefore ?? .distantPast) > now
+        transferStalled = !isCanceled && !needsAttention && state.stage == .upload
+            && state.transferProgress.map { now.timeIntervalSince($0.observedAt) >= 30 && ($0.fraction ?? 0) < 1 } == true
         if isCanceled {
             title = "Canceled"
         } else if isDone {
             title = state.title
         } else if state.stopRequested == true {
-            title = needsAttention ? "Save paused" : state.title
+            title = needsAttention ? (state.interruption?.reason == .continuedTaskEnded || state.interruption?.reason == .executionClaimLost ? "Save interrupted" : "Save paused") : state.title
+        } else if state.transferProgress?.waitingForConnectivity == true {
+            title = "Waiting for connection"
         } else if waitingToRetry {
             title = "Waiting to retry"
+        } else if transferStalled {
+            title = "Upload not progressing"
         } else {
             title = state.title
         }
-        subtitle = "\(confirmed) of \(selected) channels confirmed"
+        if state.stage == .upload, let transfer = state.transferProgress {
+            let sent = ByteCountFormatter.string(fromByteCount: transfer.completedBytes, countStyle: .file)
+            if let total = transfer.expectedBytes {
+                subtitle = "\(sent) of \(ByteCountFormatter.string(fromByteCount: total, countStyle: .file)) uploaded · \(confirmed)/\(selected) channels confirmed"
+            } else { subtitle = "\(sent) uploaded · \(confirmed)/\(selected) channels confirmed" }
+        } else { subtitle = "\(confirmed) of \(selected) channels confirmed" }
     }
 }
 

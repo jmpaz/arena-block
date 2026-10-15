@@ -196,8 +196,8 @@ private final class CaptureContinuedCoordinator {
             return
         }
         if let fact = session.continuedProgress(id), fact.receiptID == receipt, fact.isTerminal {
-            task.progress.totalUnitCount = fact.totalUnits
-            task.progress.completedUnitCount = fact.completedUnits
+            task.progress.totalUnitCount = fact.activityTotalUnits
+            task.progress.completedUnitCount = fact.activityCompletedUnits
             task.updateTitle(fact.title, subtitle: fact.subtitle)
             submitted.removeValue(forKey: id)
             task.setTaskCompleted(success: fact.isDone)
@@ -240,8 +240,8 @@ private final class CaptureContinuedCoordinator {
         guard let fact = session?.continuedProgress(id) else { finish(task, id: id, success: false); return }
         guard fact.receiptID == receipt else { finish(task, id: id, success: false, releaseClaim: false); return }
         if displayed[id] != fact {
-            task.progress.totalUnitCount = fact.totalUnits
-            task.progress.completedUnitCount = fact.completedUnits
+            task.progress.totalUnitCount = fact.activityTotalUnits
+            task.progress.completedUnitCount = fact.activityCompletedUnits
             task.updateTitle(fact.title, subtitle: fact.subtitle)
             displayed[id] = fact
         }
@@ -253,6 +253,7 @@ private final class CaptureContinuedCoordinator {
         guard running[id] === task, let receipt = runningReceipts[id] else { return }
         do {
             try session?.pauseContinuedSave(id, receiptID: receipt)
+            task.updateTitle("Save interrupted", subtitle: "Background task ended. Open Capture to review the retained save.")
             finish(task, id: id, success: false)
         } catch {
             // Retain the durable claim if SQLite could not record Stop. No

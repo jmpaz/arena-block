@@ -14,7 +14,10 @@ struct CaptureStatusView: View {
         if draft.isCanceled { return "Canceled" }
         if draft.phase == .saved { return "Saved to Are.na" }
         if let state {
-            if state.stopRequested == true { return state.stage == .attention ? "Save paused" : "Stopping save" }
+            if state.stopRequested == true {
+                if state.stage != .attention { return state.title }
+                return state.interruption?.reason == .continuedTaskEnded || state.interruption?.reason == .executionClaimLost ? "Save interrupted" : "Save paused"
+            }
             return state.title
         }
         if draft.phase == .queued { return "Queued" }
@@ -71,6 +74,11 @@ struct CaptureStatusView: View {
                      : "\(confirmedCount) of \(draft.statusChannels.count) confirmed")
                     .font(.footnote.monospacedDigit()).foregroundStyle(Color.primary.opacity(0.75))
                     .fixedSize(horizontal: false, vertical: true)
+            }
+            if !draft.isCanceled, let transfer = state?.transferProgress, transfer.stage == .upload {
+                let sent = ByteCountFormatter.string(fromByteCount: transfer.completedBytes, countStyle: .file)
+                Text(transfer.waitingForConnectivity ? "Waiting for connection · \(sent) uploaded" : "\(sent) uploaded")
+                    .font(.callout.monospacedDigit()).foregroundStyle(.secondary)
             }
             if !draft.isCanceled && draft.statusChannels.count > 2 && draft.problem == nil && state?.stage != .attention {
                 DisclosureGroup(isExpanded: $showsDestinations) {

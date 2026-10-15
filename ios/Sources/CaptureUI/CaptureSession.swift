@@ -1104,13 +1104,14 @@ public final class CaptureSession {
     public func pauseUnclaimedContinuedSaves() throws -> [UUID] { try delivery.pauseUnclaimedContinued() }
 
     public func pauseContinuedSave(_ id: UUID, receiptID: UUID? = nil) throws {
-        try delivery.requestStop(id, receiptID: receiptID)
+        try delivery.requestStop(id, receiptID: receiptID, reason: .continuedTaskEnded)
         refreshDelivery()
     }
 
     public func continuedProgress(_ id: UUID) -> CaptureContinuedProgress? {
         if let job = try? store.projectedValue(CaptureDeliveryProjection.self, account: 0, kind: "delivery", id: id.uuidString) {
-            return job.progress
+            let observation = job.transferID.flatMap { try? store.projectedValue(CaptureTransferProgress.self, account: 0, kind: "deliveryProgress", id: $0) }
+            return job.progress(observation: observation)
         }
         guard let accounts = try? store.values(Account.self, account: 0, kind: "account") else { return nil }
         for owner in accounts {
@@ -1151,6 +1152,11 @@ public final class CaptureSession {
         if let stored = try? store.value(CaptureDraft.self, account: current.accountID, kind: "draft", id: current.id.uuidString),
            [.queued, .creating, .checking, .uncertain, .saved].contains(stored.phase) || stored.problem != nil {
             draft = stored; preview = stored.previewSnapshot
+            if let transfer = try? store.projectedValue(CaptureDeliveryProjection.self, account: 0, kind: "delivery", id: stored.id.uuidString),
+               let transferID = transfer.transferID,
+               let observed = try? store.projectedValue(CaptureTransferProgress.self, account: 0, kind: "deliveryProgress", id: transferID) {
+                draft?.deliveryState?.transferProgress = observed
+            }
         }
         progress = draft?.deliveryState?.operationID == draft?.id ? (draft?.deliveryState?.title ?? "") : ""
         if let id = retainedResult?.id, let stored = try? store.value(CaptureDraft.self, account: current.accountID, kind: "draft", id: id.uuidString) { retainedResult = stored }
