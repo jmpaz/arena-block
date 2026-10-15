@@ -29,7 +29,8 @@ test("public articles retain full authored HTML, all bylines, time, rich text an
   expect(post.article!.indexOf(post.media[0]!.url)).toBeLessThan(post.article!.indexOf(post.media[1]!.url));
   const plan = composePlan([post], { media: "all" });
   expect(blockPlanSchema.parse(plan)).toEqual(plan);
-  expect(plan.block.markdown).toContain("Imaginary Enemies"); expect(plan.block.description).toContain("Complete public Substack article");
+  expect(plan.block.markdown).toContain("Imaginary Enemies"); expect(plan.block.description).toBeUndefined();
+  expect(plan.sources[0]!.substackArticle?.bodyHtml).toBe(article.body_html);
   expect(requiredPlanCapabilities(plan)).toContain("substack-public-sources-v2");
   expect(seen.every(init => init.credentials === "omit" && init.redirect === "error")).toBe(true);
 });
@@ -154,7 +155,7 @@ test("reply pagination follows opaque cursors and rejects missing, conflicting, 
 test("article and Note thread requests preflight the new receiver contract", async () => {
   for (const input of [{ refs: [articleURL], extraRefs: [], refresh: false }, { refs: [url(100)], extraRefs: [], refresh: false, policy: { threadExpansion: "on" as const } }]) {
     const actions: string[] = [];
-    await expect(resolveWithNative(input, async action => { actions.push(action); return { planCapabilities: ["substack-browser-records-v1"] }; })).rejects.toThrow("No source read was submitted");
+    await expect(resolveWithNative(input, async action => { actions.push(action); return { planCapabilities: ["substack-browser-records-v1"] }; })).rejects.toThrow("Update the local helper and receiver to read this source.");
     expect(actions).toEqual(["ping"]);
   }
 });
@@ -168,7 +169,12 @@ test("helper replies and edits retain required article evidence instead of silen
   const stripped = structuredClone(plan); delete stripped.sources[0]!.substackArticle;
   await expect(resolveWithNative(input, async action => action === "ping" ? { planCapabilities: ["substack-public-sources-v2"] } : stripped)).rejects.toThrow("complete source record");
   const mutated = structuredClone(plan); mutated.sources[0]!.article += "changed";
-  expect(() => requireSubstackPublicResult(input, mutated)).toThrow("changed the Substack plan");
+  try { requireSubstackPublicResult(input, mutated); throw new Error("Expected rejection"); }
+  catch (error) {
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toContain("incomplete capture");
+    expect((error as Error).cause).toContain("changed the Substack plan");
+  }
 });
 test("public JSON bounds content, type, redirect identity, aggregate budget and cancellation", async () => {
   const address = "https://substack.com/api/v1/reader/comment/100";

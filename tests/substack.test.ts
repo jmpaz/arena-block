@@ -39,14 +39,15 @@ test("full nested prose and preview provenance stay distinct through schema and 
   expect(post.text).not.toContain("Full quoted body");
   expect(post.quote?.text).toContain("Full quoted body.");
   expect(post.quote?.text).toContain("-   First claim");
-  expect(post.quote?.text).toContain("Linked video");
+  expect(post.quote?.text).toContain("<https://www.youtube.com/watch?v=example&utm_source=substack>");
   expect(post.quote?.media).toEqual([]);
   expect(post.quote?.text).toContain("utm_source=substack");
   expect(post.postedAt).toBeUndefined();
   const plan = composePlan(posts, { media: "none" });
   expect(plan.block.markdown).toContain("`@quoted`");
   expect(plan.block.markdown).toContain("/note/c-2");
-  expect(plan.block.markdown).toContain("/note/c-1");
+  expect(plan.block.canonicalSource).toBe("https://substack.com/@writer/note/c-1");
+  expect(plan.block.markdown).not.toContain("Substack Note source");
   expect(plan.block.markdown).not.toContain("Full quoted …");
   expect(blockPlanSchema.parse(plan)).toEqual(plan);
   expect(post.substackCapture?.note.quote?.previewHtml).toBe(capture.note.quote?.previewHtml);
@@ -74,9 +75,9 @@ test("article excerpts and attachment links are labelled separately from Note pr
   ];
   const post = await new SubstackProvider([c]).resolve(source(c));
   expect(post.article).toBeUndefined();
-  expect(post.text).toContain("Selected article excerpt (not full article), by Article Writer");
-  expect(post.text).toContain("Preview of image");
-  expect(post.text).toContain("Attachment; original not acquired: audio");
+  expect(post.text).toContain("Excerpt from [An article](<https://writer.substack.com/p/article?selection=abc>), by Article Writer");
+  expect(post.text).toContain("<https://substackcdn.com/image/example.jpg>");
+  expect(post.text).toContain("<https://substackcdn.com/audio/example.mp3>");
   expect(post.media).toEqual([]);
 });
 test("mismatched source, author, quote and cycles fail before composition", () => {
@@ -110,7 +111,8 @@ test("Substack metadata preserves other providers' article introductions in mixe
   const c = fixture(), post = await new SubstackProvider([c]).resolve(source(c));
   const plan = composePlan([post, { provider: "x", id: "7", canonicalUrl: "https://x.com/writer/status/7", author: { handle: "writer" }, text: "Article introduction", article: "# Full article", media: [] }]);
   expect(plan.block.description).toContain("Article introduction");
-  expect(plan.block.description).toContain("Substack browser DOM capture observed at:");
+  expect(plan.block.description).toBe("Article introduction");
+  expect(plan.sources[0]!.substackCapture).toEqual(post.substackCapture);
 });
 test("unsafe HTML links cannot become executable Markdown; implicit media fails", async () => {
   const c = fixture(); c.note.body.html = '<p>Hello <a href="javascript:alert(1)">world</a><script>evil()</script></p>';
@@ -118,7 +120,7 @@ test("unsafe HTML links cannot become executable Markdown; implicit media fails"
   expect(post.text).toContain("Hello world"); expect(post.text).not.toContain("javascript:"); expect(post.text).not.toContain("evil()");
   for (const tag of ["img", "video", "audio", "iframe", "object"]) {
     c.note.body.html = `<p>Body</p><${tag} src="https://example.com/media"></${tag}>`;
-    await expect(new SubstackProvider([c]).resolve(source(c))).rejects.toThrow("explicit attachment");
+    await expect(new SubstackProvider([c]).resolve(source(c))).rejects.toThrow("This Note includes media Capture cannot read.");
   }
   c.note.links = [{ kind: "image", role: "attachment", url: "http://example.com/image" }];
   expect(() => normalizeSubstackCapture(c)).toThrow();

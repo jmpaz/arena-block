@@ -1,7 +1,8 @@
 # Substack captures
 
-Arena Block reads public Note and article permalinks through the shared CLI,
-browser, native and receiver paths:
+Paste a public Note or article link, or share its page from Safari to Capture.
+The browser extension can also read the selected Substack tab using its existing
+access. A refused read, challenge or incomplete body stops capture.
 
 ```sh
 arena-block plan 'https://substack.com/@writer/note/c-123' --quote-depth full --json
@@ -9,46 +10,53 @@ arena-block plan 'https://publication.substack.com/p/article-slug' --json
 arena-block plan 'https://substack.com/@writer/note/c-123' --thread-expansion on --json
 ```
 
-Note URLs read public HTML without credentials. **Read Substack tab** in the
-extension uses the invoked tab's existing scripting access. Safari Share passes
-the selected page to Capture. A refused read, challenge or incomplete body stops
-capture.
+A Note becomes **Note by @handle**. Capture preserves the authored paragraphs,
+lists, emphasis and links. A quoted Note appears under its own linked author;
+quote controls set inclusion, depth and dates. Unavailable quotes keep a link to
+the missing text. The block's source field links to the outer Note.
 
-Public articles must expose a complete freely available body. The provider checks
-article identity, publication, authors, audience and time, and retains the authored
-HTML. Publication and custom-domain `/p/{slug}` URLs use the public article
-contract. Unidentified custom-domain pages remain exact ordinary Links. Paid,
-partial or inconsistent article records stop; selected excerpts remain excerpts.
+Article cards include the article title and author. A selected passage is labelled
+an excerpt; an automatic selection or card summary is labelled a preview. These
+passages remain separate from the Note's own writing. A linked video keeps its
+observed title when available, or its URL.
 
-Quoted Notes are read from their own permalink, keeping the outer preview and
-separate author. Quote controls set inclusion and depth. Missing, cyclic or
-limited quotes retain an explicit boundary. Article cards retain their independent authors and preview text. Selected excerpts
-remain labelled excerpts; automatic selections remain previews.
+Public articles must expose their complete freely available body. Capture reads
+the title, subtitle, bylines, body and supported media. Publication and custom
+domain `/p/{slug}` links use this path when the page identifies a Substack article.
+An unidentified custom-domain page remains an ordinary Link. Paid, partial or
+inconsistent articles stop capture.
 
 `--thread-expansion on` follows a verified same-author linear Note chain,
-including ancestors around the selected Note. Other authors are excluded.
+including parents around the selected Note. Other authors are excluded.
 Branches, missing replies, inconsistent identities and incomplete pagination stop
-expansion. Use explicit Note permalinks in order to select another source set.
+expansion. List explicit Note links in order to choose a different set of sources.
 
-Observed original images use shared media selection and rendering. Complete public
-article video and audio require source-bound upload metadata. Videos over ten
-minutes use an observed Frame; shorter videos use the shared video path. Choose
-`--media audio` for one original audio attachment, copied without conversion and
-bounded to 250 MiB. Duration and actual media container are checked. External
-players remain links. Native Note videos require upload evidence bound to that
-Note and author. Inline article videos require complete upload metadata bound to
-the article and publication; unsupported players stop capture. See [capture support](substack-parity.md) for limits.
+Original images use the shared media controls. Supported public article and Note
+videos use the shared video renderer. When the source supplies a preview image,
+videos over ten minutes use that frame. Choose `--media audio` for one original article audio file, copied without
+conversion and limited to 250 MiB. Capture checks the downloaded container and
+duration. External players remain links. Unsupported native players or captions
+that cannot be preserved stop capture. See [support and limits](substack-parity.md).
 
-Retained records carry authored HTML, identities, authors, publication labels,
-observation times and acquisition method through drafts and frozen submissions.
-Imported observations are declarations rather than proof of origin. Optional
-`--substack-capture` imports use the same schema; files are not required for normal
-URL acquisition or Safari Share.
+## Retained records and compatibility
 
-Records are bounded to 2 MiB, twenty explicit roots, eight quote levels and one
+Drafts and save snapshots retain the source HTML, authors, publication labels,
+observation times, media details and acquisition method. Capture time and acquisition method stay in the source record. Imported records
+are checked for consistent identities and supported media; validation cannot
+confirm when or how someone collected them. `--substack-capture` opens an existing
+record.
+
+New resolution applies the current title and text formatting. Opening an older
+frozen save keeps its approved fields and hash. Refresh the source to compose a
+new version; Capture does not rewrite an earlier submission or a published block.
+
+Records are limited to 2 MiB, twenty explicit roots, eight quote levels and one
 hundred links per Note. Reply discovery permits at most 64 pages, 8 MiB aggregate,
-2,000 identities and 32 selected sources. Plans require
-`substack-browser-records-v1`; article and thread evidence additionally requires
-`substack-public-sources-v2`. Public article media additionally requires
-`substack-native-media-v1`. Note attachments and article cards additionally require
-`substack-note-attachments-v1`. Helpers reject stripped evidence.
+2,000 identities and 32 selected sources.
+
+Compatible helpers and receivers retain the records used by the plan. Notes need
+`substack-browser-records-v1`; articles and expanded threads also need
+`substack-public-sources-v2`. Public article media needs
+`substack-native-media-v1`. Note attachments and article cards need
+`substack-note-attachments-v1`. The helper checks support before reading or saving,
+then checks the returned plan for missing source fields.

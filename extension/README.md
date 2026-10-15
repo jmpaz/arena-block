@@ -21,7 +21,7 @@ The browser action opens the capture popup. It displays the source preview and s
 
 The channel picker keeps the source preview above search and loads additional owned-channel pages as needed. Selected destinations persist through filtering and reopening. During a queued Save, the background worker retains the approved plan, account, channels and UUID while the editor disables changes.
 
-After a returned block ID, the worker checks the block and placements. Earlier saves retains interrupted attempts for status checks. A POST without a returned block ID remains uncertain until the account is inspected.
+After a returned block ID, the worker checks the block and placements. Open Earlier saves to check an interrupted attempt. A POST without a returned block ID remains uncertain until the account is inspected.
 
 ## Authentication and media
 
@@ -54,8 +54,8 @@ The public key is recorded in `nix/chrome-development-identity.nix`. The project
 
 ## Retained Reddit records
 
-Ordinary Reddit URLs use the shared direct HTTP provider. A denied read does not offer a browser-session reader or manual capture workaround. The former **Read Reddit tab** action and bot-facing gallery origin have been removed. Safari Share passes the URL to native Capture without a Reddit page read. See [source access](../docs/reddit-source-access.md) for the current receiving limit.
+Ordinary Reddit URLs use the shared HTTP provider. A denied read stops capture. Safari Share supplies the page URL. See [source access](../docs/reddit-source-access.md) for current limits.
 
-Previously saved records remain readable through **Import saved record** and **Export saved record**, retaining observation time, source evidence and authored edits through draft reloads. This compatibility is for existing records, not a replacement for unavailable normal URL acquisition. Imported observations are declarations; validation and plan hashes do not authenticate Reddit, community visibility or capture time.
+Open **Import saved record** to use an existing record, or **Export saved record** to keep a copy. Draft reloads retain its observation time, source fields and authored edits. Validation checks the supplied data; it cannot authenticate its origin or observation time.
 
 The helper returns at most 1 MiB per native-message response, following [Chrome's transport limit](https://developer.chrome.com/docs/extensions/develop/concepts/native-messaging). A record below the 2 MiB import limit may produce a larger plan. The helper reports this limit explicitly; the retained browser draft and export remain available, and the CLI or native app can open the record. The helper bounds incoming messages at 4 MiB. These transport limits are separate from record validation and receiver compatibility.

@@ -26,7 +26,7 @@ test("native public podcast retains stable originals and external linked video d
   expect(video!.url).toBe(`https://www.lennysnewsletter.com/api/v1/video/upload/${fixture.video_upload_id}/src?type=mp4&override_publication_id=10845`);
   expect(video!.posterUrl).toEndWith("transcoded-00001.png");
   expect(audio).toMatchObject({kind:"audio", url:fixture.podcast_url, acquisition:"substack-public-original"});
-  expect(post.article).toContain("Linked video (not acquired)"); expect(post.article).toContain("https://www.youtube.com/watch?v=pJNM1z9l5mU");
+  expect(post.article).not.toContain("Linked video"); expect(post.article).toContain("https://www.youtube.com/watch?v=pJNM1z9l5mU");
   const automatic = composePlan([post]); expect(automatic.block.selectedMedia).toEqual(["1.1"]); expect(automatic.block.frameMedia?.[0]?.url).toBe(video!.posterUrl);
   const plan = composePlan([post],{media:"audio"}); expect(plan.block.kind).toBe("audio"); expect(plan.block.layout).toBeUndefined(); expect(blockPlanSchema.parse(plan)).toEqual(plan);
   expect(composePlan([post],{media:"selected", selectedMedia:["1.2"]}).block.kind).toBe("audio");
@@ -85,7 +85,7 @@ test("inline public video binds authored placeholder to full same-article upload
   const seen:string[]=[];
   const fetcher=(async (url:RequestInfo|URL,init?:RequestInit)=>{seen.push(String(url));expect(init!.credentials).toBe("omit");expect(init!.redirect).toBe("error");return Response.json(String(url).includes("/video/upload/")?inlineFixture.upload:inlineFixture.post);}) as unknown as typeof fetch;
   const post=await new SubstackProvider([],fetcher).resolve(parseSource(inlineFixture.post.canonical_url));
-  expect(post.substackArticle!.bodyHtml).toBe(inlineFixture.post.body_html);expect(post.article).toContain("Native video attachment");
+  expect(post.substackArticle!.bodyHtml).toBe(inlineFixture.post.body_html);expect(post.article).toContain("[Video](<https://");
   const video=post.media.find(item=>item.kind==="video")!;expect(video).toMatchObject({sourcePlacement:"body",durationSeconds:61.625,acquisition:"substack-public-original"});
   expect(post.substackArticle!.nativeMedia).toHaveLength(1);expect(seen).toHaveLength(2);
   expect(blockPlanSchema.parse(composePlan([assignMediaRefs(post,0)],{media:"video"})).block.kind).toBe("video");
@@ -100,7 +100,7 @@ test("inline video identity, source binding, previews and source-order projectio
   const id=inlineFixture.upload.id, html=`<img src="https://substack-post-media.s3.amazonaws.com/public/images/before.png"><div data-component-name="VideoPlaceholder" data-attrs='{"mediaUploadId":"${id}"}'></div><img src="https://substack-post-media.s3.amazonaws.com/public/images/after.png">`;
   const projected=substackArticleBody(html,inlineFixture.post.canonical_url,publicSubstackNativeMedia(inlineFixture.post,inlineFixture.post.canonical_url,[inlineFixture.upload]));
   expect(projected.media.map(item=>item.kind)).toEqual(["image","video","image"]);
-  expect(projected.markdown.indexOf("before.png")).toBeLessThan(projected.markdown.indexOf("Native video attachment"));
+  expect(projected.markdown.indexOf("before.png")).toBeLessThan(projected.markdown.indexOf("[Video](<https://"));
 });
 test("duplicate inline/header upload snapshots must agree and nested authored content cannot disappear",async()=>{
   const { publicSubstackNativeMedia }=await import("../packages/core/substack-native-media.ts");

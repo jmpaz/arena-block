@@ -32,23 +32,26 @@ export function needsSubstackPublicV2(input: Input): boolean {
   return sources.some(source => source.provider === "substack" && "kind" in source)
     || !!threadSeed(input);
 }
-/** Preflight alone cannot prove a middle client retained fields introduced after its own schema. */
+function incomplete(reason: string): Error {
+  return new Error("The local helper returned an incomplete capture. Update it, then try again.", { cause: reason });
+}
+/** Check the returned plan because an older intermediary may discard new fields. */
 export function requireSubstackPublicResult(input: Input, plan: BlockPlan): void {
   if (!needsSubstackPublicV2(input) && !requiredSubstackResolutionCapabilities(input).includes("substack-note-attachments-v1")) return;
   const { hash, ...base } = plan;
-  if (planHash(base) !== hash) throw new Error("The helper changed the Substack plan or stripped its source evidence");
-  for(const source of noteInputs(input)) if(!plan.sources.some(post=>post.provider==="substack"&&post.id===source.id&&post.substackCapture))throw new Error("The helper did not retain the requested complete Substack Note source");
+  if (planHash(base) !== hash) throw incomplete("The helper changed the Substack plan or stripped its source evidence");
+  for(const source of noteInputs(input)) if(!plan.sources.some(post=>post.provider==="substack"&&post.id===source.id&&post.substackCapture))throw incomplete("The helper did not retain the requested complete Substack Note source");
   for (const ref of [...input.refs, ...(input.extraRefs ?? [])]) {
     const source = parseSource(ref);
     if (source.provider !== "substack" || !("kind" in source)) continue;
     const expected = new URL(source.canonicalUrl);
     const returned = plan.sources.find(post => { const url = new URL(post.canonicalUrl); return url.origin === expected.origin && url.pathname.replace(/\/$/, "") === expected.pathname.replace(/\/$/, ""); });
-    if (!returned || returned.provider === "substack" && !returned.substackArticle || returned.provider === "web" && returned.canonicalUrl !== source.canonicalUrl) throw new Error("The helper did not retain the requested Substack article or exact ordinary Link");
+    if (!returned || returned.provider === "substack" && !returned.substackArticle || returned.provider === "web" && returned.canonicalUrl !== source.canonicalUrl) throw incomplete("The helper did not retain the requested Substack article or exact ordinary Link");
   }
   const seed = threadSeed(input);
   if (seed) {
     const primaries = plan.sources.filter(post => post.selection?.role === "primary");
     if (!primaries.length || !primaries.some(post => post.id === seed.id) || primaries[0]?.substackThread?.seedId !== seed.id
-      || primaries.some(post => !post.substackRelation)) throw new Error("The helper did not retain the verified Substack author-chain evidence");
+      || primaries.some(post => !post.substackRelation)) throw incomplete("The helper did not retain the verified Substack author-chain evidence");
   }
 }

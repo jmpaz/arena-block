@@ -1,4 +1,4 @@
-/** Public reads never borrow cookies, credentials, redirect authority or account state. */
+/** Read public JSON with cookies and credentials disabled, rejecting redirects. */
 export async function substackPublicJSON(url: string, fetcher: typeof fetch, signal?: AbortSignal, budget?: { bytes: number; maximum: number }): Promise<unknown> {
   const bounded = AbortSignal.any([...(signal ? [signal] : []), AbortSignal.timeout(20_000)]);
   const response = await fetcher(url, { credentials: "omit", redirect: "error", signal: bounded, headers: { accept: "application/json" } });

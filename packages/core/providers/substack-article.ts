@@ -46,7 +46,7 @@ export function substackArticleBody(html: string, base: string, native: Substack
     const source = native.find(item => item.kind === "video" && item.uploadId === id);
     if (!source) throw new Error("Substack article contains an unsupported player; complete inline metadata is required");
     const { uploadId: _, ...item } = source;
-    const link = doc.createElement("a"); link.setAttribute("href", source.url); link.appendChild(doc.createTextNode("Native video attachment"));
+    const link = doc.createElement("a"); link.setAttribute("href", source.url); link.appendChild(doc.createTextNode("Video"));
     inline.set(link, { ...item, ref: "0.0", alt: "", sourceRole: "original", sourcePlacement: "body", acquisition: "substack-public-original" });
     element.parentNode?.replaceChild(link, element);
   }
@@ -66,7 +66,7 @@ export function substackArticleBody(html: string, base: string, native: Substack
     let url = address.href;
     const youtube = /^(?:www\.)?youtube(?:-nocookie)?\.com$/.test(address.hostname) && /^\/embed\/[a-zA-Z0-9_-]+$/.test(address.pathname);
     if (youtube) { const watch = new URL(`https://www.youtube.com/watch?v=${address.pathname.split("/").pop()}`); const start = address.searchParams.get("start"); if (start && /^\d+$/.test(start)) watch.searchParams.set("t", `${start}s`); url = watch.href; }
-    const link = doc.createElement("a"); link.setAttribute("href", url); link.appendChild(doc.createTextNode(youtube ? "Linked video (not acquired)" : "Embedded source (not acquired)"));
+    const link = doc.createElement("a"); link.setAttribute("href", url); link.appendChild(doc.createTextNode(iframe.getAttribute("title")?.trim() || url));
     iframe.parentNode?.replaceChild(link, iframe);
   }
   for (const element of Array.from(doc.querySelectorAll("script,style,button"))) element.remove();
@@ -137,6 +137,6 @@ export async function resolveSubstackArticle(source: Extract<ParsedSource, { kin
   const byline = authors.map(author => `<a href="${escape(author.profileUrl)}">${escape(author.name)}</a>`).join(", ");
   const header = substackArticleBody(`<h1>${escape(record.title)}</h1>${record.subtitle ? `<p><em>${escape(record.subtitle)}</em></p>` : ""}<p>By ${byline}</p>`, record.url).markdown;
   return { provider: "substack", id: `article:${post.id}`, canonicalUrl: record.url, author: { handle: authors[0]!.handle, name: authors.map(author => author.name).join(", ") },
-    text: "", article: `${header}\n\n${body.markdown}\n\n*[Substack article source](<${record.url}>)*`, substackArticle: record,
+    text: "", article: `${header}\n\n${body.markdown}`, substackArticle: record,
     postTitle: record.title, postedAt: post.post_date, media: [...nativeMedia.filter(item => !ids.includes(item.uploadId)).map(({ uploadId: _, ...item }) => ({ ...item, ref: "0.0", alt: "", sourceRole: "original" as const, acquisition: "substack-public-original" as const })), ...body.media] };
 }

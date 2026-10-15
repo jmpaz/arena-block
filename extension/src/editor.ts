@@ -1068,12 +1068,12 @@ function showRedditObservation() {
   choice.hidden = captures.length < 2;
   choice.replaceChildren(...captures.map(capture => {
     const option = document.createElement("option"); option.value = capture.schema === "arena-block/substack-browser-capture" ? `substack:${substackSourceKey(capture.sourceUrl)}` : redditSourceKey(capture.sourceUrl);
-    option.textContent = capture.schema === "arena-block/substack-browser-capture" ? `Substack Note by @${capture.note.author.handle}` : capture.comment ? `Comment ${capture.comment.id}` : capture.post.title;
+    option.textContent = capture.schema === "arena-block/substack-browser-capture" ? `Note by @${capture.note.author.handle}` : capture.comment ? `Comment ${capture.comment.id}` : capture.post.title;
     return option;
   }));
   if ([...choice.options].some(option => option.value === selected)) choice.value = selected;
   $("reddit-observation").hidden = captures.length === 0;
-  $("reddit-observation").textContent = captures.map(capture => `Browser snapshot observed ${capture.observedAt}`).join("; ");
+  $("reddit-observation").textContent = captures.map(capture => `Saved page record from ${new Date(capture.observedAt).toLocaleString()}`).join("; ");
 }
 async function acceptRedditCapture(value: unknown) {
   if (destinationsFrozen() || resolveInFlight) throw new Error("Finish the current capture operation before importing a browser record");

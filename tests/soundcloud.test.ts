@@ -116,7 +116,8 @@ describe("SoundCloud track adapter", () => {
     expect(plan.block.kind).toBe("url");
     expect(plan.block.canonicalSource).toBe(trackURL);
     expect(plan.block.description).toContain("First paragraph.\n\nSecond paragraph.");
-    expect(plan.block.description).toContain("Original audio download is unavailable");
+    expect(plan.block.description).not.toContain("Original audio download is unavailable");
+    expect(plan.sources[0]!.soundcloud).toMatchObject({ originalDownloadAvailable: false });
     expect(plan.block.artworkUrl).toBe(art);
     expect(publicationPayload(plan, "https://media.example.test", undefined, []).cover_url).toBe(art);
     expect((await resolve(trackURL, streamingOnly, "none")).plan.block.artworkUrl).toBeUndefined();
@@ -191,7 +192,8 @@ describe("SoundCloud track adapter", () => {
     const unsupportedPost = await provider(unsupported).resolve(parseSource(trackURL));
     expect(unsupportedPost.media).toEqual([]);
     expect(unsupportedPost.soundcloud).toMatchObject({ originalDownloadAvailable: true, originalDownloadExtension: "mp4" });
-    expect(unsupportedPost.text).toContain("downloadable as .mp4");
+    expect(unsupportedPost.text).not.toContain("downloadable as");
+    expect(unsupportedPost.soundcloud).toMatchObject({ originalDownloadAvailable: true, originalDownloadExtension: "mp4" });
   });
 });
 

@@ -11,7 +11,7 @@ export const substackNativeMediaSchema = z.object({ kind: z.enum(["video", "audi
 }).strict();
 export type SubstackNativeMedia = z.infer<typeof substackNativeMediaSchema>;
 
-/** Project only native media offered by a complete, freely public article contract. */
+/** Read upload metadata for a complete public article. */
 export function publicSubstackNativeMedia(value: unknown, canonicalURL: string, inlineUploads: unknown[] = []): SubstackNativeMedia[] {
   const post = z.object({ id: z.number().int().positive(), publication_id: z.number().int().positive(), audience: z.literal("everyone"),
     video_upload_id: z.uuid().nullable().optional(), videoUpload: uploadSchema.nullable().optional(),
@@ -24,8 +24,7 @@ export function publicSubstackNativeMedia(value: unknown, canonicalURL: string, 
   const video = (upload: z.infer<typeof uploadSchema>) => {
     if (upload.media_type !== "video") throw new Error("Substack inline video metadata has the wrong media type");
     bind(upload);
-    // This is Substack's player route (src, type=mp4, publication context), not
-    // a guessed unsigned Mux URL or an exported account/media token.
+    // Use Substack's player URL with this article's publication ID.
     const source = new URL(`/api/v1/video/upload/${upload.id}/src`, origin);
     source.searchParams.set("type", "mp4"); source.searchParams.set("override_publication_id", String(post.publication_id));
     const thumbnail = upload.thumbnail_id;

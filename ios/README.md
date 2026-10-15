@@ -42,6 +42,12 @@ Run simulator tests through the generated `CaptureUITests` target. The backgroun
 
 ## Reddit URL intake and retained records
 
-Paste a public post/comment URL or share its page from Safari to Capture. Safari preprocessing passes the source URL without a Reddit page-side JSON or DOM read. Native Capture uses the same direct HTTP provider as CLI. HTTP 401, 403 and 429 stop acquisition. The automatic WebKit adapter and helper have been removed; browser capture or a manual record file is not offered as a repair. See [source access and current limitations](../docs/reddit-source-access.md).
+Paste a public post or comment URL, or share its page from Safari to Capture.
+Safari Share supplies the source URL; native Capture reads it through the shared
+HTTP provider. HTTP 401, 403 and 429 stop the read. See
+[source access](../docs/reddit-source-access.md) for current limits.
 
-Previously retained records remain readable in drafts and frozen submissions. Their public visibility and observation time are declarations; validation and plan hashes do not authenticate them. Capture commits matching replacement snapshots before display and retains atomic draft/intake selection. This compatibility does not establish a new ordinary URL acquisition route. Physical iPhone paste and Safari share-sheet acceptance remain separate release checks.
+Existing source records remain readable in drafts and save snapshots. Validation
+checks the supplied data; it cannot authenticate the observation time or establish
+current source availability. Capture commits a replacement snapshot before showing
+it and retains the selected draft and intake across reloads.

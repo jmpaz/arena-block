@@ -43,19 +43,12 @@ function escapeAuthoredSeparators(value: string): string {
 }
 
 function description(posts: ResolvedPost[]): string | undefined {
-  const substack = posts.filter(post => post.substackCapture).map(post => `Substack ${post.substackCapture!.method === "public-html" ? "public HTML" : "browser DOM"} capture observed at: ${post.substackCapture!.observedAt}. Full root prose; quoted Note availability and linked/preview/attachment roles retained in the source record. Displayed publication labels have no inferred timezone.`);
-  substack.push(...posts.filter(post => post.substackArticle).map(post => `Complete public Substack article, observed at ${post.substackArticle!.observedAt}; title, all bylines and authored HTML retained. Source: ${post.canonicalUrl}`));
-  substack.push(...posts.filter(post => post.substackThread).map(post => `Verified same-author Substack Note chain; ${post.substackThread!.pagesRead} public discovery pages. Seed: https://substack.com/note/c-${post.substackThread!.seedId}. Other authors' replies are not part of this chain.`));
-  const stories = posts.filter((post) => post.storyTitle !== undefined);
-  if (stories.length) {
-    const dates = stories.map((post) => post.postedAt ? `Posted at: ${post.postedAt}` : "").join("\n\n---\n\n");
-    return substack.length ? [...substack, dates].filter(Boolean).join("\n\n") : dates;
-  }
   const introductions = posts
     .filter((post) => post.article !== undefined && post.text.trim())
     .map((post) => escapeAuthoredSeparators(post.text.trim()));
-  const introduction = introductions.length ? introductions.join("\n\n---\n\n") : undefined;
-  return substack.length ? [...substack, introduction].filter(Boolean).join("\n\n") : introduction;
+  const dates = posts.filter(post => post.storyTitle !== undefined && post.provider !== "forum_magnum")
+    .flatMap(post => post.postedAt ? [`Posted at: ${post.postedAt}`] : []);
+  return [...dates, ...introductions].join("\n\n---\n\n") || undefined;
 }
 
 const MEDIA_FIRST_PROVIDERS = new Set<ResolvedPost["provider"]>(["reddit", "instagram", "tiktok", "arena", "soundcloud"]);
@@ -85,7 +78,9 @@ function quoteHeader(post: ResolvedPost, root: ResolvedPost, policy: Composition
   const date = quoteDateLabel(root, post, policy.quoteDates).label;
   // A quote is an independently authored source, even when the quoting
   // account also wrote it. Keep both identities visible at the boundary.
-  const lead = [`\`${authorTag(post)}\``, date ? `(${date})` : ""].filter(Boolean).join(" ");
+  const author = `\`${authorTag(post)}\``;
+  const credit = post.provider === "substack" ? `[${author}](<${post.canonicalUrl}>)` : author;
+  const lead = [credit, date ? `(${date})` : ""].filter(Boolean).join(" ");
   return [lead, post.quoteSnapshot ? "*[embedded source snapshot; standalone quote unavailable]*" : ""].filter(Boolean).join(" · ");
 }
 
@@ -99,7 +94,7 @@ function quoteBoundary(post: ResolvedPost): string {
 function renderQuoted(post: ResolvedPost, root: ResolvedPost, policy: CompositionPolicy, depth: number, visited: Set<ResolvedPost>, frameRefs: Set<string>): string {
   if (visited.has(post)) return "*[Cyclic quoted source omitted]*";
   const path = new Set(visited); path.add(post);
-  const own = [quoteHeader(post, root, policy), quoteBody(depth < renderedQuoteDepth(policy) ? post : { ...post, embeddedRecord: undefined }, frameRefs)].filter(Boolean).join("\n");
+  const own = [quoteHeader(post, root, policy), quoteBody(depth < renderedQuoteDepth(policy) ? post : { ...post, embeddedRecord: undefined }, frameRefs)].filter(Boolean).join(post.provider === "substack" ? "\n\n" : "\n");
   const descendant = depth < renderedQuoteDepth(policy) && post.quote ? renderQuoted(post.quote, root, policy, depth + 1, path, frameRefs) : "";
   const boundary = depth < renderedQuoteDepth(policy) ? quoteBoundary(post) : "";
   const prior = descendant || boundary;
@@ -135,7 +130,13 @@ function renderSequence(posts: ResolvedPost[], policy: CompositionPolicy, frameR
       const source = parseSource(post.canonicalUrl);
       if (source.provider !== "forum_magnum") throw new Error("Forum Magnum reply has a mismatched source URL");
       const parentUrl = new URL(`?commentId=${post.replyTo.id}`, source.canonicalUrl).href;
-      forumRelation = `*[Reply to ${post.replyTo.authorHandle ? `@${post.replyTo.authorHandle}` : `comment ${post.replyTo.id}`}](<${parentUrl}>)*`;
+      const parent = posts.find(candidate => {
+        if (candidate.provider !== "forum_magnum" || candidate.id !== post.replyTo!.id) return false;
+        const parsed = parseSource(candidate.canonicalUrl);
+        return parsed.provider === "forum_magnum" && parsed.site === source.site && parsed.id === source.id;
+      });
+      const parentAuthor = post.replyTo.authorHandle ?? parent?.author.handle;
+      forumRelation = `*[${parentAuthor ? `Reply to @${parentAuthor.replace(/^@/, "")}` : "Parent comment"}](<${parentUrl}>)*`;
     }
     if (!multiSource) return [forumRelation, body].filter(Boolean).join("\n\n");
     // The title identifies the first speaker. Label turns, not every post;

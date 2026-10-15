@@ -115,8 +115,7 @@ function soundCloudPostFromRecord(source: Extract<ParsedSource, { provider: "sou
     ...(milliseconds(data.duration) ? { durationSeconds: milliseconds(data.duration) } : {}),
     originalDownloadAvailable: offered,
   };
-  const note = offered ? "Original download is offered on SoundCloud. This device retained the source link because the public page did not provide a verified original file URL." : "";
-  return { ...common, text: [soundCloudTrackText(metadata, description), note].filter(Boolean).join("\n\n"), media: [], soundcloud: metadata };
+  return { ...common, text: soundCloudTrackText(metadata, description), media: [], soundcloud: metadata };
 }
 
 export function soundCloudPostFromPage(source: Extract<ParsedSource, { provider: "soundcloud" }>, html: string): ResolvedPost {

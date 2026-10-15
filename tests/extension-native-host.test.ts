@@ -75,7 +75,7 @@ test("native host checks Forum Magnum capability before submitting a save", asyn
       canonicalUrl: "https://www.lesswrong.com/posts/postA/?commentId=commentA",
       author: { handle: "writer" }, text: "A public comment", storyTitle: "A post", media: [] }]);
     const request = { id: "forum", action: "save" as const, saveId, plan, destinations: ["test-channel"] };
-    await expect(handle(request, fakeFetch)).rejects.toThrow("No save was submitted");
+    await expect(handle(request, fakeFetch)).rejects.toThrow("Update the local helper and receiver to save this capture.");
     expect(calls).toEqual(["GET /v1/version"]);
     capabilities = ["forum-magnum-posts-v1"];
     const result = await handle(request, fakeFetch);
@@ -90,7 +90,7 @@ test("native host checks Forum Magnum capability before submitting a save", asyn
     const combinedId = crypto.randomUUID();
     const combinedRequest = { id: "combined", action: "save" as const, saveId: combinedId,
       plan: combined, destinations: ["test-channel"] };
-    await expect(handle(combinedRequest, fakeFetch)).rejects.toThrow("No save was submitted");
+    await expect(handle(combinedRequest, fakeFetch)).rejects.toThrow("Update the local helper and receiver to save this capture.");
     expect(calls.at(-1)).toBe("GET /v1/version");
     capabilities = ["forum-magnum-posts-v1", "expanded-source-count-32-v1"];
     expect(await handle(combinedRequest, fakeFetch)).toEqual({ saveId: combinedId, phase: "prepared" });

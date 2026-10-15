@@ -38,13 +38,29 @@ final class SubstackBrowserTests: XCTestCase {
         let result = try await runtime.resolve(draft: draft, refs: [source], extraRefs: [], policyJSON: #"{"media":"none"}"#)
         let object = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(result.utf8)) as? [String: Any])
         let actual = try XCTUnwrap(object["plan"] as? NSDictionary)
-        let expected = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(fixture("substack-browser-plan").utf8)) as? NSDictionary)
+        let expected = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(fixture("substack-browser-render-plan").utf8)) as? NSDictionary)
         XCTAssertEqual(actual, expected)
         let edited = try runtime.edit(planJSON: String(decoding: JSONSerialization.data(withJSONObject: actual), as: UTF8.self),
                                       editsJSON: #"{"title":"Authored title","markdown":"Authored writing"}"#)
         let editedObject = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(edited.utf8)) as? [String: Any])
         let editedPlan = try XCTUnwrap(editedObject["plan"] as? [String: Any])
         XCTAssertEqual(editedPlan["sources"] as? NSArray, actual["sources"] as? NSArray)
+    }
+
+    @MainActor
+    func testRequestedPublicNoteFieldsMatchBrowserAndCLIWithOriginalSourceRecord() async throws {
+        let runtime = try CaptureRuntime()
+        let normalized = try runtime.importSubstackCapture(fixture("substack-requested-public-capture"))
+        let result = try await runtime.resolve(refs: [source], policyJSON: #"{"media":"none"}"#,
+                                               substackCapturesJSON: "[" + normalized + "]")
+        let envelope = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(result.utf8)) as? [String: Any])
+        let fields = try XCTUnwrap(envelope["fields"] as? NSDictionary)
+        let expected = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(fixture("substack-requested-render-fields").utf8)) as? NSDictionary)
+        XCTAssertEqual(fields, expected)
+        let plan = try XCTUnwrap(envelope["plan"] as? [String: Any])
+        let sources = try XCTUnwrap(plan["sources"] as? [[String: Any]])
+        let original = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(normalized.utf8)) as? NSDictionary)
+        XCTAssertEqual(sources[0]["substackCapture"] as? NSDictionary, original)
     }
 
     @MainActor
@@ -57,7 +73,11 @@ final class SubstackBrowserTests: XCTestCase {
             let composed = try runtime.compose(postsJSON: sources, policyJSON: #"{"media":"none"}"#)
             let result = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(composed.utf8)) as? [String: Any])
             let actual = try XCTUnwrap(result["plan"] as? NSDictionary)
-            XCTAssertEqual(actual, expected as NSDictionary)
+            XCTAssertEqual(actual["sources"] as? NSArray, expected["sources"] as? NSArray)
+            let actualBlock = try XCTUnwrap(actual["block"] as? [String: Any])
+            let expectedBlock = try XCTUnwrap(expected["block"] as? [String: Any])
+            XCTAssertEqual(actualBlock["markdown"] as? String, expectedBlock["markdown"] as? String)
+            XCTAssertNil(actualBlock["description"])
             let planJSON = String(decoding: try JSONSerialization.data(withJSONObject: actual), as: UTF8.self)
             let edited = try runtime.edit(planJSON: planJSON, editsJSON: #"{"title":"Authored title"}"#)
             let envelope = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(edited.utf8)) as? [String: Any])
@@ -75,7 +95,11 @@ final class SubstackBrowserTests: XCTestCase {
         let composed = try runtime.compose(postsJSON: sources, policyJSON: #"{"media":"none"}"#)
         let envelope = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(composed.utf8)) as? [String: Any])
         let actual = try XCTUnwrap(envelope["plan"] as? NSDictionary)
-        XCTAssertEqual(actual, expected as NSDictionary)
+        XCTAssertEqual(actual["sources"] as? NSArray, expected["sources"] as? NSArray)
+        let actualBlock = try XCTUnwrap(actual["block"] as? [String: Any])
+        let expectedBlock = try XCTUnwrap(expected["block"] as? [String: Any])
+        XCTAssertEqual(actualBlock["markdown"] as? String, expectedBlock["markdown"] as? String)
+        XCTAssertNil(actualBlock["description"])
         let planJSON = try String(decoding: JSONSerialization.data(withJSONObject: actual), as: UTF8.self)
         let edited = try runtime.edit(planJSON: planJSON, editsJSON: #"{"title":"Authored title"}"#)
         let result = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(edited.utf8)) as? [String: Any])
