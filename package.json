@@ -26,6 +26,7 @@
     "@atcute/lexicons": "^2.0.2",
     "@mixmark-io/domino": "^2.2.0",
     "@napi-rs/canvas": "^0.1.80",
+    "@opentui/core": "0.5.17",
     "abort-controller": "^3.0.0",
     "commander": "^14.0.1",
     "core-js-pure": "^3.50.0",

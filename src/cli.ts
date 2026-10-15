@@ -557,6 +557,21 @@ addReceiptOptions(program.command("resume").description("Resume a save from its 
 program.command("attempt").description("Inspect a creation attempt with an uncertain remote outcome")
   .argument("<id>").action(async (id: string) => { console.log(JSON.stringify(await client().attempt(id), null, 2)); });
 
+program.command("pick").description("Pick channels in the terminal; print the chosen destinations to stdout")
+  .option("--emit <format>", "id, slug, url or json", "id")
+  .option("--copy", "also copy the destinations to the clipboard")
+  .option("--block <url>", "hold an existing Are.na block while picking")
+  .option("--fixture <snapshot>", "serve a scoped channel snapshot through a read-only stand-in daemon")
+  .option("--mode <mode>", "filter (narrow the list as you type) or jump (keep the list, move to the best match)", "filter")
+  .option("--height <rows>", "rows the picker occupies below the prompt", "14")
+  .option("--preview <columns>", "width of the preview column, or off")
+  .action(async (options: import("./tui/command.ts").PickOptions) => {
+    if (!["id", "slug", "url", "json"].includes(options.emit ?? "id")) throw new Error("--emit is id, slug, url or json");
+    if (!["filter", "jump"].includes(options.mode ?? "filter")) throw new Error("--mode is filter or jump");
+    const { pickCommand } = await import("./tui/command.ts");
+    process.exitCode = await pickCommand(options);
+  });
+
 program.command("picker").description("Open the local channel picker")
   .action(async () => { const { startPicker } = await import("./picker-cli.ts"); await startPicker(); });
 
