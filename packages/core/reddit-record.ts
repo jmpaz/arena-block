@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { redditPublicPageCaptureSchema } from "./reddit-public-page.ts";
 import { parseSource } from "./url.ts";
 
 const videoContainer = z.object({ reddit_video: z.object({
@@ -74,7 +75,7 @@ const envelope = z.object({
   sourceUrl: z.url(), observedAt: z.iso.datetime(),
   post: browserPostSchema(0), comment: redditCommentSchema.optional(),
 }).strict();
-export type RedditBrowserCapture = z.infer<typeof envelope>;
+export type RedditApiBrowserCapture = z.infer<typeof envelope>;
 function mediaURL(value: string, hosts: string[], path: RegExp): URL {
   const url = new URL(value.replaceAll("&amp;", "&"));
   if (url.protocol !== "https:" || url.username || url.password || url.port || url.hash ||
@@ -108,7 +109,7 @@ function capturedPostMedia(post: z.infer<typeof redditPostSchema>) {
   }
   for (const parent of post.crosspost_parent_list ?? []) capturedPostMedia(parent as z.infer<typeof redditPostSchema>);
 }
-function validateCapture(input: RedditBrowserCapture) {
+function validateCapture(input: RedditApiBrowserCapture) {
   bounded(input);
   const post = publicPost(input.post);
   const comment = input.comment;
@@ -124,13 +125,18 @@ function validateCapture(input: RedditBrowserCapture) {
   }
   if (Date.parse(input.observedAt) > Date.now() + 5 * 60_000) throw new Error("Reddit observation time is in the future");
 }
-export const redditBrowserCaptureSchema = envelope.superRefine((input, context) => {
+export const redditApiBrowserCaptureSchema = envelope.superRefine((input, context) => {
   try { validateCapture(input); }
   catch (error) { context.addIssue({ code: "custom", message: error instanceof Error ? error.message : String(error) }); }
 });
-export function normalizeRedditCapture(value: unknown): RedditBrowserCapture {
+export const redditBrowserCaptureSchema = z.union([redditApiBrowserCaptureSchema, redditPublicPageCaptureSchema]);
+export type RedditBrowserCapture = z.infer<typeof redditBrowserCaptureSchema>;
+export function validateRedditCapture(value: unknown): RedditBrowserCapture {
   bounded(value);
-  const input = redditBrowserCaptureSchema.parse(value);
+  return redditBrowserCaptureSchema.parse(value);
+}
+export function normalizeRedditCapture(value: unknown): RedditBrowserCapture {
+  const input = validateRedditCapture(value);
   return { ...input, sourceUrl: parseSource(input.sourceUrl).canonicalUrl };
 }
 export const redditCapturesSchema = redditBrowserCaptureSchema.array().max(20).default([]).superRefine((captures, context) => {

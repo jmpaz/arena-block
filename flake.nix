@@ -45,6 +45,25 @@
           outputHashAlgo = "sha256";
           outputHashMode = "recursive";
         };
+        publicBrowserHelper = if pkgs.stdenv.isDarwin then pkgs.stdenv.mkDerivation {
+          pname = "arena-block-public-browser";
+          version = metadata.version;
+          src = source;
+          nativeBuildInputs = [ pkgs.swift ];
+          buildInputs = [ pkgs.apple-sdk ];
+          buildPhase = ''
+            runHook preBuild
+            swiftc -swift-version 5 -O -module-cache-path "$TMPDIR/swift-module-cache" \
+              ios/Sources/CaptureRuntime/RedditPublicPageAcquirer.swift \
+              ios/scripts/reddit-public-browser-cli.swift -o arena-block-public-browser
+            runHook postBuild
+          '';
+          installPhase = ''
+            runHook preInstall
+            install -Dm755 arena-block-public-browser "$out/bin/arena-block-public-browser"
+            runHook postInstall
+          '';
+        } else null;
         arenaBlock = pkgs.stdenvNoCC.mkDerivation {
           pname = "arena-block";
           version = metadata.version;
@@ -64,6 +83,10 @@
               schemaVersion = 1;
             })} "$app/build-info.json"
             ln -s ${nodeModules}/node_modules "$app/node_modules"
+            ${pkgs.lib.optionalString pkgs.stdenv.isDarwin ''
+              mkdir -p "$app/libexec"
+              ln -s ${publicBrowserHelper}/bin/arena-block-public-browser "$app/libexec/arena-block-public-browser"
+            ''}
             makeWrapper ${pkgs.bun}/bin/bun "$out/bin/arena-block" \
               --add-flags "$app/src/cli.ts" \
               --prefix PATH : ${pkgs.lib.makeBinPath [ pkgs.ffmpeg pkgs.yt-dlp ]}
@@ -98,10 +121,14 @@
           '';
         };
       in {
-        packages.default = arenaBlock;
-        packages.arena-block = arenaBlock;
-        packages.node-modules = nodeModules;
-        packages.browser-extension = browserExtension;
+        packages = {
+          default = arenaBlock;
+          arena-block = arenaBlock;
+          node-modules = nodeModules;
+          browser-extension = browserExtension;
+        } // pkgs.lib.optionalAttrs pkgs.stdenv.isDarwin {
+          public-browser-helper = publicBrowserHelper;
+        };
         apps.default = {
           type = "app";
           program = "${arenaBlock}/bin/arena-block";

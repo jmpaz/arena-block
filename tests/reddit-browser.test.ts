@@ -41,7 +41,7 @@ test("browser reader strips account fields before handoff and retains the comple
   const raw = { ...fixture, post: { ...fixture.post, selftext: fixture.post.selftext + "\n\n" + "A full paragraph.\n".repeat(300), saved: true, user_reports: [["private", 1]], mod_reports: [], likes: true } };
   const { promise, calls } = page(raw);
   const value = normalizeRedditCapture(await promise);
-  expect(value.post.selftext).toBe(raw.post.selftext);
+  expect(value.schema === "arena-block/reddit-browser-capture" ? value.post.selftext : undefined).toBe(raw.post.selftext);
   expect(JSON.stringify(value)).not.toContain("user_reports");
   expect(JSON.stringify(value)).not.toContain('"saved"');
   expect(calls).toHaveLength(1);
@@ -184,8 +184,10 @@ test("Safari's generated preprocessing resource returns the record or an explici
       context.ExtensionPreprocessingJS.run({ completionFunction: resolve });
     });
     expect(calls).toBe(1);
-    if (status === 200) expect(normalizeRedditCapture(JSON.parse(result.redditCapture!)).post.selftext).toBe(fixture.post.selftext);
-    else { expect(result.redditError).toContain("HTTP 403"); expect(result.redditCapture).toBeUndefined(); }
+    if (status === 200) { const capture = normalizeRedditCapture(JSON.parse(result.redditCapture!));
+      if (capture.schema !== "arena-block/reddit-browser-capture") throw new Error("Expected the API record reader");
+      expect(capture.post.selftext).toBe(fixture.post.selftext); }
+    else { expect(result.redditSourceUrl).toBe(fixture.sourceUrl); expect(result.redditCapture).toBeUndefined(); expect(result.redditError).toBeUndefined(); }
   }
 });
 

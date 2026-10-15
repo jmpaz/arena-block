@@ -1,0 +1,13 @@
+# Reddit public page capture
+
+Reddit posts and selected comments first use the existing JSON reader. On HTTP 403, a configured public-browser adapter can load the ordinary source URL in a fresh WebKit session and read its authored page. This route needs no Reddit developer key, login, saved browser profile or manual capture-file import. HTTP 429 stops without starting another acquisition route.
+
+The browser runs normal site JavaScript. It does not solve or interact with challenges, change the user agent, copy cookies or bypass login. A refusal, challenge, missing full body, mismatched identity or timeout ends the read.
+
+A page record retains the selected HTML, author, exact source timestamp, canonical post/comment identity and observed image references. Its schema is `arena-block/reddit-public-page-capture`, separate from an API JSON record. A selected comment retains its own writing and media plus its parent title; it does not capture the whole discussion or its parent's writing. Records require `reddit-public-page-records-v1` and the existing Reddit record capability at receiving boundaries.
+
+Rendered HTML is converted to Markdown through the shared provider/composer. Authored image references remain in the writing. Media controls select which assets are materialized: All includes supported body images; Automatic retains the existing body-image selection behavior. Image URLs remain exactly as observed. Preview URLs are identified as previews; original URLs and dimensions are not guessed.
+
+The current page projection supports complete text/link posts, observed Reddit-hosted PNG/JPEG/WebP images and selected comments. Gallery, GIF, native video/audio, cross-post and unfamiliar embedded-media structures fail explicitly on this route. A selected comment does not acquire its parent's media. The existing JSON path keeps its broader gallery/video/cross-post support when that data is available. Short `/s/` shares that cannot expand through the existing bounded redirect reader remain unsupported. This increment does not add comment-tree expansion.
+
+The native adapter is `RedditPublicPageAcquirer(readerScript:).acquire(url:)`. The Darwin Nix CLI package includes the matching Swift helper under `libexec/arena-block-public-browser` and its generated reader resource. The helper is also exposed as `packages.aarch64-darwin.public-browser-helper`. Optional deployment paths `ARENA_BLOCK_PUBLIC_BROWSER_HELPER` and `ARENA_BLOCK_PUBLIC_BROWSER_READER` support a separately verified helper. Supplying only the TypeScript code does not install that executable. Linux receivers can retain these records but do not acquire pages through macOS WebKit.

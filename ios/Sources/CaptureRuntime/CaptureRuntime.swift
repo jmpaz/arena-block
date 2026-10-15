@@ -6,6 +6,7 @@ import JavaScriptCore
 public final class CaptureRuntime {
     private let context: JSContext
     private var requests: [Int: URLSessionDataTask] = [:]
+    private var publicRedditReads: [Int: Task<Void, Never>] = [:]
     private var timers: [Int: Timer] = [:]
     private var timerCallbacks: [Int: JSValue] = [:]
     private var nextTimer = 0
@@ -50,6 +51,10 @@ public final class CaptureRuntime {
             self?.timers.removeValue(forKey: id)?.invalidate()
             self?.timerCallbacks.removeValue(forKey: id)
         }
+        let publicRead: @convention(block) (Int, String) -> Void = { [weak self] id, url in self?.acquireRedditPublicPage(id: id, url: url) }
+        let cancelPublicRead: @convention(block) (Int) -> Void = { [weak self] id in self?.publicRedditReads.removeValue(forKey: id)?.cancel() }
+        context.setObject(publicRead, forKeyedSubscript: "nativeAcquireRedditPublicPage" as NSString)
+        context.setObject(cancelPublicRead, forKeyedSubscript: "nativeCancelRedditPublicPage" as NSString)
         context.setObject(hash, forKeyedSubscript: "nativeSHA256" as NSString)
         context.setObject(http, forKeyedSubscript: "nativeHTTP" as NSString)
         context.setObject(cancel, forKeyedSubscript: "nativeCancelHTTP" as NSString)
@@ -131,6 +136,21 @@ public final class CaptureRuntime {
         let result = function.call(withArguments: arguments)
         if let error = context.exception { throw RuntimeError(error.toString()) }
         return result?.toString() ?? "null"
+    }
+
+    private func acquireRedditPublicPage(id: Int, url: String) {
+        publicRedditReads[id]?.cancel()
+        publicRedditReads[id] = Task { [weak self] in
+            guard let self else { return }
+            var raw: String?, failure: String?
+            do {
+                guard let script = Bundle.module.url(forResource: "reddit-public-page", withExtension: "js") else { throw RuntimeError("The Reddit public browser reader is unavailable") }
+                let reader = RedditPublicPageAcquirer(readerScript: try String(contentsOf: script, encoding: .utf8))
+                raw = try await reader.acquire(url: url)
+            } catch { failure = error.localizedDescription }
+            guard !Task.isCancelled, self.publicRedditReads.removeValue(forKey: id) != nil else { return }
+            _ = try? self.invoke("captureRedditPublicPageComplete", [id, raw as Any? ?? NSNull(), failure as Any? ?? NSNull()])
+        }
     }
 
     private func request(id: Int, json: String) {

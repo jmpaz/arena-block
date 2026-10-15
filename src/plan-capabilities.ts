@@ -9,6 +9,7 @@ export function requiredPlanCapabilities(plan: BlockPlan): string[] {
     if (post.substackArticle || post.substackRelation || post.substackThread) required.add("substack-public-sources-v2");
     if (post.provider === "substack" || post.substackCapture) required.add("substack-browser-records-v1");
     if (post.redditCapture) required.add("reddit-browser-records-v1");
+    if (post.redditCapture?.schema === "arena-block/reddit-public-page-capture") required.add("reddit-public-page-records-v1");
     if (post.provider === "delve") required.add("delve-posts-v1");
     if (post.provider === "forum_magnum") required.add("forum-magnum-posts-v1");
     if (post.atproto || post.facets || post.external || post.embeddedRecord) required.add("atproto-post-records-v1");

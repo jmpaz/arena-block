@@ -43,6 +43,11 @@ final class ShareViewController: UIViewController {
                        let result = value[NSExtensionJavaScriptPreprocessingResultsKey] as? [String: Any] {
                         if let failure = result["substackError"] as? String { session.reportInputFailure(failure); return }
                         if let json = result["substackCapture"] as? String { try session.receiveBrowserCapture(json); return }
+                        if let source = result["redditSourceUrl"] as? String,
+                           let url = URL(string: source), url.scheme == "https", url.user == nil, url.password == nil, url.port == nil,
+                           ["www.reddit.com", "reddit.com", "old.reddit.com", "new.reddit.com"].contains(url.host ?? "") {
+                            session.receive(urls: [url]); return
+                        }
                         if let failure = result["redditError"] as? String { session.reportInputFailure(failure); return }
                         if let json = result["redditCapture"] as? String { try session.receiveBrowserCapture(json); return }
                     }

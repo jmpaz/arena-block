@@ -1,6 +1,7 @@
 import "./native-platform.ts";
 import { SubstackProvider } from "./providers/substack.ts";
 import { bindSubstackCaptures, normalizeSubstackCapture, substackCapturesSchema } from "./substack-record.ts";
+import { nativeRedditPublicAcquirer } from "./reddit-public-acquisition.ts";
 import { RedditProvider } from "./providers/reddit.ts";
 import { bindRedditCaptures, normalizeRedditCapture, redditCapturesSchema } from "./reddit-record.ts";
 import { resolveMediaURL, resolveMediaSources } from "./media-acquisition.ts";
@@ -15,7 +16,7 @@ import { blockPlanSchema, compositionPolicySchema, resolvedPostSchema } from "./
 import { captureRenderRecipe } from "./render-recipe.ts";
 const host = globalThis as any;
 const jobs = new Map<string, AbortController>();
-function nativeResolver(captures = redditCapturesSchema.parse([]), substack = substackCapturesSchema.parse([])) { return new SocialResolver({ substack: new SubstackProvider(substack), reddit: new RedditProvider(undefined, captures), soundcloud: new NativeSoundCloudProvider(),
+function nativeResolver(captures = redditCapturesSchema.parse([]), substack = substackCapturesSchema.parse([])) { return new SocialResolver({ substack: new SubstackProvider(substack), reddit: new RedditProvider(undefined, captures, nativeRedditPublicAcquirer()), soundcloud: new NativeSoundCloudProvider(),
   bluesky: new BlueskyProvider(undefined, undefined, { retainConversationCoverage: true }) }); }
 const resolver = nativeResolver();
 host.captureCancel = (id: string) => jobs.get(id)?.abort();

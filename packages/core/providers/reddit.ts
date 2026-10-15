@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { redditPostSchema, redditCommentSchema, redditSourceKey, redditCapturesSchema, type RedditBrowserCapture } from "../reddit-record.ts";
+import { redditPostSchema, redditCommentSchema, redditSourceKey, redditCapturesSchema, validateRedditCapture, redditReadNeedsBrowser, type RedditBrowserCapture } from "../reddit-record.ts";
+import { redditPublicPagePost } from "../reddit-public-page.ts";
 import type { MediaAsset, ResolvedPost } from "../types.ts";
 import { parseSource, type ParsedSource } from "../url.ts";
 import type { Fetcher } from "./comments.ts";
@@ -146,8 +147,16 @@ function commentFromData(value: unknown, parent: { id: string; title: string }, 
 
 export class RedditProvider implements SocialProvider {
   private readonly captures: RedditBrowserCapture[];
-  constructor(private readonly fetcher: Fetcher = fetch, captures: RedditBrowserCapture[] = []) {
+  constructor(private readonly fetcher: Fetcher = fetch, captures: RedditBrowserCapture[] = [],
+    private readonly acquirePublicPage?: (source: Extract<ParsedSource, { provider: "reddit" }>, signal: AbortSignal) => Promise<unknown>) {
     this.captures = redditCapturesSchema.parse(captures);
+  }
+  private captured(value: unknown, source: Extract<ParsedSource, { provider: "reddit" }>): ResolvedPost {
+    const capture = validateRedditCapture(value);
+    if (redditSourceKey(capture.sourceUrl) !== redditSourceKey(source.canonicalUrl)) throw new Error("Reddit public acquisition returned another source");
+    if (capture.schema === "arena-block/reddit-public-page-capture") return redditPublicPagePost(capture);
+    const post = capture.comment ? commentFromData(capture.comment, capture.post, source) : postFromData(capture.post);
+    return { ...post, redditCapture: capture };
   }
   private async completeGallery(value: unknown, options: { signal: AbortSignal }, depth = 0): Promise<unknown> {
     if (depth > 4) throw new Error("Reddit cross-post nesting is too deep");
@@ -204,8 +213,7 @@ export class RedditProvider implements SocialProvider {
     if (input.provider !== "reddit") throw new Error("Expected a Reddit source");
     const capture = this.captures.find(item => !input.short && redditSourceKey(item.sourceUrl) === redditSourceKey(input.canonicalUrl));
     if (capture) {
-      const post = capture.comment ? commentFromData(capture.comment, capture.post, input) : postFromData(capture.post);
-      return { ...post, redditCapture: capture };
+      return this.captured(capture, input);
     }
     const requestSignal = signal ? AbortSignal.any([signal, AbortSignal.timeout(45_000)]) : AbortSignal.timeout(45_000);
     const options = { headers: { accept: "application/json", "user-agent": "arena-block/0.1" }, signal: requestSignal, redirect: "manual" as const };
@@ -219,7 +227,13 @@ export class RedditProvider implements SocialProvider {
       if (next.provider !== "reddit") throw new Error("Reddit share link redirected outside Reddit");
       source = next;
     }
-    if (source.commentId) return this.resolveComment(source, requestSignal);
+    if (source.commentId) {
+      try { return await this.resolveComment(source, requestSignal); }
+      catch (error) {
+        if (!this.acquirePublicPage || !redditReadNeedsBrowser(error) || !String(error).includes("HTTP 403")) throw error;
+        return this.captured(await this.acquirePublicPage(source, requestSignal), source);
+      }
+    }
     const direct = await this.fetcher(`https://www.reddit.com/comments/${source.id}.json?raw_json=1`, options);
     let value: unknown;
     let archivedAfterStatus: number | undefined;
@@ -228,6 +242,7 @@ export class RedditProvider implements SocialProvider {
       value = listing[0]?.data.children[0]?.data;
     } else {
       if ([403, 429].includes(direct.status)) {
+        if (direct.status === 403 && this.acquirePublicPage) return this.captured(await this.acquirePublicPage(source, requestSignal), source);
         throw new Error(`Reddit's live post read returned HTTP ${direct.status}; current content cannot be verified. No archive or block creation was attempted. Open the post or comment in your browser and use Read Reddit tab or share from Safari to Capture.`);
       }
       if (direct.status !== 503) throw new Error(`Reddit's live post read returned HTTP ${direct.status} without a usable post; current content cannot be verified`);

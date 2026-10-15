@@ -428,7 +428,10 @@
         arguments_.completionFunction({});
         return;
       }
-      readRedditPage().then((value) => arguments_.completionFunction({ redditCapture: JSON.stringify(value) }), (error) => arguments_.completionFunction({ redditError: error instanceof Error ? error.message : String(error) }));
+      readRedditPage().then((value) => arguments_.completionFunction({ redditCapture: JSON.stringify(value) }), (error) => {
+        const message = error instanceof Error ? error.message : String(error);
+        arguments_.completionFunction(/Reddit browser read returned HTTP 403 without usable JSON/.test(message) ? { redditSourceUrl: location.href } : { redditError: message });
+      });
     }
   };
 })();

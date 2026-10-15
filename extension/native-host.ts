@@ -82,6 +82,7 @@ export async function handle(request: HostRequest, fetcher: typeof fetch = fetch
         const serving = buildInfoSchema.parse(await daemon("/v1/version", "GET", undefined, fetcher));
         if (publicV2 && !serving.planCapabilities?.includes("substack-public-sources-v2")) throw new Error("The daemon cannot resolve Substack articles or author chains. No source read was submitted.");
         if (request.input.substackCaptures?.length && !serving.planCapabilities?.includes("substack-browser-records-v1")) throw new Error("The daemon cannot receive Substack records. No source read was submitted.");
+        if (request.input.redditCaptures?.some(c => c.schema === "arena-block/reddit-public-page-capture") && !serving.planCapabilities?.includes("reddit-public-page-records-v1")) throw new Error("The daemon cannot retain Reddit public page records. No source read was submitted.");
         if (request.input.redditCaptures?.length && !serving.planCapabilities?.includes("reddit-browser-records-v1")) throw new Error("The daemon cannot receive Reddit browser records. Install a matching receiver; no source read was submitted.");
       }
       const plan = blockPlanSchema.parse(await daemon("/v1/plans", "POST", request.input, fetcher));
