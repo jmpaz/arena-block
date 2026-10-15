@@ -24,7 +24,7 @@ export const mediaAssetSchema = z.object({
     const url = new URL(value);
     return url.protocol === "https:" && !url.username && !url.password;
   }).optional(),
-  acquisition: z.enum(["soundcloud-original-download"]).optional(),
+  acquisition: z.enum(["soundcloud-original-download", "substack-public-original"]).optional(),
   alt: z.string().default(""),
 });
 export type MediaAsset = z.infer<typeof mediaAssetSchema>;

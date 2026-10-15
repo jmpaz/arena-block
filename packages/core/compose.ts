@@ -164,11 +164,14 @@ function selectedMedia(posts: ResolvedPost[], policy: CompositionPolicy): MediaA
   if (policy.media === "audio") return rootMedia.filter((item) => item.kind === "audio");
   if (policy.media === "images") return rootMedia.filter((item) => item.kind === "image");
   const automaticMedia = rootMedia.filter(item => item.sourcePlacement !== "body");
-  if (policy.mediaOnlyPosts?.length) return automaticMedia;
-  if (posts.length > 1) return automaticMedia;
+  // Native podcast audio is an alternative to its visuals, never an automatic
+  // soundtrack for an ordered composition or media extra.
+  if (policy.mediaOnlyPosts?.length || posts.length > 1) return automaticMedia.filter(item => item.kind !== "audio");
   if (MEDIA_FIRST_PROVIDERS.has(posts[0]!.provider)) return automaticMedia;
   const video = automaticMedia.find((item) => item.kind === "video");
-  return video ? [video] : automaticMedia.filter((item) => item.kind === "image");
+  const images = automaticMedia.filter((item) => item.kind === "image");
+  const publicAudio = posts[0]!.provider === "substack" ? automaticMedia.find(item => item.kind === "audio" && item.acquisition === "substack-public-original") : undefined;
+  return video ? [video] : images.length ? images : publicAudio ? [publicAudio] : [];
 }
 
 const RETAINED_ARRANGEMENTS = 32;
@@ -399,8 +402,8 @@ export function composePlan(
   const renderPosts = posts.map(post => ({ ...post, media: post.media.map(item => frameByRef.has(item.ref)
     ? { ...item, kind: "image" as const, url: frameByRef.get(item.ref)! } : item) }));
   const audioAssets = effective.filter(item => item.kind === "audio");
-  if (audioAssets.length && (chosen.length !== 1 || posts.length !== 1 || audioAssets[0]!.acquisition !== "soundcloud-original-download")) {
-    throw new Error("Original SoundCloud audio must be captured alone; it cannot be composited or converted");
+  if (audioAssets.length && (chosen.length !== 1 || posts.length !== 1 || !["soundcloud-original-download", "substack-public-original"].includes(audioAssets[0]!.acquisition ?? ""))) {
+    throw new Error("Capture one original audio attachment alone; choose audio or visual media. Audio cannot be composited or converted.");
   }
   const audio = explicitAudio(policy);
   if (audio && !effective.some((item) => item.kind === "video" && item.ref === audio)) {
@@ -441,7 +444,7 @@ export function composePlan(
       ...(audioOnly && first.soundcloud?.kind === "track" && first.soundcloud.artworkUrl ? { artworkUrl: first.soundcloud.artworkUrl } : {}),
       selectedMedia: chosen.map((item) => item.ref),
       ...(frameMedia.length ? { frameMedia } : {}),
-      ...(chosen.length && !soloVideo ? { layout: layoutFor(renderPosts, effective, policy.mediaOrder !== undefined) } : {}),
+      ...(chosen.length && !soloVideo && !audioOnly ? { layout: layoutFor(renderPosts, effective, policy.mediaOrder !== undefined) } : {}),
       ...(quoteCoverage.length ? { quoteCoverage } : {}),
     },
   };

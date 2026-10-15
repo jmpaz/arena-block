@@ -30,10 +30,13 @@ including ancestors around the selected Note. Other authors are excluded.
 Branches, missing replies, inconsistent identities and incomplete pagination stop
 expansion. Use explicit Note permalinks in order to select another source set.
 
-Observed original images use shared media selection and rendering. External
-players remain links. Native video/audio attachments and article players remain
-unsupported; preview thumbnails do not become original attachments. See
-[capture support](substack-parity.md) for source limits.
+Observed original images use shared media selection and rendering. Complete public
+article video and audio require source-bound upload metadata. Videos over ten
+minutes use an observed Frame; shorter videos use the shared video path. Choose
+`--media audio` for one original audio attachment, copied without conversion and
+bounded to 250 MiB. Duration and actual media container are checked. External
+players remain links. Note-native media, inline article players and article restack
+cards remain unsupported. See [capture support](substack-parity.md) for limits.
 
 Retained records carry authored HTML, identities, authors, publication labels,
 observation times and acquisition method through drafts and frozen submissions.
@@ -45,4 +48,5 @@ Records are bounded to 2 MiB, twenty explicit roots, eight quote levels and one
 hundred links per Note. Reply discovery permits at most 64 pages, 8 MiB aggregate,
 2,000 identities and 32 selected sources. Plans require
 `substack-browser-records-v1`; article and thread evidence additionally requires
-`substack-public-sources-v2`. Helpers reject stripped evidence.
+`substack-public-sources-v2`. Public article media additionally requires
+`substack-native-media-v1`. Helpers reject stripped evidence.

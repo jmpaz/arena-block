@@ -12,7 +12,8 @@
 | Ordered sources and extras | Explicit roots preserve order and deduplicate by Note ID. Media-only extras use the common composer. |
 | Publication time | Explicit-offset timestamps are retained. Offset-free display times remain labels. |
 | Drafts and saves | Browser and native drafts, frozen submissions, helper fallback and receiver plans retain source records. |
-| Native video and audio | Unsupported. External players remain links; unsupported native attachments and article players stop capture. |
+| Public article video/audio | Complete public uploads bound to the article and publication. Long video uses an observed Frame; video composition is limited to ten minutes. One original audio attachment is copied without conversion, bounded to 250 MiB, with container and duration checks. |
+| Other players | Note-native media, inline article players and article restack cards remain unsupported. External players remain labelled links. |
 
 A complete root and an embedded preview have different roles. Quote hydration
 reads the quoted Note's own page and keeps its separately observed body alongside
@@ -32,7 +33,8 @@ permits at most 64 pages, 8 MiB aggregate, 2,000 identities and 32 selected sour
 HTML redirects remain within the same HTTPS Note ID and stop after three hops.
 
 Notes require `substack-browser-records-v1`. Article and thread provenance also
-requires `substack-public-sources-v2`; helpers check capability and returned plan
+requires `substack-public-sources-v2`. Public article media additionally requires
+`substack-native-media-v1`. Helpers check capability and returned plan
 evidence before forwarding a save. Capability in source does not establish that
 an installed receiver supports it. Physical Safari and device acceptance remains
 separate from fixture and JavaScriptCore checks.

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { substackNativeMediaSchema } from "./substack-native-media.ts";
 const publicURL = z.url().refine(value => { const url = new URL(value); return url.protocol === "https:" && !url.username && !url.password && !url.port; }, "Expected HTTPS without credentials or custom ports");
 
 export const substackArticleRecordSchema = z.object({
@@ -6,6 +7,7 @@ export const substackArticleRecordSchema = z.object({
   url: publicURL, slug: z.string().min(1).max(512), title: z.string().min(1).max(2000), subtitle: z.string().max(10000),
   authors: z.array(z.object({ id: z.number().int().positive(), name: z.string().min(1).max(512), handle: z.string().regex(/^[a-zA-Z0-9_-]+$/).max(128), profileUrl: publicURL }).strict()).min(1).max(50),
   observedAt: z.iso.datetime(), method: z.literal("public-api"), audience: z.literal("everyone"), bodyHtml: z.string().min(1).max(500000),
+  nativeMedia: z.array(substackNativeMediaSchema).max(100).optional(),
 }).strict();
 export type SubstackArticleRecord = z.infer<typeof substackArticleRecordSchema>;
 

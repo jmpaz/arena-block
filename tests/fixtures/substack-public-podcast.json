@@ -1,0 +1,48 @@
+{
+  "id": 218186983,
+  "publication_id": 10845,
+  "slug": "openai-dev-day-2026-the-releases",
+  "canonical_url": "https://www.lennysnewsletter.com/p/openai-dev-day-2026-the-releases",
+  "title": "OpenAI Dev Day 2026: The releases that actually matter",
+  "subtitle": "🎙️ Claire tests OpenAI’s DevDay releases, from Dots, Spaces, and Sites to AI-picked thumbnails and a $97 game, and shares what’s worth trying first",
+  "body_html": "<div id=\"youtube2-pJNM1z9l5mU\" class=\"youtube-wrap\" data-attrs=\"{&quot;videoId&quot;:&quot;pJNM1z9l5mU&quot;,&quot;startTime&quot;:null,&quot;endTime&quot;:null}\" data-component-name=\"Youtube2ToDOM\"><div class=\"youtube-inner\"><iframe src=\"https://www.youtube-nocookie.com/embed/pJNM1z9l5mU?rel=0&amp;autoplay=0&amp;showinfo=0&amp;enablejsapi=0\" frameborder=\"0\" loading=\"lazy\" gesture=\"media\" allow=\"autoplay; fullscreen\" allowautoplay=\"true\" allowfullscreen=\"true\" width=\"728\" height=\"409\"></iframe></div></div><p>I spent the day at OpenAI’s DevDay in San Francisco, and I have good news and bad news: OpenAI released a lot of stuff.<br><br>In this episode, I break down the announcements worth paying attention to - and show you what happened when I tested some of them early. We’ll meet my Dot, explore why Spaces and Sites could matter for how teams work, and get into the model and API updates I’m most excited about as a developer.<br><br>I use the Decisions API to find podcast thumbnails where nobody looks awkward, build a collaborative sketchpad with Astra ultrafast, and let my kids redesign a 3D world in real time. That last experiment cost about $97. My wallet has thoughts.<br><br>These are my early impressions: what’s promising, what still feels rough, and what I think you should try first.</p><div class=\"pullquote\"><p><strong>Listen or watch on <a href=\"https://youtu.be/pJNM1z9l5mU\">YouTube</a>, <a href=\"https://open.spotify.com/episode/6YEf51ENKks86DejRTOi23\">Spotify</a>, or <a href=\"https://podcasts.apple.com/us/podcast/openai-dev-day-2026-the-releases-that-actually-matter/id1809663079?i=1000792403879\">Apple Podcasts</a></strong></p></div><h3>What you’ll learn:</h3><ol><li><p>What OpenAI’s Dots can do, how I’ve been using mine, and why I’m waiting to give a full verdict</p></li><li><p>Why Spaces might be one of the most underhyped announcements for collaboration between humans and agents</p></li><li><p>How Sites with connectors and plugins could help teams share internal tools with the right data permissions</p></li><li><p>Where GPT-6.1 Sol fits in my model stack—and why speed and cost matter</p></li><li><p>What vision adds to the Decisions API, including my thumbnail-selection and hot dog demos</p></li><li><p>What Astra ultrafast makes possible for interactive AI apps, from collaborative drawing to a changing 3D game</p></li><li><p>Where the speed feels magical, where the experience still needs work, and what it costs</p></li></ol><div><hr></div><h3>In this episode, we cover:</h3><p>(<a href=\"https://www.youtube.com/watch?v=pJNM1z9l5mU\">00:00</a>) OpenAI DevDay recap—and pressing the Codex reset button</p><p>(<a href=\"https://www.youtube.com/watch?v=pJNM1z9l5mU&amp;t=58s\">00:58</a>) Dots: early impressions and rough edges</p><p>(<a href=\"https://www.youtube.com/watch?v=pJNM1z9l5mU&amp;t=417s&amp;pp=0gcJCWMAwfN6Pr3D\">06:57</a>) Spaces: working with humans and agents</p><p>(<a href=\"https://www.youtube.com/watch?v=pJNM1z9l5mU&amp;t=637s\">10:37</a>) Sites, connectors, and sharing internal tools</p><p>(<a href=\"https://www.youtube.com/watch?v=pJNM1z9l5mU&amp;t=786s\">13:06</a>) Models and platform: GPT-6.1 Sol</p><p>(<a href=\"https://www.youtube.com/watch?v=pJNM1z9l5mU&amp;t=876s\">14:36</a>) Decisions API: fast decisions with vision</p><p>(<a href=\"https://www.youtube.com/watch?v=pJNM1z9l5mU&amp;t=927s\">15:27</a>) Finding better podcast thumbnails with AI</p><p>(<a href=\"https://www.youtube.com/watch?v=pJNM1z9l5mU&amp;t=989s\">16:29</a>) Hot dog or not hot dog?</p><p>(<a href=\"https://www.youtube.com/watch?v=pJNM1z9l5mU&amp;t=1037s\">17:17</a>) Astra ultrafast: speed, pricing, and possibilities</p><p>(<a href=\"https://www.youtube.com/watch?v=pJNM1z9l5mU&amp;t=1130s\">18:50</a>) The Other Pencil: drawing alongside AI</p><p>(<a href=\"https://www.youtube.com/watch?v=pJNM1z9l5mU&amp;t=1185s\">19:45</a>) Little Starship: a 3D world you can change with a prompt</p><p>(<a href=\"https://www.youtube.com/watch?v=pJNM1z9l5mU&amp;t=1284s\">21:24</a>) The $97 AI game—and what it makes possible</p><p>(<a href=\"https://www.youtube.com/watch?v=pJNM1z9l5mU&amp;t=1345s\">22:25</a>) Agents API, computer use, plugins, and plan updates</p><p>(<a href=\"https://www.youtube.com/watch?v=pJNM1z9l5mU&amp;t=1383s\">23:03</a>) What I’d try first</p><p></p><h3>Tools referenced:</h3><p>• ChatGPT: Dots, Spaces, and Sites: <a href=\"https://chatgpt.com/\">https://chatgpt.com/</a></p><p>• Codex: <a href=\"https://openai.com/codex/\">https://openai.com/codex/</a></p><p>• OpenAI API — GPT-6.1 Sol, Decisions API, and Astra ultrafast: <a href=\"https://platform.openai.com/\">https://platform.openai.com/</a></p><p>• Jev: <a href=\"https://typesafe.ai/\">https://typesafe.ai/</a></p><p></p><h3>Other references:</h3><p>• OpenAI DevDay 2026: <a href=\"https://devday.openai.com/\">https://devday.openai.com/</a></p><p></p><h3>Where to find Claire Vo:</h3><p>ChatPRD: <a href=\"https://www.chatprd.ai/\">https://www.chatprd.ai/</a></p><p>Website: <a href=\"https://clairevo.com/\">https://clairevo.com/</a></p><p>LinkedIn: <a href=\"https://www.linkedin.com/in/clairevo/\">https://www.linkedin.com/in/clairevo/</a></p><p>X: <a href=\"https://x.com/clairevo\">https://x.com/clairevo</a></p><p></p><p>Production and marketing by <a href=\"https://penname.co/\">https://penname.co/</a>. For inquiries about sponsoring the podcast, email jordan@penname.co.</p>",
+  "audience": "everyone",
+  "is_published": true,
+  "post_date": "2026-09-30T14:45:15.164Z",
+  "is_geoblocked": false,
+  "is_editor_preview": false,
+  "free_unlock_required": false,
+  "video_upload_id": "9920714e-ef15-4994-8f9d-52d3573594e8",
+  "podcast_url": "https://api.substack.com/api/v1/audio/upload/a7d08ea1-ef78-4582-bc6f-3208844c22d6/src",
+  "publishedBylines": [
+    {
+      "id": 5636738,
+      "name": "Claire Vo",
+      "handle": "clairevo"
+    }
+  ],
+  "videoUpload": {
+    "id": "9920714e-ef15-4994-8f9d-52d3573594e8",
+    "state": "transcoded",
+    "publication_id": 10845,
+    "post_id": 218186983,
+    "user_id": 98424238,
+    "media_type": "video",
+    "duration": 1460,
+    "width": 1280,
+    "height": 720,
+    "thumbnail_id": 1
+  },
+  "podcastUpload": {
+    "id": "a7d08ea1-ef78-4582-bc6f-3208844c22d6",
+    "state": "transcoded",
+    "publication_id": 10845,
+    "post_id": 218186983,
+    "user_id": 98424238,
+    "media_type": "audio",
+    "duration": 1460.0098,
+    "width": null,
+    "height": null,
+    "thumbnail_id": 1
+  }
+}

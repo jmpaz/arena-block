@@ -257,6 +257,7 @@ private struct MediaThumbnail: View {
         }
         .task(id: asset.kind == "video" ? asset.thumbnailURL ?? asset.url : asset.url) {
             localImage = nil
+            guard asset.kind != "audio" else { return }
             guard let url = asset.kind == "video" ? asset.thumbnailURL ?? asset.url : asset.url else { return }
             let loaded = await MediaThumbnailCache.shared.image(for: url, video: asset.kind == "video" && asset.posterURL == nil, maxPixel: maxPixel)
             guard !Task.isCancelled else { return }

@@ -105,6 +105,9 @@ final class CapturePreparation {
             let frame = plan["block"]?["frameMedia"]?.array.first { $0["ref"]?.string == ref }
             let kind = frame == nil ? originalKind : "image"
             let address = frame?["url"]?.string ?? originalAddress
+            if kind == "video", case .number(let duration) = asset["durationSeconds"], duration > 600 {
+                throw CaptureError.message("This video exceeds the 10-minute composition limit. Choose its Frame or capture text instead.")
+            }
             try Task.checkCancellation()
             let sources = try decode(await runtime.mediaSources(address))
             guard let resolved = sources["url"]?.string, let url = URL(string: resolved) else { throw CaptureError.message("Couldn't load the media link.") }
@@ -115,9 +118,19 @@ final class CapturePreparation {
             } else { audioURL = nil }
             let staged = try await NativeMediaRenderer.stage(ref: ref, kind: kind, source: url, directory: directory, audioSource: audioURL)
             media.append(staged)
+            if frame == nil, asset["acquisition"]?.string == "substack-public-original" {
+                guard case .number(let duration) = asset["durationSeconds"] else { throw CaptureError.message("The original media has no verified duration.") }
+                try NativeMediaRenderer.verifyOriginalDuration(expected: duration, actual: staged.duration)
+            }
             probes[ref] = .object(["width": .number(staged.width), "height": .number(staged.height), "duration": .number(staged.duration), "fps": .number(staged.fps), "audio": .bool(staged.hasAudio)])
         }
         guard media.count == selected.count else { throw CaptureError.message("Some selected media could not be prepared. No block was created.") }
+        if plan["block"]?["kind"]?.string == "audio" {
+            guard media.count == 1, let audio = media.first else { throw CaptureError.message("Capture one original audio attachment alone.") }
+            let result = try NativeMediaRenderer.originalAudio(audio, directory: directory)
+            try Task.checkCancellation(); completed = true
+            return result
+        }
         let recipe = try decode(runtime.renderRecipe(planJSON: json(plan), probesJSON: json(.object(probes))))
         let result = try await NativeMediaRenderer.render(recipe: NativeMediaRecipe(json: recipe), media: media, directory: directory)
         try Task.checkCancellation(); completed = true
