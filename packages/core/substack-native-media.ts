@@ -12,7 +12,7 @@ export const substackNativeMediaSchema = z.object({ kind: z.enum(["video", "audi
 export type SubstackNativeMedia = z.infer<typeof substackNativeMediaSchema>;
 
 /** Project only native media offered by a complete, freely public article contract. */
-export function publicSubstackNativeMedia(value: unknown, canonicalURL: string): SubstackNativeMedia[] {
+export function publicSubstackNativeMedia(value: unknown, canonicalURL: string, inlineUploads: unknown[] = []): SubstackNativeMedia[] {
   const post = z.object({ id: z.number().int().positive(), publication_id: z.number().int().positive(), audience: z.literal("everyone"),
     video_upload_id: z.uuid().nullable().optional(), videoUpload: uploadSchema.nullable().optional(),
     podcast_url: z.string().nullable().optional(), podcastUpload: uploadSchema.nullable().optional(),
@@ -21,18 +21,29 @@ export function publicSubstackNativeMedia(value: unknown, canonicalURL: string):
   const bind = (upload: z.infer<typeof uploadSchema>) => {
     if (upload.post_id !== post.id || upload.publication_id !== post.publication_id || upload.is_free_preview) throw new Error("Substack native media is a preview or belongs to a different article");
   };
-  if (post.video_upload_id) {
-    const upload = post.videoUpload;
-    if (!upload || upload.id !== post.video_upload_id || upload.media_type !== "video") throw new Error("Substack article has no verified complete video metadata");
+  const video = (upload: z.infer<typeof uploadSchema>) => {
+    if (upload.media_type !== "video") throw new Error("Substack inline video metadata has the wrong media type");
     bind(upload);
     // This is Substack's player route (src, type=mp4, publication context), not
     // a guessed unsigned Mux URL or an exported account/media token.
     const source = new URL(`/api/v1/video/upload/${upload.id}/src`, origin);
     source.searchParams.set("type", "mp4"); source.searchParams.set("override_publication_id", String(post.publication_id));
     const thumbnail = upload.thumbnail_id;
-    media.push({ kind: "video", uploadId: upload.id, url: source.href, durationSeconds: upload.duration,
+    const projected: SubstackNativeMedia = { kind: "video", uploadId: upload.id, url: source.href, durationSeconds: upload.duration,
       ...(upload.width ? { width: upload.width } : {}), ...(upload.height ? { height: upload.height } : {}),
-      ...(thumbnail !== undefined && thumbnail !== null ? { posterUrl: `https://substack-video.s3.amazonaws.com/video_upload/post/${post.id}/${upload.id}/transcoded-${String(thumbnail).padStart(5, "0")}.png` } : {}) });
+      ...(thumbnail !== undefined && thumbnail !== null ? { posterUrl: `https://substack-video.s3.amazonaws.com/video_upload/post/${post.id}/${upload.id}/transcoded-${String(thumbnail).padStart(5, "0")}.png` } : {}) };
+    const previous = media.find(item => item.uploadId === upload.id);
+    if (previous && JSON.stringify(previous) !== JSON.stringify(projected)) throw new Error("Substack upload snapshots disagree about the same original media");
+    if (!previous) media.push(projected);
+  };
+  if (post.video_upload_id) {
+    const upload = post.videoUpload;
+    if (!upload || upload.id !== post.video_upload_id) throw new Error("Substack article has no verified complete video metadata");
+    video(upload);
+  }
+  for (const value of inlineUploads) {
+    const upload = uploadSchema.parse(value);
+    video(upload);
   }
   if (post.podcast_url) {
     const upload = post.podcastUpload;

@@ -6,7 +6,7 @@ import { substackPublicJSON } from "../substack-public.ts";
 import { substackArticleRecordSchema } from "../substack-article-record.ts";
 import type { ParsedSource } from "../url.ts";
 import type { MediaAsset, ResolvedPost } from "../types.ts";
-import { publicSubstackNativeMedia } from "../substack-native-media.ts";
+import { publicSubstackNativeMedia, type SubstackNativeMedia } from "../substack-native-media.ts";
 
 const postSchema = z.object({ id: z.number().int().positive(), publication_id: z.number().int().positive(), slug: z.string(),
   canonical_url: z.url(), title: z.string().min(1), subtitle: z.string().nullable().optional(), body_html: z.string().nullable(),
@@ -28,8 +28,28 @@ export function substackOriginalImage(value: string, base: string): string {
     || !(url.hostname === "substack-post-media.s3.amazonaws.com" || url.hostname === "substackcdn.com" || url.hostname.endsWith(".substackcdn.com"))) throw new Error("Substack article image has no supported observed original URL");
   return url.href;
 }
-export function substackArticleBody(html: string, base: string): { markdown: string; media: MediaAsset[] } {
-  const doc = createDocument(html), media: MediaAsset[] = [];
+function inlineVideoID(element: Element): string {
+  if (element.textContent?.trim() || element.querySelector("*")) throw new Error("Substack inline video has unsupported nested content; authored captions cannot be omitted");
+  try { return z.object({ mediaUploadId: z.uuid() }).parse(JSON.parse(element.getAttribute("data-attrs") ?? "{}")).mediaUploadId; }
+  catch { throw new Error("Substack article contains an unsupported player; inline upload identity is invalid"); }
+}
+export function inlineSubstackVideoIDs(html: string): string[] {
+  const doc = createDocument(html);
+  const ids = Array.from(doc.querySelectorAll('[data-component-name="VideoPlaceholder"]')).map(inlineVideoID);
+  if (ids.length > 32) throw new Error("Substack article exceeds the inline video bound");
+  return [...new Set(ids)];
+}
+export function substackArticleBody(html: string, base: string, native: SubstackNativeMedia[] = []): { markdown: string; media: MediaAsset[] } {
+  const doc = createDocument(html), media: MediaAsset[] = [], inline = new Map<Element, MediaAsset>();
+  for (const element of Array.from(doc.querySelectorAll('[data-component-name="VideoPlaceholder"]'))) {
+    const id = inlineVideoID(element);
+    const source = native.find(item => item.kind === "video" && item.uploadId === id);
+    if (!source) throw new Error("Substack article contains an unsupported player; complete inline metadata is required");
+    const { uploadId: _, ...item } = source;
+    const link = doc.createElement("a"); link.setAttribute("href", source.url); link.appendChild(doc.createTextNode("Native video attachment"));
+    inline.set(link, { ...item, ref: "0.0", alt: "", sourceRole: "original", sourcePlacement: "body", acquisition: "substack-public-original" });
+    element.parentNode?.replaceChild(link, element);
+  }
   for (const mention of Array.from(doc.querySelectorAll('[data-component-name="MentionToDOM"]'))) {
     if (mention.textContent?.trim()) continue;
     const attrs = z.object({ name: z.string().min(1), url: z.string().nullable().optional() }).parse(JSON.parse(mention.getAttribute("data-attrs") ?? "{}"));
@@ -57,7 +77,9 @@ export function substackArticleBody(html: string, base: string): { markdown: str
     const name = element.getAttribute("data-component-name")!;
     if (!element.textContent?.trim() && !element.querySelector("img") && name !== "MentionToDOM") throw new Error(`Substack article component ${name} has no supported complete projection`);
   }
-  for (const image of Array.from(doc.querySelectorAll("img"))) {
+  for (const image of Array.from(doc.querySelectorAll("a,img"))) {
+    const attachment = inline.get(image); if (attachment) { media.push(attachment); continue; }
+    if (image.tagName !== "IMG") continue;
     let attrs: Record<string, unknown> = {};
     try { attrs = JSON.parse(image.getAttribute("data-attrs") ?? "{}"); } catch { /* The observed src/href remains available. */ }
     const candidates = [typeof attrs.src === "string" ? attrs.src : undefined, image.getAttribute("src"), image.closest("a")?.getAttribute("href")].filter((value): value is string => !!value);
@@ -98,16 +120,23 @@ export async function resolveSubstackArticle(source: Extract<ParsedSource, { kin
   const post = parsed.data, canonical = new URL(post.canonical_url), expected = new URL(source.canonicalUrl);
   if (canonical.protocol !== "https:" || canonical.username || canonical.password || canonical.port || post.slug !== source.slug || canonical.origin !== expected.origin || canonical.pathname !== expected.pathname.replace(/\/$/, "") || canonical.search || canonical.hash) throw new Error("Substack article identity or publication domain disagrees with the requested source");
   if (post.audience !== "everyone" || !post.is_published || post.is_geoblocked || post.is_editor_preview || post.free_unlock_required || !post.body_html?.trim()) throw new Error("Substack article is not a complete freely public body; no paywall or access bypass is attempted");
-  const nativeMedia = publicSubstackNativeMedia(value, canonical.href);
+  const ids = inlineSubstackVideoIDs(post.body_html), inlineUploads: unknown[] = [], budget = { bytes: 0, maximum: 4 * 1024 * 1024 };
+  const bounded = AbortSignal.any([...(signal ? [signal] : []), AbortSignal.timeout(60_000)]);
+  for (const id of ids) {
+    const upload = await substackPublicJSON(`${canonical.origin}/api/v1/video/upload/${id}`, fetcher, bounded, budget);
+    if (!upload || typeof upload !== "object" || (upload as { id?: string }).id !== id) throw new Error("Substack inline video identity disagrees with its authored placeholder");
+    inlineUploads.push(upload);
+  }
+  const nativeMedia = publicSubstackNativeMedia(value, canonical.href, inlineUploads);
   const authors = post.publishedBylines.map(byline => ({ id: byline.id, name: byline.name, handle: byline.handle ?? `user-${byline.id}`,
     profileUrl: byline.handle ? `https://substack.com/@${byline.handle}` : `https://substack.com/profile/${byline.id}` }));
   const record = substackArticleRecordSchema.parse({ version: 1, id: post.id, publicationId: post.publication_id, url: canonical.href,
     slug: post.slug, title: post.title, subtitle: post.subtitle ?? "", authors, observedAt: new Date().toISOString(), method: "public-api", audience: "everyone", bodyHtml: post.body_html,
     ...(nativeMedia.length ? { nativeMedia } : {}) });
-  const body = substackArticleBody(record.bodyHtml, record.url);
+  const body = substackArticleBody(record.bodyHtml, record.url, nativeMedia);
   const byline = authors.map(author => `<a href="${escape(author.profileUrl)}">${escape(author.name)}</a>`).join(", ");
   const header = substackArticleBody(`<h1>${escape(record.title)}</h1>${record.subtitle ? `<p><em>${escape(record.subtitle)}</em></p>` : ""}<p>By ${byline}</p>`, record.url).markdown;
   return { provider: "substack", id: `article:${post.id}`, canonicalUrl: record.url, author: { handle: authors[0]!.handle, name: authors.map(author => author.name).join(", ") },
     text: "", article: `${header}\n\n${body.markdown}\n\n*[Substack article source](<${record.url}>)*`, substackArticle: record,
-    postTitle: record.title, postedAt: post.post_date, media: [...nativeMedia.map(({ uploadId: _, ...item }) => ({ ...item, ref: "0.0", alt: "", sourceRole: "original" as const, acquisition: "substack-public-original" as const })), ...body.media] };
+    postTitle: record.title, postedAt: post.post_date, media: [...nativeMedia.filter(item => !ids.includes(item.uploadId)).map(({ uploadId: _, ...item }) => ({ ...item, ref: "0.0", alt: "", sourceRole: "original" as const, acquisition: "substack-public-original" as const })), ...body.media] };
 }

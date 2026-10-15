@@ -8,7 +8,6 @@ import { parseSource } from "../packages/core/url.ts";
 import { composePlan } from "../packages/core/compose.ts";
 import { blockPlanSchema, type ResolvedPost } from "../packages/core/types.ts";
 import { requiredPlanCapabilities } from "../src/plan-capabilities.ts";
-import { buildInfo } from "../src/version.ts";
 import { renderPlan } from "../src/render.ts";
 
 const fixture = await Bun.file(new URL("./fixtures/substack-public-podcast.json", import.meta.url)).json();
@@ -33,7 +32,7 @@ test("native public podcast retains stable originals and external linked video d
   expect(composePlan([post],{media:"selected", selectedMedia:["1.2"]}).block.kind).toBe("audio");
   expect(composePlan([{...post,media:[audio!]}]).block.kind).toBe("audio");
   expect(() => composePlan([post],{media:"all"})).toThrow("alone");
-  expect(requiredPlanCapabilities(plan)).toContain("substack-native-media-v1"); expect(buildInfo().planCapabilities).toContain("substack-native-media-v1");
+  expect(requiredPlanCapabilities(plan)).toContain("substack-native-media-v1");
 });
 test("ordered sources and media extras automatically prefer podcast visuals over alternate audio", async () => {
   const note: ResolvedPost = {provider:"substack",id:"42",canonicalUrl:"https://substack.com/note/c-42",author:{handle:"writer"},text:"Note",media:[]};
@@ -80,4 +79,35 @@ test("short native video follows normal delivery redirect and rejects a shortene
     const result=await renderPlan(composePlan([post],{media:"video"}),dir); expect(result!.mimeType).toBe("video/mp4"); expect(result!.size).toBeGreaterThan(0);
     video.durationSeconds=10; await expect(renderPlan(composePlan([post],{media:"video"}),dir)).rejects.toThrow("duration"); await stagingEmpty(dir);
   } finally { await server.stop(true); }
+});
+const inlineFixture=await Bun.file(new URL("./fixtures/substack-inline-video.json",import.meta.url)).json();
+test("inline public video binds authored placeholder to full same-article upload metadata",async()=>{
+  const seen:string[]=[];
+  const fetcher=(async (url:RequestInfo|URL,init?:RequestInit)=>{seen.push(String(url));expect(init!.credentials).toBe("omit");expect(init!.redirect).toBe("error");return Response.json(String(url).includes("/video/upload/")?inlineFixture.upload:inlineFixture.post);}) as unknown as typeof fetch;
+  const post=await new SubstackProvider([],fetcher).resolve(parseSource(inlineFixture.post.canonical_url));
+  expect(post.substackArticle!.bodyHtml).toBe(inlineFixture.post.body_html);expect(post.article).toContain("Native video attachment");
+  const video=post.media.find(item=>item.kind==="video")!;expect(video).toMatchObject({sourcePlacement:"body",durationSeconds:61.625,acquisition:"substack-public-original"});
+  expect(post.substackArticle!.nativeMedia).toHaveLength(1);expect(seen).toHaveLength(2);
+  expect(blockPlanSchema.parse(composePlan([assignMediaRefs(post,0)],{media:"video"})).block.kind).toBe("video");
+});
+test("inline video identity, source binding, previews and source-order projection remain strict",async()=>{
+  for(const upload of [{...inlineFixture.upload,id:crypto.randomUUID()},{...inlineFixture.upload,post_id:1},{...inlineFixture.upload,is_free_preview:true},{...inlineFixture.upload,state:"uploading"}]){
+    const fetcher=(async(url:RequestInfo|URL)=>Response.json(String(url).includes("/video/upload/")?upload:inlineFixture.post)) as unknown as typeof fetch;
+    await expect(new SubstackProvider([],fetcher).resolve(parseSource(inlineFixture.post.canonical_url))).rejects.toThrow();
+  }
+  const { substackArticleBody }=await import("../packages/core/providers/substack-article.ts");
+  const { publicSubstackNativeMedia }=await import("../packages/core/substack-native-media.ts");
+  const id=inlineFixture.upload.id, html=`<img src="https://substack-post-media.s3.amazonaws.com/public/images/before.png"><div data-component-name="VideoPlaceholder" data-attrs='{"mediaUploadId":"${id}"}'></div><img src="https://substack-post-media.s3.amazonaws.com/public/images/after.png">`;
+  const projected=substackArticleBody(html,inlineFixture.post.canonical_url,publicSubstackNativeMedia(inlineFixture.post,inlineFixture.post.canonical_url,[inlineFixture.upload]));
+  expect(projected.media.map(item=>item.kind)).toEqual(["image","video","image"]);
+  expect(projected.markdown.indexOf("before.png")).toBeLessThan(projected.markdown.indexOf("Native video attachment"));
+});
+test("duplicate inline/header upload snapshots must agree and nested authored content cannot disappear",async()=>{
+  const { publicSubstackNativeMedia }=await import("../packages/core/substack-native-media.ts");
+  const { substackArticleBody }=await import("../packages/core/providers/substack-article.ts");
+  const post={...inlineFixture.post,video_upload_id:inlineFixture.upload.id,videoUpload:inlineFixture.upload};
+  expect(publicSubstackNativeMedia(post,post.canonical_url,[inlineFixture.upload])).toHaveLength(1);
+  for(const patch of [{post_id:999},{publication_id:999},{is_free_preview:true},{media_type:"audio"},{duration:2}]) expect(()=>publicSubstackNativeMedia(post,post.canonical_url,[{...inlineFixture.upload,...patch}])).toThrow();
+  const html=`<div data-component-name="VideoPlaceholder" data-attrs='{"mediaUploadId":"${inlineFixture.upload.id}"}'><p>Authored caption</p></div>`;
+  expect(()=>substackArticleBody(html,post.canonical_url,publicSubstackNativeMedia(post,post.canonical_url))).toThrow("captions");
 });
