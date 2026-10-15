@@ -123,7 +123,8 @@ export class PickerView {
     this.lines[this.height - 2]!.content = this.tray(w);
     this.lines[this.height - 1]!.content = this.rule(w);
     if (this.preview) this.preview.content = this.previewText(thumb);
-    const fieldText = `› ${m.query}`;
+    const trail = m.path.map(c => truncate(c.title, 14)).join(" › ");
+    const fieldText = `${trail ? `${trail} ` : ""}› ${m.query}`;
     this.renderer.setCursorPosition(Math.min(w - 1, width(fieldText)), 1, true);
   }
 
@@ -155,13 +156,14 @@ export class PickerView {
     }
     const tag = m.mode === "jump" ? "jump  " : "";
     const right = width(tag) + "mine network all".length;
-    const prompt = `› ${m.query}`;
+    const trail = m.path.map(c => truncate(c.title, 14)).join(" › ");
+    const prompt = `${trail ? `${trail} ` : ""}› ${m.query}`;
     return line([prompt, " ".repeat(Math.max(1, w - width(prompt) - right)), dim(tag), ...scopes]);
   }
 
   private gutter(row: Extract<Row, { kind: "channel" }>): Piece {
     const m = this.model;
-    const paint = ink[row.channel.visibility];
+    const paint = ink[m.visibilityOf(row.channel)];
     if (m.isHeld(row.channel)) return paint("■ ");
     if (m.alreadyIn.has(row.channel.id)) return dim("◇ ");
     if (row.slot) return dim(`${row.slot} `);
@@ -174,7 +176,10 @@ export class PickerView {
     if (!row) return line([]);
     const here = index === m.cursor;
     const lit = (p: Piece) => (here ? reverse(typeof p === "string" ? ink.plain(p) : p) : p);
-    if (row.kind === "label") return line([dim(`${row.text} ${"─".repeat(Math.max(0, w - width(row.text) - 1))}`)]);
+    if (row.kind === "label") {
+      const aside = row.aside ? ` ${row.aside}` : "";
+      return line([dim(`${row.text} ${"─".repeat(Math.max(1, w - width(row.text) - width(aside) - 1))}`), dim(aside)]);
+    }
     if (row.kind === "pending") {
       if (row.text) return line([dim(`  ${row.text}`)]);
       const bar = "░".repeat(Math.max(4, Math.floor(w * (0.25 + ((index * 37) % 30) / 100))));
@@ -188,16 +193,23 @@ export class PickerView {
       return line(["  ", here ? reverse(ink.plain(text)) : paint(text), lit(gap), dim(hint)]);
     }
     const c = row.channel;
-    const showOwner = c.owner.name !== this.opts.me;
-    const owner = showOwner ? truncate(c.owner.name, Math.min(18, Math.floor(w / 4))) : "";
+    const visibility = m.visibilityOf(c);
+    const changed = visibility !== c.visibility;
+    const parent = m.query.trim() && !m.room ? m.parentOf(c) : undefined;
+    const where = m.isMine(c) ? (parent ? `in ${truncate(parent.title, 16)} · ` : "") : `${truncate(c.owner.name, 18)} · `;
+    const state = changed ? `${c.visibility} → ${visibility}` : visibility;
+    const right = `${where}${state}`;
+    const kids = m.childrenOf(c).length;
     const count = c.pending ? " new" : c.count === undefined ? "" : ` ${c.count}`;
-    const room = w - 2 - width(count) - (owner ? width(owner) + 2 : 1);
+    const nest = kids ? ` ▸${kids}` : "";
+    const room = w - 2 - width(count) - width(nest) - width(right) - 2;
     const title = truncate(c.title, room);
-    const gap = " ".repeat(Math.max(1, w - 2 - width(title) - width(count) - width(owner)));
-    const paint = here ? ink.plain : ink[c.visibility];
+    const gap = " ".repeat(Math.max(1, w - 2 - width(title) - width(count) - width(nest) - width(right)));
+    const paint = here ? ink.plain : ink[visibility];
     const titled = titlePieces(title, title.endsWith("…") ? [] : row.spans, paint);
-    const faint = row.faint && !here;
-    const body: Piece[] = [...titled.map(p => (faint ? dim(p) : p)), dim(count), gap, dim(owner)];
+    const faint = (row.faint || c.canAdd === false) && !here;
+    const stateInk = here ? ink.plain : changed ? ink[visibility] : (x: string) => dim(ink[visibility](x));
+    const body: Piece[] = [...titled.map(p => (faint ? dim(p) : p)), dim(count), here ? nest : dim(nest), gap, dim(where), stateInk(state)];
     return line([this.gutter(row), ...body.map(lit)]);
   }
 
@@ -279,13 +291,14 @@ export class PickerView {
 export async function runPicker(options: PickerOptions): Promise<PickerResult> {
   const index = await options.client.channelIndex();
   const channels = index.channels as Channel[];
+  const nesting = await options.client.channelNesting().catch(() => undefined);
   const height = Math.max(8, options.height ?? 14);
   const fd = openSync("/dev/tty", "r+");
   const input = new tty.ReadStream(fd);
   const output = new tty.WriteStream(fd);
   const columns = output.columns || 80;
   const previewWidth = options.previewWidth ?? (columns >= 100 ? 30 : 0);
-  const model = new PickerModel(channels, options.recents ?? [], options.block, height - 4, { mode: options.mode, me: options.me });
+  const model = new PickerModel(channels, options.recents ?? [], options.block, height - 4, { mode: options.mode, me: options.me, nesting });
   output.write("\x1b[A");
   const renderer = await createCliRenderer({
     stdin: input as unknown as NodeJS.ReadStream, stdout: output as unknown as NodeJS.WriteStream,
@@ -296,6 +309,7 @@ export async function runPicker(options: PickerOptions): Promise<PickerResult> {
 
   let carrying = false;
   let downRow: number | null = null;
+  let lastClick: { row: number; at: number } | undefined;
   let searchTimer: ReturnType<typeof setTimeout> | undefined;
   const redraw = () => { view.draw(); renderer.requestRender(); };
 
@@ -334,9 +348,9 @@ export async function runPicker(options: PickerOptions): Promise<PickerResult> {
       const emitted = outcome && outcome.destinations.length ? emitText(outcome, options.emit ?? "id") : "";
       renderer.destroy();
       output.write(`\x1b[${height}A\r\x1b[J`);
-      if (outcome && outcome.destinations.length) {
+      if (outcome && (outcome.destinations.length || outcome.requests.length)) {
         const names = outcome.destinations.map(c => c.title).join(", ");
-        output.write(`${model.block ? `◆ ${model.block.title} → ` : "→ "}${names}\n`);
+        if (names) output.write(`${model.block ? `◆ ${model.block.title} → ` : "→ "}${names}\n`);
         for (const request of outcome.requests) {
           const body = request.body ? ` ${JSON.stringify(request.body)}` : "";
           output.write(`\x1b[2m  would send ${truncate(`${request.method} ${request.path}${body}`, columns - 14)}\x1b[22m\n`);
@@ -364,7 +378,9 @@ export async function runPicker(options: PickerOptions): Promise<PickerResult> {
       else if (name === "pagedown") model.move(model.listRows);
       else if (key.ctrl && name === "s") { model.cycleScope(); search(); }
       else if (key.ctrl && name === "t") model.toggleMode();
-      else if (key.ctrl && name === "v") model.cycleCreateVisibility();
+      else if (key.ctrl && name === "v") model.cycleVisibility();
+      else if ((name === "right" || (key.ctrl && name === "]")) && !model.query) model.enter();
+      else if (name === "left" && !model.query) model.back();
       else if (key.ctrl && name === "u") { model.query = ""; model.rebuild(); search(); }
       else if (key.ctrl && name === "o") { const c = model.previewChannel(); if (c) model.notice = `would open ${channelUrl(c)}`; }
       else if (key.meta && /^[1-9]$/.test(name)) model.toggleRecent(Number(name));
@@ -409,7 +425,14 @@ export async function runPicker(options: PickerOptions): Promise<PickerResult> {
           const at = model.top + event.y - view.lines[0]!.y - view.listStart;
           if (at !== rowAt()) return;
           if (carrying) { carrying = false; model.notice = ""; model.focusRow(at); model.putDown(at); }
-          else if (downRow === at) { model.focusRow(at); model.toggle(at); }
+          else if (downRow === at) {
+            const now = performance.now();
+            const second = lastClick && lastClick.row === at && now - lastClick.at < 400;
+            lastClick = second ? undefined : { row: at, at: now };
+            model.focusRow(at);
+            if (second && model.childrenOf((model.rows[at] as { channel: Channel }).channel).length) { model.toggle(at); model.enter(at); }
+            else model.toggle(at);
+          }
           downRow = null;
           redraw();
         };

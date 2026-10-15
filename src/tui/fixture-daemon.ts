@@ -5,7 +5,8 @@ import { ChannelRanker } from "./rank.ts";
 
 export const snapshotSchema = z.object({
   accountId: z.number().int().positive(),
-  channels: z.array(channelRecordSchema.extend({ updatedAt: z.string().nullable().optional() })).max(3000),
+  channels: z.array(channelRecordSchema.extend({ updatedAt: z.string().nullable().optional(), children: z.array(z.number().int()).optional() })).max(3000),
+  me: z.string().optional(),
   recents: z.array(z.number().int()).default([]),
   held: z.object({ title: z.string(), source: z.string(), kind: z.string(), blockId: z.number().int().positive().optional(),
     url: z.string().optional(), alreadyIn: z.array(z.number().int()).default([]) }).optional(),
@@ -28,7 +29,9 @@ export function startFixtureDaemon(snapshot: Snapshot, token = crypto.randomUUID
   const refused: string[] = [];
   const ranker = new ChannelRanker(snapshot.channels);
   const json = (value: unknown, status = 200) => Response.json(value, { status });
-  const records = snapshot.channels.map(({ updatedAt: _, ...channel }) => channel);
+  const all = snapshot.channels.map(({ updatedAt: _, children: __, ...channel }) => channel);
+  const mine = (c: { owner: { name: string } }) => snapshot.me === undefined || c.owner.name === snapshot.me;
+  const records = all.filter(mine);
   const server = Bun.serve({
     hostname: "127.0.0.1",
     port: 0,
@@ -48,9 +51,13 @@ export function startFixtureDaemon(snapshot: Snapshot, token = crypto.randomUUID
         const slice = records.slice((page - 1) * 30, page * 30);
         return json({ accountId: snapshot.accountId, channels: slice, nextPage: page * 30 < records.length ? page + 1 : null });
       }
+      if (url.pathname === "/v1/channel-nesting") {
+        const parents = Object.fromEntries(snapshot.channels.filter(c => c.children?.length).map(c => [String(c.id), c.children!]));
+        return json({ accountId: snapshot.accountId, parents, channels: all.filter(c => !mine(c)) });
+      }
       if (url.pathname === "/v1/channel-search") {
         const query = url.searchParams.get("query") ?? "";
-        const found = ranker.rank(query).map(m => records.find(r => r.id === m.channel.id)!);
+        const found = ranker.rank(query).map(m => all.find(r => r.id === m.channel.id)!);
         return json({ accountId: snapshot.accountId, channels: found.slice(0, 30), nextPage: null });
       }
       const existing = url.pathname.match(/^\/v1\/existing-blocks\/(\d+)$/);

@@ -111,3 +111,43 @@ describe("view", () => {
     renderer.destroy();
   });
 });
+
+describe("nesting and visibility", () => {
+  const nested = () => new PickerModel(channels, snapshot.recents, snapshot.held, 10, {
+    me: "Ana Ruiz", nesting: { parents: { "9012": [9013, 9014], "9013": [9015] }, channels: [] },
+  });
+
+  test("right steps into a channel's nested channels and left returns to the same row", () => {
+    const m = nested();
+    const at = m.rows.findIndex(r => r.kind === "channel" && r.channel.id === 9012);
+    m.focusRow(at);
+    expect(m.enter()).toBe(true);
+    expect(m.rows.flatMap(r => r.kind === "channel" ? [r.channel.id] : [])).toEqual([9013, 9014]);
+    m.enter();
+    expect(m.path.map(c => c.id)).toEqual([9012, 9013]);
+    m.back();
+    m.back();
+    expect(m.rooms).toHaveLength(0);
+    expect(m.cursor).toBe(at);
+  });
+
+  test("escape clears the query, then climbs out, then reports there is nothing left", () => {
+    const m = nested();
+    m.focusRow(m.rows.findIndex(r => r.kind === "channel" && r.channel.id === 9012));
+    m.enter();
+    m.type("x");
+    expect(m.escape()).toBe(false);
+    expect(m.escape()).toBe(false);
+    expect(m.rooms).toHaveLength(0);
+    expect(m.escape()).toBe(true);
+  });
+
+  test("a visibility change on an own channel is proposed, shown, and sent only as a stubbed request", () => {
+    const m = nested();
+    const at = m.rows.findIndex(r => r.kind === "channel" && r.channel.owner.name === "Ana Ruiz" && r.channel.visibility === "private");
+    m.cycleVisibility(at);
+    const row = m.rows[at]!;
+    expect(row.kind === "channel" && m.visibilityOf(row.channel)).toBe("closed");
+    expect(m.commit().requests[0]).toMatchObject({ method: "PUT", body: { visibility: "closed" } });
+  });
+});

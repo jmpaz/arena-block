@@ -155,6 +155,14 @@ export class ArenaBlockClient {
       .parse(await this.request(`/v1/channels/${channelId}/blocks?page=${page}`, undefined, signal, 20_000));
   }
 
+  /** Nested channels per channel, plus records for nested channels outside the account's own index. */
+  async channelNesting(signal?: AbortSignal) {
+    const record = z.object({ id: z.number().int().positive(), title: z.string(), slug: z.string(), visibility: z.enum(["private", "closed", "public"]),
+      owner: z.object({ name: z.string(), slug: z.string() }), count: z.number().int().nonnegative().optional(), canAdd: z.boolean().optional() });
+    return z.object({ accountId: z.number().int().positive(), parents: z.record(z.string(), z.array(z.number().int().positive())), channels: z.array(record) })
+      .parse(await this.request("/v1/channel-nesting", undefined, signal, 20_000));
+  }
+
   async channelLabels(refs: string[], signal?: AbortSignal): Promise<Array<{ ref: string; id: number; title: string; slug: string }>> {
     if (!refs.length || refs.length > 20 || refs.some(ref => !/^[A-Za-z0-9][A-Za-z0-9_-]{0,199}$/.test(ref)))
       throw new Error("Invalid channel label refs");

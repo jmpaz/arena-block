@@ -41,7 +41,7 @@ export async function pickCommand(options: PickOptions): Promise<number> {
     client = new ArenaBlockClient(daemon.endpoint, daemon.token);
     block = snapshot.held;
     recents = snapshot.recents;
-    me = snapshot.channels[0]?.owner.name;
+    me = snapshot.me;
   } else {
     const token = process.env.ARENA_BLOCK_ACCESS_TOKEN;
     if (!token) throw new Error("ARENA_BLOCK_ACCESS_TOKEN is required, or pass --fixture <snapshot.json>");
