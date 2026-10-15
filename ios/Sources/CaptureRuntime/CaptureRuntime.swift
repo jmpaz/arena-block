@@ -60,12 +60,10 @@ public final class CaptureRuntime {
         if let error = context.exception { throw RuntimeError(error.toString()) }
     }
 
-    public func resolve(refs: [String], extraRefs: [String] = [], policyJSON: String = "{}", refresh: Bool = false) async throws -> String {
+    public func resolve(refs: [String], extraRefs: [String] = [], policyJSON: String = "{}", refresh: Bool = false, redditCapturesJSON: String = "[]") async throws -> String {
         let refsJSON = String(decoding: try JSONEncoder().encode(refs), as: UTF8.self)
-        var arguments = [refsJSON, policyJSON, refresh ? "true" : "false"]
-        if !extraRefs.isEmpty {
-            arguments.append(String(decoding: try JSONEncoder().encode(extraRefs), as: UTF8.self))
-        }
+        let arguments = [refsJSON, policyJSON, refresh ? "true" : "false",
+                         String(decoding: try JSONEncoder().encode(extraRefs), as: UTF8.self), redditCapturesJSON]
         return try await invokeAsync("captureResolve", arguments: arguments)
     }
 
@@ -100,6 +98,10 @@ public final class CaptureRuntime {
     }
 
     public func fields(planJSON: String) throws -> String { try invoke("captureFields", [planJSON]) }
+    public func importRedditCapture(_ value: String) throws -> String {
+        guard value.utf8.count <= 2 * 1024 * 1024 else { throw RuntimeError("Reddit capture exceeds 2 MiB") }
+        return try invoke("captureRedditImport", [value])
+    }
     public func source(_ value: String) throws -> String { try invoke("captureSource", [value]) }
     /// Convert an existing on-device authenticated Are.na read to a media source without transmitting its credential.
     public func arenaMediaPost(blockJSON: String, blockID: Int) throws -> String {

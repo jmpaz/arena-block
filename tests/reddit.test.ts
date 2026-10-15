@@ -194,7 +194,6 @@ test("comment media is explicit instead of silently becoming text-only", async (
     data: { children: [{ data: String(url).includes("t1_") ? { ...comment, ...changes } : post }] },
   })).resolve(parseSource("https://reddit.com/r/test/comments/abc/title/def/"));
   for (const body of [
-    "Read this ![img](https://preview.redd.it/picture.png)",
     "Watch https://v.redd.it/clip/HLSPlaylist.m3u8",
     "![gif](giphy|clip)",
   ]) await expect(resolve({ body })).rejects.toThrow("Reddit comment media is unsupported");
@@ -204,6 +203,8 @@ test("comment media is explicit instead of silently becoming text-only", async (
     .rejects.toThrow("Reddit comment media is unavailable");
   await expect(resolve({ media: { reddit_video: { id: "clip" } } }))
     .rejects.toThrow("Reddit comment media is unsupported");
+  const illustrated = await resolve({ body: "Read this ![img](https://preview.redd.it/picture.png)" });
+  expect(illustrated.media[0]?.url).toBe("https://preview.redd.it/picture.png");
   const plain = await resolve({ body: "A text reply with https://example.com/article", media_metadata: {} });
   expect(plain.text).toBe("A text reply with https://example.com/article");
   expect(plain.media).toEqual([]);

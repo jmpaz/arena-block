@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { redditBrowserCaptureSchema, redditCapturesSchema, redditSourceKey, type RedditBrowserCapture } from "./reddit-record.ts";
 import { parseSource } from "./url.ts";
 
 export const SCHEMA_VERSION = 1 as const;
@@ -98,6 +99,7 @@ export type ResolvedPost = {
   storyTitle?: string;
   postTitle?: string;
   soundcloud?: SoundCloudMetadata;
+  redditCapture?: RedditBrowserCapture;
   media: MediaAsset[];
   mediaIssues?: z.infer<typeof mediaIssueSchema>[];
   arenaBlock?: { type: "Image" | "Link" | "Attachment" | "Embed"; sourceURL?: string; updatedAt?: string; mediaUpdatedAt?: string };
@@ -133,6 +135,7 @@ export const resolvedPostSchema: z.ZodType<ResolvedPost> = z.lazy(() =>
     storyTitle: z.string().min(1).optional(),
     postTitle: z.string().min(1).optional(),
     soundcloud: soundCloudMetadataSchema.optional(),
+    redditCapture: redditBrowserCaptureSchema.optional(),
     media: z.array(mediaAssetSchema),
     mediaIssues: z.array(mediaIssueSchema).optional(),
     arenaBlock: z.object({ type: z.enum(["Image", "Link", "Attachment", "Embed"]), sourceURL: z.url().optional(), updatedAt: z.string().optional(), mediaUpdatedAt: z.string().optional() }).optional(),
@@ -143,6 +146,12 @@ export const resolvedPostSchema: z.ZodType<ResolvedPost> = z.lazy(() =>
     embeddedRecord: embeddedRecordSchema.optional(),
     quoteBoundary: quoteBoundarySchema.optional(), quoteCoverage: quoteCoverageSchema.optional(),
     quoteSnapshot: z.object({ basis: z.literal("embedded"), hydration: z.enum(["unavailable", "deleted"]) }).optional(),
+  }).superRefine((post, context) => {
+    if (!post.redditCapture) return;
+    try {
+      if (post.provider !== "reddit" || post.id !== (post.redditCapture.comment?.id ?? post.redditCapture.post.id) ||
+          redditSourceKey(post.canonicalUrl) !== redditSourceKey(post.redditCapture.sourceUrl)) throw new Error("Mismatched Reddit capture provenance");
+    } catch { context.addIssue({ code: "custom", message: "Mismatched Reddit capture provenance", path: ["redditCapture"] }); }
   }),
 );
 
@@ -237,6 +246,7 @@ export const planInputSchema = z.object({
   extraRefs: z.array(z.string().min(1).max(8192)).max(19).default([]),
   policy: compositionPolicySchema.optional(),
   refresh: z.boolean().default(false),
+  redditCaptures: redditCapturesSchema,
 }).refine(input => input.refs.length + input.extraRefs.length <= 20, "At most 20 source posts are supported");
 export type PlanInput = z.infer<typeof planInputSchema>;
 

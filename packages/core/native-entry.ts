@@ -1,3 +1,5 @@
+import { RedditProvider } from "./providers/reddit.ts";
+import { bindRedditCaptures, normalizeRedditCapture, redditCapturesSchema } from "./reddit-record.ts";
 import { resolveMediaURL, resolveMediaSources } from "./media-acquisition.ts";
 import { verifyPublication, arenaImageUrl } from "./verification.ts";
 import "./native-platform.ts";
@@ -11,16 +13,20 @@ import { blockPlanSchema, compositionPolicySchema, resolvedPostSchema } from "./
 import { captureRenderRecipe } from "./render-recipe.ts";
 const host = globalThis as any;
 const jobs = new Map<string, AbortController>();
-const resolver = new SocialResolver({ soundcloud: new NativeSoundCloudProvider(),
-  bluesky: new BlueskyProvider(undefined, undefined, { retainConversationCoverage: true }) });
+function nativeResolver(captures = redditCapturesSchema.parse([])) { return new SocialResolver({ reddit: new RedditProvider(undefined, captures), soundcloud: new NativeSoundCloudProvider(),
+  bluesky: new BlueskyProvider(undefined, undefined, { retainConversationCoverage: true }) }); }
+const resolver = nativeResolver();
 host.captureCancel = (id: string) => jobs.get(id)?.abort();
-host.captureResolve = (id: string, refsJSON: string, policyJSON: string, refreshJSON = "false", extraRefsJSON = "[]") => {
+host.captureResolve = (id: string, refsJSON: string, policyJSON: string, refreshJSON = "false", extraRefsJSON = "[]", redditCapturesJSON = "[]") => {
+  const refs = JSON.parse(refsJSON), extras = JSON.parse(extraRefsJSON);
+  const captures = bindRedditCaptures([...refs, ...extras], redditCapturesSchema.parse(JSON.parse(redditCapturesJSON)));
+  const requestResolver = captures.length ? nativeResolver(captures) : resolver;
   const policy = compositionPolicySchema.parse(JSON.parse(policyJSON));
-  if (JSON.parse(refreshJSON) === true) resolver.clearSourceCache();
+  if (JSON.parse(refreshJSON) === true) requestResolver.clearSourceCache();
   const controller = new AbortController();
   jobs.get(id)?.abort();
   jobs.set(id, controller);
-  resolver.resolveComposition(JSON.parse(refsJSON), JSON.parse(extraRefsJSON), policy, controller.signal)
+  requestResolver.resolveComposition(refs, extras, policy, controller.signal)
     .then(resolved => {
       if (controller.signal.aborted || jobs.get(id) !== controller) return;
       const plan = composePlan(resolved.posts, resolved.policy);
@@ -33,6 +39,7 @@ host.captureCompose = (postsJSON: string, policyJSON: string) => {
   const plan = composePlan(resolvedPostSchema.array().parse(JSON.parse(postsJSON)), JSON.parse(policyJSON));
   return JSON.stringify({ plan, fields: publicationFields(plan) });
 };
+host.captureRedditImport = (value: string) => JSON.stringify(normalizeRedditCapture(JSON.parse(value)));
 host.captureSource = (value: string) => JSON.stringify(captureSource(value));
 host.captureArenaMediaPost = (block: string, blockID: string) => JSON.stringify(arenaMediaPost(JSON.parse(block), blockID));
 host.captureFields = (value: string) => JSON.stringify(publicationFields(blockPlanSchema.parse(JSON.parse(value))));

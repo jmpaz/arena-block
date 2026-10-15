@@ -1,34 +1,16 @@
 import { z } from "zod";
+import { redditPostSchema, redditCommentSchema, redditSourceKey, redditCapturesSchema, type RedditBrowserCapture } from "../reddit-record.ts";
 import type { MediaAsset, ResolvedPost } from "../types.ts";
 import { parseSource, type ParsedSource } from "../url.ts";
 import type { Fetcher } from "./comments.ts";
 import type { SocialProvider } from "./provider.ts";
 
-const videoContainer = z.object({ reddit_video: z.object({
-  hls_url: z.string().optional(), fallback_url: z.string().optional(), has_audio: z.boolean().optional(), width: z.number(), height: z.number(),
-}).optional() }).nullish();
-const postSchema = z.object({
-  id: z.string().regex(/^[a-z0-9]+$/), title: z.string().min(1), author: z.string().min(1), permalink: z.string(),
-  selftext: z.string(), created_utc: z.number(),
-  removed_by_category: z.string().nullish(),
-  url: z.string().optional(), is_self: z.boolean().optional(),
-  post_hint: z.string().optional(),
-  preview: z.object({ images: z.array(z.object({ id: z.string(), source: z.object({ width: z.number(), height: z.number() }) })) }).optional(),
-  gallery_data: z.object({ items: z.array(z.object({ media_id: z.string(), caption: z.string().optional(), is_deleted: z.boolean().optional() })).min(1) }).nullish(),
-  media_metadata: z.record(z.string(), z.object({
-    status: z.string(), e: z.string().optional(),
-    s: z.object({ u: z.string().optional(), gif: z.string().optional(), mp4: z.string().optional(), x: z.number().optional(), y: z.number().optional() }).optional(),
-  })).nullish(),
-  secure_media: videoContainer,
-  media: videoContainer,
-  crosspost_parent_list: z.array(z.unknown()).optional(),
-});
-function parsePostData(value: unknown): z.infer<typeof postSchema> {
+function parsePostData(value: unknown): z.infer<typeof redditPostSchema> {
   if (value && typeof value === "object" && !Array.isArray(value) &&
       typeof (value as { selftext?: unknown }).selftext !== "string") {
     throw new Error("Reddit post response omitted a usable selftext field; full content cannot be verified");
   }
-  return postSchema.parse(value);
+  return redditPostSchema.parse(value);
 }
 function webUrl(value: string): string {
   const url = new URL(value.replaceAll("&amp;", "&"));
@@ -50,7 +32,7 @@ function dimensions(source?: { x?: number; y?: number }) {
   return { ...(source?.x && Number.isInteger(source.x) && source.x > 0 ? { width: source.x } : {}),
     ...(source?.y && Number.isInteger(source.y) && source.y > 0 ? { height: source.y } : {}) };
 }
-function bodyImages(post: z.infer<typeof postSchema>, attachments: MediaAsset[]) {
+function bodyImages(post: { selftext: string; media_metadata?: z.infer<typeof redditPostSchema>["media_metadata"] }, attachments: MediaAsset[]) {
   const media: MediaAsset[] = [], issues: NonNullable<ResolvedPost["mediaIssues"]> = [];
   const seen = new Set(attachments.flatMap(item => item.id ? [item.id] : redditImage(item.url)?.id ? [redditImage(item.url)!.id] : []));
   const references = /!\[([^\]]*)\]\(([^\s)]+)(?:\s+"[^"]*")?\)|https?:\/\/[^\s<>()]+/g;
@@ -141,8 +123,32 @@ function postFromData(value: unknown, depth = 0, archivedAfterStatus?: number): 
     ...(quote ? { quote } : {}),
   };
 }
+function commentFromData(value: unknown, parent: { id: string; title: string }, source: Extract<ParsedSource, { provider: "reddit" }>): ResolvedPost {
+  const comment = redditCommentSchema.parse(value);
+  if (comment.id !== source.commentId || comment.link_id !== `t3_${source.id}`) throw new Error("Reddit returned a different comment or parent post");
+  if (comment.removed || comment.removed_by_category || ["[deleted]", "[removed]"].includes(comment.body.trim()) || comment.author === "[deleted]") throw new Error("Reddit comment is deleted or removed");
+  const canonicalUrl = new URL(comment.permalink, "https://www.reddit.com").href;
+  const canonical = parseSource(canonicalUrl);
+  if (canonical.provider !== "reddit" || canonical.id !== source.id || canonical.commentId !== comment.id) throw new Error("Reddit returned a mismatched comment permalink");
+  if (parent.id !== source.id) throw new Error("Reddit returned a different parent post");
+  if (comment.media != null) throw new Error("Reddit comment media is unsupported; full capture was not created");
+  if (/https:\/\/(?:external-preview|v)\.redd\.it\//i.test(comment.body)) throw new Error("Reddit comment media is unsupported; full capture was not created");
+  const assets = Object.values(comment.media_metadata ?? {});
+  if (assets.some(asset => asset.status !== "valid")) throw new Error("Reddit comment media is unavailable; full capture was not created");
+  const body = bodyImages({ selftext: comment.body, media_metadata: comment.media_metadata }, []);
+  if (body.issues.length) throw new Error("Reddit comment media is unsupported; full capture was not created");
+  const referenced = new Set(body.media.flatMap(asset => asset.id ? [asset.id] : []));
+  if (Object.keys(comment.media_metadata ?? {}).some(id => !referenced.has(id))) throw new Error("Reddit comment media is unsupported; full capture was not created");
+  return { provider: "reddit", id: comment.id, canonicalUrl, author: { handle: `/u/${comment.author}` },
+    text: comment.body, postedAt: new Date(comment.created_utc * 1000).toISOString(), storyTitle: parent.title,
+    media: body.media, ...(body.issues.length ? { mediaIssues: body.issues } : {}) };
+}
+
 export class RedditProvider implements SocialProvider {
-  constructor(private readonly fetcher: Fetcher = fetch) {}
+  private readonly captures: RedditBrowserCapture[];
+  constructor(private readonly fetcher: Fetcher = fetch, captures: RedditBrowserCapture[] = []) {
+    this.captures = redditCapturesSchema.parse(captures);
+  }
   private async completeGallery(value: unknown, options: { signal: AbortSignal }, depth = 0): Promise<unknown> {
     if (depth > 4) throw new Error("Reddit cross-post nesting is too deep");
     const post = parsePostData(value);
@@ -179,7 +185,7 @@ export class RedditProvider implements SocialProvider {
       return z.object({ data: z.object({ children: z.array(z.object({ data: z.unknown() })) }) }).parse(await direct.json()).data.children[0]?.data;
     }
     if ([403, 429].includes(direct.status)) {
-      throw new Error(`Reddit's live metadata read returned HTTP ${direct.status}; current content cannot be verified. No archive or block creation was attempted`);
+      throw new Error(`Reddit's live metadata read returned HTTP ${direct.status}; current content cannot be verified. No archive or block creation was attempted. Open the post or comment in your browser and use Read Reddit tab or share from Safari to Capture.`);
     }
     if (direct.status !== 503) throw new Error(`Reddit's live metadata read returned HTTP ${direct.status} without usable content; current content cannot be verified`);
     const kind = fullname.startsWith("t1_") ? "comments" : "posts";
@@ -190,32 +196,17 @@ export class RedditProvider implements SocialProvider {
     return value;
   }
   private async resolveComment(source: Extract<ParsedSource, { provider: "reddit" }>, signal: AbortSignal): Promise<ResolvedPost> {
-    const comment = z.object({
-      id: z.string(), link_id: z.string(), author: z.string().min(1), body: z.string().min(1),
-      permalink: z.string(), created_utc: z.number(), removed: z.boolean().optional(),
-      removed_by_category: z.string().nullish(),
-      media_metadata: z.record(z.string(), z.object({ status: z.string() })).nullish(),
-      media: z.unknown().nullish(),
-    }).parse(await this.lookup(`t1_${source.commentId}`, signal));
-    if (comment.id !== source.commentId || comment.link_id !== `t3_${source.id}`) throw new Error("Reddit returned a different comment or parent post");
-    if (comment.removed || comment.removed_by_category || ["[deleted]", "[removed]"].includes(comment.body.trim()) || comment.author === "[deleted]") throw new Error("Reddit comment is deleted or removed");
-    const commentAssets = Object.values(comment.media_metadata ?? {});
-    if (commentAssets.some(asset => asset.status !== "valid")) throw new Error("Reddit comment media is unavailable; full capture was not created");
-    if (commentAssets.length || comment.media != null || /!\[[^\]]*\]\([^)]+\)|https:\/\/(?:i|preview|external-preview|v)\.redd\.it\//i.test(comment.body)) {
-      throw new Error("Reddit comment media is unsupported; full capture was not created");
-    }
-    const canonicalUrl = new URL(comment.permalink, "https://www.reddit.com").href;
-    const canonical = parseSource(canonicalUrl);
-    if (canonical.provider !== "reddit" || canonical.id !== source.id || canonical.commentId !== comment.id) throw new Error("Reddit returned a mismatched comment permalink");
+    const comment = redditCommentSchema.parse(await this.lookup(`t1_${source.commentId}`, signal));
     const parent = z.object({ id: z.string(), title: z.string().min(1) }).parse(await this.lookup(comment.link_id, signal));
-    if (parent.id !== source.id) throw new Error("Reddit returned a different parent post");
-    return {
-      provider: "reddit", id: comment.id, canonicalUrl, author: { handle: `/u/${comment.author}` },
-      text: comment.body, postedAt: new Date(comment.created_utc * 1000).toISOString(), storyTitle: parent.title, media: [],
-    };
+    return commentFromData(comment, parent, source);
   }
   async resolve(input: ParsedSource, signal?: AbortSignal): Promise<ResolvedPost> {
     if (input.provider !== "reddit") throw new Error("Expected a Reddit source");
+    const capture = this.captures.find(item => !input.short && redditSourceKey(item.sourceUrl) === redditSourceKey(input.canonicalUrl));
+    if (capture) {
+      const post = capture.comment ? commentFromData(capture.comment, capture.post, input) : postFromData(capture.post);
+      return { ...post, redditCapture: capture };
+    }
     const requestSignal = signal ? AbortSignal.any([signal, AbortSignal.timeout(45_000)]) : AbortSignal.timeout(45_000);
     const options = { headers: { accept: "application/json", "user-agent": "arena-block/0.1" }, signal: requestSignal, redirect: "manual" as const };
     let source = input;
@@ -237,7 +228,7 @@ export class RedditProvider implements SocialProvider {
       value = listing[0]?.data.children[0]?.data;
     } else {
       if ([403, 429].includes(direct.status)) {
-        throw new Error(`Reddit's live post read returned HTTP ${direct.status}; current content cannot be verified. No archive or block creation was attempted`);
+        throw new Error(`Reddit's live post read returned HTTP ${direct.status}; current content cannot be verified. No archive or block creation was attempted. Open the post or comment in your browser and use Read Reddit tab or share from Safari to Capture.`);
       }
       if (direct.status !== 503) throw new Error(`Reddit's live post read returned HTTP ${direct.status} without a usable post; current content cannot be verified`);
       const archived = await this.fetcher(`https://arctic-shift.photon-reddit.com/api/posts/ids?ids=${source.id}`, options);

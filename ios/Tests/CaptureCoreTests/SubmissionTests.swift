@@ -838,7 +838,7 @@ final class SubmissionTests: XCTestCase {
             var job = try XCTUnwrap(store.value(DeliveryJob.self, account: 0, kind: "delivery", id: id.uuidString))
             XCTAssertEqual(job.preparationFailureStage, .reading)
             XCTAssertEqual(job.state.title, "Couldn’t read source")
-            XCTAssertEqual(CaptureSourceAccess.message(job.problem ?? ""), "Couldn’t load this Reddit content.")
+            XCTAssertEqual(CaptureSourceAccess.message(job.problem ?? ""), "Share the page from Safari to Capture, or import a browser capture file. A pasted link does not include the browser record.")
             XCTAssertTrue(job.problem?.contains("HTTP 403") == true)
             XCTAssertTrue(job.permitsEditing)
             XCTAssertNil(job.draft.blockID); XCTAssertNil(job.transferID)
@@ -889,7 +889,7 @@ final class SubmissionTests: XCTestCase {
             XCTAssertNil(roundtrip.preparationFailureStage)
             XCTAssertEqual(roundtrip.title, "Save interrupted")
             XCTAssertFalse(CaptureSourceAccess.redditDenied("Are.na returned HTTP 403"))
-            XCTAssertFalse(CaptureSourceAccess.redditDenied("Reddit's live metadata read returned HTTP 429; try later"))
+            XCTAssertTrue(CaptureSourceAccess.redditDenied("Reddit's live metadata read returned HTTP 429; try later"))
         }
     }
 

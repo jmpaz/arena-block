@@ -89,11 +89,12 @@ public struct CaptureContinuedProgress: Equatable, Sendable {
 public enum CaptureSourceAccess {
     public static func redditDenied(_ problem: String?) -> Bool {
         guard let problem else { return false }
-        return problem.hasPrefix("Reddit's live metadata read returned HTTP 403;") ||
-            problem.hasPrefix("Reddit's live post read returned HTTP 403;")
+        return ["metadata", "post"].contains { kind in
+            [403, 429].contains { status in problem.hasPrefix("Reddit's live \(kind) read returned HTTP \(status);") }
+        }
     }
     public static func message(_ problem: String) -> String {
-        redditDenied(problem) ? "Couldn’t load this Reddit content." : problem
+        redditDenied(problem) ? "Share the page from Safari to Capture, or import a browser capture file. A pasted link does not include the browser record." : problem
     }
 }
 

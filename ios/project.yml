@@ -95,9 +95,12 @@ targets:
           NSExtensionPointIdentifier: com.apple.share-services
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController
           NSExtensionAttributes:
+            NSExtensionJavaScriptPreprocessingFile: RedditPreprocessor
             NSExtensionActivationRule:
               NSExtensionActivationSupportsWebURLWithMaxCount: 20
               NSExtensionActivationSupportsText: true
+              NSExtensionActivationSupportsWebPageWithMaxCount: 1
+              NSExtensionActivationSupportsFileWithMaxCount: 1
     entitlements:
       path: ShareExtension/CaptureShare.entitlements
       properties:

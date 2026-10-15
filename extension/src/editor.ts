@@ -1,3 +1,6 @@
+import { resolveWithNative } from "./native-reddit.ts";
+import { normalizeRedditCapture, redditReadNeedsBrowser, redditCapturesSchema, redditSourceKey, REDDIT_CAPTURE_MAX_BYTES, type RedditBrowserCapture } from "../../packages/core/reddit-record.ts";
+import { readActiveRedditTab, type RedditTabAPI } from "./reddit-tab.ts";
 import { blockPlanSchema, type BlockPlan, type CompositionPolicy } from "../../packages/core/types.ts";
 import { requiredOrigins, resolveCapture, revisePlan } from "./core.ts";
 import { BrowserOAuth } from "./browser-auth.ts";
@@ -12,7 +15,8 @@ type BrowserAPI = {
   storage: { local: { get(key: string): Promise<Record<string, unknown>>; set(value: Record<string, unknown>): Promise<void>; remove(key: string): Promise<void> };
     onChanged: { addListener(listener: (changes: Record<string, { newValue?: unknown }>, area: string) => void): void } };
   runtime: { sendNativeMessage(host: string, message: unknown): Promise<unknown>; sendMessage(message: unknown): Promise<unknown>; getURL(path: string): string };
-  tabs: { query(query: { active: boolean; currentWindow: boolean }): Promise<Array<{ url?: string }>> };
+  tabs: { query(query: { active: boolean; currentWindow: boolean }): Promise<Array<{ id?: number; url?: string }>> };
+  scripting?: RedditTabAPI["scripting"];
   identity: { getRedirectURL(): string; launchWebAuthFlow(options: { url: string; interactive: boolean }): Promise<string | undefined> };
 };
 const browser = ((globalThis as any).browser ?? (globalThis as any).chrome) as BrowserAPI;
@@ -54,6 +58,7 @@ type Pending = { saveId: string; planHash?: string; inputSignature?: string; job
 type EarlierSave = { saveId: string; source: string; title: string; phase: string;
   method: "browser" | "native" | "job"; destinations: string[] };
 let plan: BlockPlan | undefined;
+let redditCaptures: RedditBrowserCapture[] = [];
 let pending: Pending | undefined;
 let earlierSaves: EarlierSave[] = [];
 let saveInFlight = false;
@@ -87,7 +92,7 @@ function currentDestinations(): string[] {
 }
 function message(value: string, error = false): void { status.textContent = value; status.classList.toggle("error", error); }
 function draft() {
-  return { primary: primary.value, extras: extras.value, media: mediaPolicy.value,
+  return { primary: primary.value, extras: extras.value, redditCaptures, media: mediaPolicy.value,
     thread: threadPolicy.value, quote: quotePolicy.value, depth: quoteDepth.value,
     dates: quoteDates.value, separator: separatorPolicy.value,
     channel: channel.value, selectedChannels: [...picker.selected.values()],
@@ -102,14 +107,14 @@ function editedFields(): { title?: string; markdown?: string; description?: stri
 }
 function inputSignature(): string {
   return JSON.stringify([primary.value, extras.value, mediaPolicy.value, threadPolicy.value,
-    quotePolicy.value, quoteDepth.value, quoteDates.value, separatorPolicy.value]);
+    quotePolicy.value, quoteDepth.value, quoteDates.value, separatorPolicy.value, redditCaptures]);
 }
 function destinationsFrozen(): boolean { return Boolean(pending || saveInFlight); }
 function syncDestinationLock(): void {
   const frozen = destinationsFrozen();
   for (const id of ["choose-channel", "clear-channels", "add-channel", "default-channel", "default-mode",
     "primary", "extras", "media-policy", "thread-policy", "quote-policy", "quote-depth", "quote-dates",
-    "separator-policy", "title", "writing", "description", "resolve-local", "add-current",
+    "separator-policy", "read-reddit", "import-reddit", "reddit-file", "title", "writing", "description", "resolve-local", "add-current",
     "single-media-toggle", "audio-choice"])
     $(id).toggleAttribute("disabled", frozen);
   resolveButton.disabled = frozen || resolveInFlight;
@@ -669,7 +674,7 @@ async function saveSourceIntent(destinations: string[]): Promise<void> {
         throw new Error("Local helper access was not granted.");
     }
     if (!pending) {
-      const origins = requiredOrigins([...refs, ...extraRefs]);
+      const origins = requiredOrigins([...refs, ...extraRefs], redditCaptures);
       if (oauth) origins.push("https://api.are.na/*");
       if (origins.length && !await browser.permissions.request({ origins: [...new Set(origins)] }))
         throw new Error("Source access was not granted.");
@@ -677,7 +682,7 @@ async function saveSourceIntent(destinations: string[]): Promise<void> {
         throw new Error("Local helper access was not granted.");
       const saveId = crypto.randomUUID();
       const edits = editedFields();
-      const job: CaptureJob = { saveId, input: { primary: refs, extras: extraRefs, policy: chosenPolicy() },
+      const job: CaptureJob = { saveId, input: { primary: refs, extras: extraRefs, policy: chosenPolicy(), redditCaptures },
         ...(edits ? { edits } : {}), destinations, phase: "queued" };
       pending = { saveId, inputSignature: signature, destinations, phase: "queued", method: "job" };
       syncDestinationLock();
@@ -988,7 +993,7 @@ async function resolveLocal(): Promise<void> {
   message("Resolving with local helper…");
   const ticket = resolutionGuard.begin(), signature = inputSignature();
   try {
-    const resolved = blockPlanSchema.parse(await native("resolve", { input: { refs, extraRefs, policy: chosenPolicy(), refresh: false } }));
+    const resolved = await resolveWithNative({ refs, extraRefs, policy: chosenPolicy(), refresh: false, redditCaptures }, native);
     if (!resolutionGuard.current(ticket) || signature !== inputSignature()) return;
     plan = editedFields() ? revisePlan(resolved, editedFields()!) : resolved;
     resolvedInput = signature;
@@ -1007,11 +1012,11 @@ async function resolve(): Promise<void> {
   if (!refs.length || refs.length + extraRefs.length > 20) { message("Add 1–20 links.", true); return; }
   resolveInFlight = true;
   syncDestinationLock();
-  try { if (requiredOrigins([...refs, ...extraRefs]).length) message("Resolving sources…"); }
+  try { if (requiredOrigins([...refs, ...extraRefs], redditCaptures).length) message("Resolving sources…"); }
   catch { /* The resolver reports an invalid link below. */ }
   const ticket = resolutionGuard.begin(), signature = inputSignature();
   try {
-    const origins = requiredOrigins([...refs, ...extraRefs]);
+    const origins = requiredOrigins([...refs, ...extraRefs], redditCaptures);
     if (origins.length) {
       let allowed: boolean;
       try { allowed = await browser.permissions.contains({ origins })
@@ -1022,7 +1027,7 @@ async function resolve(): Promise<void> {
       }
       if (!allowed) throw new Error("Access to the source sites was not granted.");
     }
-    const resolved = await resolveCapture({ primary: refs, extras: extraRefs, policy: chosenPolicy() });
+    const resolved = await resolveCapture({ primary: refs, extras: extraRefs, policy: chosenPolicy(), redditCaptures });
     if (!resolutionGuard.current(ticket) || signature !== inputSignature()) return;
     plan = editedFields() ? revisePlan(resolved, editedFields()!) : resolved;
     resolvedInput = signature;
@@ -1031,7 +1036,7 @@ async function resolve(): Promise<void> {
     message("");
   } catch (error) {
     if (!resolutionGuard.current(ticket)) return;
-    $("resolve-local").hidden = false;
+    $("resolve-local").hidden = redditReadNeedsBrowser(error);
     message(error instanceof Error ? error.message : "Could not resolve this source.", true);
   }
   finally {
@@ -1040,7 +1045,67 @@ async function resolve(): Promise<void> {
   }
 }
 
-for (const field of [primary, extras, mediaPolicy, threadPolicy, quotePolicy, quoteDepth, quoteDates, separatorPolicy]) field.addEventListener("input", intakeChanged);
+function showRedditObservation() {
+  $("export-reddit").hidden = redditCaptures.length === 0;
+  const choice = $<HTMLSelectElement>("reddit-export-choice"), selected = choice.value;
+  choice.hidden = redditCaptures.length < 2;
+  choice.replaceChildren(...redditCaptures.map(capture => {
+    const option = document.createElement("option"); option.value = redditSourceKey(capture.sourceUrl);
+    option.textContent = capture.comment ? `Comment ${capture.comment.id}` : capture.post.title;
+    return option;
+  }));
+  if ([...choice.options].some(option => option.value === selected)) choice.value = selected;
+  $("reddit-observation").hidden = redditCaptures.length === 0;
+  $("reddit-observation").textContent = redditCaptures.map(capture => `Browser snapshot observed ${capture.observedAt}`).join("; ");
+}
+async function acceptRedditCapture(value: unknown) {
+  if (destinationsFrozen() || resolveInFlight) throw new Error("Finish the current capture operation before importing a browser record");
+  const capture = normalizeRedditCapture(value);
+  const refs = [...lines(primary.value), ...lines(extras.value)];
+  const matches = refs.some(ref => { try { return redditSourceKey(ref) === redditSourceKey(capture.sourceUrl); } catch { return false; } });
+  if (refs.length && !matches) throw new Error("This record belongs to another source. Start a new capture and clear its source links before importing it.");
+  if (!refs.length) primary.value = capture.sourceUrl;
+  redditCaptures = redditCapturesSchema.parse([...redditCaptures.filter(item => redditSourceKey(item.sourceUrl) !== redditSourceKey(capture.sourceUrl)), capture]);
+  showRedditObservation();
+  intakeChanged();
+  await browser.storage.local.set({ [key]: draft() });
+  await resolve();
+}
+$("read-reddit").addEventListener("click", () => {
+  if (destinationsFrozen() || resolveInFlight) return;
+  const signature = inputSignature();
+  void readActiveRedditTab(browser).then(capture => {
+    if (signature !== inputSignature()) throw new Error("The draft changed while reading Reddit. Read the tab again.");
+    return acceptRedditCapture(capture);
+  }).catch(error => message(error instanceof Error ? error.message : String(error), true));
+});
+$("import-reddit").addEventListener("click", () => $<HTMLInputElement>("reddit-file").click());
+$("reddit-file").addEventListener("change", () => { void (async () => {
+  const input = $<HTMLInputElement>("reddit-file"), file = input.files?.[0];
+  input.value = "";
+  if (!file) return;
+  try {
+    if (file.size > REDDIT_CAPTURE_MAX_BYTES) throw new Error("Reddit capture file exceeds 2 MiB");
+    await acceptRedditCapture(JSON.parse(await file.text()));
+  } catch (error) { message(error instanceof Error ? error.message : String(error), true); }
+})(); });
+$("export-reddit").addEventListener("click", () => {
+  const capture = redditCaptures.find(item => redditSourceKey(item.sourceUrl) === $<HTMLSelectElement>("reddit-export-choice").value) ?? redditCaptures[0];
+  if (capture) {
+    const href = URL.createObjectURL(new Blob([JSON.stringify(capture, null, 2)], { type: "application/json" }));
+    const link = document.createElement("a"); link.href = href; link.download = `${capture.comment?.id ?? capture.post.id}.arena-reddit.json`; link.click();
+    setTimeout(() => URL.revokeObjectURL(href), 1000);
+  }
+});
+
+for (const field of [primary, extras, mediaPolicy, threadPolicy, quotePolicy, quoteDepth, quoteDates, separatorPolicy]) field.addEventListener("input", () => {
+  if (field === primary || field === extras) {
+    const keys = new Set([...lines(primary.value), ...lines(extras.value)].flatMap(ref => { try { return [redditSourceKey(ref)]; } catch { return []; } }));
+    redditCaptures = redditCaptures.filter(capture => keys.has(redditSourceKey(capture.sourceUrl)));
+    showRedditObservation();
+  }
+  intakeChanged();
+});
 for (const field of [title, writing, description]) field.addEventListener("input", editPlan);
 channel.addEventListener("input", () => {
   picker.query = channel.value.trim();
@@ -1136,6 +1201,8 @@ async function startNewCapture(): Promise<void> {
   }
   resolutionGuard.changed();
   plan = pending = undefined;
+  redditCaptures = [];
+  showRedditObservation();
   resolvedInput = undefined;
   manualContentEdit = false;
   manualFields = {};
@@ -1266,6 +1333,8 @@ void (async () => {
         manualFields = saved.manualFields ?? (manualContentEdit
           ? { title: true, writing: true, description: true } : {});
         primary.value = saved.primary ?? "";
+        redditCaptures = redditCapturesSchema.parse(saved.redditCaptures ?? []);
+        showRedditObservation();
         extras.value = saved.extras ?? "";
         mediaPolicy.value = saved.media ?? "auto";
         threadPolicy.value = saved.thread ?? "auto";

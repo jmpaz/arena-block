@@ -45,7 +45,7 @@ Use `resolve`, `plan`, `publish`, `save`, `status`, `cancel` or `retry` as shown
 | Bluesky | Profile post permalinks, `at://.../app.bsky.feed.post/...` | Public AT Protocol AppView responses |
 | [Delvetown](https://delve.town) | Profile post permalinks, `at://.../town.delve.feed.post/...` | Delvetown AppView and repository records |
 | Mastodon | Public HTTPS post permalinks | The instance's public status API |
-| Reddit | Posts, comments, galleries, share links | Public JSON, with bounded fallback for specified availability failures |
+| Reddit | Posts, comments, galleries, share links | Public JSON, user-invoked browser records, bounded availability fallback |
 | LessWrong, Alignment Forum, EA Forum | Post and comment permalinks | Each site's public GraphQL API |
 | TikTok, Instagram | Supported post, video and share permalinks | FxEmbed Atmosphere responses |
 | SoundCloud | Public track and playlist pages | Public page data and available download metadata |
@@ -60,6 +60,17 @@ Mastodon boosts resolve to the original post. Content warnings and attachment de
 For x.com articles, the composer places the article Markdown in the block and uses the accompanying post text as its description. Article images remain in reading order. Embedded videos and posts remain links. Incomplete article responses produce an error.
 
 Reddit post titles become block titles. Body Markdown and gallery captions become text content or media descriptions. Cross-posts retain the quoting post and expose the original attachments. Reddit-hosted video uses HLS for audio. HTTP 403 and 429 stop acquisition. Specified temporary availability failures may use the bounded Arctic Shift fallback; archive responses can omit recent edits. Comment capture uses the selected comment and its parent title. It excludes surrounding replies and parent attachments.
+
+When an anonymous Reddit read returns HTTP 403 or 429, open the public post or selected comment in the browser, then choose **Read Reddit tab** in the extension. Chrome and Firefox request optional scripting access on this action. The reader uses the page's existing session for a same-origin JSON read, stops on refusals or challenge HTML, exports public fields without cookies or account state. **Export browser capture** writes a JSON snapshot for the CLI or native Capture:
+
+```sh
+arena-block plan --reddit-capture post.arena-reddit.json --media all --json
+```
+
+A matching source URL may accompany the file; otherwise the CLI uses the file's source URL. Repeat `--reddit-capture` for multiple sources. The importer checks identities, community visibility, observation time and record bounds; it preserves complete selftext, supported media, selected-comment provenance. Plan hashes include these declared browser observations. A receiver must advertise `reddit-browser-records-v1` before the CLI submits such a save.
+
+On iOS, share the page from **Safari → Capture**, allowing Safari's Share action to pass the public record. **Import browser capture** accepts the extension's JSON file in the app or Share extension. Pasting a URL, or sharing only a URL from another app, does not pass the browser session or record. Imported records stay with drafts and frozen submissions. External embedded players, Giphy comment tokens, unsupported body animation types and unavailable media stop a complete capture. The reader bounds each response and exported record at 2 MiB, media metadata at 100 entries, cross-post nesting at four parents.
+
 
 TikTok and Instagram carousels preserve source order. Photo mosaics omit soundtracks. Video mosaics use the selected soundtrack. Public provider access and media URLs can become unavailable, so refresh a stale plan before another acquisition attempt.
 

@@ -1,3 +1,4 @@
+import { requireRetainedRedditCaptures } from "../packages/core/reddit-record.ts";
 /** Optional native messaging transport. The bearer token stays in this process. */
 import { readSync, writeSync } from "node:fs";
 import { z } from "zod";
@@ -66,7 +67,15 @@ async function daemon(path: string, method = "GET", body?: unknown, fetcher: typ
 export async function handle(request: HostRequest, fetcher: typeof fetch = fetch): Promise<unknown> {
   switch (request.action) {
     case "ping": return daemon("/v1/version", "GET", undefined, fetcher);
-    case "resolve": return daemon("/v1/plans", "POST", request.input, fetcher);
+    case "resolve": {
+      if (request.input.redditCaptures?.length) {
+        const serving = buildInfoSchema.parse(await daemon("/v1/version", "GET", undefined, fetcher));
+        if (!serving.planCapabilities?.includes("reddit-browser-records-v1")) throw new Error("The daemon cannot receive Reddit browser records. Install a matching receiver; no source read was submitted.");
+      }
+      const plan = blockPlanSchema.parse(await daemon("/v1/plans", "POST", request.input, fetcher));
+      requireRetainedRedditCaptures(plan, request.input.redditCaptures ?? []);
+      return plan;
+    }
     case "channels": return daemon(`/v1/channels?page=${request.page}`, "GET", undefined, fetcher);
     case "channelSearch": return daemon(`/v1/channel-search?scope=${request.scope}&query=${encodeURIComponent(request.query)}&page=${request.page}`, "GET", undefined, fetcher);
     case "status": return daemon(`/v1/saves/${request.saveId}`, "GET", undefined, fetcher);

@@ -1,3 +1,5 @@
+import { redditReadNeedsBrowser } from "../../packages/core/reddit-record.ts";
+import { resolveWithNative } from "./native-reddit.ts";
 import { BrowserOAuth } from "./browser-auth.ts";
 import { BrowserSaver, type BrowserSaveIntent } from "./browser-save.ts";
 import { CaptureJobRunner, type CaptureJob } from "./capture-job.ts";
@@ -46,10 +48,11 @@ function jobs(): CaptureJobRunner {
     async resolve(input) {
       try { return await resolveCapture(input); }
       catch (error) {
+        if (redditReadNeedsBrowser(error)) throw error;
         if (!await extension.permissions.contains({ permissions: ["nativeMessaging"] })) throw error;
-        return blockPlanSchema.parse(await native("resolve", { input: {
-          refs: input.primary, extraRefs: input.extras, policy: input.policy, refresh: false,
-        } }));
+        return resolveWithNative({
+          refs: input.primary, extraRefs: input.extras, policy: input.policy, refresh: false, redditCaptures: input.redditCaptures,
+        }, native);
       }
     },
     async browserAvailable() {

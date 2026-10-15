@@ -26,7 +26,7 @@ const shared = {
   icons: extensionIcons,
   action: { default_title: "Capture to Are.na", default_popup: "editor.html", default_icon: extensionIcons },
   permissions: ["activeTab", "storage", "identity"],
-  optional_permissions: ["nativeMessaging"],
+  optional_permissions: ["nativeMessaging", "scripting"],
   optional_host_permissions: ["https://*/*"],
 };
 

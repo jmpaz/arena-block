@@ -39,3 +39,9 @@ iOS controls scheduling. A force-quit, offline period or revoked account can def
 Read [the architecture](Design/architecture.md) and [interaction flow](Design/interaction.md) before changing the editor or picker. `CaptureView`, `ChannelPicker` and `CaptureSession` provide the main UI and state transitions. The browser design study provides a visual reference; the native source and fixture tests determine current behavior.
 
 Run simulator tests through the generated `CaptureUITests` target. The background transport probe uses `CAPTURE_BACKGROUND_URL` to contact a controlled fixture server. Without that setting, the probe is skipped.
+
+## Reddit browser intake
+
+Share a public post or selected comment from Safari to Capture. Safari runs `RedditPreprocessor.js` in the shared page, returning the sanitized record through the Share result. The shared TypeScript importer validates the record before the app changes a draft. The reader uses Safari's existing session without exporting session data. A refusal stops this action.
+
+For a browser record exported on another device, choose **Import browser capture** or share its JSON file to Capture. Capture retains the record with the draft, queued intake and frozen submission. A URL share alone uses the ordinary anonymous provider path; it cannot reuse a browser session. The source card identifies an imported snapshot, while the plan keeps its observation timestamp and public records. File intake and Safari preprocessing need no additional persistent browser permission. Physical Safari share-sheet acceptance remains a separate release check.

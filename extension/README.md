@@ -51,3 +51,9 @@ in {
 The public key determines the unpacked Chrome ID `fijpffccadekllfkkfelnknanpljbobb`. Native-host registration must use the ID displayed by the installed extension. Firefox uses its declared add-on ID.
 
 The public key is recorded in `nix/chrome-development-identity.nix`. The project contains no private signing key. Native-host registration and runtime credentials are configured by the caller.
+
+## Reddit browser records
+
+Open a public Reddit post or selected comment, invoke the extension, choose **Read Reddit tab**. The optional scripting request runs the reader in that tab, using the existing page session. Refusal or challenge HTML stops the read. No cookies, authorization headers, saved/vote state or reports enter the exported record.
+
+Use **Export browser capture** to move the sanitized JSON to `arena-block --reddit-capture <path>` or native Capture's **Import browser capture**. Importing a record for another source requires a new capture with empty source links. The editor retains observation time, source records and authored edits through draft reloads; the immutable plan carries the same record into publication.

@@ -1,3 +1,4 @@
+import { bindRedditCaptures, type RedditBrowserCapture } from "../../packages/core/reddit-record.ts";
 import { captureSource, publicationFields, webPlan } from "../../packages/core/capture.ts";
 import { composePlan, planHash } from "../../packages/core/compose.ts";
 import { SocialResolver } from "../../packages/core/providers/index.ts";
@@ -15,7 +16,7 @@ import { XProvider } from "../../packages/core/providers/x.ts";
 import { compositionPolicySchema, type BlockPlan, type CompositionPolicy } from "../../packages/core/types.ts";
 import { parseSource } from "../../packages/core/url.ts";
 
-export type CaptureInput = { primary: string[]; extras: string[]; policy: Partial<CompositionPolicy> };
+export type CaptureInput = { primary: string[]; extras: string[]; policy: Partial<CompositionPolicy>; redditCaptures?: RedditBrowserCapture[] };
 
 const browserFetch = ((input: RequestInfo | URL, init?: RequestInit) => {
   const headers = new Headers(init?.headers);
@@ -23,10 +24,10 @@ const browserFetch = ((input: RequestInfo | URL, init?: RequestInit) => {
   return fetch(input, { ...init, headers, credentials: "omit" });
 }) as typeof fetch;
 
-function resolver(fetcher: typeof fetch = browserFetch): SocialResolver {
+function resolver(fetcher: typeof fetch = browserFetch, captures: RedditBrowserCapture[] = []): SocialResolver {
   return new SocialResolver({
     arena: new ArenaMediaProvider(fetcher),
-    reddit: new RedditProvider(fetcher),
+    reddit: new RedditProvider(fetcher, captures),
     forum_magnum: new ForumMagnumProvider(fetcher),
     tiktok: new AtmosphereProvider("tiktok", fetcher),
     instagram: new AtmosphereProvider("instagram", fetcher),
@@ -42,11 +43,12 @@ function resolver(fetcher: typeof fetch = browserFetch): SocialResolver {
 
 export async function resolveCapture(input: CaptureInput, signal?: AbortSignal, fetcher: typeof fetch = browserFetch): Promise<BlockPlan> {
   if (!input.primary.length || input.primary.length + input.extras.length > 20) throw new Error("Choose 1–20 sources");
+  const captures = bindRedditCaptures([...input.primary, ...input.extras], input.redditCaptures ?? []);
   const policy = compositionPolicySchema.parse(input.policy);
   if (input.primary.length === 1 && input.extras.length === 0 && captureSource(input.primary[0]!).kind === "url") {
     return webPlan({ url: input.primary[0]! });
   }
-  const resolved = await resolver(fetcher).resolveComposition(input.primary, input.extras, policy, signal);
+  const resolved = await resolver(fetcher, captures).resolveComposition(input.primary, input.extras, policy, signal);
   return composePlan(resolved.posts, resolved.policy);
 }
 
@@ -64,9 +66,11 @@ export function previewFields(plan: BlockPlan): Record<string, unknown> {
   return publicationFields(plan);
 }
 
-export function requiredOrigins(refs: string[]): string[] {
+export function requiredOrigins(refs: string[], captures: RedditBrowserCapture[] = []): string[] {
   const origins = new Set<string>();
+  const keys = new Set(bindRedditCaptures(refs, captures).map(capture => parseSource(capture.sourceUrl).canonicalUrl));
   for (const ref of refs) {
+    try { if (keys.has(parseSource(ref).canonicalUrl)) continue; } catch { /* Generic web source below. */ }
     const source = captureSource(ref);
     if (source.kind === "url") continue;
     switch (parseSource(ref).provider) {

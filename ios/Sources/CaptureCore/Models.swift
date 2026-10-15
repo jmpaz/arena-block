@@ -151,6 +151,8 @@ public struct CaptureDraft: Codable, Identifiable, Sendable {
     public var input: String
     /// Explicit user choice to capture one original URL without provider content or metadata.
     public var originalLinkOnly: Bool?
+    /// Sanitized public records observed in the user-invoked browser share, without browser session data.
+    public var redditCapturesJSON: String?
     public var media: MediaPolicy
     public var selectedMedia: [String]?
     public var videoFrames: [String]?
@@ -218,6 +220,20 @@ public enum CaptureInput {
         if ["bsky.app", "delve.town"].contains(host), parts.count == 4, parts[0] == "profile", parts[2] == "post" {
             let provider = host == "delve.town" ? "delve" : "bluesky"
             return "\(provider):\(parts[1].replacingOccurrences(of: "@", with: "").lowercased())/\(parts[3])"
+        }
+        if ["reddit.com", "old.reddit.com", "new.reddit.com", "redd.it"].contains(host),
+           url.scheme?.lowercased() == "https", url.user == nil, url.password == nil, url.port == nil {
+            let path = url.path
+            if parts.count == 2, parts[0] == "gallery", parts[1].range(of: #"^[a-z0-9]+$"#, options: .regularExpression) != nil {
+                return "reddit:\(parts[1]):"
+            }
+            let pattern = host == "redd.it" ? #"^/([a-z0-9]+)/?$"# : #"^/(?:r/[A-Za-z0-9_]+/)?comments/([a-z0-9]+)(?:/[^/]+(?:/([a-z0-9]+))?)?/?$"#
+            if let regex = try? NSRegularExpression(pattern: pattern),
+               let match = regex.firstMatch(in: path, range: NSRange(path.startIndex..., in: path)),
+               let postRange = Range(match.range(at: 1), in: path) {
+                let comment = match.numberOfRanges > 2 ? Range(match.range(at: 2), in: path).map { String(path[$0]) } : nil
+                return "reddit:\(path[postRange]):\(comment ?? "")"
+            }
         }
         if let site = ["lesswrong.com": "lesswrong", "greaterwrong.com": "lesswrong",
                        "alignmentforum.org": "alignment_forum", "forum.effectivealtruism.org": "ea_forum"][host] {

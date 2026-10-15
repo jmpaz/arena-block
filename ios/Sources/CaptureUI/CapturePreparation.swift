@@ -54,7 +54,7 @@ final class CapturePreparation {
         } else {
             var acquisition = snapshot.policy.object
             acquisition["quoteDepth"] = (snapshot.policy["quoteDepth"] == .string("full") || (snapshot.policy["quoteDepth"]?.int ?? 0) > 2) ? .string("full") : .number(2)
-            let resolved = try decode(await runtime.resolve(refs: refs, extraRefs: extras, policyJSON: json(.object(acquisition))))
+            let resolved = try decode(await runtime.resolve(refs: refs, extraRefs: extras, policyJSON: json(.object(acquisition)), redditCapturesJSON: snapshot.redditCapturesJSON ?? "[]"))
             guard let retained = resolved["plan"]?["sources"], !retained.array.isEmpty else { throw CaptureError.message("The source could not be read. Retry this capture.") }
             sources = retained
         }
