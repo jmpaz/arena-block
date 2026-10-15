@@ -52,6 +52,32 @@ The public key determines the unpacked Chrome ID `fijpffccadekllfkkfelnknanpljbo
 
 The public key is recorded in `nix/chrome-development-identity.nix`. The project contains no private signing key. Native-host registration and runtime credentials are configured by the caller.
 
+### Updating unpacked Chrome files through Home Manager
+
+Home Manager can deploy successive Nix builds to a stable real directory. Set the existing public OAuth client ID when retaining browser sign-in:
+
+```nix
+programs.arenaBlockExtension = {
+  enable = true;
+  chromePublicKey = chromeDev.publicKey;
+  oauthClientId = "existing-public-client-id";
+  chrome = {
+    enable = true;
+    extensionId = chromeDev.chromeId;
+  };
+};
+```
+
+For a first installation, close Chrome normally, apply the Home Manager generation, then load `~/.local/share/arena-block-extension/unpacked-chrome` once through Chrome's unpacked-extension interface. Future generations replace the files at that directory. Use Chrome's Reload action after an update. Home Manager defers replacement while that profile's browser is running. After closing Chrome, apply the generation again or run `arena-block-extension-update deploy`. Updating the files does not confirm that Chrome has loaded the new worker.
+
+To retain an existing unpacked registration, set `chrome.directory` to its current absolute real directory and enable `chrome.adoptExisting`. The updater checks Chrome's existing registration, the public key, manifest settings and public OAuth bytes before adopting the directory. A registration inside `/nix/store` needs a one-time move through Chrome's interface because Nix store files are immutable. Set `chrome.prepareForMigration` to prepare the stable directory while retaining that registration, then select the prepared directory once in Chrome. The deployment status reports the pending registration. A directory symlink may resolve to a particular store generation when Chrome registers it; use a real directory for the registration.
+
+Run `arena-block-extension-update status` to compare the selected package, deployed files and registered path. The command reports runtime loading as unverified. Check the running extension separately before treating an update as received. `arena-block-extension-update rollback` restores the previous directory while Chrome is closed. Browser profile storage remains in Chrome's profile.
+
+The package also exposes `browser-extension.withBrowserConfig { chromePublicKey = "..."; oauthClientId = "..."; }` and `extension-manager`. The manager accepts `status`, `deploy` or `rollback`, with `--package`, `--directory`, `--profile` and `--extension-id` arguments. `release.json` records each Nix build's source identity.
+
+Chrome's [external installation methods](https://developer.chrome.com/docs/extensions/how-to/distribute/install-extensions) differ by platform. macOS Chrome accepts external update declarations for Chrome Web Store items. Linux also accepts local CRX packages and self-hosted updates. Home Manager's [Chromium module](https://github.com/nix-community/home-manager/blob/master/modules/programs/chromium.nix) follows those restrictions; proprietary Chrome on Linux reads external declarations from system-managed directories. The unpacked workflow above uses the existing development identity. Producing a CRX with that identity would require its private signing key. Browser-store publication and enterprise management require separate setup.
+
 ## Retained Reddit records
 
 Ordinary Reddit URLs use the shared HTTP provider. A denied read stops capture. Safari Share supplies the page URL. See [source access](../docs/reddit-source-access.md) for current limits.
