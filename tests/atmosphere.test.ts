@@ -96,3 +96,43 @@ describe("Instagram and TikTok", () => {
     await expect(provider.resolve(parseSource(status.url), AbortSignal.abort())).rejects.toThrow();
   });
 });
+
+
+test.each([
+  ["https://instagram.com/reel/Ab_c-123/?utm_source=share", status.url, "Reel"],
+  ["https://www.instagram.com/alice/reels/Ab_c-123/", status.url, "Reel"],
+  [status.url, "https://www.instagram.com/reel/Ab_c-123/", "Reel"],
+  [status.url, status.url, "Post"],
+])("Instagram titles retain observed permalink type: %s → %s", async (input, returned, kind) => {
+  const record = { ...status, url: returned, media: { all: [video] } };
+  const provider = new AtmosphereProvider("instagram", async () => Response.json({ status: record }));
+  const posts = await new SocialResolver({ instagram: provider }).resolve([input]);
+  const plan = composePlan(posts);
+  expect(plan.block.title).toBe(`${kind} by @alice`);
+  expect(plan.sources[0]!.canonicalUrl).toBe(parseSource(returned).canonicalUrl);
+  expect(plan.sources[0]!.text).toBe(status.text);
+  expect(plan.sources[0]!.media[0]!.url).toBe(video.url);
+  expect(composePlan(blockPlanSchema.parse(plan).sources).block.title).toBe(plan.block.title);
+});
+
+test("retained Instagram Reel URLs compose correctly while ordinary video posts stay Posts", () => {
+  for (const route of ["reel", "reels", "p"]) {
+    const post = { provider: "instagram" as const, id: status.id, canonicalUrl: `https://www.instagram.com/${route}/${status.id}/`, author: { handle: "alice" }, text: status.text, media: [] };
+    expect(composePlan([post]).block.title).toBe(`${route === "p" ? "Post" : "Reel"} by @alice`);
+  }
+});
+
+test("duplicate post and Reel aliases retain Reel evidence without changing source role or order", async () => {
+  for (const [primary, extras] of [[[status.url, "https://instagram.com/reel/Ab_c-123/"], []],
+    [[status.url], ["https://instagram.com/reels/Ab_c-123/"]],
+    [["https://instagram.com/reel/Ab_c-123/"], [status.url]]] as [string[], string[]][]) {
+    const calls: string[] = [];
+    const provider = new AtmosphereProvider("instagram", async url => { calls.push(String(url)); return Response.json({ status }); });
+    const resolved = await new SocialResolver({ instagram: provider }).resolveComposition(primary, extras);
+    expect(calls).toHaveLength(1);
+    expect(resolved.posts).toHaveLength(1);
+    expect(resolved.posts[0]!.selection).toMatchObject({ role: "primary", declaredIndex: 1 });
+    expect(resolved.posts[0]!.canonicalUrl).toBe(status.url);
+    expect(composePlan(resolved.posts, resolved.policy).block.title).toBe("Reel by @alice");
+  }
+});

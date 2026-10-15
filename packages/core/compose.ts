@@ -11,7 +11,7 @@ import { combineAspects, explicitAudio, mediaAspect, tileRects, IMAGE_RECIPE_LON
 import { atprotoMarkdown } from "./providers/atproto-post.ts";
 import { availableQuoteNodes, quoteDateLabel, renderedQuoteDepth } from "./quote-policy.ts";
 import { soundCloudPlaylistText } from "./soundcloud.ts";
-import { parseSource } from "./url.ts";
+import { isInstagramReel, parseSource } from "./url.ts";
 
 function handle(post: ResolvedPost): string {
   return post.author.handle.replace(/^@/, "");
@@ -28,6 +28,7 @@ function sourceAuthor(post: ResolvedPost): string {
 function title(post: ResolvedPost): string {
   if (post.postTitle !== undefined) return post.postTitle;
   if (post.storyTitle !== undefined) return `Comment by ${handle(post)} on “${post.storyTitle}”`;
+  if (post.provider === "instagram" && isInstagramReel(post.canonicalUrl)) return `Reel by @${handle(post)}`;
   if (post.provider === "tiktok") return `TikTok by @${(post.author.name?.trim() || handle(post)).replace(/^@/, "")}`;
   return `Post by @${handle(post)}`;
 }

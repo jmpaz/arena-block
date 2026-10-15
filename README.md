@@ -68,6 +68,8 @@ Ordinary Reddit links use the shared HTTP provider in CLI and iOS. Safari Share 
 
 Existing API, browser and public-page records remain readable in drafts, plans and receivers. Validation checks the supplied identities, bounds and media. It cannot establish current source availability or authenticate the observation time. The `reddit-browser-records-v1` and `reddit-public-page-records-v1` capabilities preserve those records.
 
+Instagram Reel links use **Reel by @handle**; other Instagram posts use **Post by @handle**. A verified Reel link keeps that title when the provider returns a `/p/` alias for the same post. The permalink determines the title for both photo and video posts.
+
 TikTok and Instagram carousels preserve source order. Photo mosaics omit soundtracks. Video mosaics use the selected soundtrack. Public provider access and media URLs can become unavailable, so refresh a stale plan before another acquisition attempt.
 
 Hacker News links must identify comments. Lobsters accepts `/c/ID` and story links ending in `#c_ID`. Comment capture preserves paragraphs and formatting, uses the source URL field and records the UTC creation time in the description. Unavailable comments return an error.

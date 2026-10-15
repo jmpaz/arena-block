@@ -87,6 +87,22 @@ final class RuntimeTests: XCTestCase {
         }
     }
 
+    func testInstagramReelTitlesSurviveNativeRecompositionAndCanonicalAliases() async throws {
+        try await MainActor.run {
+            let runtime = try CaptureRuntime()
+            for (route, retainedTitle, expected) in [("reel", nil, "Reel"), ("p", "Reel by @alice", "Reel"), ("p", nil, "Post")] as [(String, String?, String)] {
+                var post: [String: Any] = ["provider": "instagram", "id": "Ab_c-123", "canonicalUrl": "https://www.instagram.com/\(route)/Ab_c-123/",
+                    "author": ["handle": "alice"], "text": "Authored caption", "media": []]
+                if let retainedTitle { post["postTitle"] = retainedTitle }
+                let posts = String(decoding: try JSONSerialization.data(withJSONObject: [post]), as: UTF8.self)
+                let envelope = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(runtime.compose(postsJSON: posts).utf8)) as? [String: Any])
+                let fields = try XCTUnwrap(envelope["fields"] as? [String: Any])
+                XCTAssertEqual(fields["title"] as? String, "\(expected) by @alice")
+                XCTAssertEqual(fields["content"] as? String, "Authored caption")
+            }
+        }
+    }
+
     func testCopiedCoverRequiresAnActualResourceURL() async throws {
         try await MainActor.run {
             let runtime = try CaptureRuntime()

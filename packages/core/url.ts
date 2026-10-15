@@ -218,3 +218,11 @@ function validDelveActor(value: string): boolean {
   return /^did:plc:[a-z2-7]{24}$/.test(value) || /^did:web:[a-zA-Z0-9.:%_-]+$/.test(value)
     || /^(?=.{1,253}$)(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z][a-zA-Z0-9-]*$/.test(value);
 }
+
+/** Read the Instagram post type from its permalink. */
+export function isInstagramReel(value: string): boolean {
+  try {
+    const source = parseSource(value);
+    return source.provider === "instagram" && new URL(source.canonicalUrl).pathname.startsWith("/reel/");
+  } catch { return false; }
+}
