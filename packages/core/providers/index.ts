@@ -61,6 +61,9 @@ export class SocialResolver {
     const extras = selected.filter(item => item.role === "extra");
     const policy = compositionPolicySchema.parse(policyInput);
     const singleSource = primaries.length === 1 ? parseSource(primaries[0]!.ref) : undefined;
+    if (singleSource?.provider === "substack" && policy.threadExpansion === "on") {
+      throw new Error("Substack reply expansion is not yet verified. Add exact Note permalinks in order or turn thread expansion off; no reply tree was inferred.");
+    }
     let primaryPosts: ResolvedPost[];
     if (primaries.length === 1 && parseSource(primaries[0]!.ref).provider === "x" && policy.threadExpansion === "on") {
       const source = parseSource(primaries[0]!.ref);

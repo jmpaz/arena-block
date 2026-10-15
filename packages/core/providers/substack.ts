@@ -1,8 +1,13 @@
+/// <reference path="../polyfills.d.ts" />
 import TurndownService from "turndown";
-import { bindSubstackCaptures, substackSourceKey, type SubstackCapture, type SubstackNote } from "../substack-record.ts";
+import { createDocument } from "@mixmark-io/domino";
+import { bindSubstackCaptures, normalizeSubstackCapture, substackSourceKey, type SubstackCapture, type SubstackNote } from "../substack-record.ts";
+import { readSubstackPage } from "../substack-page.ts";
+import { renderedQuoteDepth } from "../quote-policy.ts";
+import { compositionPolicySchema } from "../types.ts";
 import { parseSource, type ParsedSource } from "../url.ts";
 import type { ResolvedPost } from "../types.ts";
-import type { SocialProvider } from "./provider.ts";
+import type { SocialProvider, SourceResolutionPolicy } from "./provider.ts";
 
 function converter(base: string): TurndownService {
   const markdown = new TurndownService({ headingStyle: "atx", bulletListMarker: "-", codeBlockStyle: "fenced" });
@@ -29,7 +34,7 @@ function literal(text: string): string {
 }
 function notePost(note: SubstackNote): ResolvedPost {
   const body = prose(note.body.html, note.url);
-  if (!body.trim() && !note.links.length && !note.quote) throw new Error("Empty complete Substack Note");
+  if (!body.trim() && !note.links.length && !note.media?.length && !note.quote) throw new Error("Empty complete Substack Note");
   const quote = note.quote?.expanded;
   const links = note.links.map(link => {
     const label = `${link.role === "linked" ? "Linked" : link.role === "preview" ? "Preview of" : "Attachment; original not acquired:"} ${link.kind}`;
@@ -38,22 +43,49 @@ function notePost(note: SubstackNote): ResolvedPost {
   });
   const text = [body, ...links, `*[Substack Note source](<${parseSource(note.url).canonicalUrl}>)${note.publishedLabel ? ` · ${literal(note.publishedLabel)}` : ""}*`].filter(Boolean).join("\n\n");
   return { provider: "substack", id: substackSourceKey(note.url), canonicalUrl: parseSource(note.url).canonicalUrl,
-    author: { handle: note.author.handle, name: note.author.name }, text, postTitle: `Substack Note by @${note.author.handle}`, media: [],
+    author: { handle: note.author.handle, name: note.author.name }, text, postTitle: `Substack Note by @${note.author.handle}`,
+    ...(note.postedAt ? { postedAt: note.postedAt } : {}), media: (note.media ?? []).map(item => ({ ...item, ref: "0.0", sourceRole: "original" })),
     ...(quote?.body.status === "complete" ? { quote: notePost(quote) } : note.quote ? {
-      quoteBoundary: { status: "unavailable", id: substackSourceKey(note.quote.url), canonicalUrl: parseSource(note.quote.url).canonicalUrl },
+      quoteBoundary: { status: note.quote.status ?? "unavailable", id: substackSourceKey(note.quote.url), canonicalUrl: parseSource(note.quote.url).canonicalUrl },
     } : {}),
   };
 }
-/** Import-only candidate. Never calls undocumented endpoints or reads browser credentials. */
+/** Credentialless public HTML acquisition, or an explicitly supplied bounded browser record. */
 export class SubstackProvider implements SocialProvider {
   private readonly captures: SubstackCapture[];
-  constructor(captures: SubstackCapture[] = []) { this.captures = bindSubstackCaptures(captures.map(c => c.sourceUrl), captures); }
-  async resolve(source: ParsedSource, signal?: AbortSignal): Promise<ResolvedPost> {
-    signal?.throwIfAborted();
+  constructor(captures: SubstackCapture[] = [], private readonly fetcher: typeof fetch = fetch) { this.captures = bindSubstackCaptures(captures.map(c => c.sourceUrl), captures); }
+  async resolve(source: ParsedSource, signal?: AbortSignal, policy?: Partial<SourceResolutionPolicy>): Promise<ResolvedPost> {
+    if (signal?.aborted) throw signal.reason ?? new Error("Substack acquisition cancelled");
     if (source.provider !== "substack") throw new Error("Substack provider received another source");
-    const capture = this.captures.find(c => substackSourceKey(c.sourceUrl) === source.id);
-    if (!capture) throw new Error("Substack Notes require a browser-observed --substack-capture file; automatic acquisition is not available");
+    let capture = this.captures.find(c => substackSourceKey(c.sourceUrl) === source.id);
+    const depth = renderedQuoteDepth(compositionPolicySchema.parse(policy ?? {}));
+    if (!capture) {
+      const bounded = AbortSignal.any([...(signal ? [signal] : []), AbortSignal.timeout(20_000)]);
+      capture = normalizeSubstackCapture(await readSubstackPage(source.canonicalUrl, { url: source.canonicalUrl,
+        parseHTML: createDocument, fetcher: this.fetcher, method: "public-html", maxDepth: depth, signal: bounded }));
+    }
     if (capture.note.body.status !== "complete") throw new Error("Substack root Note is a preview or unavailable; full body capture is required");
-    return { ...notePost(capture.note), substackCapture: capture };
+    // A retained shallow record can hydrate only its missing public descendants.
+    // Keep the outer authored body, preview and its original observation untouched.
+    capture = JSON.parse(JSON.stringify(capture)) as SubstackCapture;
+    const expand = async (note: SubstackNote, remaining: number, ancestors: Set<string>): Promise<void> => {
+      const reference = note.quote;
+      if (!reference || remaining <= 0) return;
+      const id = substackSourceKey(reference.url);
+      if (ancestors.has(id)) { delete reference.expanded; reference.status = "cycle"; return; }
+      if (!reference.expanded && reference.status === "depth_limit") {
+        const resolved = await new SubstackProvider([], this.fetcher).resolve(parseSource(reference.url), signal, { quoteDepth: remaining - 1 });
+        reference.expanded = resolved.substackCapture!.note;
+      }
+      if (reference.expanded) await expand(reference.expanded, remaining - 1, new Set([...ancestors, id]));
+    };
+    await expand(capture.note, depth, new Set([substackSourceKey(capture.sourceUrl)]));
+    capture = normalizeSubstackCapture(capture);
+    const post = notePost(capture.note);
+    let node = post, actualDepth = 0; const sourceIds = [post.id];
+    while (node.quote) { actualDepth++; node = node.quote; sourceIds.push(node.id); }
+    return { ...post, substackCapture: capture, quoteCoverage: { maxDepth: 8, actualDepth, maxReached: actualDepth >= 8,
+      truncated: !!node.quoteBoundary, stopped: node.quoteBoundary?.status ?? "end", sourceIds,
+      acquisitionDepth: depth, mayExpand: node.quoteBoundary?.status === "depth_limit" } };
   }
 }

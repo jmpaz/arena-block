@@ -449,6 +449,15 @@ public final class CaptureSession {
             }
             draft?.redditCapturesJSON = kept.isEmpty ? nil : (try? JSONSerialization.data(withJSONObject: kept)).map { String(decoding: $0, as: UTF8.self) }
         }
+        if let captured = draft?.substackCapturesJSON,
+           let values = try? JSONSerialization.jsonObject(with: Data(captured.utf8)) as? [[String: Any]] {
+            let identities = Set(CaptureInput.urls(in: text).map(CaptureInput.canonicalSourceIdentity))
+            let kept = values.filter { value in
+                guard let source = value["sourceUrl"] as? String, let url = URL(string: source) else { return false }
+                return identities.contains(CaptureInput.canonicalSourceIdentity(url))
+            }
+            draft?.substackCapturesJSON = kept.isEmpty ? nil : (try? JSONSerialization.data(withJSONObject: kept)).map { String(decoding: $0, as: UTF8.self) }
+        }
         draft?.input = text; draft?.originalLinkOnly = nil; preview = nil; draft?.phase = .editing; draft?.problem = nil
         persistOrReport(); resolve()
     }
@@ -1146,7 +1155,7 @@ public final class CaptureSession {
             var next: CaptureDraft
             if input.isEmpty, let previous, !previous.hasDraftContent {
                 next = previous
-                next.input = ""; next.originalLinkOnly = nil; next.redditCapturesJSON = nil; next.media = .auto; next.selectedMedia = nil; next.videoFrames = nil; next.quoteDepth = nil; next.phase = .editing; next.problem = nil
+                next.input = ""; next.originalLinkOnly = nil; next.redditCapturesJSON = nil; next.substackCapturesJSON = nil; next.media = .auto; next.selectedMedia = nil; next.videoFrames = nil; next.quoteDepth = nil; next.phase = .editing; next.problem = nil
                 next.selection = DestinationSelection(defaultChannel: defaultChannel)
             } else { next = CaptureDraft(accountID: account.id, defaultChannel: defaultChannel, input: input) }
             next.videoFrameThresholdSeconds = autoFrameThresholdSeconds
@@ -1233,7 +1242,7 @@ public final class CaptureSession {
               sources.primary.count == 1, sources.extra.isEmpty else { return }
         resolution?.cancel(); generation = UUID()
         let result = CapturePreview.originalLink(sources.primary[0])
-        draft?.originalLinkOnly = true; draft?.redditCapturesJSON = nil; draft?.phase = .ready; draft?.problem = nil
+        draft?.originalLinkOnly = true; draft?.redditCapturesJSON = nil; draft?.substackCapturesJSON = nil; draft?.phase = .ready; draft?.problem = nil
         draft?.previewSnapshot = result; draft?.renderPath = nil
         preview = result; problem = nil
         persistOrReport()
@@ -1396,44 +1405,48 @@ public final class CaptureSession {
     }
 
     public func receiveBrowserCapture(_ json: String) throws {
-        let normalized = try core().importRedditCapture(json)
+        guard json.utf8.count <= 2 * 1024 * 1024 else { throw CaptureError.message("Browser capture exceeds 2 MiB") }
+        let raw = try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any]
+        let isSubstack = raw?["schema"] as? String == "arena-block/substack-browser-capture"
+        let normalized = try isSubstack ? core().importSubstackCapture(json) : core().importRedditCapture(json)
         guard let object = try JSONSerialization.jsonObject(with: Data(normalized.utf8)) as? [String: Any],
               let source = object["sourceUrl"] as? String, let url = URL(string: source) else {
             throw CaptureError.message("The browser capture has no source link.")
         }
         if !busy, let current = draft, !hasDurableSubmission(current.id),
            CaptureInput.urls(in: current.input).contains(where: { CaptureInput.canonicalSourceIdentity($0) == CaptureInput.canonicalSourceIdentity(url) }) {
-            let existing = draft?.redditCapturesJSON.flatMap { try? JSONSerialization.jsonObject(with: Data($0.utf8)) as? [[String: Any]] } ?? []
+            let records = isSubstack ? current.substackCapturesJSON : current.redditCapturesJSON
+            let existing = records.flatMap { try? JSONSerialization.jsonObject(with: Data($0.utf8)) as? [[String: Any]] } ?? []
             var combined = existing.filter { value in
                 guard let source = value["sourceUrl"] as? String, let priorURL = URL(string: source) else { return false }
                 return CaptureInput.canonicalSourceIdentity(priorURL) != CaptureInput.canonicalSourceIdentity(url)
             }
             combined.append(object)
             let bytes = try JSONSerialization.data(withJSONObject: combined)
-            guard bytes.count <= 2 * 1024 * 1024 else { throw CaptureError.message("Reddit captures exceed 2 MiB") }
-            let replacement = try store.replaceBrowserSnapshot(in: current, recordsJSON: String(decoding: bytes, as: UTF8.self), workspaceID: workspaceID)
+            guard bytes.count <= 2 * 1024 * 1024 else { throw CaptureError.message("Browser captures exceed 2 MiB") }
+            let replacement = try store.replaceBrowserSnapshot(in: current, recordsJSON: String(decoding: bytes, as: UTF8.self), workspaceID: workspaceID, substack: isSubstack)
             draft = replacement; preview = nil
             resolvedSources.invalidate(); expandedSources.invalidate(); renderedSources.removeAll(); renderedIdentity = nil
             resolve()
-        } else { receive(urls: [url], redditCaptureJSON: normalized) }
+        } else { receive(urls: [url], redditCaptureJSON: isSubstack ? nil : normalized, substackCaptureJSON: isSubstack ? normalized : nil) }
     }
 
     public func receiveBrowserCaptureFile(_ url: URL) throws {
         let access = url.startAccessingSecurityScopedResource()
         defer { if access { url.stopAccessingSecurityScopedResource() } }
         let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
-        guard size <= 2 * 1024 * 1024 else { throw CaptureError.message("Reddit capture file exceeds 2 MiB") }
+        guard size <= 2 * 1024 * 1024 else { throw CaptureError.message("Browser capture file exceeds 2 MiB") }
         let data = try Data(contentsOf: url, options: [.mappedIfSafe])
-        guard data.count <= 2 * 1024 * 1024, let json = String(data: data, encoding: .utf8) else { throw CaptureError.message("Expected a Reddit browser capture JSON file under 2 MiB") }
+        guard data.count <= 2 * 1024 * 1024, let json = String(data: data, encoding: .utf8) else { throw CaptureError.message("Expected a browser capture JSON file under 2 MiB") }
         try receiveBrowserCapture(json)
     }
 
     public func receive(urls: [URL]) { receive(urls: urls, redditCaptureJSON: nil) }
-    private func receive(urls: [URL], redditCaptureJSON: String?) {
+    private func receive(urls: [URL], redditCaptureJSON: String?, substackCaptureJSON: String? = nil) {
         var seen = Set<String>()
         let values = urls.map(\.absoluteString).filter { seen.insert($0).inserted }
         guard !values.isEmpty else { return }
-        let pending = PendingShare(id: UUID(), urls: values, redditCaptureJSON: redditCaptureJSON)
+        let pending = PendingShare(id: UUID(), urls: values, redditCaptureJSON: redditCaptureJSON, substackCaptureJSON: substackCaptureJSON)
         do {
             try store.save(pending, account: 0, kind: "incoming", id: pending.id.uuidString)
             try refreshIncoming()

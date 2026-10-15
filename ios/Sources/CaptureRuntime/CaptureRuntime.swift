@@ -60,10 +60,10 @@ public final class CaptureRuntime {
         if let error = context.exception { throw RuntimeError(error.toString()) }
     }
 
-    public func resolve(refs: [String], extraRefs: [String] = [], policyJSON: String = "{}", refresh: Bool = false, redditCapturesJSON: String = "[]") async throws -> String {
+    public func resolve(refs: [String], extraRefs: [String] = [], policyJSON: String = "{}", refresh: Bool = false, redditCapturesJSON: String = "[]", substackCapturesJSON: String = "[]") async throws -> String {
         let refsJSON = String(decoding: try JSONEncoder().encode(refs), as: UTF8.self)
         let arguments = [refsJSON, policyJSON, refresh ? "true" : "false",
-                         String(decoding: try JSONEncoder().encode(extraRefs), as: UTF8.self), redditCapturesJSON]
+                         String(decoding: try JSONEncoder().encode(extraRefs), as: UTF8.self), redditCapturesJSON, substackCapturesJSON]
         return try await invokeAsync("captureResolve", arguments: arguments)
     }
 
@@ -101,6 +101,10 @@ public final class CaptureRuntime {
     public func importRedditCapture(_ value: String) throws -> String {
         guard value.utf8.count <= 2 * 1024 * 1024 else { throw RuntimeError("Reddit capture exceeds 2 MiB") }
         return try invoke("captureRedditImport", [value])
+    }
+    public func importSubstackCapture(_ value: String) throws -> String {
+        guard value.utf8.count <= 2 * 1024 * 1024 else { throw RuntimeError("Substack capture exceeds 2 MiB") }
+        return try invoke("captureSubstackImport", [value])
     }
     public func source(_ value: String) throws -> String { try invoke("captureSource", [value]) }
     /// Convert an existing on-device authenticated Are.na read to a media source without transmitting its credential.
@@ -176,11 +180,11 @@ public struct RuntimeError: LocalizedError {
     public init(_ message: String) { errorDescription = message }
 }
 
-private final class CaptureRedirectDelegate: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
+final class CaptureRedirectDelegate: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
     func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
                     newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) {
-        let manual = task.taskDescription == "manual"
-        guard !manual, request.url?.scheme == "https", request.url?.user == nil, request.url?.password == nil else { completionHandler(nil); return }
+        let refusesRedirect = task.taskDescription == "manual" || task.taskDescription == "error"
+        guard !refusesRedirect, request.url?.scheme == "https", request.url?.user == nil, request.url?.password == nil else { completionHandler(nil); return }
         completionHandler(request)
     }
 }

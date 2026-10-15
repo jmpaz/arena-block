@@ -6,8 +6,9 @@ public struct PendingShare: Codable {
     public var id: UUID
     public var urls: [String]
     public var redditCaptureJSON: String?
-    public init(id: UUID, urls: [String], redditCaptureJSON: String? = nil) {
-        self.id = id; self.urls = urls; self.redditCaptureJSON = redditCaptureJSON
+    public var substackCaptureJSON: String?
+    public init(id: UUID, urls: [String], redditCaptureJSON: String? = nil, substackCaptureJSON: String? = nil) {
+        self.id = id; self.urls = urls; self.redditCaptureJSON = redditCaptureJSON; self.substackCaptureJSON = substackCaptureJSON
     }
 }
 
@@ -15,22 +16,24 @@ extension CaptureDraft {
     public func sourceReadIdentity(primary: [String], extra: [String]) -> String {
         let digest = SHA256.hash(data: Data((redditCapturesJSON ?? "[]").utf8))
             .map { String(format: "%02x", $0) }.joined()
-        return "\(accountID):\(id):primary=\(primary.joined(separator: "|")):extra=\(extra.joined(separator: "|")):thread=\(threadExpansion?.rawValue ?? "auto"):reddit=\(digest)"
+        let substackDigest = SHA256.hash(data: Data((substackCapturesJSON ?? "[]").utf8)).map { String(format: "%02x", $0) }.joined()
+        return "\(accountID):\(id):primary=\(primary.joined(separator: "|")):extra=\(extra.joined(separator: "|")):thread=\(threadExpansion?.rawValue ?? "auto"):reddit=\(digest):substack=\(substackDigest)"
     }
 }
 
 extension CaptureRuntime {
     @MainActor public func resolve(draft: CaptureDraft, refs: [String], extraRefs: [String], policyJSON: String) async throws -> String {
         try await resolve(refs: refs, extraRefs: extraRefs, policyJSON: policyJSON,
-                          redditCapturesJSON: draft.redditCapturesJSON ?? "[]")
+                          redditCapturesJSON: draft.redditCapturesJSON ?? "[]", substackCapturesJSON: draft.substackCapturesJSON ?? "[]")
     }
 }
 
 extension CaptureStore {
     /// Return replacement state only after the draft and workspace commit together.
-    public func replaceBrowserSnapshot(in current: CaptureDraft, recordsJSON: String, workspaceID: String) throws -> CaptureDraft {
+    public func replaceBrowserSnapshot(in current: CaptureDraft, recordsJSON: String, workspaceID: String, substack: Bool = false) throws -> CaptureDraft {
         var replacement = current
-        replacement.redditCapturesJSON = recordsJSON
+        if substack { replacement.substackCapturesJSON = recordsJSON }
+        else { replacement.redditCapturesJSON = recordsJSON }
         replacement.problem = nil; replacement.originalLinkOnly = nil; replacement.phase = .editing
         replacement.previewSnapshot = nil; replacement.renderPath = nil; replacement.updatedAt = Date()
         try transaction {
@@ -58,6 +61,7 @@ extension CaptureStore {
                 let pending = try values(PendingShare.self, account: 0, kind: "incoming")
                 let matching = pending.filter { $0.urls.contains(next.input) }
                 // Newest matching snapshot supersedes earlier intake for this URL.
+                next.substackCapturesJSON = matching.first(where: { $0.substackCaptureJSON != nil })?.substackCaptureJSON.map { "[" + $0 + "]" }
                 next.redditCapturesJSON = matching.first(where: { $0.redditCaptureJSON != nil })?.redditCaptureJSON.map { "[" + $0 + "]" }
                 for item in matching {
                     let remaining = item.urls.filter { $0 != next.input }

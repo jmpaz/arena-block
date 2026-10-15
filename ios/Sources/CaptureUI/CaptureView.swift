@@ -203,6 +203,9 @@ public struct CaptureRootView: View {
                   Section {
                     Button("Import browser capture") { importingReddit = true }
                         .disabled(locked).accessibilityIdentifier("capture.import-reddit")
+                    if session.draft?.substackCapturesJSON != nil {
+                        Text("Using a retained Substack source snapshot.").font(.footnote).foregroundStyle(.secondary)
+                    }
                     if session.draft?.redditCapturesJSON != nil {
                         Text("Using a browser-observed Reddit snapshot.").font(.footnote).foregroundStyle(.secondary)
                     }

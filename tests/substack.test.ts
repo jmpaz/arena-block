@@ -124,7 +124,7 @@ test("unsafe HTML links cannot become executable Markdown; implicit media fails"
   expect(() => normalizeSubstackCapture(c)).toThrow();
 });
 test("Note URL alone never falls through to undocumented acquisition", async () => {
-  await expect(new SocialResolver().resolve([fixture().sourceUrl])).rejects.toThrow("--substack-capture");
+  await expect(new SocialResolver({ substack: new SubstackProvider([], (async () => new Response(null, { status: 403 })) as unknown as typeof fetch) }).resolve([fixture().sourceUrl])).rejects.toThrow("no authenticated fallback");
 });
 test("relative body and article excerpt anchors keep their containing source as base", async () => {
   const c = fixture(); c.note.body.html = '<p>See <a href="/@lamblog/note/c-359890078">this Note</a> and <a href="//substack.com/@norvidstudies">this author</a>.</p>';
@@ -143,7 +143,7 @@ test("older receiver sees only a version read, including for a nested Substack q
   const c = fixture(), post = await new SubstackProvider([c]).resolve(source(c));
   const plan = composePlan([{ provider: "x", id: "7", canonicalUrl: "https://x.com/writer/status/7", author: { handle: "writer" }, text: "Root", media: [], quote: post }]);
   const reads: string[] = [];
-  const fetcher = (async (url: URL | RequestInfo) => { reads.push(String(url)); return Response.json({ version: "old", revision: "legacy", sourceId: "fixture", platform: "fixture", packagePath: null, schemaVersion: 1 }); }) as typeof fetch;
+  const fetcher = (async (url: URL | RequestInfo) => { reads.push(String(url)); return Response.json({ version: "old", revision: "legacy", sourceId: "fixture", platform: "fixture", packagePath: null, schemaVersion: 1 }); }) as unknown as typeof fetch;
   await expect(new ArenaBlockClient("https://daemon.example", "fixture", fetcher).publish(plan, ["4622814"])).rejects.toThrow("No save was submitted");
   expect(reads).toEqual(["https://daemon.example/v1/version"]);
 });

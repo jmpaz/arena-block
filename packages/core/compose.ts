@@ -43,7 +43,7 @@ function escapeAuthoredSeparators(value: string): string {
 }
 
 function description(posts: ResolvedPost[]): string | undefined {
-  const substack = posts.filter(post => post.substackCapture).map(post => `Substack browser DOM capture observed at: ${post.substackCapture!.observedAt}. Full root prose; quoted Note availability and linked/preview/attachment roles retained in the source record. Displayed publication labels have no inferred timezone.`);
+  const substack = posts.filter(post => post.substackCapture).map(post => `Substack ${post.substackCapture!.method === "public-html" ? "public HTML" : "browser DOM"} capture observed at: ${post.substackCapture!.observedAt}. Full root prose; quoted Note availability and linked/preview/attachment roles retained in the source record. Displayed publication labels have no inferred timezone.`);
   const stories = posts.filter((post) => post.storyTitle !== undefined);
   if (stories.length) {
     const dates = stories.map((post) => post.postedAt ? `Posted at: ${post.postedAt}` : "").join("\n\n---\n\n");

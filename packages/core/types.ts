@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { substackCaptureSchema, substackSourceKey, type SubstackCapture } from "./substack-record.ts";
+import { substackCaptureSchema, substackCapturesSchema, substackSourceKey, type SubstackCapture } from "./substack-record.ts";
 import { redditBrowserCaptureSchema, redditCapturesSchema, redditSourceKey, type RedditBrowserCapture } from "./reddit-record.ts";
 import { parseSource } from "./url.ts";
 
@@ -258,6 +258,7 @@ export const planInputSchema = z.object({
   policy: compositionPolicySchema.optional(),
   refresh: z.boolean().default(false),
   redditCaptures: redditCapturesSchema,
+  substackCaptures: substackCapturesSchema,
 }).refine(input => input.refs.length + input.extraRefs.length <= 20, "At most 20 source posts are supported");
 export type PlanInput = z.infer<typeof planInputSchema>;
 

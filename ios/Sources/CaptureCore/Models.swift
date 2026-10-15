@@ -153,6 +153,7 @@ public struct CaptureDraft: Codable, Identifiable, Sendable {
     public var originalLinkOnly: Bool?
     /// Sanitized public records observed in the user-invoked browser share, without browser session data.
     public var redditCapturesJSON: String?
+    public var substackCapturesJSON: String?
     public var media: MediaPolicy
     public var selectedMedia: [String]?
     public var videoFrames: [String]?
@@ -212,6 +213,10 @@ public enum CaptureInput {
             return "\(provider):\(author.lowercased())/\(parts[1])"
         }
         let host = (url.host ?? "").lowercased().replacingOccurrences(of: #"^www\."#, with: "", options: .regularExpression)
+        if host == "substack.com", let range = url.path.range(of: #"/note/c-([1-9][0-9]*)/?$"#, options: .regularExpression) {
+            let identity = String(url.path[range]).replacingOccurrences(of: "/note/c-", with: "").trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            return "substack:\(identity)"
+        }
         if ["x.com", "twitter.com", "fixupx.com", "fxtwitter.com", "vxtwitter.com", "twittpr.com"].contains(host),
            let index = parts.firstIndex(of: "status"), parts.indices.contains(index + 1),
            !parts[index + 1].isEmpty, parts[index + 1].allSatisfy(\.isNumber) {

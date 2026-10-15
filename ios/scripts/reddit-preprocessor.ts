@@ -1,6 +1,12 @@
+import { readSubstackPage } from "../../packages/core/substack-page.ts";
 import { readRedditPage } from "../../packages/core/reddit-browser-reader.ts";
 (globalThis as any).ExtensionPreprocessingJS = {
   run(arguments_: { completionFunction(value: Record<string, string>): void }) {
+    if (location.hostname === "substack.com" && /\/note\/c-\d+/.test(location.pathname)) {
+      void readSubstackPage().then(value => arguments_.completionFunction({ substackCapture: JSON.stringify(value) }),
+        error => arguments_.completionFunction({ substackError: error instanceof Error ? error.message : String(error) }));
+      return;
+    }
     if (!["www.reddit.com", "reddit.com", "old.reddit.com", "new.reddit.com"].includes(location.hostname)) {
       arguments_.completionFunction({}); return;
     }

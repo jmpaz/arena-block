@@ -1,11 +1,12 @@
 # Substack Notes candidate
 
-This isolated candidate imports an explicitly prepared, browser-observed public
-Note record. It produces local plans and private save snapshots through the
-existing composer. It does not install anything, change browser permissions,
-request credentials, use undocumented Substack APIs, or enable receiver support.
+This isolated increment reads ordinary public Note URLs without credentials and
+accepts bounded browser-observed records. CLI, receiver, browser and native paths
+use the same composer. Source capabilities are implemented; installed components
+remain unchanged. The target and remaining work are in [the parity plan](substack-parity.md).
 
 ```sh
+bun run src/cli.ts plan https://substack.com/@writer/note/c-123 --quote-depth full --json
 bun run src/cli.ts plan --substack-capture ./note.capture.json --media none --json
 ```
 
@@ -19,9 +20,12 @@ The record contract is `packages/core/substack-record.ts`. `method: browser-dom`
 is an assertion about how the record was prepared, not browser attestation or a
 guarantee that the supplied HTML is public. Capture only the selected Note's
 authored body and explicit relationships; never export the entire page, hidden
-application state, feed, comments, cookies or storage. There is no automatic DOM
-collector or installed Read Substack button in this candidate. Preparing a record
-requires independent inspection of the selected permalink and each expanded quote.
+application state, feed, comments, cookies or storage. The shared DOM collector reads only the selected permalink container and follows
+quoted Note URLs through credentialless public HTML. Browser invocation uses an
+already granted scripting API and activeTab; it never requests a grant. Safari
+uses its existing user-invoked preprocessing entry point. No changes are installed
+by development or testing. Explicit imported records remain declarations of their
+source method and completeness, not browser attestation.
 
 ## Fidelity
 
@@ -37,8 +41,9 @@ requires independent inspection of the selected permalink and each expanded quot
 - `links` distinguish ordinary links, linked articles, images, video and audio,
   plus `linked`, `preview` and `attachment` roles. An attachment is retained as a
   labelled source link with “original not acquired”. Preview images are not
-  originals. No image/audio/video bytes are acquired or claimed as viewed.
-  Implicit media HTML in prose stops rather than silently disappearing.
+  originals. Verified original image references participate in the common media selection and
+  acquisition path. Linked/preview media remain links. Unsupported player and media
+  surfaces stop; no unseen video/audio bytes are claimed as viewed.
 - Keep publication timestamps exactly as displayed in `publishedLabel` when no
   timezone is known; no UTC timestamp is inferred. Observation time is UTC.
 - Source Note URLs lose query tracking and fragments for identity. Linked URLs,
@@ -48,11 +53,18 @@ requires independent inspection of the selected permalink and each expanded quot
   body Markdown includes source links at each boundary. The existing quote policy
   still controls inclusion and depth; inspection must check its resulting coverage.
 
-Publication clients require `substack-browser-records-v1`, including for nested
-Substack quotes. This candidate deliberately does not advertise that receiver
-capability. Current receivers must stop before submission. Browser editor/import,
-native iOS intake, acquisition, receiver retention and end-to-end saves need a
-separately reviewed implementation before installation or publication.
+Publication clients and helper resolution require `substack-browser-records-v1`,
+including for nested Substack quotes. The isolated receiver advertises and retains
+this contract, while older installed receivers must stop before submission.
+Browser/editor/background-job and native draft/submission/intake retain records.
+Missing depth-limited quotes can acquire public descendants without changing the
+root body, preview or original observation. The original depth-limit annotation
+stays in the record alongside new descendants with their own acquisition evidence.
+Strip guards permit only that additive hydration, never changed original fields.
+
+The requested Note is a text-only root quoting a full Note with an external video
+link. Full articles, Notes reply expansion and additional native video/audio types
+remain separate parity work. This increment does not claim general Substack parity.
 
 ## Why Notes and articles need separate acquisition
 

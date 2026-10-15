@@ -51,7 +51,7 @@ function jobs(): CaptureJobRunner {
         if (redditReadNeedsBrowser(error)) throw error;
         if (!await extension.permissions.contains({ permissions: ["nativeMessaging"] })) throw error;
         return resolveWithNative({
-          refs: input.primary, extraRefs: input.extras, policy: input.policy, refresh: false, redditCaptures: input.redditCaptures,
+          refs: input.primary, extraRefs: input.extras, policy: input.policy, refresh: false, redditCaptures: input.redditCaptures, substackCaptures: input.substackCaptures,
         }, native);
       }
     },

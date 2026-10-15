@@ -1,3 +1,4 @@
+import { requireRetainedSubstackCaptures } from "../packages/core/substack-record.ts";
 import { requireRetainedRedditCaptures } from "../packages/core/reddit-record.ts";
 /** Optional native messaging transport. The bearer token stays in this process. */
 import { readSync, writeSync } from "node:fs";
@@ -75,12 +76,14 @@ export async function handle(request: HostRequest, fetcher: typeof fetch = fetch
   switch (request.action) {
     case "ping": return daemon("/v1/version", "GET", undefined, fetcher);
     case "resolve": {
-      if (request.input.redditCaptures?.length) {
+      if (request.input.redditCaptures?.length || request.input.substackCaptures?.length) {
         const serving = buildInfoSchema.parse(await daemon("/v1/version", "GET", undefined, fetcher));
-        if (!serving.planCapabilities?.includes("reddit-browser-records-v1")) throw new Error("The daemon cannot receive Reddit browser records. Install a matching receiver; no source read was submitted.");
+        if (request.input.substackCaptures?.length && !serving.planCapabilities?.includes("substack-browser-records-v1")) throw new Error("The daemon cannot receive Substack records. No source read was submitted.");
+        if (request.input.redditCaptures?.length && !serving.planCapabilities?.includes("reddit-browser-records-v1")) throw new Error("The daemon cannot receive Reddit browser records. Install a matching receiver; no source read was submitted.");
       }
       const plan = blockPlanSchema.parse(await daemon("/v1/plans", "POST", request.input, fetcher));
       requireRetainedRedditCaptures(plan, request.input.redditCaptures ?? []);
+      requireRetainedSubstackCaptures(plan, request.input.substackCaptures ?? []);
       return plan;
     }
     case "channels": return daemon(`/v1/channels?page=${request.page}`, "GET", undefined, fetcher);

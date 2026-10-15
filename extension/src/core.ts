@@ -1,3 +1,5 @@
+import { bindSubstackCaptures, type SubstackCapture } from "../../packages/core/substack-record.ts";
+import { SubstackProvider } from "../../packages/core/providers/substack.ts";
 import { bindRedditCaptures, type RedditBrowserCapture } from "../../packages/core/reddit-record.ts";
 import { captureSource, publicationFields, webPlan } from "../../packages/core/capture.ts";
 import { composePlan, planHash } from "../../packages/core/compose.ts";
@@ -16,7 +18,7 @@ import { XProvider } from "../../packages/core/providers/x.ts";
 import { compositionPolicySchema, type BlockPlan, type CompositionPolicy } from "../../packages/core/types.ts";
 import { parseSource } from "../../packages/core/url.ts";
 
-export type CaptureInput = { primary: string[]; extras: string[]; policy: Partial<CompositionPolicy>; redditCaptures?: RedditBrowserCapture[] };
+export type CaptureInput = { primary: string[]; extras: string[]; policy: Partial<CompositionPolicy>; redditCaptures?: RedditBrowserCapture[]; substackCaptures?: SubstackCapture[] };
 
 const browserFetch = ((input: RequestInfo | URL, init?: RequestInit) => {
   const headers = new Headers(init?.headers);
@@ -24,10 +26,11 @@ const browserFetch = ((input: RequestInfo | URL, init?: RequestInit) => {
   return fetch(input, { ...init, headers, credentials: "omit" });
 }) as typeof fetch;
 
-function resolver(fetcher: typeof fetch = browserFetch, captures: RedditBrowserCapture[] = []): SocialResolver {
+function resolver(fetcher: typeof fetch = browserFetch, captures: RedditBrowserCapture[] = [], substack: SubstackCapture[] = []): SocialResolver {
   return new SocialResolver({
     arena: new ArenaMediaProvider(fetcher),
     reddit: new RedditProvider(fetcher, captures),
+    substack: new SubstackProvider(substack, fetcher),
     forum_magnum: new ForumMagnumProvider(fetcher),
     tiktok: new AtmosphereProvider("tiktok", fetcher),
     instagram: new AtmosphereProvider("instagram", fetcher),
@@ -44,11 +47,12 @@ function resolver(fetcher: typeof fetch = browserFetch, captures: RedditBrowserC
 export async function resolveCapture(input: CaptureInput, signal?: AbortSignal, fetcher: typeof fetch = browserFetch): Promise<BlockPlan> {
   if (!input.primary.length || input.primary.length + input.extras.length > 20) throw new Error("Choose 1–20 sources");
   const captures = bindRedditCaptures([...input.primary, ...input.extras], input.redditCaptures ?? []);
+  const substack = bindSubstackCaptures([...input.primary, ...input.extras], input.substackCaptures ?? []);
   const policy = compositionPolicySchema.parse(input.policy);
   if (input.primary.length === 1 && input.extras.length === 0 && captureSource(input.primary[0]!).kind === "url") {
     return webPlan({ url: input.primary[0]! });
   }
-  const resolved = await resolver(fetcher, captures).resolveComposition(input.primary, input.extras, policy, signal);
+  const resolved = await resolver(fetcher, captures, substack).resolveComposition(input.primary, input.extras, policy, signal);
   return composePlan(resolved.posts, resolved.policy);
 }
 
@@ -66,14 +70,16 @@ export function previewFields(plan: BlockPlan): Record<string, unknown> {
   return publicationFields(plan);
 }
 
-export function requiredOrigins(refs: string[], captures: RedditBrowserCapture[] = []): string[] {
+export function requiredOrigins(refs: string[], captures: RedditBrowserCapture[] = [], substack: SubstackCapture[] = []): string[] {
   const origins = new Set<string>();
   const keys = new Set(bindRedditCaptures(refs, captures).map(capture => parseSource(capture.sourceUrl).canonicalUrl));
+  for (const capture of bindSubstackCaptures(refs, substack)) keys.add(parseSource(capture.sourceUrl).canonicalUrl);
   for (const ref of refs) {
     try { if (keys.has(parseSource(ref).canonicalUrl)) continue; } catch { /* Generic web source below. */ }
     const source = captureSource(ref);
     if (source.kind === "url") continue;
     switch (parseSource(ref).provider) {
+      case "substack": break; // Use the invoked tab or local public resolver; never request new host access.
       case "arena": origins.add("https://api.are.na/*"); break;
       case "x": origins.add("https://api.fxtwitter.com/*"); break;
       case "bluesky": origins.add("https://public.api.bsky.app/*"); break;

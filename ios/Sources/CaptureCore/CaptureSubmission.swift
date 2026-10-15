@@ -5,6 +5,7 @@ public struct CaptureSubmissionSnapshot: Codable, Sendable {
     public let url: String
     public let originalLinkOnly: Bool?
     public let redditCapturesJSON: String?
+    public let substackCapturesJSON: String?
     /// Present for multi-post captures; absent in older single-source jobs.
     public let refs: [String]?
     /// Supplementary media stays separate from text-bearing primary sources.
@@ -32,6 +33,7 @@ public struct CaptureSubmissionSnapshot: Codable, Sendable {
         }
         originalLinkOnly = draft.originalLinkOnly
         redditCapturesJSON = draft.originalLinkOnly == true ? nil : draft.redditCapturesJSON
+        substackCapturesJSON = draft.originalLinkOnly == true ? nil : draft.substackCapturesJSON
         url = submitted[0]
         refs = submitted.count > 1 ? submitted : nil
         extraRefs = extras.isEmpty ? nil : extras

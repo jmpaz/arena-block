@@ -1,8 +1,10 @@
+import "./native-platform.ts";
+import { SubstackProvider } from "./providers/substack.ts";
+import { bindSubstackCaptures, normalizeSubstackCapture, substackCapturesSchema } from "./substack-record.ts";
 import { RedditProvider } from "./providers/reddit.ts";
 import { bindRedditCaptures, normalizeRedditCapture, redditCapturesSchema } from "./reddit-record.ts";
 import { resolveMediaURL, resolveMediaSources } from "./media-acquisition.ts";
 import { verifyPublication, arenaImageUrl } from "./verification.ts";
-import "./native-platform.ts";
 import { composePlan, planHash } from "./compose.ts";
 import { publicationFields, publicationPayload, publicationPayloadForMedia, captureSource } from "./capture.ts";
 import { SocialResolver } from "./providers/index.ts";
@@ -13,14 +15,15 @@ import { blockPlanSchema, compositionPolicySchema, resolvedPostSchema } from "./
 import { captureRenderRecipe } from "./render-recipe.ts";
 const host = globalThis as any;
 const jobs = new Map<string, AbortController>();
-function nativeResolver(captures = redditCapturesSchema.parse([])) { return new SocialResolver({ reddit: new RedditProvider(undefined, captures), soundcloud: new NativeSoundCloudProvider(),
+function nativeResolver(captures = redditCapturesSchema.parse([]), substack = substackCapturesSchema.parse([])) { return new SocialResolver({ substack: new SubstackProvider(substack), reddit: new RedditProvider(undefined, captures), soundcloud: new NativeSoundCloudProvider(),
   bluesky: new BlueskyProvider(undefined, undefined, { retainConversationCoverage: true }) }); }
 const resolver = nativeResolver();
 host.captureCancel = (id: string) => jobs.get(id)?.abort();
-host.captureResolve = (id: string, refsJSON: string, policyJSON: string, refreshJSON = "false", extraRefsJSON = "[]", redditCapturesJSON = "[]") => {
+host.captureResolve = (id: string, refsJSON: string, policyJSON: string, refreshJSON = "false", extraRefsJSON = "[]", redditCapturesJSON = "[]", substackCapturesJSON = "[]") => {
   const refs = JSON.parse(refsJSON), extras = JSON.parse(extraRefsJSON);
   const captures = bindRedditCaptures([...refs, ...extras], redditCapturesSchema.parse(JSON.parse(redditCapturesJSON)));
-  const requestResolver = captures.length ? nativeResolver(captures) : resolver;
+  const substack = bindSubstackCaptures([...refs, ...extras], substackCapturesSchema.parse(JSON.parse(substackCapturesJSON)));
+  const requestResolver = captures.length || substack.length ? nativeResolver(captures, substack) : resolver;
   const policy = compositionPolicySchema.parse(JSON.parse(policyJSON));
   if (JSON.parse(refreshJSON) === true) requestResolver.clearSourceCache();
   const controller = new AbortController();
@@ -39,6 +42,7 @@ host.captureCompose = (postsJSON: string, policyJSON: string) => {
   const plan = composePlan(resolvedPostSchema.array().parse(JSON.parse(postsJSON)), JSON.parse(policyJSON));
   return JSON.stringify({ plan, fields: publicationFields(plan) });
 };
+host.captureSubstackImport = (value: string) => JSON.stringify(normalizeSubstackCapture(JSON.parse(value)));
 host.captureRedditImport = (value: string) => JSON.stringify(normalizeRedditCapture(JSON.parse(value)));
 host.captureSource = (value: string) => JSON.stringify(captureSource(value));
 host.captureArenaMediaPost = (block: string, blockID: string) => JSON.stringify(arenaMediaPost(JSON.parse(block), blockID));
