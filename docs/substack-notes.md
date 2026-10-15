@@ -22,8 +22,8 @@ partial or inconsistent article records stop; selected excerpts remain excerpts.
 
 Quoted Notes are read from their own permalink, keeping the outer preview and
 separate author. Quote controls set inclusion and depth. Missing, cyclic or
-limited quotes retain an explicit boundary. Article restack cards remain
-unsupported.
+limited quotes retain an explicit boundary. Article cards retain their independent authors and preview text. Selected excerpts
+remain labelled excerpts; automatic selections remain previews.
 
 `--thread-expansion on` follows a verified same-author linear Note chain,
 including ancestors around the selected Note. Other authors are excluded.
@@ -35,8 +35,9 @@ article video and audio require source-bound upload metadata. Videos over ten
 minutes use an observed Frame; shorter videos use the shared video path. Choose
 `--media audio` for one original audio attachment, copied without conversion and
 bounded to 250 MiB. Duration and actual media container are checked. External
-players remain links. Note-native media, inline article players and article restack
-cards remain unsupported. See [capture support](substack-parity.md) for limits.
+players remain links. Native Note videos require upload evidence bound to that
+Note and author. Inline article videos require complete upload metadata bound to
+the article and publication; unsupported players stop capture. See [capture support](substack-parity.md) for limits.
 
 Retained records carry authored HTML, identities, authors, publication labels,
 observation times and acquisition method through drafts and frozen submissions.
@@ -49,4 +50,5 @@ hundred links per Note. Reply discovery permits at most 64 pages, 8 MiB aggregat
 2,000 identities and 32 selected sources. Plans require
 `substack-browser-records-v1`; article and thread evidence additionally requires
 `substack-public-sources-v2`. Public article media additionally requires
-`substack-native-media-v1`. Helpers reject stripped evidence.
+`substack-native-media-v1`. Note attachments and article cards additionally require
+`substack-note-attachments-v1`. Helpers reject stripped evidence.

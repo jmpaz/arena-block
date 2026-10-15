@@ -1,7 +1,8 @@
 import { z } from "zod";
-import { substackCaptureSchema, substackCapturesSchema, substackSourceKey, type SubstackCapture } from "./substack-record.ts";
+import { substackCaptureSchema, substackCapturesSchema, substackSourceKey, type SubstackCapture, type SubstackNote } from "./substack-record.ts";
 import { redditBrowserCaptureSchema, redditCapturesSchema, redditSourceKey, type RedditBrowserCapture } from "./reddit-record.ts";
 import { parseSource } from "./url.ts";
+import { substackNoteVideo } from "./substack-note-attachments.ts";
 import { substackArticleRecordSchema, substackRelationSchema, substackThreadSchema, type SubstackArticleRecord } from "./substack-article-record.ts";
 
 export const SCHEMA_VERSION = 1 as const;
@@ -119,7 +120,7 @@ export type ResolvedPost = {
   quoteSnapshot?: { basis: "embedded"; hydration: "unavailable" | "deleted" };
 };
 
-export const resolvedPostSchema: z.ZodType<ResolvedPost> = z.lazy(() =>
+const resolvedPostNodeSchema: z.ZodType<ResolvedPost> = z.lazy(() =>
   z.object({
     provider: z.enum(["substack", "reddit", "x", "bluesky", "delve", "mastodon", "tiktok", "instagram", "hackernews", "lobsters", "arena", "web", "soundcloud", "forum_magnum"]),
     id: z.string().min(1),
@@ -149,7 +150,7 @@ export const resolvedPostSchema: z.ZodType<ResolvedPost> = z.lazy(() =>
     media: z.array(mediaAssetSchema),
     mediaIssues: z.array(mediaIssueSchema).optional(),
     arenaBlock: z.object({ type: z.enum(["Image", "Link", "Attachment", "Embed"]), sourceURL: z.url().optional(), updatedAt: z.string().optional(), mediaUpdatedAt: z.string().optional() }).optional(),
-    quote: resolvedPostSchema.optional(),
+    quote: resolvedPostNodeSchema.optional(),
     atproto: atprotoSchema.optional(),
     facets: z.array(facetSchema).optional(),
     external: externalSchema.optional(),
@@ -163,14 +164,6 @@ export const resolvedPostSchema: z.ZodType<ResolvedPost> = z.lazy(() =>
     if (post.substackArticle && (post.provider !== "substack" || post.id !== `article:${post.substackArticle.id}`
       || post.canonicalUrl !== post.substackArticle.url || post.author.handle !== post.substackArticle.authors[0]?.handle || !post.article)) {
       context.addIssue({ code: "custom", message: "Mismatched Substack article provenance", path: ["substackArticle"] });
-    }
-    for (const [index, asset] of post.media.entries()) {
-      if (asset.acquisition !== "substack-public-original") continue;
-      const original = post.substackArticle?.nativeMedia?.find(item => item.kind === asset.kind && item.url === asset.url);
-      if (post.provider !== "substack" || !original || asset.durationSeconds !== original.durationSeconds
-        || asset.width !== original.width || asset.height !== original.height || asset.posterUrl !== original.posterUrl) {
-        context.addIssue({ code: "custom", message: "Substack original media disagrees with its complete source record", path: ["media", index] });
-      }
     }
     if (post.substackRelation) {
       try {
@@ -193,6 +186,42 @@ export const resolvedPostSchema: z.ZodType<ResolvedPost> = z.lazy(() =>
     } catch { context.addIssue({ code: "custom", message: "Mismatched Reddit capture provenance", path: ["redditCapture"] }); }
   }),
 );
+
+/** Nested quotes carry their original evidence in the containing capture tree. */
+export const resolvedPostSchema: z.ZodType<ResolvedPost> = resolvedPostNodeSchema.superRefine((root, context) => {
+  const matches = (asset: MediaAsset, original: { kind: string; url: string; durationSeconds?: number; width?: number; height?: number; posterUrl?: string }) =>
+    asset.kind === original.kind && asset.url === original.url && asset.durationSeconds === original.durationSeconds
+    && asset.width === original.width && asset.height === original.height && asset.posterUrl === original.posterUrl;
+  const matchesNote = (note: SubstackNote | undefined, post: ResolvedPost): note is SubstackNote => {
+    if (!note || post.provider !== "substack") return false;
+    try {
+      return substackSourceKey(note.url) === post.id && substackSourceKey(post.canonicalUrl) === post.id
+        && note.author.handle === post.author.handle && note.body.status === "complete";
+    } catch { return false; }
+  };
+  const visit = (post: ResolvedPost, inherited: (SubstackNote | undefined)[], path: (string | number)[]) => {
+    const notes = post.substackCapture ? [...inherited, post.substackCapture.note] : inherited;
+    const bound = notes.filter((note): note is SubstackNote => matchesNote(note, post));
+    const completeEvidence = notes.length > 0 && bound.length === notes.length;
+    for (const [index, asset] of post.media.entries()) {
+      if (asset.acquisition !== "substack-public-original") continue;
+      let consistent = false;
+      if (post.provider === "substack") {
+        if (post.substackArticle && notes.length === 0) {
+          consistent = post.substackArticle.nativeMedia?.some(item => matches(asset, item)) === true;
+        } else {
+          consistent = completeEvidence && bound.every(note => note.attachmentEvidence?.attachments.some(item =>
+            item.kind === "video" && matches(asset, substackNoteVideo(item))) === true);
+        }
+      }
+      if (!consistent) context.addIssue({ code: "custom", message: "Substack original media disagrees with its complete source record", path: [...path, "media", index] });
+    }
+    // A child cannot replace a missing/incomplete ancestor observation, or
+    // reparent a deeper quote while borrowing media evidence from the same tree.
+    if (post.quote) visit(post.quote, notes.length ? completeEvidence ? bound.map(note => note.quote?.expanded) : [undefined] : [], [...path, "quote"]);
+  };
+  visit(root, [], []);
+});
 
 export const compositionPolicySchema = z.object({
   media: z.enum(["auto", "none", "all", "video", "audio", "images", "selected"]).default("auto"),
