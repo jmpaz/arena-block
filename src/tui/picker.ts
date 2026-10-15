@@ -113,12 +113,25 @@ export class PickerView {
     const w = this.columnWidth;
     this.lines[0]!.content = this.hand(w);
     this.lines[1]!.content = this.field(w);
-    for (let i = 0; i < m.listRows; i++) this.lines[this.listStart + i]!.content = this.row(m.top + i, w);
+    const thumb = m.rows.length > m.listRows ? this.thumb() : undefined;
+    const inList = thumb && !this.preview ? thumb : undefined;
+    for (let i = 0; i < m.listRows; i++) {
+      const row = this.row(m.top + i, inList ? w - 2 : w);
+      if (inList) row.chunks.push(ink.plain(" "), i >= inList[0] && i < inList[1] ? ink.plain("┃") : dim("│"));
+      this.lines[this.listStart + i]!.content = row;
+    }
     this.lines[this.height - 2]!.content = this.tray(w);
     this.lines[this.height - 1]!.content = this.rule(w);
-    if (this.preview) this.preview.content = this.previewText();
+    if (this.preview) this.preview.content = this.previewText(thumb);
     const fieldText = `› ${m.query}`;
     this.renderer.setCursorPosition(Math.min(w - 1, width(fieldText)), 1, true);
+  }
+
+  private thumb(): [number, number] {
+    const m = this.model;
+    const size = Math.max(1, Math.round((m.listRows * m.listRows) / m.rows.length));
+    const start = Math.round((m.top / Math.max(1, m.rows.length - m.listRows)) * (m.listRows - size));
+    return [start, start + size];
   }
 
   private hand(w: number) {
@@ -234,10 +247,15 @@ export class PickerView {
     return line([dim(left), dim(fill), " ", ...pieces, dim(" ──")]);
   }
 
-  private previewText() {
+  private previewText(thumb?: [number, number]) {
     const pw = this.opts.previewWidth - 2;
     const c = this.model.previewChannel();
-    const bar = (pieces: Piece[]) => [dim("│ "), ...pieces];
+    let at = 0;
+    const bar = (pieces: Piece[]) => {
+      const list = at++ - this.listStart;
+      const lit = thumb && list >= thumb[0] && list < thumb[1];
+      return [lit ? ink.plain("┃ ") : dim("│ "), ...pieces];
+    };
     const rows: Piece[][] = [];
     if (c) {
       const paint = ink[c.visibility];
