@@ -39,11 +39,6 @@ Use `resolve`, `plan`, `publish`, `save`, `status`, `cancel` or `retry` as shown
 
 ## Source providers
 
-The isolated [Substack Notes increment](docs/substack-notes.md) resolves public Note
-URLs and preserves bounded browser records through CLI, browser, native and receiver
-paths. See [the parity plan](docs/substack-parity.md) for remaining article, reply and
-media work. Installed components require a separately reviewed integration handoff.
-
 | Provider | Accepted sources | Acquisition |
 |---|---|---|
 | x.com | Post permalinks and article posts | Public FxTwitter responses |
@@ -52,9 +47,12 @@ media work. Installed components require a separately reviewed integration hando
 | Mastodon | Public HTTPS post permalinks | The instance's public status API |
 | Reddit | Posts, comments, galleries, share links | Public JSON, user-invoked browser records, bounded availability fallback |
 | LessWrong, Alignment Forum, EA Forum | Post and comment permalinks | Each site's public GraphQL API |
+| Substack | Public Note permalinks | Public page HTML or user-invoked browser records |
 | TikTok, Instagram | Supported post, video and share permalinks | FxEmbed Atmosphere responses |
 | SoundCloud | Public track and playlist pages | Public page data and available download metadata |
 | Hacker News, Lobsters | Comment permalinks | Public comment APIs |
+
+[Substack Notes](docs/substack-notes.md) preserve authored text, original images and quoted Notes. Full articles, automatic reply expansion and native video/audio acquisition remain unsupported; see [capture support](docs/substack-parity.md).
 
 Bluesky and Delvetown use separate record collections and facet vocabularies. The renderer expands a shortened URL label after checking its facet destination, preserves meaningful link labels, keeps mention wording and leaves tags as text. It checks UTF-8 ranges before generating Markdown. Plans retain the original text and record data. Refresh an older cached Bluesky source to acquire facets discarded by an older resolver.
 
