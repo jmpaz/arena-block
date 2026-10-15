@@ -67,29 +67,38 @@ export function tallyBlocks(masks: Iterable<number>, rule: Exclude<OverlapRule, 
   return tally;
 }
 
-async function listChannels(source: RatioSource, signal?: AbortSignal): Promise<{ accountId: number; channels: ChannelRow[] }> {
+async function listChannels(source: RatioSource, retry: <T>(operation: () => Promise<T>) => Promise<T>, signal?: AbortSignal): Promise<{ accountId: number; channels: ChannelRow[] }> {
   const channels: ChannelRow[] = [];
   let accountId = 0, page: number | null = 1;
   const seen = new Set<number>();
   while (page !== null) {
-    const response: Awaited<ReturnType<RatioSource["channels"]>> = await source.channels(page, signal);
+    const current: number = page;
+    const response: Awaited<ReturnType<RatioSource["channels"]>> = await retry(() => source.channels(current, signal));
     accountId = response.accountId;
     for (const channel of response.channels) if (!seen.has(channel.id)) { seen.add(channel.id); channels.push(channel); }
-    if (response.nextPage !== null && response.nextPage <= page) throw new Error("Channel listing did not advance");
+    if (response.nextPage !== null && response.nextPage <= current) throw new Error("Channel listing did not advance");
     page = response.nextPage;
   }
   return { accountId, channels };
 }
 
-async function withRetry<T>(operation: () => Promise<T>, signal?: AbortSignal, delays = [1500, 4000, 10_000]): Promise<T> {
-  for (let attempt = 0; ; attempt++) {
-    try { return await operation(); }
-    catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      if (attempt >= delays.length || signal?.aborted || !/\b(429|5\d\d)\b|timed? ?out|fetch failed/i.test(message)) throw error;
-      await new Promise(resolve => setTimeout(resolve, delays[attempt]));
+const defaultRetryDelays = [3000, 10_000, 30_000, 60_000, 60_000, 60_000];
+
+/** Retries rate limits and server errors; a limit hit pauses every worker that shares the gate. */
+function retrying(delays: number[], signal?: AbortSignal) {
+  let resumeAt = 0;
+  return async function withRetry<T>(operation: () => Promise<T>): Promise<T> {
+    for (let attempt = 0; ; attempt++) {
+      const wait = resumeAt - Date.now();
+      if (wait > 0) await new Promise(resolve => setTimeout(resolve, wait));
+      try { return await operation(); }
+      catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (attempt >= delays.length || signal?.aborted || !/\b(429|5\d\d)\b|timed? ?out|fetch failed/i.test(message)) throw error;
+        resumeAt = Math.max(resumeAt, Date.now() + delays[attempt]!);
+      }
     }
-  }
+  };
 }
 
 export type CollectOptions = {
@@ -105,7 +114,8 @@ export type CollectOptions = {
 /** Read the channel list, then count channels and blocks by visibility. Only GET routes are called. */
 export async function collectRatio(source: RatioSource, options: CollectOptions): Promise<RatioReport> {
   const { signal, overlap } = options;
-  const { accountId, channels } = await listChannels(source, signal);
+  const withRetry = retrying(options.retryDelays ?? defaultRetryDelays, signal);
+  const { accountId, channels } = await listChannels(source, withRetry, signal);
   const channelTally = emptyTally(), blockTally = emptyTally();
   const owners: Record<string, Tally> = {};
   for (const channel of channels) {
@@ -136,7 +146,7 @@ export async function collectRatio(source: RatioSource, options: CollectOptions)
     let page: number | null = 1, entries = 0;
     while (page !== null) {
       const current: number = page;
-      const response = await withRetry(() => source.channelBlocks(channel.id, current, signal), signal, options.retryDelays);
+      const response = await withRetry(() => source.channelBlocks(channel.id, current, signal));
       for (const id of response.blockIds) masks.set(id, (masks.get(id) ?? 0) | bit[visibility]);
       blockPlacements += response.blockIds.length;
       nestedChannelEntries += response.channelEntries;
@@ -148,7 +158,7 @@ export async function collectRatio(source: RatioSource, options: CollectOptions)
     options.progress?.(++done, scanned.length);
   };
   const worker = async () => { while (next < scanned.length) await scanChannel(scanned[next++]!); };
-  await Promise.all(Array.from({ length: Math.max(1, Math.min(options.concurrency ?? 4, scanned.length || 1)) }, worker));
+  await Promise.all(Array.from({ length: Math.max(1, Math.min(options.concurrency ?? 2, scanned.length || 1)) }, worker));
   const tally = tallyBlocks(masks.values(), overlap);
   Object.assign(blockTally, tally);
   report.blockRatios = ratios(blockTally);

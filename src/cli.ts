@@ -518,9 +518,12 @@ program.command("ratio").description("Report private, closed and public channels
       channels: index ? async () => ({ accountId: index.accountId, channels: index.channels, nextPage: null }) : (page, signal) => daemon.channels(page, signal),
       channelBlocks: (id, page, signal) => daemon.channelBlocks(id, page, signal),
     };
-    const progress = process.stderr.isTTY ? (done: number, total: number) => process.stderr.write(`\rReading channels ${done}/${total}`) : undefined;
+    const progress = (done: number, total: number) => {
+      if (process.stderr.isTTY) process.stderr.write(`\rReading channels ${done}/${total}`);
+      else if (done % 100 === 0 || done === total) process.stderr.write(`Read channels ${done}/${total}\n`);
+    };
     const report = await collectRatio(source, { overlap: options.overlap as OverlapRule, progress, listing: index ? `cached ${index.completeAt}` : "live" });
-    if (progress) process.stderr.write("\r\x1b[K");
+    if (process.stderr.isTTY) process.stderr.write("\r\x1b[K");
     console.log(options.json ? JSON.stringify(report, null, 2) : formatRatioReport(report));
   });
 
