@@ -45,6 +45,15 @@ final class RedditSourceFailureUITests: XCTestCase {
         }
         app.terminate()
         app = launch(store: store, share: true)
+        let restoredMessage = app.staticTexts["Reddit didn’t allow Capture to read this link. Full content could not be acquired."]
+        XCTAssertTrue(restoredMessage.waitForExistence(timeout: 5))
+        XCTAssertTrue(restoredMessage.isHittable)
+        XCTAssertEqual(app.state, .runningForeground)
+        // Accessibility can publish the restored tree before its first rendered
+        // frame. Let that transition settle before recording visual evidence.
+        let rendered = expectation(description: "Restored source failure rendered")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { rendered.fulfill() }
+        wait(for: [rendered], timeout: 2)
         XCTAssertFalse(app.buttons["Stop"].exists)
         XCTAssertFalse(app.buttons["Try again"].exists)
         shot("reddit-denied-share-restored", app)
