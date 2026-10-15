@@ -56,7 +56,7 @@ The public key is recorded in `nix/chrome-development-identity.nix`. The project
 
 Open a public Reddit post or selected comment, invoke the extension, choose **Read Reddit tab**. The optional scripting request runs the reader in that tab, using the existing page session. Refusal or challenge HTML stops the read. No cookies, authorization headers, saved/vote state or reports enter the exported record.
 
-Use **Export browser capture** to move the sanitized JSON to `arena-block --reddit-capture <path>` or native Capture's **Import browser capture**. Importing a record for another source requires a new capture with empty source links. The editor retains observation time, source records and authored edits through draft reloads; the immutable plan carries the same record into publication.
+Use **Export browser capture** to move the sanitized JSON to `arena-block --reddit-capture <path>` or share the file to native Capture. Importing a record for another source requires a new capture with empty source links. The editor retains observation time, source records and authored edits through draft reloads; the immutable plan carries the same record into publication.
 
 Imported observations are declarations. Validation and plan hashes do not authenticate Reddit, community visibility or capture time. The file can be edited; use a record from a source you trust. Attachment acquisition accepts matching Reddit image origins and native Reddit video paths.
 
