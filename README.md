@@ -52,7 +52,7 @@ Use `resolve`, `plan`, `publish`, `save`, `status`, `cancel` or `retry` as shown
 | SoundCloud | Public track and playlist pages | Public page data and available download metadata |
 | Hacker News, Lobsters | Comment permalinks | Public comment APIs |
 
-[Substack captures](docs/substack-notes.md) preserve authored text, original images, quoted Notes and complete freely public articles. Use `--thread-expansion on` for a verified same-author linear Note chain. Public article video and original audio use the shared media path; Note-native media, inline article players and article restack cards remain unsupported. See [capture support](docs/substack-parity.md).
+[Substack captures](docs/substack-notes.md) preserve authored text, original images, quoted Notes and complete freely public articles. Use `--thread-expansion on` for a verified same-author linear Note chain. Public article video and original audio, verified Note video and inline article video use the shared media path. Article cards retain their authors and labelled previews or selected excerpts without claiming the complete article. See [capture support](docs/substack-parity.md).
 
 Bluesky and Delvetown use separate record collections and facet vocabularies. The renderer expands a shortened URL label after checking its facet destination, preserves meaningful link labels, keeps mention wording and leaves tags as text. It checks UTF-8 ranges before generating Markdown. Plans retain the original text and record data. Refresh an older cached Bluesky source to acquire facets discarded by an older resolver.
 
