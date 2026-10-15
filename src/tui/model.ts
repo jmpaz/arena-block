@@ -218,7 +218,10 @@ export class PickerModel {
     if (this.mode === "jump" && this.query.trim() && !this.showHeld && this.scope === "mine") {
       const best = this.ranker.rank(this.query.trim())[0];
       const at = best ? this.rows.findIndex(r => r.kind === "channel" && r.channel.id === best.channel.id) : -1;
-      if (at >= 0) this.cursor = at;
+      if (at >= 0) {
+        this.cursor = at;
+        this.top = Math.max(0, Math.min(at - Math.floor(this.listRows / 2), this.rows.length - this.listRows));
+      }
     }
     if (!this.rows.length) { this.cursor = 0; this.top = 0; return; }
     this.cursor = Math.max(0, Math.min(this.rows.length - 1, this.cursor));
