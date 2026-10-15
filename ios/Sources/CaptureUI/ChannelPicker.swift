@@ -449,7 +449,7 @@ struct ChannelPicker: View {
         }
         guard !automaticDefault(channel) else { return }
         guard isSelected || session.canAddDestination(channel) else {
-            problem = "Choose up to 20 destinations, including the default."
+            problem = session.isAddingPlacements ? "Choose up to 20 additional channels at a time." : "Choose up to 20 destinations, including the default."
             return
         }
         session.toggle(channel)

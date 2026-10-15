@@ -231,13 +231,18 @@ final class CaptureDelivery {
                 let old = Set(baseline.channels.map(\.id)), chosen = Set(proposed.channels.map(\.id))
                 let removed = old.subtracting(chosen)
                 selection = DestinationSelection(defaultChannel: nil)
-                for channel in before.selection.channels where !removed.contains(channel.id) { selection.toggle(channel) }
-                for channel in proposed.channels where !old.contains(channel.id) && !selection.contains(channel) { selection.toggle(channel) }
+                for channel in before.selection.channels where !removed.contains(channel.id) { selection.toggle(channel, maxCount: Int.max) }
+                for channel in proposed.channels where !old.contains(channel.id) && !selection.contains(channel) { selection.toggle(channel, maxCount: Int.max) }
                 let expected = Set(before.selection.channels.map(\.id)).subtracting(removed).union(chosen.subtracting(old))
-                guard Set(selection.channels.map(\.id)) == expected else { throw CaptureError.message("Choose up to 20 channels. Another channel was added while this picker was open.") }
+                guard Set(selection.channels.map(\.id)) == expected else { throw CaptureError.message("The selected channels changed. Reopen the picker and try again.") }
             }
             let ids = selection.channels.map(\.id)
-            guard !ids.isEmpty, ids.count <= 20, Set(ids).count == ids.count else { throw CaptureError.message("Choose 1 to 20 channels.") }
+            let observed = Set((baseline ?? before.selection).channels.map(\.id))
+            guard !ids.isEmpty, Set(ids).count == ids.count,
+                  Set(proposed.channels.map(\.id)).subtracting(observed).count <= 20,
+                  Set(ids).subtracting(Set(before.selection.channels.map(\.id))).count <= 20 else {
+                throw CaptureError.message("Choose up to 20 additional channels at a time.")
+            }
             let protected = try protectedPlacementIDs(id, account: account)
             guard protected.isSubset(of: Set(ids)) else {
                 throw CaptureError.message("A channel has already been sent or confirmed. Keep it selected, or remove the connection in Are.na.")
@@ -247,7 +252,7 @@ final class CaptureDelivery {
             if var job = try store.value(DeliveryJob.self, account: 0, kind: "delivery", id: id.uuidString) {
                 guard job.draft.accountID == account, job.contentVerified == true, job.draft.blockID == before.blockID,
                       (job.stage != .destinations || job.placementValidationID != nil),
-                      (job.resumeStage != .destinations || job.placementValidationID != nil) else {
+                      (job.stage != .attention || job.resumeStage != .destinations || job.placementValidationID != nil) else {
                     throw CaptureError.message("The save changed. Reopen its channels and try again.")
                 }
                 if let required = job.requiredChannelIDs {
@@ -739,6 +744,7 @@ final class CaptureDelivery {
             guard let current = try store.value(DeliveryJob.self, account: 0, kind: "delivery", id: source.id.uuidString), current.transferID == nil,
                   current.stage == source.stage, current.revision == source.revision else { return }
             guard current.stopRequestedAt == nil || [.reconcile, .connections].contains(current.stage) else { return }
+            guard source.stage != .connect || source.requiredChannels.contains(where: { !source.connected.contains($0.id) }) else { return }
             var job = source
             if job.attemptedChannelIDs != nil, [.create, .connect].contains(job.stage),
                let target = job.stage == .create ? job.draft.selection.channels.first?.id : job.requiredChannels.first(where: { !job.connected.contains($0.id) })?.id {
@@ -754,9 +760,15 @@ final class CaptureDelivery {
     /// A retained target makes a late permission response independent of an
     /// amended selection's order. No connection request precedes this read.
     @discardableResult func preparePlacementValidation(_ job: inout DeliveryJob) -> Bool {
-        guard job.stage == .connect,
-              let target = job.requiredChannels.first(where: { !job.connected.contains($0.id) }),
-              job.validatedChannelIDs?.contains(target.id) != true else { return false }
+        guard job.stage == .connect else { return false }
+        guard let target = job.requiredChannels.first(where: { !job.connected.contains($0.id) }) else {
+            // Cancelling the final unsent choice needs a readback, never an
+            // empty POST or a claim of completion from an old observation.
+            job.placementValidationID = nil; job.stage = .connections
+            job.page = 1; job.scanningConnected = nil
+            return true
+        }
+        guard job.validatedChannelIDs?.contains(target.id) != true else { return false }
         job.placementValidationID = target.id; job.stage = .destinations
         return true
     }
@@ -809,7 +821,8 @@ final class CaptureDelivery {
         case .connect:
             address = base + "connections"; method = "POST"
             let missing = job.requiredChannels.map(\.id).filter { !job.connected.contains($0) }
-            let targets = job.attemptedChannelIDs == nil ? missing : Array(missing.prefix(1))
+            let targets = Array(missing.prefix(job.attemptedChannelIDs == nil ? 20 : 1))
+            guard !targets.isEmpty else { throw CaptureError.message("Check this capture's channels before continuing.") }
             var fields: [String: JSONValue] = ["connectable_id": .number(Double(job.draft.blockID!)), "connectable_type": .string("Block"), "channel_ids": .array(targets.map { .number(Double($0)) })]
             if let provenance = job.provenance, targets.first == provenance.channelID, job.attemptedChannelIDs != nil {
                 fields.removeValue(forKey: "channel_ids")
@@ -958,7 +971,7 @@ final class CaptureDelivery {
                 // A connection removed outside Capture is not silently recreated
                 // by a later additive placement cycle. The old receipt is retained.
                 var current = DestinationSelection(defaultChannel: nil)
-                for channel in job.draft.selection.channels where required.contains(channel.id) || job.connected.contains(channel.id) { current.toggle(channel) }
+                for channel in job.draft.selection.channels where required.contains(channel.id) || job.connected.contains(channel.id) { current.toggle(channel, maxCount: Int.max) }
                 job.draft.selection = current
             }
             if job.stopRequestedAt != nil {

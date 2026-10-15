@@ -359,7 +359,10 @@ public final class CaptureSession {
         guard !isAddingPlacements || !draft!.selection.contains(channel) || canRemovePlacement(channel) else { return }
         let reservesDefault = !isAddingPlacements && defaultPolicy.mode == .always && defaultChannel != nil
             && draft?.selection.channels.contains(where: { $0.id == defaultChannel?.id }) != true && channel.id != defaultChannel?.id
-        draft?.selection.toggle(channel, maxCount: reservesDefault ? 19 : 20)
+        if isAddingPlacements {
+            guard draft?.selection.contains(channel) == true || canAddDestination(channel) else { return }
+            draft?.selection.toggle(channel, maxCount: Int.max)
+        } else { draft?.selection.toggle(channel, maxCount: reservesDefault ? 19 : 20) }
         persistOrReport()
     }
 
@@ -387,7 +390,12 @@ public final class CaptureSession {
 
     func canAddDestination(_ channel: Channel) -> Bool {
         guard let draft else { return false }
-        if draft.selection.contains(channel) || draft.selection.implicitDefault { return true }
+        if draft.selection.contains(channel) { return true }
+        if isAddingPlacements {
+            let baseline = Set(placementBaseline?.channels.map(\.id) ?? [])
+            return Set(draft.selection.channels.map(\.id)).subtracting(baseline).count < 20
+        }
+        if draft.selection.implicitDefault { return true }
         let reservesDefault = !isAddingPlacements && defaultPolicy.mode == .always && defaultChannel != nil
             && !draft.selection.channels.contains(where: { $0.id == defaultChannel?.id }) && channel.id != defaultChannel?.id
         return draft.selection.channels.count < (reservesDefault ? 19 : 20)
@@ -402,7 +410,7 @@ public final class CaptureSession {
         guard let current = draft else { return }
         let protected = (try? delivery.protectedPlacementIDs(current.id, account: current.accountID)) ?? Set(current.selection.channels.map(\.id))
         var selection = DestinationSelection(defaultChannel: nil)
-        for channel in current.selection.channels where protected.contains(channel.id) { selection.toggle(channel) }
+        for channel in current.selection.channels where protected.contains(channel.id) { selection.toggle(channel, maxCount: Int.max) }
         draft?.selection = selection
         persistOrReport()
     }

@@ -20,7 +20,7 @@ A valid Save stores the approved input and UUID before resolution starts. During
 
 If a create response is ambiguous, keep the attempt visible and inspect its status. A new save would use a new UUID. Active keeps submitted work and interrupted saves easy to find, with a count in the tab bar. History separates unsubmitted Drafts from saved captures and retains their outcomes.
 
-Add to channels uses the stored block ID. An open picker and its baseline survive relaunch. Apply merges its changes with newer choices; Cancel discards them. Sent or confirmed channels stay selected and can be disconnected in Are.na. Unsent choices can be removed locally. Each accepted amendment and completed receipt is retained for audit under the same logical capture. Later additions do not restore connections removed outside Capture. Older placement entries without a parent identity remain separate; the app does not guess which historical captures to merge.
+Add to channels uses the stored block ID. An open picker and its baseline survive relaunch. Apply merges its changes with newer choices; Cancel discards them. Sent or confirmed channels stay selected and can be disconnected in Are.na. Unsent choices can be removed locally. Choose up to 20 new channels per amendment; existing placements do not use those slots. Each accepted amendment and completed receipt is retained for audit under the same logical capture. Later additions do not restore connections removed outside Capture. Older placement entries without a parent identity remain separate; the app does not guess which historical captures to merge.
 
 ## Testing
 

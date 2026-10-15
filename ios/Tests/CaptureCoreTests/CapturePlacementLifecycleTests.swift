@@ -60,6 +60,33 @@ final class CapturePlacementLifecycleTests: XCTestCase {
         }
     }
 
+    @MainActor func testRemovingLastUnsentTargetReconcilesWithoutEmptyConnectionPost() throws {
+        try fixture { delivery, store, _ in
+            let original = try seed(store, stage: .connect, channels: [101, 102], connected: [101], attempted: [101])
+            _ = try delivery.amendPlacements(original.id, account: 42, selection: selection([101]))
+            var current = try XCTUnwrap(store.value(DeliveryJob.self, account: 0, kind: "delivery", id: original.id.uuidString))
+            XCTAssertThrowsError(try delivery.request(current, token: "fixture"))
+            XCTAssertNil(try delivery.reserveTransfer(current, transferID: "empty-post"))
+            XCTAssertTrue(delivery.preparePlacementValidation(&current))
+            XCTAssertEqual(current.stage, .connections)
+            XCTAssertEqual(try delivery.request(current, token: "fixture").request.httpMethod, "GET")
+            let done = try XCTUnwrap(delivery.acceptForTest(try members([101]), source: current, transfer: "cancel-readback"))
+            XCTAssertEqual(done.stage, .done)
+            XCTAssertEqual(done.draft.id, original.id)
+            XCTAssertEqual(try store.recordIDs(account: 42, kind: "draft").count, 1)
+            XCTAssertEqual(done.draft.selection.channels.map(\.id), [101])
+        }
+    }
+
+    @MainActor func testStaleDestinationFailureResumeMarkerDoesNotBlockLaterValidEdits() throws {
+        try fixture { delivery, store, _ in
+            var original = try seed(store, stage: .connect, channels: [101, 102], connected: [101], attempted: [101])
+            original.resumeStage = .destinations // Retained marker from an already recovered GET.
+            try store.save(original, account: 0, kind: "delivery", id: original.id.uuidString)
+            XCTAssertNoThrow(try delivery.amendPlacements(original.id, account: 42, selection: selection([101, 102, 103])))
+        }
+    }
+
     @MainActor func testAttemptedRemovalIsRejectedAtomicallyAndUnrelatedConnectionsDoNotBlockAddition() throws {
         try fixture { delivery, store, _ in
             let job = try seed(store, stage: .connect, channels: [101, 102], connected: [101, 999], attempted: [101, 102])
@@ -171,6 +198,20 @@ final class CapturePlacementLifecycleTests: XCTestCase {
         }
     }
 
+    @MainActor func testCompletedCaptureRetainsTwentyPlacementsAndCanAddTwentyMorePerAmendment() throws {
+        try fixture { delivery, store, _ in
+            let oldIDs = Array(101...120), newIDs = Array(121...140)
+            let original = try seed(store, stage: .connections, channels: oldIDs, connected: Set(oldIDs), attempted: oldIDs)
+            _ = try XCTUnwrap(delivery.acceptForTest(try members(oldIDs), source: original, transfer: "initial-twenty"))
+            _ = try delivery.amendPlacements(original.id, account: 42, selection: selection(oldIDs + newIDs), baseline: original.draft.selection)
+            let next = try XCTUnwrap(store.value(DeliveryJob.self, account: 0, kind: "delivery", id: original.id.uuidString))
+            XCTAssertEqual(next.draft.selection.channels.count, 40)
+            XCTAssertEqual(next.requiredChannelIDs, Set(newIDs))
+            XCTAssertEqual(try store.recordIDs(account: 42, kind: "draft").count, 1)
+            XCTAssertThrowsError(try delivery.amendPlacements(original.id, account: 42, selection: selection(oldIDs + Array(121...141)), baseline: original.draft.selection))
+        }
+    }
+
     @MainActor func testStaleContinuedCycleCannotStopOrReleaseNewPlacementCycle() throws {
         try fixture { delivery, store, _ in
             let original = try seed(store, stage: .connections, channels: [101], connected: [101], attempted: [101])
@@ -214,7 +255,7 @@ final class CapturePlacementLifecycleTests: XCTestCase {
     }
     private func selection(_ ids: [Int]) -> DestinationSelection {
         var result = DestinationSelection(defaultChannel: nil)
-        for id in ids { result.toggle(Channel(id: id, title: "Channel \(id)", slug: "channel-\(id)", visibility: "private", owner: .init(id: 42, name: "Fixture", slug: "fixture", type: "User"))) }
+        for id in ids { result.toggle(Channel(id: id, title: "Channel \(id)", slug: "channel-\(id)", visibility: "private", owner: .init(id: 42, name: "Fixture", slug: "fixture", type: "User")), maxCount: Int.max) }
         return result
     }
     private func response(_ value: JSONValue) throws -> BackgroundHTTPResult {
