@@ -107,7 +107,7 @@ describe("view", () => {
     const row = lines.find(l => l.includes("Gardens room"))!;
     expect(row).toMatch(/Gardens room \d+/);
     expect(row).not.toContain("Ana Ruiz");
-    expect(lines[13]).toContain("⏎ connect");
+    expect(lines[13]).toContain("enter connect");
     renderer.destroy();
   });
 });
