@@ -32,6 +32,15 @@ arena-block thread 'https://bsky.app/profile/example.com/post/first' --scope cha
 
 Reading pages preserve source scale when they fit the configured canvas. Wallpaper mode creates an ordered overview. Conversation drafts retain source responses, Markdown, HTML and a coverage report. See [previews and drafts](docs/mosaic-thread-drafts.md).
 
+## Visibility ratio
+
+```sh
+arena-block ratio
+arena-block ratio --overlap both --json
+```
+
+`ratio` reads the account's channels through the daemon, then reads each channel's block IDs, and prints channels and blocks by visibility (private, closed, public) with private-per-public ratios. It makes only GET requests. A block in several channels counts according to `--overlap`: `public` (default) counts it once at its most open visibility, `private` once at its most restricted, `both` once under every visibility it appears in, and `placements` sums each channel's listed content count without reading contents. `--cached` lists channels from the daemon's saved channel index.
+
 ## Sources
 
 | Provider | Supported input and limits |
