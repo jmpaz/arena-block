@@ -215,7 +215,7 @@ export class PickerView {
 
   trayChips(w: number): Array<{ channel: Channel; from: number; to: number }> {
     const chips: Array<{ channel: Channel; from: number; to: number }> = [];
-    let x = 2;
+    let x = width("held ");
     for (const channel of this.model.held) {
       const label = truncate(channel.title, 24);
       if (x + width(label) + 6 > w) break;
