@@ -46,7 +46,7 @@ test("ordinary public Note URLs acquire full standalone quotes without credentia
   expect(post.postedAt).toBe("2026-10-14T14:34:41.000Z");
   expect(post.quoteCoverage).toMatchObject({ actualDepth: 1, stopped: "end", truncated: false });
   expect(requests).toHaveLength(2);
-  expect(requests.every(call => call.init?.credentials === "omit" && call.init.redirect === "error")).toBe(true);
+  expect(requests.every(call => call.init?.credentials === "omit" && call.init.redirect === "manual")).toBe(true);
 });
 test("quote policy bounds requests and exposes a progressive expansion boundary", async () => {
   requests.length = 0;
@@ -54,6 +54,18 @@ test("quote policy bounds requests and exposes a progressive expansion boundary"
   expect(requests).toHaveLength(1); expect(post.quote).toBeUndefined();
   expect(post.quoteCoverage).toMatchObject({ actualDepth: 0, stopped: "depth_limit", mayExpand: true });
   expect(post.substackCapture?.note.quote?.previewHtml).toContain("…");
+});
+test("bare Note aliases follow only bounded credentialless redirects to the same public Note identity", async () => {
+  const fetcher = (async (request: RequestInfo | URL, init?: RequestInit) => {
+    expect(init?.credentials).toBe("omit"); expect(init?.redirect).toBe("manual");
+    return String(request) === "https://substack.com/note/c-360829302" ? new Response(null, { status: 302, headers: { location: source } }) : new Response(outer, { headers: { "content-type": "text/html" } });
+  }) as unknown as typeof fetch;
+  const post = await new SubstackProvider([], fetcher).resolve(parseSource("https://substack.com/note/c-360829302"), undefined, { quoteDepth: 0 });
+  expect(post.canonicalUrl).toBe(source);
+  for (const destination of ["https://other.com/note/c-360829302", "https://substack.com/note/c-999", "https://user:secret@substack.com/note/c-360829302", "https://substack.com/note/c-360829302"]) {
+    const loop = (async () => new Response(null, { status: 302, headers: { location: destination } })) as unknown as typeof fetch;
+    await expect(new SubstackProvider([], loop).resolve(parseSource("https://substack.com/note/c-360829302"))).rejects.toThrow();
+  }
 });
 test("retained shallow snapshots hydrate descendants without altering original body, preview or observation", async () => {
   const shallow = await new SubstackProvider([], fetcher).resolve(parseSource(source), undefined, { quoteDepth: 0 });
@@ -161,8 +173,9 @@ test("retained Note drafts survive automatic source changes and need no new orig
   expect(requiredOrigins([source], [], [value])).toEqual([]);
   expect(requiredOrigins([source])).toEqual([]);
 });
-test("explicit unimplemented reply expansion cannot silently produce a single Note", async () => {
-  await expect(new SocialResolver({ substack: new SubstackProvider([], fetcher) }).resolveComposition([source], [], { threadExpansion: "on" })).rejects.toThrow("no reply tree was inferred");
+test("reply expansion requires a verified public reply contract before producing a Note", async () => {
+  const refused = (async () => new Response(null, { status: 403 })) as unknown as typeof fetch;
+  await expect(new SocialResolver({ substack: new SubstackProvider([], refused) }).resolveComposition([source], [], { threadExpansion: "on" })).rejects.toThrow("HTTP 403");
 });
 test("X thread expansion allows an explicit Substack media-only extra and ordered mixed primaries", async () => {
   const value = await capture(); value.note.media = [{ kind: "image", url: "https://substack-post-media.s3.amazonaws.com/public/images/extra.jpg", alt: "" }];

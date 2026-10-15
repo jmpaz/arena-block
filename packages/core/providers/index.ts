@@ -61,11 +61,17 @@ export class SocialResolver {
     const extras = selected.filter(item => item.role === "extra");
     const policy = compositionPolicySchema.parse(policyInput);
     const singleSource = primaries.length === 1 ? parseSource(primaries[0]!.ref) : undefined;
-    if (singleSource?.provider === "substack" && policy.threadExpansion === "on") {
-      throw new Error("Substack reply expansion is not yet verified. Add exact Note permalinks in order or turn thread expansion off; no reply tree was inferred.");
-    }
     let primaryPosts: ResolvedPost[];
-    if (primaries.length === 1 && parseSource(primaries[0]!.ref).provider === "x" && policy.threadExpansion === "on") {
+    if (singleSource?.provider === "substack" && !("kind" in singleSource) && policy.threadExpansion === "on") {
+      const provider = this.providers.substack;
+      if (!(provider instanceof SubstackProvider)) throw new Error("Substack author-chain discovery is unavailable; add exact Note permalinks");
+      const discovered = await provider.discoverLinear(singleSource, signal, policy);
+      primaryPosts = discovered.posts.map(post => ({ ...post, selection: {
+        role: "primary" as const, origin: post.id === discovered.seedId ? "explicit" as const : "expanded" as const,
+        ...(post.id === discovered.seedId ? { declaredIndex: primaries[0]!.declaredIndex } : {}),
+        ...(post.replyTo ? { parentUri: `https://substack.com/note/c-${post.replyTo.id}` } : {}),
+      } }));
+    } else if (primaries.length === 1 && parseSource(primaries[0]!.ref).provider === "x" && policy.threadExpansion === "on") {
       const source = parseSource(primaries[0]!.ref);
       const provider = this.providers.x;
       if (source.provider !== "x" || !(provider instanceof XProvider)) throw new Error("x.com thread import is unavailable; add posts explicitly");
@@ -136,7 +142,7 @@ export class SocialResolver {
       return true;
     });
     if (posts.length > MAX_EXPANDED_SOURCE_POSTS) throw new Error(`Expanded source selection exceeds ${MAX_EXPANDED_SOURCE_POSTS} posts; choose a smaller source set`);
-    const effective = compositionPolicySchema.parse({ ...policy,
+    const effective = compositionPolicySchema.parse({ ...policy, ...(posts.length === 1 && posts[0]!.provider === "web" ? { media: "none" } : {}),
       ...(extraRefs.length || policyInput.mediaOnlyPosts?.length
         ? { mediaOnlyPosts: posts.flatMap((post, index) => post.selection?.role === "extra" ? [index + 1] : []) } : {}) });
     return { posts: posts.map(assignMediaRefs), policy: effective };

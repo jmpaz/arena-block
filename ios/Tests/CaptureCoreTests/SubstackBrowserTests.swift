@@ -47,6 +47,23 @@ final class SubstackBrowserTests: XCTestCase {
         XCTAssertEqual(editedPlan["sources"] as? NSArray, actual["sources"] as? NSArray)
     }
 
+    @MainActor
+    func testCompletePublicArticleRecordSurvivesNativeComposeAndEdit() throws {
+        let runtime = try CaptureRuntime()
+        let raw = try fixture("substack-public-article-plan")
+        let expected = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(raw.utf8)) as? [String: Any])
+        let sources = try String(decoding: JSONSerialization.data(withJSONObject: expected["sources"]!), as: UTF8.self)
+        let composed = try runtime.compose(postsJSON: sources, policyJSON: #"{"media":"none"}"#)
+        let envelope = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(composed.utf8)) as? [String: Any])
+        let actual = try XCTUnwrap(envelope["plan"] as? NSDictionary)
+        XCTAssertEqual(actual, expected as NSDictionary)
+        let planJSON = try String(decoding: JSONSerialization.data(withJSONObject: actual), as: UTF8.self)
+        let edited = try runtime.edit(planJSON: planJSON, editsJSON: #"{"title":"Authored title"}"#)
+        let result = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(edited.utf8)) as? [String: Any])
+        let plan = try XCTUnwrap(result["plan"] as? [String: Any])
+        XCTAssertEqual(plan["sources"] as? NSArray, expected["sources"] as? NSArray)
+    }
+
     func testDraftSubmissionAndCacheIdentityRetainNotesWithoutChangingSourceRolesOrDestinations() throws {
         var draft = CaptureDraft(accountID: 1, defaultChannel: nil, input: source)
         draft.substackCapturesJSON = "[" + (try fixture("substack-browser-capture")) + "]"

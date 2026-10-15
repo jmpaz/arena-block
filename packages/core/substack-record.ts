@@ -44,7 +44,7 @@ const envelope = z.object({
 export type SubstackCapture = z.infer<typeof envelope>;
 export function substackSourceKey(value: string): string {
   const source = parseSource(value);
-  if (source.provider !== "substack") throw new Error("Expected a Substack Note permalink");
+  if (source.provider !== "substack" || "kind" in source) throw new Error("Expected a Substack Note permalink");
   return source.id;
 }
 function bounded(value: unknown) {

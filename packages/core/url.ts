@@ -9,6 +9,7 @@ const X_HOSTS = new Set([
 
 export type ParsedSource =
   | { provider: "substack"; id: string; canonicalUrl: string }
+  | { provider: "substack"; kind: "article"; id: string; canonicalUrl: string; slug: string; publicationHost: boolean }
   | { provider: "arena"; id: string; canonicalUrl: string }
   | { provider: "forum_magnum"; site: "lesswrong" | "alignment_forum" | "ea_forum"; id: string; canonicalUrl: string; commentId?: string }
   | { provider: "reddit"; id: string; canonicalUrl: string; short?: boolean; commentId?: string }
@@ -164,6 +165,15 @@ export function parseSource(value: string): ParsedSource {
   if (mastodonId) {
     if (url.protocol !== "https:" || url.username || url.password) throw new Error("Mastodon post URLs must use HTTPS without credentials");
     return { provider: "mastodon", server: url.origin, id: mastodonId, canonicalUrl: `${url.origin}${url.pathname.replace(/\/$/, "")}` };
+  }
+  // Custom publication domains cannot be identified from their hostname alone.
+  // The provider verifies the public article contract; unrelated /p/ pages stay Links.
+  const article = /^\/p\/([a-zA-Z0-9][a-zA-Z0-9_-]*)\/?$/.exec(url.pathname);
+  if (article && url.protocol === "https:" && !url.username && !url.password && !url.port
+    && host.includes(".") && !/^(?:\d[\d.]*|localhost)$/.test(host) && !/\.(?:local|localhost|internal|test|invalid)$/.test(host)) {
+    const publicationHost = host.endsWith(".substack.com");
+    const canonicalUrl = publicationHost ? `${url.origin}/p/${article[1]}` : url.href;
+    return { provider: "substack", kind: "article", id: `article:${canonicalUrl}`, canonicalUrl, slug: article[1]!, publicationHost };
   }
   throw new Error(`Unsupported social post URL: ${value}`);
 }

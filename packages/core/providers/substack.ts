@@ -8,6 +8,8 @@ import { compositionPolicySchema } from "../types.ts";
 import { parseSource, type ParsedSource } from "../url.ts";
 import type { ResolvedPost } from "../types.ts";
 import type { SocialProvider, SourceResolutionPolicy } from "./provider.ts";
+import { resolveSubstackArticle } from "./substack-article.ts";
+import { discoverSubstackThread } from "./substack-thread.ts";
 
 function converter(base: string): TurndownService {
   const markdown = new TurndownService({ headingStyle: "atx", bulletListMarker: "-", codeBlockStyle: "fenced" });
@@ -54,9 +56,14 @@ function notePost(note: SubstackNote): ResolvedPost {
 export class SubstackProvider implements SocialProvider {
   private readonly captures: SubstackCapture[];
   constructor(captures: SubstackCapture[] = [], private readonly fetcher: typeof fetch = fetch) { this.captures = bindSubstackCaptures(captures.map(c => c.sourceUrl), captures); }
+  async discoverLinear(source: ParsedSource, signal?: AbortSignal, policy?: Partial<SourceResolutionPolicy>) {
+    if (source.provider !== "substack" || "kind" in source) throw new Error("Substack author chains require a Note permalink");
+    return discoverSubstackThread(source.id, (url, bounded) => this.resolve(parseSource(url), bounded, policy), this.fetcher, signal);
+  }
   async resolve(source: ParsedSource, signal?: AbortSignal, policy?: Partial<SourceResolutionPolicy>): Promise<ResolvedPost> {
     if (signal?.aborted) throw signal.reason ?? new Error("Substack acquisition cancelled");
     if (source.provider !== "substack") throw new Error("Substack provider received another source");
+    if ("kind" in source && source.kind === "article") return resolveSubstackArticle(source, this.fetcher, signal);
     let capture = this.captures.find(c => substackSourceKey(c.sourceUrl) === source.id);
     const depth = renderedQuoteDepth(compositionPolicySchema.parse(policy ?? {}));
     if (!capture) {

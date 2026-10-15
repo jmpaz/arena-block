@@ -34,7 +34,18 @@ export async function readSubstackPage(expectedUrl?: string, environment?: {
   let received = 0;
   async function load(url: string): Promise<Document> {
     const canonical = identity(url).url;
-    const response = await fetcher(canonical, { credentials: "omit", redirect: "error", signal: controller.signal, headers: { accept: "text/html" } });
+    let address = canonical, response: Response | undefined;
+    for (let redirects = 0; redirects <= 3; redirects++) {
+      response = await fetcher(address, { credentials: "omit", redirect: "manual", signal: controller.signal, headers: { accept: "text/html" } });
+      if (![301, 302, 303, 307, 308].includes(response.status)) break;
+      const location = response.headers.get("location");
+      void response.body?.cancel().catch(() => {});
+      if (!location || redirects === 3) throw new Error("Substack Note redirect could not be verified within its bound");
+      const destination = identity(new URL(location, address).href);
+      if (destination.id !== identity(canonical).id) throw new Error("Substack redirect changed the requested Note identity");
+      address = destination.url;
+    }
+    if (!response) throw new Error("Substack public page returned no response");
     if (!response.ok) throw new Error(`Substack public page returned HTTP ${response.status}; no authenticated fallback was attempted`);
     if (!response.headers.get("content-type")?.includes("text/html")) throw new Error("Substack public page did not return HTML");
     if (response.url && identity(response.url).id !== identity(canonical).id) throw new Error("Substack returned a different source");

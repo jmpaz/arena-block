@@ -26,7 +26,7 @@ test("canonical Note identities include handles, profile routes and bare Note UR
     expect(parseSource(url)).toMatchObject({ provider: "substack", id: "1" });
     expect(parseSource(url).canonicalUrl).not.toContain("?");
   }
-  expect(() => parseSource("https://writer.substack.com/p/article")).toThrow("Unsupported social post URL");
+  expect(parseSource("https://writer.substack.com/p/article")).toMatchObject({ provider: "substack", kind: "article", slug: "article" });
 });
 test.each(["http://substack.com/@writer/note/c-1", "https://user:secret@substack.com/@writer/note/c-1", "https://substack.com:444/@writer/note/c-1", "https://substack.com/@writer/note/c-0", "https://substack.com/@writer/note/c-1/replies"])("invalid Note route stops: %s", url => {
   expect(() => parseSource(url)).toThrow();

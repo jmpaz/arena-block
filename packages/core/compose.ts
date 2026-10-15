@@ -44,6 +44,8 @@ function escapeAuthoredSeparators(value: string): string {
 
 function description(posts: ResolvedPost[]): string | undefined {
   const substack = posts.filter(post => post.substackCapture).map(post => `Substack ${post.substackCapture!.method === "public-html" ? "public HTML" : "browser DOM"} capture observed at: ${post.substackCapture!.observedAt}. Full root prose; quoted Note availability and linked/preview/attachment roles retained in the source record. Displayed publication labels have no inferred timezone.`);
+  substack.push(...posts.filter(post => post.substackArticle).map(post => `Complete public Substack article, observed at ${post.substackArticle!.observedAt}; title, all bylines and authored HTML retained. Source: ${post.canonicalUrl}`));
+  substack.push(...posts.filter(post => post.substackThread).map(post => `Verified same-author Substack Note chain; ${post.substackThread!.pagesRead} public discovery pages. Seed: https://substack.com/note/c-${post.substackThread!.seedId}. Other authors' replies are not part of this chain.`));
   const stories = posts.filter((post) => post.storyTitle !== undefined);
   if (stories.length) {
     const dates = stories.map((post) => post.postedAt ? `Posted at: ${post.postedAt}` : "").join("\n\n---\n\n");

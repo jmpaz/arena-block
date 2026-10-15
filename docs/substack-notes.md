@@ -1,39 +1,48 @@
-# Substack Notes
+# Substack captures
 
-Arena Block reads public Note permalinks and composes them through the shared CLI,
+Arena Block reads public Note and article permalinks through the shared CLI,
 browser, native and receiver paths:
 
 ```sh
 arena-block plan 'https://substack.com/@writer/note/c-123' --quote-depth full --json
-arena-block plan --substack-capture ./note.capture.json --media none --json
+arena-block plan 'https://publication.substack.com/p/article-slug' --json
+arena-block plan 'https://substack.com/@writer/note/c-123' --thread-expansion on --json
 ```
 
-The normal URL path reads public HTML without credentials. **Read Substack tab**
-in the extension reads the selected Note using existing scripting and active-tab
-access. Safari's Share action passes the selected page to Capture. A refused read,
-challenge page or incomplete root stops capture.
+Note URLs read public HTML without credentials. **Read Substack tab** in the
+extension uses the invoked tab's existing scripting access. Safari Share passes
+the selected page to Capture. A refused read, challenge or incomplete body stops
+capture.
 
-Use **Export browser capture** to move a record to the CLI or share its file to
-native Capture. Repeat `--substack-capture` for ordered roots. Without
-source arguments, the files supply their source URLs. Note IDs identify aliases;
-unrelated or duplicate files are errors.
-
-Records retain authored HTML, source identities, authors, publication labels,
-observation times and acquisition method. Imported records can be edited, so these
-fields are declarations rather than proof of their origin. Drafts, queued intake
-and frozen submissions retain the records. Plans sent to a receiver require
-`substack-browser-records-v1` and reject stripped source evidence.
+Public articles must expose a complete freely available body. The provider checks
+article identity, publication, authors, audience and time, and retains the authored
+HTML. Publication and custom-domain `/p/{slug}` URLs use the public article
+contract. Unidentified custom-domain pages remain exact ordinary Links. Paid,
+partial or inconsistent article records stop; selected excerpts remain excerpts.
 
 Quoted Notes are read from their own permalink, keeping the outer preview and
-separate author. The existing quote controls set inclusion and depth. Missing,
-cyclic or depth-limited quotes retain an explicit boundary. Later hydration may
-add separately observed descendants while preserving the original record.
+separate author. Quote controls set inclusion and depth. Missing, cyclic or
+limited quotes retain an explicit boundary. Article restack cards remain
+unsupported.
 
-Observed original images use the shared media selection and rendering path.
-Linked articles, selected article excerpts and external players remain labelled
-links or excerpts. Preview thumbnails do not become original attachments. See
-[capture support](substack-parity.md) for the remaining source limitations.
+`--thread-expansion on` follows a verified same-author linear Note chain,
+including ancestors around the selected Note. Other authors are excluded.
+Branches, missing replies, inconsistent identities and incomplete pagination stop
+expansion. Use explicit Note permalinks in order to select another source set.
 
-Imports are bounded to 2 MiB, twenty roots, eight quote levels and one hundred
-links per Note. Unknown fields are rejected. The record schema is
-[`packages/core/substack-record.ts`](../packages/core/substack-record.ts).
+Observed original images use shared media selection and rendering. External
+players remain links. Native video/audio attachments and article players remain
+unsupported; preview thumbnails do not become original attachments. See
+[capture support](substack-parity.md) for source limits.
+
+Retained records carry authored HTML, identities, authors, publication labels,
+observation times and acquisition method through drafts and frozen submissions.
+Imported observations are declarations rather than proof of origin. Optional
+`--substack-capture` imports use the same schema; files are not required for normal
+URL acquisition or Safari Share.
+
+Records are bounded to 2 MiB, twenty explicit roots, eight quote levels and one
+hundred links per Note. Reply discovery permits at most 64 pages, 8 MiB aggregate,
+2,000 identities and 32 selected sources. Plans require
+`substack-browser-records-v1`; article and thread evidence additionally requires
+`substack-public-sources-v2`. Helpers reject stripped evidence.

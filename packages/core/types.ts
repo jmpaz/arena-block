@@ -2,6 +2,7 @@ import { z } from "zod";
 import { substackCaptureSchema, substackCapturesSchema, substackSourceKey, type SubstackCapture } from "./substack-record.ts";
 import { redditBrowserCaptureSchema, redditCapturesSchema, redditSourceKey, type RedditBrowserCapture } from "./reddit-record.ts";
 import { parseSource } from "./url.ts";
+import { substackArticleRecordSchema, substackRelationSchema, substackThreadSchema, type SubstackArticleRecord } from "./substack-article-record.ts";
 
 export const SCHEMA_VERSION = 1 as const;
 
@@ -101,6 +102,9 @@ export type ResolvedPost = {
   postTitle?: string;
   soundcloud?: SoundCloudMetadata;
   substackCapture?: SubstackCapture;
+  substackArticle?: SubstackArticleRecord;
+  substackRelation?: z.infer<typeof substackRelationSchema>;
+  substackThread?: z.infer<typeof substackThreadSchema>;
   redditCapture?: RedditBrowserCapture;
   media: MediaAsset[];
   mediaIssues?: z.infer<typeof mediaIssueSchema>[];
@@ -133,6 +137,9 @@ export const resolvedPostSchema: z.ZodType<ResolvedPost> = z.lazy(() =>
       uri: z.string().min(1), reported: z.number().nonnegative().optional(), returned: z.number().nonnegative(), unavailable: z.number().nonnegative(),
     })) }).optional(),
     article: z.string().min(1).optional(),
+    substackArticle: substackArticleRecordSchema.optional(),
+    substackRelation: substackRelationSchema.optional(),
+    substackThread: substackThreadSchema.optional(),
     postedAt: z.string().optional(),
     storyTitle: z.string().min(1).optional(),
     postTitle: z.string().min(1).optional(),
@@ -150,6 +157,19 @@ export const resolvedPostSchema: z.ZodType<ResolvedPost> = z.lazy(() =>
     quoteBoundary: quoteBoundarySchema.optional(), quoteCoverage: quoteCoverageSchema.optional(),
     quoteSnapshot: z.object({ basis: z.literal("embedded"), hydration: z.enum(["unavailable", "deleted"]) }).optional(),
   }).superRefine((post, context) => {
+    if (post.provider === "substack" && post.id.startsWith("article:") && !post.substackArticle) {
+      context.addIssue({ code: "custom", message: "Substack article is missing its complete source record", path: ["substackArticle"] });
+    }
+    if (post.substackArticle && (post.provider !== "substack" || post.id !== `article:${post.substackArticle.id}`
+      || post.canonicalUrl !== post.substackArticle.url || post.author.handle !== post.substackArticle.authors[0]?.handle || !post.article)) {
+      context.addIssue({ code: "custom", message: "Mismatched Substack article provenance", path: ["substackArticle"] });
+    }
+    if (post.substackRelation) {
+      try {
+        if (post.provider !== "substack" || post.id !== substackSourceKey(post.canonicalUrl)
+          || post.replyTo?.id !== post.substackRelation.ancestorIds.at(-1)) throw new Error("Mismatched reply");
+      } catch { context.addIssue({ code: "custom", message: "Mismatched Substack reply provenance", path: ["substackRelation"] }); }
+    }
     if (post.substackCapture) {
       try {
         const note = post.substackCapture.note;
