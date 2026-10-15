@@ -223,11 +223,15 @@ export class PickerView {
     const selectable = m.rows.filter(r => r.kind === "channel").length;
     const position = m.rows.slice(0, m.cursor + 1).filter(r => r.kind === "channel").length;
     const n = m.held.length;
-    const act = m.block ? (n ? `⏎ connect ${n}` : "⏎ connect") : "⏎ done";
-    const hints = m.showHeld ? `⇧⇥ all  ${act}  esc back` : `⇥ ${m.block ? "put down" : "pick"}  ${act}  ^y copy  esc leave`;
+    const act: [string, string] = m.block ? ["⏎", n ? `connect ${n}` : "connect"] : ["⏎", "done"];
+    const hints: Array<[string, string]> = m.showHeld ? [["⇧⇥", "all"], act, ["esc", "back"]]
+      : [["⇥", m.block ? "put down" : "pick"], act, ["^y", "copy"], ["esc", "leave"]];
+    const pieces: Piece[] = [];
+    hints.forEach(([key, label], i) => pieces.push(i ? "  " : "", key, dim(` ${label}`)));
+    const hintWidth = hints.reduce((sum, [k, l], i) => sum + (i ? 2 : 0) + width(k) + 1 + width(l), 0);
     const left = `── ${position}/${selectable} `;
-    const fill = "─".repeat(Math.max(1, w - width(left) - width(hints) - 4));
-    return line([dim(left), dim(fill), dim(" "), dim(hints), dim(" ──")]);
+    const fill = "─".repeat(Math.max(1, w - width(left) - hintWidth - 4));
+    return line([dim(left), dim(fill), " ", ...pieces, dim(" ──")]);
   }
 
   private previewText() {
