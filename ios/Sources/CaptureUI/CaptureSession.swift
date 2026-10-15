@@ -527,10 +527,11 @@ public final class CaptureSession {
         return CaptureInput.isAtprotoPost(posts.primary[0])
     }
 
-    var canImportXThread: Bool {
+    var canImportLinearThread: Bool {
         guard let draft, let posts = try? CaptureInput.selectedPosts(draft.input, roles: draft.sourceRoles),
               posts.primary.count == 1 else { return false }
-        return CaptureInput.canonicalSourceIdentity(posts.primary[0]).hasPrefix("x:")
+        let identity = CaptureInput.canonicalSourceIdentity(posts.primary[0])
+        return identity.hasPrefix("x:") || identity.hasPrefix("substack:")
     }
 
     var canExpandForumMagnumComment: Bool {
@@ -540,19 +541,19 @@ public final class CaptureSession {
     }
 
     private static func defaultThreadExpansion(for identity: String) -> CaptureThreadExpansion {
-        identity.hasPrefix("forum-magnum:") ? .auto : .on
+        identity.hasPrefix("forum-magnum:") ? .auto : identity.hasPrefix("substack:") ? .off : .on
     }
 
     private static func singleThreadSourceIdentity(_ input: String, roles: [CaptureSourceRole]?) -> String? {
         guard let posts = try? CaptureInput.selectedPosts(input, roles: roles), posts.primary.count == 1 else { return nil }
         let identity = CaptureInput.canonicalSourceIdentity(posts.primary[0])
-        return ["x:", "bluesky:", "delve:", "forum-magnum:"].contains(where: identity.hasPrefix) ? identity : nil
+        return ["x:", "bluesky:", "delve:", "forum-magnum:", "substack:"].contains(where: identity.hasPrefix) ? identity : nil
     }
 
-    var importsXThread: Bool { draft?.threadExpansion == .on }
+    var importsLinearThread: Bool { draft?.threadExpansion == .on }
 
-    func setXThreadImport(_ enabled: Bool) {
-        guard canImportXThread, let current = draft, !busy, current.blockID == nil,
+    func setLinearThreadImport(_ enabled: Bool) {
+        guard canImportLinearThread, let current = draft, !busy, current.blockID == nil,
               [.editing, .preparing, .ready, .failed].contains(current.phase) else { return }
         let mode: CaptureThreadExpansion = enabled ? .on : .off
         guard current.threadExpansion != mode else { return }

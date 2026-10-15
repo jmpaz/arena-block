@@ -163,8 +163,8 @@ public struct CaptureRootView: View {
     }
 
     private var threadBinding: Binding<Bool> {
-        Binding(get: { session.canExpandAtprotoThread ? session.expandsAtprotoThread : session.importsXThread },
-                set: { session.canExpandAtprotoThread ? session.setAtprotoThreadExpansion($0) : session.setXThreadImport($0) })
+        Binding(get: { session.canExpandAtprotoThread ? session.expandsAtprotoThread : session.importsLinearThread },
+                set: { session.canExpandAtprotoThread ? session.setAtprotoThreadExpansion($0) : session.setLinearThreadImport($0) })
     }
 
     private var composer: some View {
@@ -636,7 +636,7 @@ public struct CaptureRootView: View {
                 .accessibilityIdentifier("capture.comment-context")
                 .accessibilityHint("Parents are limited to six. Nearby replies include up to eight direct replies and same-author continuations.")
                 .disabled(locked)
-            } else if session.canImportXThread || session.canExpandAtprotoThread {
+            } else if session.canImportLinearThread || session.canExpandAtprotoThread {
                 if !dynamicTypeSize.isAccessibilitySize { Spacer(minLength: 8) }
                 Toggle("Import thread", isOn: threadBinding)
                     .fixedSize(horizontal: dynamicTypeSize.isAccessibilitySize ? false : true, vertical: false)
