@@ -72,6 +72,14 @@ export function emitText(outcome: Outcome, emit: Emit): string {
     .map(s => `${s}\n`).join("");
 }
 
+/** Copies through the desktop clipboard tool when one is present, else asks the terminal with OSC 52. */
+function copyText(text: string, output: tty.WriteStream): string {
+  const tool = process.env.WAYLAND_DISPLAY && Bun.which("wl-copy") ? ["wl-copy"] : Bun.which("pbcopy") ? ["pbcopy"] : undefined;
+  if (tool && Bun.spawnSync(tool, { stdin: Buffer.from(text) }).exitCode === 0) return tool[0]!;
+  output.write(`\x1b]52;c;${Buffer.from(text).toString("base64")}\x07`);
+  return "OSC 52";
+}
+
 /** Draws the model into a fixed stack of one-line text renderables, plus an optional preview column. */
 export class PickerView {
   readonly lines: TextRenderable[];
@@ -312,7 +320,10 @@ export async function runPicker(options: PickerOptions): Promise<PickerResult> {
           output.write(`\x1b[2m  would send ${truncate(`${request.method} ${request.path}${body}`, columns - 14)}\x1b[22m\n`);
           if (request.note) output.write(`\x1b[2m    ${request.note}\x1b[22m\n`);
         }
-        if (copy || options.copy) output.write(`\x1b]52;c;${Buffer.from(emitted.trim()).toString("base64")}\x07\x1b[2m  copied ${outcome.destinations.length} to the clipboard\x1b[22m\n`);
+        if (copy || options.copy) {
+          const via = copyText(emitted.trim(), output);
+          output.write(`\x1b[2m  copied ${outcome.destinations.length} to the clipboard (${via})\x1b[22m\n`);
+        }
       }
       input.destroy();
       resolve({ accepted: Boolean(outcome?.destinations.length), outcome, emitted });
