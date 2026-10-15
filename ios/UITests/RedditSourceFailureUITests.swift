@@ -27,7 +27,7 @@ final class RedditSourceFailureUITests: XCTestCase {
     func testDeniedSourceShareHasAccurateActionsAndSurvivesRelaunch() throws {
         let store = UUID().uuidString
         var app = launch(store: store, share: true)
-        XCTAssertTrue(app.staticTexts["Reddit didn’t allow Capture to read this link. Open the post or comment in Safari, then choose Share → Capture."].exists)
+        XCTAssertTrue(app.staticTexts["Reddit didn’t allow Capture to read this link. Full content could not be acquired."].exists)
         XCTAssertFalse(app.buttons["Import browser capture"].exists)
         XCTAssertTrue(app.buttons["Close"].exists)
         XCTAssertTrue(app.buttons["Done"].exists)
