@@ -98,6 +98,7 @@ final class CaptureUploadProgressTests: XCTestCase {
             let job = try upload(delivery, store)
             try delivery.recordProgress(.init(transferID: "upload", completedBytes: 60, expectedBytes: 100))
             try delivery.requestStop(job.id, reason: .continuedTaskEnded)
+            XCTAssertEqual(try store.value(DeliveryJob.self, account: 0, kind: "delivery", id: job.id.uuidString)?.state.title, "Save interrupted")
             var result = BackgroundHTTPResult(status: nil, body: Data(), error: "cancelled with a signed URL which must not be retained", retryAfter: nil)
             result.errorCode = NSURLErrorCancelled; result.errorDomain = NSURLErrorDomain
             let paused = try XCTUnwrap(delivery.accept(result, id: job.id, transferID: "upload"))

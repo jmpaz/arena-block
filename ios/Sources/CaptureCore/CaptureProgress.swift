@@ -57,6 +57,10 @@ public struct CaptureDeliveryState: Codable, Equatable, Sendable {
 
     public var title: String {
         if canceledAt != nil { return "Canceled" }
+        if stopRequested == true, let interruption, stage != .done, !stage.permitsStoppedRead {
+            if interruption.reason != .userPause { return "Save interrupted" }
+            return stage == .attention ? "Save paused" : "Stopping save"
+        }
         if stage == .attention, let interruption, interruption.reason != .userPause { return "Save interrupted" }
         if preparationFailureStage == .reading || preparationFailureStage == .queued { return "Couldn’t read source" }
         if preparationFailureStage == .rendering { return "Couldn’t prepare media" }
