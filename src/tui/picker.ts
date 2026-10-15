@@ -91,13 +91,13 @@ export class PickerView {
     const column = new BoxRenderable(renderer, { id: "column", flexDirection: "column", flexGrow: 1, height });
     frame.add(column);
     this.lines = Array.from({ length: height }, (_, i) => {
-      const text = new TextRenderable(renderer, { id: `line-${i}`, content: "", height: 1, width: "100%",
+      const text = new TextRenderable(renderer, { id: `line-${i}`, content: "", height: 1, width: "100%", selectable: false,
         fg: RGBA.defaultForeground(), bg: RGBA.defaultBackground() });
       column.add(text);
       return text;
     });
     if (opts.previewWidth > 0) {
-      this.preview = new TextRenderable(renderer, { id: "preview", content: "", width: opts.previewWidth, height,
+      this.preview = new TextRenderable(renderer, { id: "preview", content: "", width: opts.previewWidth, height, selectable: false,
         fg: RGBA.defaultForeground(), bg: RGBA.defaultBackground() });
       frame.add(this.preview);
     }
@@ -387,8 +387,9 @@ export async function runPicker(options: PickerOptions): Promise<PickerResult> {
       if (inList) {
         text.onMouseDown = () => { downRow = rowAt(); };
         text.onMouseOver = () => { model.hover = rowAt(); redraw(); };
-        text.onMouseUp = () => {
-          const at = rowAt();
+        text.onMouseUp = event => {
+          const at = model.top + event.y - view.lines[0]!.y - view.listStart;
+          if (at !== rowAt()) return;
           if (carrying) { carrying = false; model.notice = ""; model.focusRow(at); model.putDown(at); }
           else if (downRow === at) { model.focusRow(at); model.toggle(at); }
           downRow = null;
