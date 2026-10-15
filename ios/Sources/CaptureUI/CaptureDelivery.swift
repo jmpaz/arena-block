@@ -143,6 +143,7 @@ final class CaptureDelivery {
     private var needsAdvance: Set<UUID> = []
     private var sessionLocks: [String: Int32] = [:]
     private var recoveryTasks: [UUID: Task<Void, Never>] = [:]
+    private var progressStallTasks: [String: Task<Void, Never>] = [:]
     private var preparationTasks: [UUID: Task<Void, Error>] = [:]
     private var activeContinued: [UUID: UUID] = [:]
     private var retiring = false
@@ -619,6 +620,7 @@ final class CaptureDelivery {
             canceled = job
         }
         guard canceled != nil else { return }
+        if let transfer = canceled?.transferID { progressStallTasks.removeValue(forKey: transfer)?.cancel() }
         preparationTasks[id]?.cancel(); recoveryTasks[id]?.cancel()
         activeContinued.removeValue(forKey: id); needsAdvance.remove(id)
         changed?()
@@ -860,7 +862,27 @@ final class CaptureDelivery {
                 || previous?.waitingForConnectivity != observation.waitingForConnectivity else { return }
         var progress = observation; progress.stage = job.stage
         try store.save(progress, account: 0, kind: "deliveryProgress", id: observation.transferID)
+        scheduleStallDisplay(progress, operationID: job.id, receiptID: owner.receiptID)
         if let progressChanged { progressChanged() } else { changed?() }
+    }
+
+    /// A single display refresh can reveal a real stall. It never advances work
+    /// units, writes a progress fact, schedules recovery, or sends a request.
+    private func scheduleStallDisplay(_ progress: CaptureTransferProgress, operationID: UUID, receiptID: UUID) {
+        progressStallTasks.removeValue(forKey: progress.transferID)?.cancel()
+        guard progress.stage == .upload, (progress.fraction ?? 0) < 1 else { return }
+        let delay = max(0, 30 - Date().timeIntervalSince(progress.observedAt))
+        progressStallTasks[progress.transferID] = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(delay))
+            guard !Task.isCancelled, let self,
+                  let current = try? self.store.projectedValue(CaptureDeliveryProjection.self, account: 0, kind: "delivery", id: operationID.uuidString),
+                  current.transferID == progress.transferID, (current.receiptID ?? current.id) == receiptID,
+                  current.stage == .upload, current.stopRequestedAt == nil, current.canceledAt == nil,
+                  let latest = try? self.store.projectedValue(CaptureTransferProgress.self, account: 0, kind: "deliveryProgress", id: progress.transferID),
+                  latest.observedAt == progress.observedAt else { return }
+            self.progressStallTasks.removeValue(forKey: progress.transferID)
+            if let progressChanged = self.progressChanged { progressChanged() } else { self.changed?() }
+        }
     }
 
     private func resumeCompleted(transferID: String) async {
@@ -891,6 +913,7 @@ final class CaptureDelivery {
     }
 
     func accept(_ result: BackgroundHTTPResult, id: UUID, transferID: String) throws -> DeliveryJob? {
+        progressStallTasks.removeValue(forKey: transferID)?.cancel()
         var accepted: DeliveryJob?
         try store.transaction {
             guard var current = try store.value(DeliveryJob.self, account: 0, kind: "delivery", id: id.uuidString), current.transferID == transferID else {

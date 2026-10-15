@@ -92,6 +92,9 @@ public final class BackgroundHTTP: NSObject, URLSessionDownloadDelegate, URLSess
         let task: URLSessionTask
         if let file { task = session.uploadTask(with: request, fromFile: file) }
         else { task = session.downloadTask(with: request) }
+        if let file, let bytes = try? file.resourceValues(forKeys: [.fileSizeKey]).fileSize, bytes > 0 {
+            task.countOfBytesClientExpectsToSend = Int64(bytes)
+        }
         task.taskDescription = id
         task.earliestBeginDate = notBefore
         return task
@@ -115,7 +118,7 @@ public final class BackgroundHTTP: NSObject, URLSessionDownloadDelegate, URLSess
     }
 
     public func urlSession(_ session: URLSession, task: URLSessionTask, didSendBodyData bytesSent: Int64, totalBytesSent: Int64, totalBytesExpectedToSend: Int64) {
-        report(task, completed: totalBytesSent, expected: totalBytesExpectedToSend)
+        report(task, completed: totalBytesSent, expected: totalBytesExpectedToSend > 0 ? totalBytesExpectedToSend : task.countOfBytesClientExpectsToSend)
     }
 
     public func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {

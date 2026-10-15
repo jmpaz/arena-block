@@ -74,6 +74,38 @@ final class CaptureUploadProgressTests: XCTestCase {
         XCTAssertTrue(unknown.subtitle.contains("uploaded")); XCTAssertFalse(unknown.isDone)
     }
 
+    @MainActor func testActualStallDisplaySignalDoesNotWriteProgressOrAdvanceUnits() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = try CaptureStore(url: root.appendingPathComponent("capture.sqlite"))
+        let delivery = try CaptureDelivery(store: store, credentials: CredentialStore(accessGroup: nil), directory: root.appendingPathComponent("delivery"), group: "fixture", identifier: "fixture", ingestBase: nil)
+        let job = try upload(delivery, store)
+        let stalled = expectation(description: "one-shot actual stall display signal")
+        var signals = 0
+        delivery.progressChanged = { signals += 1; if signals == 2 { stalled.fulfill() } }
+        try delivery.recordProgress(.init(transferID: "upload", completedBytes: 40, expectedBytes: 100, observedAt: Date().addingTimeInterval(-31)))
+        let before = try store.recordRevisions(account: 0, kind: "deliveryProgress").first?.revision
+        await fulfillment(of: [stalled], timeout: 2)
+        XCTAssertEqual(try store.recordRevisions(account: 0, kind: "deliveryProgress").first?.revision, before)
+        let projection = try XCTUnwrap(store.projectedValue(CaptureDeliveryProjection.self, account: 0, kind: "delivery", id: job.id.uuidString))
+        let observation = try store.projectedValue(CaptureTransferProgress.self, account: 0, kind: "deliveryProgress", id: "upload")
+        XCTAssertTrue(projection.progress(observation: observation).transferStalled)
+        XCTAssertEqual(observation?.completedBytes, 40)
+    }
+
+    @MainActor func testCanceledTransferCannotDeliverQueuedStallDisplaySignal() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = try CaptureStore(url: root.appendingPathComponent("capture.sqlite"))
+        let delivery = try CaptureDelivery(store: store, credentials: CredentialStore(accessGroup: nil), directory: root.appendingPathComponent("delivery"), group: "fixture", identifier: "fixture", ingestBase: nil)
+        let job = try upload(delivery, store)
+        let late = expectation(description: "no late stall after cancel"); late.isInverted = true
+        try delivery.recordProgress(.init(transferID: "upload", completedBytes: 40, expectedBytes: 100, observedAt: Date().addingTimeInterval(-31)))
+        delivery.progressChanged = { late.fulfill() }
+        try delivery.cancel(job.id, accountID: 42)
+        await fulfillment(of: [late], timeout: 0.1)
+    }
+
     @MainActor func testSuccessfulUploadRetainsTransportEvidenceBeforeMovingToCreate() throws {
         try fixture { delivery, store, root in
             let job = try upload(delivery, store)
