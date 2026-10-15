@@ -45,7 +45,7 @@ Use `resolve`, `plan`, `publish`, `save`, `status`, `cancel` or `retry` as shown
 | Bluesky | Profile post permalinks, `at://.../app.bsky.feed.post/...` | Public AT Protocol AppView responses |
 | [Delvetown](https://delve.town) | Profile post permalinks, `at://.../town.delve.feed.post/...` | Delvetown AppView and repository records |
 | Mastodon | Public HTTPS post permalinks | The instance's public status API |
-| Reddit | Posts, comments, galleries, share links | Public JSON, public-page/browser records, bounded availability fallback |
+| Reddit | Posts, comments, galleries, share links | Direct public JSON where available; bounded availability fallback; retained record compatibility |
 | LessWrong, Alignment Forum, EA Forum | Post and comment permalinks | Each site's public GraphQL API |
 | Substack | Public Notes and complete freely public articles | Public HTML/API or user-invoked browser records |
 | TikTok, Instagram | Supported post, video and share permalinks | FxEmbed Atmosphere responses |
@@ -64,17 +64,11 @@ For x.com articles, the composer places the article Markdown in the block and us
 
 Reddit post titles become block titles. Body Markdown and gallery captions become text content or media descriptions. Cross-posts retain the quoting post and expose the original attachments. Reddit-hosted video uses HLS for audio. Comment capture uses the selected comment and its parent title. It excludes surrounding replies and parent attachments.
 
-When a JSON read returns HTTP 403, native Capture and the Darwin CLI can read the ordinary public page in a fresh WebKit session. This needs no Reddit developer key, login or capture-file import. HTTP 429 stops acquisition. Public-page capture supports full writing, observed PNG/JPEG/WebP images and selected comments; broader gallery/video/cross-post support requires usable JSON. Challenges and incomplete sources stop the read. See [public-page capture](docs/reddit-public-page.md) for scope and packaging. Specified temporary availability failures may use the bounded Arctic Shift fallback; archive responses can omit recent edits.
+Ordinary Reddit URLs use the same direct HTTP provider in CLI and iOS. Safari Share supplies the URL; it does not read Reddit from the browser session. HTTP 401, 403 and 429 stop acquisition without a browser, alternate host or archive retry. The automatic WebKit adapter and its packaged helper have been removed. A specified HTTP 503 availability failure can still consult the existing Arctic Shift archive; that snapshot can omit edits and may be unavailable. An archive observation is not proof of current source availability.
 
-The browser extension also supports **Read Reddit tab** on an open public post or selected comment. Chrome and Firefox request optional scripting access on this action. The reader uses the page's existing session for a same-origin JSON read, stops on refusals or challenge HTML, and exports public fields without cookies or account state. **Export browser capture** writes a JSON snapshot for retained-file workflows:
+The current Neovim receiving case resolves to post `1x6nuin`, but its direct JSON read is denied and the checked archive has no record. No complete key-free intermediary with the required source identity, cross-post relationships and audio-preserving media contract has been verified. This remains an acquisition gap; the renderer cannot reconstruct missing source records. See [Reddit source access](docs/reddit-source-access.md).
 
-```sh
-arena-block plan --reddit-capture post.arena-reddit.json --media all --json
-```
-
-A matching source URL may accompany the file; otherwise the CLI uses the file's source URL. Repeat `--reddit-capture` for multiple sources. The importer checks matching identities, declared public-community fields, timestamp format and record bounds; it preserves complete selftext, supported media and selected-comment provenance. Imported records can be edited. Validation and plan hashes do not authenticate Reddit, public visibility or observation time. Plan hashes include the declared observations. A receiver must advertise `reddit-browser-records-v1` before the CLI submits such a save.
-
-On iOS, paste the URL or share the page from **Safari → Capture**. Safari can pass a usable page-side JSON record; a denied 403 read passes the URL to the native public-page adapter. URL-only intake uses the same adapter without reusing Safari's session. Supported record files remain available through the Share extension. Retained records stay with drafts and frozen submissions. External embedded players, Giphy comment tokens, unsupported animation types and unavailable media stop a complete capture. Browser records are bounded at 2 MiB, media metadata at 100 entries, and API cross-post nesting at four parents. Imported attachments must use matching Reddit image identities or native video paths. Ordinary external post links remain text links. Public-page records additionally require the receiver's `reddit-public-page-records-v1` capability.
+Previously retained API/browser and public-page records remain readable in drafts, plans and receivers. Their validation checks identities, bounds and observed media; it does not authenticate the original observation. The `reddit-browser-records-v1` and `reddit-public-page-records-v1` capabilities remain for that compatibility. Browser capture or record import is not a remedy for a denied ordinary URL. Missing gallery metadata, unverified cross-post parents, unsupported players and video without a stream preserving audio stop complete acquisition. The provider does not request bot-facing embed HTML or guess media originals.
 
 
 TikTok and Instagram carousels preserve source order. Photo mosaics omit soundtracks. Video mosaics use the selected soundtrack. Public provider access and media URLs can become unavailable, so refresh a stale plan before another acquisition attempt.

@@ -927,7 +927,7 @@ final class SubmissionTests: XCTestCase {
             var job = try XCTUnwrap(store.value(DeliveryJob.self, account: 0, kind: "delivery", id: id.uuidString))
             XCTAssertEqual(job.preparationFailureStage, .reading)
             XCTAssertEqual(job.state.title, "Couldn’t read source")
-            XCTAssertEqual(CaptureSourceAccess.message(job.problem ?? ""), "Reddit didn’t allow Capture to read this link. Open the post or comment in Safari, then choose Share → Capture.")
+            XCTAssertEqual(CaptureSourceAccess.message(job.problem ?? ""), "Reddit didn’t allow Capture to read this link. Full content could not be acquired.")
             XCTAssertTrue(job.problem?.contains("HTTP 403") == true)
             XCTAssertTrue(job.permitsEditing)
             XCTAssertNil(job.draft.blockID); XCTAssertNil(job.transferID)
@@ -979,6 +979,7 @@ final class SubmissionTests: XCTestCase {
             XCTAssertEqual(roundtrip.title, "Save interrupted")
             XCTAssertFalse(CaptureSourceAccess.redditDenied("Are.na returned HTTP 403"))
             XCTAssertTrue(CaptureSourceAccess.redditDenied("Reddit's live metadata read returned HTTP 429; try later"))
+            XCTAssertTrue(CaptureSourceAccess.redditDenied("Reddit's live share-link read returned HTTP 403; current content cannot be verified."))
         }
     }
 

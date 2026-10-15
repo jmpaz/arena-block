@@ -142,16 +142,16 @@ public struct CaptureContinuedProgress: Equatable, Sendable {
     }
 }
 
-/// Identify the provider's HTTP 403/429 denial messages.
+/// Identify the provider's HTTP 401/403/429 denial messages.
 public enum CaptureSourceAccess {
     public static func redditDenied(_ problem: String?) -> Bool {
         guard let problem else { return false }
-        return ["metadata", "post"].contains { kind in
-            [403, 429].contains { status in problem.hasPrefix("Reddit's live \(kind) read returned HTTP \(status);") }
+        return ["metadata", "post", "share-link"].contains { kind in
+            [401, 403, 429].contains { status in problem.hasPrefix("Reddit's live \(kind) read returned HTTP \(status);") }
         }
     }
     public static func message(_ problem: String) -> String {
-        redditDenied(problem) ? "Reddit didn’t allow Capture to read this link. Open the post or comment in Safari, then choose Share → Capture." : problem
+        redditDenied(problem) ? "Reddit didn’t allow Capture to read this link. Full content could not be acquired." : problem
     }
 }
 

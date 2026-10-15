@@ -86,7 +86,6 @@ export function requiredOrigins(refs: string[], captures: RedditBrowserCapture[]
       case "delve": origins.add("https://api.delve.town/*"); break;
       case "reddit":
         origins.add("https://www.reddit.com/*");
-        origins.add("https://vxreddit.com/*");
         origins.add("https://arctic-shift.photon-reddit.com/*");
         break;
       case "forum_magnum": {

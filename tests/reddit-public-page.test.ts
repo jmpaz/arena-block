@@ -13,7 +13,6 @@ import { requiredPlanCapabilities } from "../src/plan-capabilities.ts";
 import { handle } from "../extension/native-host.ts";
 import postFixture from "./fixtures/reddit-public-page-post.json";
 import commentFixture from "./fixtures/reddit-public-page-comment.json";
-import apiFixture from "./fixtures/reddit-browser-capture.json";
 
 const post = redditPublicPageCaptureSchema.parse(postFixture), comment = redditPublicPageCaptureSchema.parse(commentFixture);
 const escape = (s: string) => s.replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("<", "&lt;");
@@ -86,20 +85,6 @@ test("a missing authored post body or unverified GIF does not become a complete 
   expect(page(post, d => d.querySelector(`[id="t3_${post.post.id}-post-rtjson-content"]`)!.remove())).toThrow("omitted its complete authored body");
   expect(page(post, d => d.querySelector("img")!.setAttribute("src", "https://i.redd.it/animated.gif"))).toThrow("image identity");
 });
-test("ordinary source provider prefers valid API reads and uses the browser adapter only for403", async () => {
-  let acquired = 0;
-  const acquire = async () => { acquired++; return post; };
-  const api = new RedditProvider(async () => Response.json([{ data: { children: [{ data: apiFixture.post }] } }]), [], acquire);
-  expect((await api.resolve(parseSource(apiFixture.sourceUrl))).id).toBe(apiFixture.post.id);
-  expect(acquired).toBe(0);
-  const denied = new RedditProvider(async () => new Response(null, { status: 403 }), [], acquire);
-  const value = await denied.resolve(parseSource(post.sourceUrl));
-  expect(value.redditCapture?.schema).toBe("arena-block/reddit-public-page-capture"); expect(acquired).toBe(1);
-  const limited = new RedditProvider(async () => new Response(null, { status: 429 }), [], acquire);
-  await expect(limited.resolve(parseSource(post.sourceUrl))).rejects.toThrow("HTTP 429"); expect(acquired).toBe(1);
-  const wrong = new RedditProvider(async () => new Response(null, { status: 403 }), [], async () => comment);
-  await expect(wrong.resolve(parseSource(post.sourceUrl))).rejects.toThrow("another source");
-});
 test("public records compose with existing media controls, retain evidence and require the new receiver capability", async () => {
   const resolver = new SocialResolver({ reddit: new RedditProvider(async () => { throw new Error("No network expected"); }, [post]) });
   const all = await resolver.resolveComposition([post.sourceUrl], [], { media: "all" });
@@ -115,7 +100,7 @@ test("public records compose with existing media controls, retain evidence and r
   expect(noMedia.block.markdown).toContain(post.post.media[0]!.url);
   const selected = await resolver.resolveComposition([post.sourceUrl], [], { media: "selected", selectedMedia: ["1.2"] });
   expect(composePlan(selected.posts, selected.policy).block.selectedMedia).toEqual(["1.2"]);
-  const selectedComment = await new RedditProvider(async () => new Response(null, { status: 403 }), [], async () => comment).resolve(parseSource(comment.sourceUrl));
+  const selectedComment = await new RedditProvider(async () => { throw new Error("No network expected"); }, [comment]).resolve(parseSource(comment.sourceUrl));
   expect(selectedComment.text).toContain("a sharply bifurcated talk"); expect(selectedComment.media).toEqual([]);
 });
 test("native host refuses a receiver that would strip public-page evidence before submitting a plan", async () => {
@@ -134,28 +119,4 @@ test("native host refuses a receiver that would strip public-page evidence befor
 
 test("authored discussion of access errors is not mistaken for a site challenge", () => {
   expect(() => page(post, d => { d.querySelector(`[id="t3_${post.post.id}-post-rtjson-content"]`)!.appendChild(d.createTextNode("An access denied error was part of my analysis.")); })()).not.toThrow();
-});
-
-test("the WebView wrapper prefers usable JSON even when the DOM media projection is unsupported", async () => {
-  const document = createDocument(`<shreddit-post id="t3_${post.post.id}" author="${post.post.author}" post-title="Source" post-type="video"><video></video></shreddit-post>`);
-  const api = { ...apiFixture.post, id: post.post.id, permalink: post.post.permalink, title: post.post.title, author: post.post.author };
-  const result = await runInNewContext(await Bun.file(new URL("../ios/Sources/CaptureRuntime/Resources/reddit-public-page.js", import.meta.url)).text() + "\n arenaAcquireRedditPublicPage(expected)", {
-    document, location: { href: post.sourceUrl, origin: "https://www.reddit.com" }, expected: post.sourceUrl,
-    URL, Date, AbortController, TextDecoder, Uint8Array, setTimeout, clearTimeout,
-    fetch: async () => Response.json([{ data: { children: [{ kind: "t3", data: api }] } }]),
-  });
-  expect(result.ok).toBe(true);
-  expect(result.capture.schema).toBe("arena-block/reddit-browser-capture");
-});
-
-test("the WebView wrapper never replaces a429 with a DOM capture", async () => {
-  const document = createDocument(`<shreddit-post id="t3_${post.post.id}" author="source" post-title="Source"></shreddit-post>`);
-  let calls = 0;
-  const result = await runInNewContext(await Bun.file(new URL("../ios/Sources/CaptureRuntime/Resources/reddit-public-page.js", import.meta.url)).text() + "\n arenaAcquireRedditPublicPage(expected)", {
-    document, location: { href: post.sourceUrl, origin: "https://www.reddit.com" }, expected: post.sourceUrl,
-    URL, Date, AbortController, TextDecoder, Uint8Array, setTimeout, clearTimeout,
-    fetch: async () => { calls++; return new Response(null, { status: 429 }); },
-  });
-  expect(result.ok).toBe(false); expect(result.error).toContain("HTTP 429"); expect(result.pending).toBe(false);
-  expect(calls).toBe(1);
 });

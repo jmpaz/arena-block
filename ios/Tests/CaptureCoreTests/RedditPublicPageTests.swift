@@ -23,20 +23,4 @@ final class RedditPublicPageTests: XCTestCase {
             XCTAssertEqual((value["plan"] as? [String: Any])?["sources"] as? NSArray, actual["sources"] as? NSArray)
         }
     }
-    @MainActor func testPublicBrowserRejectsForeignSchemesBeforeLoading() async throws {
-        let reader = RedditPublicPageAcquirer(readerScript: "throw new Error('must not run')")
-        for url in ["file:///tmp/source", "https://example.com/post", "https://name:secret@www.reddit.com/comments/abc/"] {
-            do { _ = try await reader.acquire(url: url); XCTFail("Accepted a nonpublic source") }
-            catch { XCTAssertTrue(error.localizedDescription.contains("HTTPS Reddit")) }
-        }
-    }
-    @MainActor func testCancelledPublicReadDoesNotStartNavigation() async throws {
-        let reader = RedditPublicPageAcquirer(readerScript: "throw new Error('must not run')")
-        let task = Task { @MainActor in
-            return try await reader.acquire(url: "https://www.reddit.com/comments/abc/")
-        }
-        task.cancel()
-        do { _ = try await task.value; XCTFail("Cancelled read completed") }
-        catch { XCTAssertTrue(error is CancellationError) }
-    }
 }

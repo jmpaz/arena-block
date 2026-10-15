@@ -11,6 +11,8 @@ export const redditPostSchema = z.object({
   removed_by_category: z.string().nullish(), subreddit_type: z.string().optional(), quarantined: z.boolean().optional(), quarantine: z.boolean().optional(),
   url: z.string().optional(), is_self: z.boolean().optional(),
   post_hint: z.string().optional(),
+  is_video: z.boolean().optional(), is_gallery: z.boolean().optional(),
+  crosspost_parent: z.string().regex(/^t3_[a-z0-9]+$/).optional(),
   preview: z.object({ images: z.array(z.object({ id: z.string(), source: z.object({ width: z.number(), height: z.number() }) })) }).optional(),
   gallery_data: z.object({ items: z.array(z.object({ media_id: z.string(), caption: z.string().optional(), is_deleted: z.boolean().optional() })).min(1).max(100) }).nullish(),
   media_metadata: z.record(z.string(), z.object({
@@ -151,9 +153,9 @@ export function bindRedditCaptures(refs: string[], captures: RedditBrowserCaptur
   return normalized;
 }
 
-export function redditReadNeedsBrowser(error: unknown): boolean {
+export function redditLiveReadUnavailable(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
-  return /^Reddit's live (?:post|metadata) read returned HTTP \d+/.test(message);
+  return /^Reddit's live (?:post|metadata|share-link) read returned HTTP \d+/.test(message);
 }
 export function requireRetainedRedditCaptures(plan: { sources: { redditCapture?: RedditBrowserCapture }[] }, captures: RedditBrowserCapture[]) {
   for (const capture of captures) {

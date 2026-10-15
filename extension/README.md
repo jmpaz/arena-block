@@ -52,12 +52,10 @@ The public key determines the unpacked Chrome ID `fijpffccadekllfkkfelnknanpljbo
 
 The public key is recorded in `nix/chrome-development-identity.nix`. The project contains no private signing key. Native-host registration and runtime credentials are configured by the caller.
 
-## Reddit browser records
+## Retained Reddit records
 
-Open a public Reddit post or selected comment, invoke the extension, choose **Read Reddit tab**. The optional scripting request runs the reader in that tab, using the existing page session. Refusal or challenge HTML stops the read. No cookies, authorization headers, saved/vote state or reports enter the exported record.
+Ordinary Reddit URLs use the shared direct HTTP provider. A denied read does not offer a browser-session reader or manual capture workaround. The former **Read Reddit tab** action and bot-facing gallery origin have been removed. Safari Share passes the URL to native Capture without a Reddit page read. See [source access](../docs/reddit-source-access.md) for the current receiving limit.
 
-Use **Export browser capture** to move the sanitized JSON to `arena-block --reddit-capture <path>` or share the file to native Capture. Importing a record for another source requires a new capture with empty source links. The editor retains observation time, source records and authored edits through draft reloads; the immutable plan carries the same record into publication.
-
-Imported observations are declarations. Validation and plan hashes do not authenticate Reddit, community visibility or capture time. The file can be edited; use a record from a source you trust. Attachment acquisition accepts matching Reddit image origins and native Reddit video paths.
+Previously saved records remain readable through **Import saved record** and **Export saved record**, retaining observation time, source evidence and authored edits through draft reloads. This compatibility is for existing records, not a replacement for unavailable normal URL acquisition. Imported observations are declarations; validation and plan hashes do not authenticate Reddit, community visibility or capture time.
 
 The helper returns at most 1 MiB per native-message response, following [Chrome's transport limit](https://developer.chrome.com/docs/extensions/develop/concepts/native-messaging). A record below the 2 MiB import limit may produce a larger plan. The helper reports this limit explicitly; the retained browser draft and export remain available, and the CLI or native app can open the record. The helper bounds incoming messages at 4 MiB. These transport limits are separate from record validation and receiver compatibility.

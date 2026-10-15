@@ -156,14 +156,15 @@ test("native video uses HLS to retain audio instead of the silent fallback", asy
   expect(result.media[0]!.url).toEndWith(".m3u8");
 });
 
-test("unprocessed archive images are repaired only from matching preview media IDs", async () => {
+test("incomplete galleries stop without bot-facing embed requests or guessed originals", async () => {
   const incomplete = { ...gallery, media_metadata: { a: image("a"), b: { status: "unprocessed" } } };
-  const resolver = new RedditProvider(async url => String(url).startsWith("https://vxreddit.com")
-    ? new Response('<meta property="og:url" content="https://www.reddit.com/comments/abc"><meta property="og:image" content="https://i.redd.it/b.png">')
-    : Response.json([{ data: { children: [{ data: incomplete }] } }]));
-  const result = await resolver.resolve(parseSource("https://redd.it/abc"));
-  expect(result.media.map(item => item.id)).toEqual(["b", "a"]);
-  expect(result.media[0]!.url).toBe("https://i.redd.it/b.png");
+  const calls: string[] = [];
+  const resolver = new RedditProvider(async url => {
+    calls.push(String(url));
+    return Response.json([{ data: { children: [{ data: incomplete }] } }]);
+  });
+  await expect(resolver.resolve(parseSource("https://redd.it/abc"))).rejects.toThrow("gallery item b is unavailable");
+  expect(calls).toEqual(["https://www.reddit.com/comments/abc.json?raw_json=1"]);
 });
 test("root attachments are depicted consistently across providers even with media none", () => {
   for (const provider of ["x", "bluesky", "mastodon", "reddit"] as const) {

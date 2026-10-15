@@ -1,4 +1,4 @@
-import { redditReadNeedsBrowser } from "../../packages/core/reddit-record.ts";
+import { redditLiveReadUnavailable } from "../../packages/core/reddit-record.ts";
 import { resolveWithNative } from "./native-reddit.ts";
 import { BrowserOAuth } from "./browser-auth.ts";
 import { BrowserSaver, type BrowserSaveIntent } from "./browser-save.ts";
@@ -48,7 +48,7 @@ function jobs(): CaptureJobRunner {
     async resolve(input) {
       try { return await resolveCapture(input); }
       catch (error) {
-        if (redditReadNeedsBrowser(error)) throw error;
+        if (redditLiveReadUnavailable(error)) throw error;
         if (!await extension.permissions.contains({ permissions: ["nativeMessaging"] })) throw error;
         return resolveWithNative({
           refs: input.primary, extraRefs: input.extras, policy: input.policy, refresh: false, redditCaptures: input.redditCaptures, substackCaptures: input.substackCaptures,

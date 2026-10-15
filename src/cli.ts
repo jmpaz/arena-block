@@ -9,7 +9,6 @@ import { composePlan, planHash } from "./compose.ts";
 import { SocialResolver } from "./providers/index.ts";
 import { SubstackProvider } from "../packages/core/providers/substack.ts";
 import { bindSubstackCaptures, normalizeSubstackCapture, SUBSTACK_CAPTURE_MAX_BYTES } from "../packages/core/substack-record.ts";
-import { publicRedditBrowser } from "./reddit-public-browser.ts";
 import { RedditProvider } from "../packages/core/providers/reddit.ts";
 import { bindRedditCaptures, normalizeRedditCapture, REDDIT_CAPTURE_MAX_BYTES } from "../packages/core/reddit-record.ts";
 import type { MosaicMode } from "./mosaic-preview.ts";
@@ -135,7 +134,7 @@ async function captureInputs(values: string[], options: Options) {
   const inputs = splitInputs(values, options.to);
   if (!inputs.refs.length) inputs.refs = [...captures, ...substack].map(capture => capture.sourceUrl);
   const normalized = bindRedditCaptures([...inputs.refs, ...(options.extra ?? [])], captures);
-  return { inputs, resolver: new SocialResolver({ reddit: new RedditProvider(undefined, normalized, publicRedditBrowser()), substack: new SubstackProvider(bindSubstackCaptures([...inputs.refs, ...(options.extra ?? [])], substack)) }) };
+  return { inputs, resolver: new SocialResolver({ reddit: new RedditProvider(undefined, normalized), substack: new SubstackProvider(bindSubstackCaptures([...inputs.refs, ...(options.extra ?? [])], substack)) }) };
 }
 
 async function localPlan(values: string[], options: Options): Promise<{ plan: BlockPlan; destinations: string[] }> {

@@ -27,10 +27,3 @@ const redditReader = await Bun.build({
   target: "browser", format: "iife", minify: false,
 });
 if (!redditReader.success) throw new Error(redditReader.logs.join("\n"));
-
-const redditPublicReader = await Bun.build({
-  entrypoints: [join(root, "ios/scripts/reddit-public-page.ts")],
-  outdir: join(root, "ios/Sources/CaptureRuntime/Resources"), naming: "reddit-public-page.js",
-  target: "browser", format: "iife", minify: false,
-});
-if (!redditPublicReader.success) throw new Error(redditPublicReader.logs.join("\n"));

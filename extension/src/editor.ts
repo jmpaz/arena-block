@@ -2,8 +2,7 @@ import { normalizeSubstackCapture, substackCapturesSchema, substackSourceKey, ty
 import { readActiveSubstackTab } from "./substack-tab.ts";
 import { containsDraftSource, shouldReplaceAutomaticDraft } from "./draft-retention.ts";
 import { resolveWithNative } from "./native-reddit.ts";
-import { normalizeRedditCapture, redditReadNeedsBrowser, redditCapturesSchema, redditSourceKey, REDDIT_CAPTURE_MAX_BYTES, type RedditBrowserCapture } from "../../packages/core/reddit-record.ts";
-import { readActiveRedditTab, type RedditTabAPI } from "./reddit-tab.ts";
+import { normalizeRedditCapture, redditLiveReadUnavailable, redditCapturesSchema, redditSourceKey, REDDIT_CAPTURE_MAX_BYTES, type RedditBrowserCapture } from "../../packages/core/reddit-record.ts";
 import { blockPlanSchema, type BlockPlan, type CompositionPolicy } from "../../packages/core/types.ts";
 import { requiredOrigins, resolveCapture, revisePlan } from "./core.ts";
 import { BrowserOAuth } from "./browser-auth.ts";
@@ -118,7 +117,7 @@ function syncDestinationLock(): void {
   const frozen = destinationsFrozen();
   for (const id of ["choose-channel", "clear-channels", "add-channel", "default-channel", "default-mode",
     "primary", "extras", "media-policy", "thread-policy", "quote-policy", "quote-depth", "quote-dates",
-    "separator-policy", "read-reddit", "read-substack", "import-reddit", "reddit-file", "title", "writing", "description", "resolve-local", "add-current",
+    "separator-policy", "read-substack", "import-reddit", "reddit-file", "title", "writing", "description", "resolve-local", "add-current",
     "single-media-toggle", "audio-choice"])
     $(id).toggleAttribute("disabled", frozen);
   resolveButton.disabled = frozen || resolveInFlight;
@@ -1053,7 +1052,7 @@ async function resolve(): Promise<void> {
     message("");
   } catch (error) {
     if (!resolutionGuard.current(ticket)) return;
-    $("resolve-local").hidden = redditReadNeedsBrowser(error);
+    $("resolve-local").hidden = redditLiveReadUnavailable(error);
     message(error instanceof Error ? error.message : "Could not resolve this source.", true);
   }
   finally {
@@ -1107,14 +1106,6 @@ $("read-substack").addEventListener("click", () => {
   void readActiveSubstackTab(browser).then(capture => {
     if (signature !== inputSignature()) throw new Error("The draft changed while reading Substack. Read the tab again.");
     return acceptSubstackCapture(capture);
-  }).catch(error => message(error instanceof Error ? error.message : String(error), true));
-});
-$("read-reddit").addEventListener("click", () => {
-  if (destinationsFrozen() || resolveInFlight) return;
-  const signature = inputSignature();
-  void readActiveRedditTab(browser).then(capture => {
-    if (signature !== inputSignature()) throw new Error("The draft changed while reading Reddit. Read the tab again.");
-    return acceptRedditCapture(capture);
   }).catch(error => message(error instanceof Error ? error.message : String(error), true));
 });
 $("import-reddit").addEventListener("click", () => $<HTMLInputElement>("reddit-file").click());

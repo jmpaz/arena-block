@@ -171,26 +171,6 @@ test("the page reader refuses private records before returning any payload", asy
   await expect(promise).rejects.toThrow("Only public"); expect(calls).toHaveLength(1);
 });
 
-test("Safari's generated preprocessing resource returns the record or an explicit refusal", async () => {
-  const script = await Bun.file(new URL("../ios/ShareExtension/RedditPreprocessor.js", import.meta.url)).text();
-  for (const status of [200, 403]) {
-    let calls = 0;
-    const result = await new Promise<Record<string, string>>(resolve => {
-      const context: any = {
-        location: new URL(fixture.sourceUrl), URL, AbortController, TextDecoder, Uint8Array, setTimeout, clearTimeout,
-        fetch: async () => { calls++; return status === 200 ? Response.json([{ data: { children: [{ kind: "t3", data: fixture.post }] } }]) : new Response(null, { status }); },
-      };
-      runInNewContext(script, context);
-      context.ExtensionPreprocessingJS.run({ completionFunction: resolve });
-    });
-    expect(calls).toBe(1);
-    if (status === 200) { const capture = normalizeRedditCapture(JSON.parse(result.redditCapture!));
-      if (capture.schema !== "arena-block/reddit-browser-capture") throw new Error("Expected the API record reader");
-      expect(capture.post.selftext).toBe(fixture.post.selftext); }
-    else { expect(result.redditSourceUrl).toBe(fixture.sourceUrl); expect(result.redditCapture).toBeUndefined(); expect(result.redditError).toBeUndefined(); }
-  }
-});
-
 test("local-helper acquisition checks capabilities and refuses a stripped browser record", async () => {
   const { resolveWithNative } = await import("../extension/src/native-reddit.ts");
   const value = capture(), plan = composePlan(await resolved(value), { media: "all" });
