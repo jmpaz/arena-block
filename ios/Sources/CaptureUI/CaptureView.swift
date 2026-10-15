@@ -1084,11 +1084,34 @@ struct CaptureTextView: View {
     @State private var expanded = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
-        let preview = CaptureMarkdownPreview.render(text)
+        let blocks = CaptureMarkdownPreview.blocks(text)
+        let visible = expanded ? blocks : Array(blocks.prefix(2))
+        let canExpand = text.count > 250 || blocks.count > 2
         VStack(alignment: .leading, spacing: 10) {
-            Text(preview).lineLimit(expanded ? nil : 6).textSelection(.enabled)
-                .accessibilityIdentifier("capture.text.content")
-            if preview.characters.count > 250 {
+            VStack(alignment: .leading, spacing: 12) {
+                ForEach(Array(visible.enumerated()), id: \.offset) { _, block in
+                    if block.isRule { Divider() }
+                    else {
+                        HStack(alignment: .top, spacing: 8) {
+                            ForEach(0..<min(block.quoteDepth, 6), id: \.self) { _ in
+                                Rectangle().fill(.secondary.opacity(0.35)).frame(width: 2)
+                            }
+                            HStack(alignment: .top, spacing: 8) {
+                                if block.listDepth > 0 {
+                                    Text(block.marker ?? "").foregroundStyle(.secondary)
+                                        .frame(minWidth: 18, alignment: .leading)
+                                }
+                                Text(block.text)
+                                    .font(block.isCode ? .system(.body, design: .monospaced) : .body)
+                                    .lineLimit(expanded || !canExpand ? nil : (visible.count == 1 ? 6 : 3))
+                                    .textSelection(.enabled)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }.padding(.leading, CGFloat(max(0, block.listDepth - 1)) * 16)
+                        }.fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }.accessibilityIdentifier("capture.text.content")
+            if canExpand {
                 Button {
                     if reduceMotion { expanded.toggle() }
                     else { withAnimation(.easeInOut(duration: 0.22)) { expanded.toggle() } }
