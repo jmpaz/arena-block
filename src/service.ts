@@ -285,6 +285,15 @@ export function createService(config: ServiceConfig, dependencies: { client?: Ar
         channelIndex.recordPage(accountId, page, channels, nextPage);
         return json({ accountId, channels, nextPage });
       }
+      const channelBlocksMatch = url.pathname.match(/^\/v1\/channels\/([1-9][0-9]{0,15})\/blocks$/);
+      if (request.method === "GET" && channelBlocksMatch) {
+        const rawPage = url.searchParams.get("page") ?? "1";
+        if (!/^[1-9][0-9]{0,2}$/.test(rawPage) || Number(rawPage) > 100) return json({ error: "Invalid channel page" }, 400);
+        await pickerAccount(request.signal);
+        const channelId = Number(channelBlocksMatch[1]), page = Number(rawPage);
+        const response = await client.channelBlockPage(channelId, page, request.signal);
+        return json({ channelId, blockIds: response.blockIds, channelEntries: response.channelEntries, nextPage: nextChannelPage(response.meta, page) });
+      }
       const saveRoot = url.pathname.startsWith("/v1/mcp-saves") ? "/v1/mcp-saves" : "/v1/saves";
       if (url.pathname === saveRoot || url.pathname.startsWith(`${saveRoot}/`)) {
         if (saveRoot === "/v1/mcp-saves" && !config.mcpPublishingEnabled) return json({ error: "MCP publishing is disabled on this daemon" }, 403);

@@ -149,6 +149,12 @@ export class ArenaBlockClient {
     })), updatedAt: z.string(), completeAt: z.string().nullable() }).parse(await this.request("/v1/channel-index", undefined, signal, 20_000));
   }
 
+  async channelBlocks(channelId: number, page = 1, signal?: AbortSignal) {
+    return z.object({ channelId: z.number().int().positive().safe(), blockIds: z.array(z.number().int().positive().safe()).max(100),
+      channelEntries: z.number().int().nonnegative(), nextPage: z.number().int().positive().nullable() })
+      .parse(await this.request(`/v1/channels/${channelId}/blocks?page=${page}`, undefined, signal, 20_000));
+  }
+
   async channelLabels(refs: string[], signal?: AbortSignal): Promise<Array<{ ref: string; id: number; title: string; slug: string }>> {
     if (!refs.length || refs.length > 20 || refs.some(ref => !/^[A-Za-z0-9][A-Za-z0-9_-]{0,199}$/.test(ref)))
       throw new Error("Invalid channel label refs");

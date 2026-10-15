@@ -107,6 +107,16 @@ export class ArenaClient {
     return { entries, complete: false };
   }
 
+  /** One read-only page of a channel's entries, reduced to block IDs and a nested-channel count. */
+  async channelBlockPage(id: number, page: number, signal?: AbortSignal): Promise<{ blockIds: number[]; channelEntries: number; meta: unknown }> {
+    if (!Number.isSafeInteger(id) || id <= 0 || !Number.isInteger(page) || page < 1 || page > 100) throw new Error("Invalid channel block page");
+    const response = object(await this.request("GET", `/channels/${id}/contents?per=100&page=${page}&sort=position_desc`, undefined, signal));
+    if (!Array.isArray(response?.data) || response.data.length > 100) throw new Error("Invalid channel contents response");
+    const entries = response.data.map(object).filter((value): value is Json => Boolean(value));
+    const blockIds = entries.flatMap(entry => entry.type !== "Channel" && number(entry.id) !== undefined ? [number(entry.id)!] : []);
+    return { blockIds, channelEntries: entries.filter(entry => entry.type === "Channel").length, meta: response.meta };
+  }
+
   /** Find a present block's connection ID, including older placements in large channels. */
   async channelPlacement(channelId: number, blockId: number, signal?: AbortSignal): Promise<Json | undefined> {
     if (!Number.isSafeInteger(channelId) || channelId <= 0 || !Number.isSafeInteger(blockId) || blockId <= 0)
