@@ -1009,13 +1009,17 @@ public final class CaptureSession {
     }
 
     @discardableResult func save() async -> Bool {
-        guard let source = draft, !source.isCanceled else { return false }
+        guard !sharePresentationClosed, let source = draft, !source.isCanceled else { return false }
         if isAddingPlacements {
             guard !busy else { return false }
             busy = true; defer { busy = false }
             do {
-                let id = try delivery.amendPlacements(source.id, account: source.accountID, selection: source.selection, baseline: placementBaseline)
-                try store.remove(account: source.accountID, kind: "placementEdit", id: workspaceID)
+                var id = source.id
+                try store.transaction {
+                    try store.requireShareInvocation(freshShare ? shareInvocationID : nil, account: source.accountID, workspaceID: workspaceID)
+                    id = try delivery.amendPlacements(source.id, account: source.accountID, selection: source.selection, baseline: placementBaseline)
+                    try store.remove(account: source.accountID, kind: "placementEdit", id: workspaceID)
+                }
                 placementReturnDraft = nil; placementBaseline = nil
                 refreshDelivery(); persistOrReport()
                 // A paused/interrupted operation retains its explicit retry or
