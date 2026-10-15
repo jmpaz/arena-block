@@ -509,6 +509,13 @@ final class CaptureDelivery {
 
     /// A foreground scene has no proof that an unclaimed task still owns
     /// execution. Fence writes before ordinary recovery without inferring why.
+    func prepareForeground(isMainApplication: Bool) throws -> [UUID] {
+        // The Share extension has a separate runtime claim map. Its empty map
+        // says nothing about a continued save owned by the main application.
+        guard isMainApplication else { return [] }
+        return try pauseUnclaimedContinued()
+    }
+
     func pauseUnclaimedContinued() throws -> [UUID] {
         let unclaimed = try continuedOperationIDs().filter { id in
             guard let job = try store.projectedValue(CaptureDeliveryProjection.self, account: 0, kind: "delivery", id: id.uuidString) else { return false }

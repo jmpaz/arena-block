@@ -66,6 +66,7 @@ public final class CaptureSession {
     let defaults: UserDefaults
     let container: URL
     private let workspaceID: String
+    private let isMainApplication: Bool
     private let allowsLegacyWorkspaceMigration: Bool
     private let initialDefaultMode: DefaultChannelMode
     private let initialDefaultChannelID: Int?
@@ -98,7 +99,8 @@ public final class CaptureSession {
         let separateFixtureComposer = false
         #endif
         workspaceID = (bundle.bundleIdentifier ?? "capture") + (separateFixtureComposer ? ".fixture-share" : "")
-        allowsLegacyWorkspaceMigration = !separateFixtureComposer && bundle.object(forInfoDictionaryKey: "NSExtension") == nil
+        isMainApplication = bundle.object(forInfoDictionaryKey: "NSExtension") == nil
+        allowsLegacyWorkspaceMigration = !separateFixtureComposer && isMainApplication
         initialDefaultMode = DefaultChannelMode(rawValue: bundle.object(forInfoDictionaryKey: "CaptureDefaultChannelMode") as? String ?? "fallback") ?? .fallback
         initialDefaultChannelID = (bundle.object(forInfoDictionaryKey: "CaptureInitialDefaultChannelID") as? String).flatMap(Int.init)
         initialDefaultAccountID = (bundle.object(forInfoDictionaryKey: "CaptureInitialDefaultAccountID") as? String).flatMap(Int.init)
@@ -1103,13 +1105,13 @@ public final class CaptureSession {
 
     public func endContinuedSave(_ id: UUID, receiptID: UUID? = nil) throws { try delivery.endContinued(id, receiptID: receiptID) }
 
-    public func pauseUnclaimedContinuedSaves() throws -> [UUID] { try delivery.pauseUnclaimedContinued() }
+    public func pauseUnclaimedContinuedSaves() throws -> [UUID] { try delivery.prepareForeground(isMainApplication: isMainApplication) }
 
     /// SwiftUI scenes deliver foreground activation even when the application
     /// delegate does not receive applicationDidBecomeActive.
     public func prepareForegroundDelivery() throws {
         guard !isPreviewFixture else { return }
-        for id in try delivery.pauseUnclaimedContinued() { cancelContinuedProcessing?(id) }
+        for id in try pauseUnclaimedContinuedSaves() { cancelContinuedProcessing?(id) }
     }
 
     public func pauseContinuedSave(_ id: UUID, receiptID: UUID? = nil) throws {

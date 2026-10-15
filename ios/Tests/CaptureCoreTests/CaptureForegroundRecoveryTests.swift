@@ -4,6 +4,21 @@ import XCTest
 @testable import CaptureUI
 
 final class CaptureForegroundRecoveryTests: XCTestCase {
+    @MainActor func testShareForegroundCannotPauseALiveMainApplicationClaim() throws {
+        try fixture { main, store, root in
+            let job = try seed(store, stage: .provenanceRead, receipt: UUID())
+            XCTAssertTrue(try main.beginContinued(job.id, receiptID: job.receiptID))
+            let sharedStore = try CaptureStore(url: root.appendingPathComponent("capture.sqlite"))
+            let share = try CaptureDelivery(store: sharedStore, credentials: CredentialStore(accessGroup: nil), directory: root.appendingPathComponent("delivery"), group: "fixture", identifier: "fixture.share", ingestBase: nil)
+            XCTAssertEqual(try share.prepareForeground(isMainApplication: false), [])
+            let retained = try XCTUnwrap(sharedStore.value(DeliveryJob.self, account: 0, kind: "delivery", id: job.id.uuidString))
+            XCTAssertNil(retained.stopRequestedAt)
+            XCTAssertNotNil(retained.continuedRequestedAt)
+            XCTAssertEqual(retained.receiptID, job.receiptID)
+            XCTAssertEqual(try main.prepareForeground(isMainApplication: true), [])
+        }
+    }
+
     @MainActor func testForegroundFencesUnclaimedCurrentAndLegacyReceiptsButRetainsReadback() throws {
         try fixture { delivery, store, _ in
             for receipt in [nil, UUID()] as [UUID?] {
