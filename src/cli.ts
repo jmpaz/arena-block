@@ -161,7 +161,7 @@ function addCompositionOptions(command: Command, extras = true): Command {
   return command
     .option("--substack-capture <path>", "import browser-observed public Substack Note prose and explicit source boundaries (repeatable)", (value, values: string[]) => [...values, value], [])
     .option("--reddit-capture <path>", "import a public browser-observed Reddit record (repeatable); no browser session is imported", (value, values: string[]) => [...values, value], [])
-    .option("--media <mode>", "auto, none, all, video, audio (SoundCloud original download), images, indexes (1+4), or refs (1.1,1.4)", "auto")
+    .option("--media <mode>", "auto, none, all, video, audio (one original SoundCloud/Substack attachment), images, indexes (1+4), or refs (1.1,1.4)", "auto")
     .option("--frame <refs>", "use observed source poster frames for selected video refs (1.1,2.1)")
     .option("--video-frame-threshold <seconds>", "auto-use observed poster for videos longer than this (default 600; 1-600)")
     .option("--thread-expansion <mode>", "auto (single Bluesky, Delvetown, or Forum Magnum comment seed), on (bounded x.com/AT Protocol threads, Substack author chains, or Forum Magnum replies), or off")

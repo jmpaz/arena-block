@@ -48,6 +48,15 @@ test("CLI original audio derives actual container and preserves bytes and MIME w
   const fetcher=(async (_url: unknown, init?: RequestInit) => {seen=init;return new Response(bytes,{headers:{"content-type":"audio/mpeg"}});}) as unknown as typeof fetch;
   const result=await renderPlan(await audioPlan(),dir,{fetcher}); expect(result!.extension).toBe("wav"); expect(result!.mimeType).toBe("audio/wav"); expect(Buffer.from(await Bun.file(result!.path).arrayBuffer())).toEqual(bytes); expect(seen!.credentials).toBe("omit"); await stagingEmpty(dir);
 });
+test("shortened media metadata cannot contradict the retained full-source duration", async () => {
+  const plan = await audioPlan(1460);
+  plan.sources[0]!.media[0]!.durationSeconds = 1;
+  expect(() => blockPlanSchema.parse(plan)).toThrow("complete source record");
+  let reads = 0;
+  const fetcher = (async () => { reads++; return new Response(wav()); }) as unknown as typeof fetch;
+  await expect(renderPlan(plan, await directory(), { fetcher })).rejects.toThrow("consistent complete public source evidence");
+  expect(reads).toBe(0);
+});
 test("CLI declared and chunked overflow, invalid payload and truncated audio remove staging", async () => {
   const plan=await audioPlan();
   for (const fetcher of [response(wav(),{"content-length":"100000"}), response(new ReadableStream({start(c){c.enqueue(wav());c.close();}})),response("<html>not audio</html>")]) {

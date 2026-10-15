@@ -442,7 +442,8 @@ async function renderSoundCloudAudio(plan: BlockPlan, directory: string, options
 async function renderSubstackAudio(plan: BlockPlan, directory: string, options: RenderOptions): Promise<RenderedMedia> {
   const assets = selectedAssets(plan), source = plan.sources[0], asset = assets[0];
   if (plan.sources.length !== 1 || assets.length !== 1 || asset?.kind !== "audio" || asset.acquisition !== "substack-public-original"
-    || !source?.substackArticle?.nativeMedia?.some(item => item.kind === "audio" && item.url === asset.url)) throw new Error("Original Substack audio is missing its complete public source evidence");
+    || !source?.substackArticle?.nativeMedia?.some(item => item.kind === "audio" && item.url === asset.url
+      && item.durationSeconds === asset.durationSeconds)) throw new Error("Original Substack audio is missing consistent complete public source evidence");
   const signal = AbortSignal.any([...(options.signal ? [options.signal] : []), AbortSignal.timeout(options.downloadTimeoutMs ?? 60_000)]);
   const staging = join(directory, ".staging", crypto.randomUUID()); await mkdir(staging, { recursive: true });
   const path = join(staging, "original-audio");

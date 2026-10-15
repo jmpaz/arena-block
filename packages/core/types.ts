@@ -164,6 +164,14 @@ export const resolvedPostSchema: z.ZodType<ResolvedPost> = z.lazy(() =>
       || post.canonicalUrl !== post.substackArticle.url || post.author.handle !== post.substackArticle.authors[0]?.handle || !post.article)) {
       context.addIssue({ code: "custom", message: "Mismatched Substack article provenance", path: ["substackArticle"] });
     }
+    for (const [index, asset] of post.media.entries()) {
+      if (asset.acquisition !== "substack-public-original") continue;
+      const original = post.substackArticle?.nativeMedia?.find(item => item.kind === asset.kind && item.url === asset.url);
+      if (post.provider !== "substack" || !original || asset.durationSeconds !== original.durationSeconds
+        || asset.width !== original.width || asset.height !== original.height || asset.posterUrl !== original.posterUrl) {
+        context.addIssue({ code: "custom", message: "Substack original media disagrees with its complete source record", path: ["media", index] });
+      }
+    }
     if (post.substackRelation) {
       try {
         if (post.provider !== "substack" || post.id !== substackSourceKey(post.canonicalUrl)
