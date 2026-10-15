@@ -5,6 +5,8 @@ export function requiredPlanCapabilities(plan: BlockPlan): string[] {
   const required = new Set<string>();
   if (plan.sources.length > 20) required.add("expanded-source-count-32-v1");
   const visit = (post: ResolvedPost): void => {
+    let note = post.substackCapture?.note;
+    while (note) { if (note.attachmentEvidence) required.add("substack-note-attachments-v1"); note = note.quote?.expanded; }
     if (post.media.some(item => item.acquisition === "substack-public-original")) required.add("substack-native-media-v1");
     if (post.substackArticle || post.substackRelation || post.substackThread) required.add("substack-public-sources-v2");
     if (post.provider === "substack" || post.substackCapture) required.add("substack-browser-records-v1");

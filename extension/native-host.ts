@@ -1,5 +1,5 @@
 import { requireRetainedSubstackCaptures } from "../packages/core/substack-record.ts";
-import { needsSubstackPublicV2, requireSubstackPublicResult } from "../packages/core/substack-input-capabilities.ts";
+import { requiredSubstackResolutionCapabilities, requireSubstackPublicResult } from "../packages/core/substack-input-capabilities.ts";
 import { requireRetainedRedditCaptures } from "../packages/core/reddit-record.ts";
 /** Optional native messaging transport. The bearer token stays in this process. */
 import { readSync, writeSync } from "node:fs";
@@ -77,11 +77,11 @@ export async function handle(request: HostRequest, fetcher: typeof fetch = fetch
   switch (request.action) {
     case "ping": return daemon("/v1/version", "GET", undefined, fetcher);
     case "resolve": {
-      const publicV2 = needsSubstackPublicV2(request.input);
-      if (request.input.redditCaptures?.length || request.input.substackCaptures?.length || publicV2) {
+      const required = requiredSubstackResolutionCapabilities(request.input);
+      if (request.input.redditCaptures?.length || required.length) {
         const serving = buildInfoSchema.parse(await daemon("/v1/version", "GET", undefined, fetcher));
-        if (publicV2 && !serving.planCapabilities?.includes("substack-public-sources-v2")) throw new Error("The daemon cannot resolve Substack articles or author chains. No source read was submitted.");
-        if (request.input.substackCaptures?.length && !serving.planCapabilities?.includes("substack-browser-records-v1")) throw new Error("The daemon cannot receive Substack records. No source read was submitted.");
+        const missing=required.filter(capability=>!serving.planCapabilities?.includes(capability));
+        if(missing.length)throw new Error(`The daemon cannot resolve Substack acquisition (${missing.join(", ")}). No source read was submitted.`);
         if (request.input.redditCaptures?.some(c => c.schema === "arena-block/reddit-public-page-capture") && !serving.planCapabilities?.includes("reddit-public-page-records-v1")) throw new Error("The daemon cannot retain Reddit public page records. No source read was submitted.");
         if (request.input.redditCaptures?.length && !serving.planCapabilities?.includes("reddit-browser-records-v1")) throw new Error("The daemon cannot receive Reddit browser records. Install a matching receiver; no source read was submitted.");
       }

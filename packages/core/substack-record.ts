@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { parseSource } from "./url.ts";
+import { substackNoteAttachmentsSchema, type SubstackNoteAttachments } from "./substack-note-attachments.ts";
 
 export const SUBSTACK_CAPTURE_MAX_BYTES = 2 * 1024 * 1024;
 const httpsURL = z.url().refine(value => {
@@ -27,11 +28,13 @@ export type SubstackNote = {
   url: string; author: z.infer<typeof authorSchema>; body: z.infer<typeof bodySchema>;
   acquisition?: { method: "public-html" | "browser-dom"; observedAt: string };
   publishedLabel?: string; postedAt?: string; links: z.infer<typeof linkSchema>[]; media?: z.infer<typeof attachmentSchema>[];
+  attachmentEvidence?: SubstackNoteAttachments;
   quote?: { url: string; previewHtml?: string; expanded?: SubstackNote; status?: "unavailable" | "depth_limit" | "cycle" };
 };
 function noteSchema(depth: number): z.ZodType<SubstackNote> {
   return z.object({ acquisition: z.object({ method: z.enum(["public-html", "browser-dom"]), observedAt: z.iso.datetime() }).strict().optional(), url: httpsURL, author: authorSchema, body: bodySchema,
     publishedLabel: z.string().min(1).max(128).optional(), postedAt: z.iso.datetime().optional(), links: linkSchema.array().max(100), media: attachmentSchema.array().max(100).optional(),
+    attachmentEvidence: substackNoteAttachmentsSchema.optional(),
     quote: z.object({ url: httpsURL, previewHtml: z.string().max(50_000).optional(),
       expanded: depth < 8 ? noteSchema(depth + 1).optional() : z.never().optional(), status: z.enum(["unavailable", "depth_limit", "cycle"]).optional(),
     }).strict().optional(),
@@ -68,6 +71,8 @@ export const substackCaptureSchema = envelope.superRefine((capture, context) => 
     const visit = (note: SubstackNote) => {
       const source = parseSource(note.url), id = substackSourceKey(note.url);
       if (note.acquisition && Date.parse(note.acquisition.observedAt) > Date.now() + 300_000) throw new Error("Substack node observation time is in the future");
+      if (note.attachmentEvidence && (String(note.attachmentEvidence.commentId) !== id || note.attachmentEvidence.handle.toLowerCase() !== note.author.handle.toLowerCase()
+        || Date.parse(note.attachmentEvidence.observedAt) > Date.now() + 300_000)) throw new Error("Substack attachment evidence disagrees with its Note identity or observation time");
       if (seen.has(id)) throw new Error("Cyclic Substack quote identity");
       seen.add(id);
       const profile = new URL(note.author.profileUrl);
@@ -75,7 +80,7 @@ export const substackCaptureSchema = envelope.superRefine((capture, context) => 
       const actor = new URL(source.canonicalUrl).pathname.replace(/\/note\/c-\d+$/, "");
       if (actor && actor !== profile.pathname) throw new Error("Substack author and Note route disagree");
       if (profile.pathname.startsWith("/@") && profile.pathname.slice(2).toLowerCase() !== note.author.handle.toLowerCase()) throw new Error("Substack author handle and profile disagree");
-      if (note.body.status === "complete" && !note.body.html.trim() && !note.links.length && !note.media?.length && !note.quote) throw new Error("Empty complete Substack Note");
+      if (note.body.status === "complete" && !note.body.html.trim() && !note.links.length && !note.media?.length && !note.quote && !note.attachmentEvidence?.attachments.length) throw new Error("Empty complete Substack Note");
       if (note.quote) {
         const quoted = substackSourceKey(note.quote.url);
         if (seen.has(quoted) && note.quote.status !== "cycle") throw new Error("Cyclic Substack quote identity");

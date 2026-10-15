@@ -61,6 +61,35 @@ export async function readSubstackPage(expectedUrl?: string, environment?: {
     return parseHTML(text);
   }
   const seen = new Set<string>();
+  async function attachments(id: string, handle: string): Promise<any> {
+    const endpoint = `https://substack.com/api/v1/reader/comment/${id}`;
+    const response = await fetcher(endpoint, {credentials:"omit",redirect:"error",signal:controller.signal,headers:{accept:"application/json"}});
+    if (!response.ok || !response.headers.get("content-type")?.includes("application/json") || (response.url && response.url !== endpoint)) throw new Error("Substack attachment evidence is not available from its public Note endpoint");
+    if (Number(response.headers.get("content-length")) > maxBytes) throw new Error("Substack attachments exceed 2 MiB");
+    let text = "";
+    if (response.body?.getReader) {
+      const reader=response.body.getReader(),decoder=new TextDecoder();let length=0;
+      try { while(true){const part=await reader.read();if(part.done)break;length+=part.value.byteLength;received+=part.value.byteLength;if(length>maxBytes||received>4*maxBytes)throw new Error("Substack attachment acquisition exceeds its byte bound");text+=decoder.decode(part.value,{stream:true});} text+=decoder.decode(); }
+      finally {void reader.cancel().catch(()=>{});}
+    } else {text=await response.text();received+=bytes(text);if(bytes(text)>maxBytes||received>4*maxBytes)throw new Error("Substack attachment acquisition exceeds its byte bound");}
+    const comment=JSON.parse(text)?.item?.comment;
+    if (!comment || String(comment.id)!==id || comment.handle?.toLowerCase()!==handle.toLowerCase() || comment.type!=="feed" || comment.post_id!==null || typeof comment.body!=="string" || !Array.isArray(comment.attachments) || comment.attachments.length>100) throw new Error("Substack attachment metadata disagrees with the selected Note");
+    const projected=comment.attachments.map((a:any)=>{
+      if(a.type==="video"){
+        const u=a.mediaUpload;
+        if(!u||a.media_upload_id!==u.id||u.media_type!=="video"||u.is_free_preview)throw new Error("Substack native Note video is not a verified full original");
+        return {kind:"video",id:a.id,userId:a.user_id,commentId:a.comment_id,upload:{id:u.id,userId:u.user_id,state:u.state,postId:u.post_id,publicationId:u.publication_id,durationSeconds:u.duration,width:u.width,height:u.height,thumbnailId:u.thumbnail_id??1}};
+      }
+      if(a.type==="post"){
+        const p=a.post,s=a.postSelection;
+        if(!p||a.mediaClip||a.clipInfo||a.postImageSelection||p.publication_id!==a.publication?.id||!Array.isArray(p.publishedBylines))throw new Error("Substack article card has unsupported or inconsistent source evidence");
+        return {kind:"article",id:a.id,postId:p.id,publicationId:p.publication_id,url:p.canonical_url,title:p.title,previewText:p.subtitle??"",authors:p.publishedBylines.map((b:any)=>({id:b.id,name:b.name,handle:b.handle??null})),
+          ...(s?{selection:{id:s.id,postId:s.post_id,startParagraph:s.start_paragraph,endParagraph:s.end_paragraph,startOffset:s.start_offset,endOffset:s.end_offset,text:s.text,isAutoSelection:s.is_auto_selection}}:{})};
+      }
+      throw new Error(`Substack Note attachment ${a.type} has no complete supported projection`);
+    });
+    return {method:"public-api",observedAt:new Date().toISOString(),commentId:comment.id,userId:comment.user_id,handle:comment.handle,bodyText:comment.body,attachments:projected};
+  }
   async function extract(doc: Document, url: string, depth: number): Promise<any> {
     if (controller.signal.aborted) throw new Error("Substack acquisition cancelled");
     const target = identity(url); seen.add(target.id);
@@ -83,12 +112,37 @@ export async function readSubstackPage(expectedUrl?: string, environment?: {
     }).find(value => value?.["@type"] === "SocialMediaPosting" && value.identifier === `c-${target.id}` && noteId(value.url) === target.id);
     const normalize = (value: string) => value.replace(/\s+/g, "");
     const quoted = (element: Element) => !!ancestor(element, "elevatedTheme-") || !!ancestor(element, "commentContainer-");
+    const quoteURLs = [...new Set(all(root.querySelectorAll("a[title]")).flatMap(a => {
+      const href = a.getAttribute("href"); return noteId(href) && noteId(href) !== target.id ? [identity(href!).url] : [];
+    }))];
+    const playerNodes=all(root.querySelectorAll('video,[aria-label="Video player"],[class*="videoPlayerContainer-"]')).filter(item=>!quoted(item)&&!body.contains(item));
+    const cardNodes=Array.from(root.children).filter(e=>e!==root.children[0]&&!e.contains(body)&&!all(e.querySelectorAll("a[title]")).some(a=>{const id=noteId(a.getAttribute("href"));return id&&id!==target.id;})&&[e,...all(e.querySelectorAll("a"))].some(a=>{
+      const address=safeURL(a.getAttribute("href"),canonical);return address&&/^\/p\/[^/]+\/?$/.test(new URL(address).pathname);
+    }));
+    const articleCards=cardNodes.filter(item=>!cardNodes.some(other=>other!==item&&other.contains(item)));
+    const ownPlayers=playerNodes.filter(item=>!playerNodes.some(other=>other!==item&&other.contains(item))&&!articleCards.some(card=>card.contains(item)));
+    const hasArticleCard=articleCards.length>0;
+    const attachmentEvidence=ownPlayers.length||hasArticleCard ? await attachments(target.id,handle) : undefined;
+    if (attachmentEvidence && (!attachmentEvidence.attachments.length || ownPlayers.length && !attachmentEvidence.attachments.some((a:any)=>a.kind==="video") || hasArticleCard && !attachmentEvidence.attachments.some((a:any)=>a.kind==="article"))) throw new Error("Substack attachment metadata does not cover its visible player or article card");
+    if(attachmentEvidence){
+      const videos=attachmentEvidence.attachments.filter((a:any)=>a.kind==="video"),articles=attachmentEvidence.attachments.filter((a:any)=>a.kind==="article");
+      if(videos.length!==ownPlayers.length||articles.length!==articleCards.length||ownPlayers.some(player=>!videos.some((a:any)=>player.outerHTML.includes(a.upload.id))))throw new Error("Substack attachment snapshots disagree with the selected public containers");
+      for(const card of articleCards){
+        const links=[card,...all(card.querySelectorAll("a"))].flatMap(e=>{const u=safeURL(e.getAttribute("href"),canonical);return u?[new URL(u)]:[];});
+        const article=articles.find((a:any)=>links.some(u=>{const expected=new URL(a.url);return u.hostname.replace(/^www\./,"")===expected.hostname.replace(/^www\./,"")&&u.pathname===expected.pathname;}));
+        if(!article||(!normalize(card.textContent??"").includes(normalize(article.title))&&!normalize(card.textContent??"").includes(normalize(article.selection?.text??"\u0000"))))throw new Error("Substack article card identity or displayed preview disagrees with its source metadata");
+      }
+    }
     const embeddedURLs = all(root.querySelectorAll("iframe")).filter(frame => !quoted(frame)).flatMap(iframe => {
       const raw = safeURL(iframe.getAttribute("src"), canonical); if (!raw) return [];
       const u = new URL(raw); return /^(?:www\.)?youtube(?:-nocookie)?\.com$/.test(u.hostname) && /^\/embed\/[A-Za-z0-9_-]+$/.test(u.pathname) ? [`https://www.youtube.com/watch?v=${u.pathname.split("/").pop()}`] : [];
     });
     const ownText = normalize(body.textContent ?? "");
-    if (structured && (typeof structured.text !== "string" || ![ownText, ownText + normalize(embeddedURLs.join(""))].includes(normalize(structured.text)))) throw new Error("Substack body and public structured text disagree; complete capture cannot be established");
+    const mentions=all(body.querySelectorAll('[class*="node-substack_mention"]')).map(e=>e.textContent??"").filter(Boolean);
+    const cardURLs=attachmentEvidence?.attachments.filter((a:any)=>a.kind==="article").map((a:any)=>a.url)??[];
+    const comparable=(value:string)=>{for(const mention of mentions)value=value.split(`@${mention}`).join(mention);for(const address of cardURLs)value=value.split(address).join("");return normalize(value);};
+    if (attachmentEvidence && comparable(attachmentEvidence.bodyText)!==comparable(body.textContent??"")) throw new Error("Substack attachment snapshot changed the authored Note body");
+    if (structured && (typeof structured.text !== "string" || ![comparable(body.textContent??""), comparable((body.textContent??"")+embeddedURLs.join(""))].includes(comparable(structured.text)))) throw new Error("Substack body and public structured text disagree; complete capture cannot be established");
     if (bytes(body.innerHTML) > 500_000) throw new Error("Substack Note body exceeds its bound");
     const links: any[] = [], media: any[] = [];
     const bodyCopy = body.cloneNode(true) as Element;
@@ -119,17 +173,15 @@ export async function readSubstackPage(expectedUrl?: string, environment?: {
     for (const image of all(bodyCopy.querySelectorAll("img"))) projectImage(image, true);
     if (bodyCopy.querySelector("video,audio,iframe,object,embed,picture")) throw new Error("Substack body includes media whose complete source has not been established");
     const header = root.children[0];
-    for (const image of all(root.querySelectorAll("img")).filter(image => !quoted(image) && !body.contains(image) && !header?.contains(image))) projectImage(image, false);
-    if (all(root.querySelectorAll("video,audio,object,embed")).some(item => !quoted(item) && !body.contains(item))) throw new Error("Substack attachment type has no verified complete source");
-    const quoteURLs = [...new Set(all(root.querySelectorAll("a[title]")).flatMap(a => {
-      const href = a.getAttribute("href"); return noteId(href) && noteId(href) !== target.id ? [identity(href!).url] : [];
-    }))];
+    for (const image of all(root.querySelectorAll("img")).filter(image => !quoted(image) && !body.contains(image) && !header?.contains(image) && !ancestor(image,"videoPlayerContainer-")&&!articleCards.some(card=>card.contains(image)))) projectImage(image, false);
+    if (all(root.querySelectorAll("audio,object,embed")).some(item => !quoted(item) && !body.contains(item)) || !attachmentEvidence && all(root.querySelectorAll("video")).some(item => !quoted(item) && !body.contains(item))) throw new Error("Substack attachment type has no verified complete source");
     if (quoteURLs.length > 1) throw new Error("Substack returned multiple ambiguous quoted Notes");
     const quotePreview = all(root.querySelectorAll(".ProseMirror")).filter(item => item !== body);
-    if (quotePreview.length > 1) throw new Error("Substack quoted preview is ambiguous");
-    if (!quoteURLs.length && (quotePreview.length || root.querySelector('[class*="elevatedTheme-"]'))) throw new Error("Substack quoted article or attachment card needs a separately supported source projection");
+    if (quoteURLs.length && quotePreview.length > 1) throw new Error("Substack quoted preview is ambiguous");
+    if (!quoteURLs.length && !attachmentEvidence && (quotePreview.length || root.querySelector('[class*="elevatedTheme-"]'))) throw new Error("Substack quoted article or attachment card needs a separately supported source projection");
     const note: any = { acquisition: { method: environment?.method ?? "browser-dom", observedAt: new Date().toISOString() }, url: canonical, author: { handle, name, profileUrl: `https://substack.com${actor}` },
       body: { status: "complete", html: bodyCopy.innerHTML }, publishedLabel: time.getAttribute("title"), links,
+      ...(attachmentEvidence ? {attachmentEvidence}:{}),
       ...(typeof structured?.datePublished === "string" && /(?:Z|[+-]\d{2}:\d{2})$/.test(structured.datePublished) && Number.isFinite(Date.parse(structured.datePublished)) ? { postedAt: new Date(structured.datePublished).toISOString() } : {}), ...(media.length ? { media } : {}) };
     if (quoteURLs[0]) {
       const quotedURL = quoteURLs[0];

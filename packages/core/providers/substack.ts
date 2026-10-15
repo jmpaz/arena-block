@@ -10,6 +10,7 @@ import type { ResolvedPost } from "../types.ts";
 import type { SocialProvider, SourceResolutionPolicy } from "./provider.ts";
 import { resolveSubstackArticle } from "./substack-article.ts";
 import { discoverSubstackThread } from "./substack-thread.ts";
+import { substackNoteVideo } from "../substack-note-attachments.ts";
 
 function converter(base: string): TurndownService {
   const markdown = new TurndownService({ headingStyle: "atx", bulletListMarker: "-", codeBlockStyle: "fenced" });
@@ -36,17 +37,23 @@ function literal(text: string): string {
 }
 function notePost(note: SubstackNote): ResolvedPost {
   const body = prose(note.body.html, note.url);
-  if (!body.trim() && !note.links.length && !note.media?.length && !note.quote) throw new Error("Empty complete Substack Note");
+  if (!body.trim() && !note.links.length && !note.media?.length && !note.quote && !note.attachmentEvidence?.attachments.length) throw new Error("Empty complete Substack Note");
   const quote = note.quote?.expanded;
   const links = note.links.map(link => {
     const label = `${link.role === "linked" ? "Linked" : link.role === "preview" ? "Preview of" : "Attachment; original not acquired:"} ${link.kind}`;
     return [`*[${label}](<${link.url}>)*`, link.title ? literal(link.title) : "",
       link.excerptHtml ? `*Selected article excerpt (not full article), by ${literal(link.excerptAuthor!)}:*\n\n${prose(link.excerptHtml, link.url).split("\n").map(line => `> ${line}`).join("\n")}` : ""].filter(Boolean).join("\n\n");
   });
-  const text = [body, ...links, `*[Substack Note source](<${parseSource(note.url).canonicalUrl}>)${note.publishedLabel ? ` · ${literal(note.publishedLabel)}` : ""}*`].filter(Boolean).join("\n\n");
+  const articles = note.attachmentEvidence?.attachments.filter(a=>a.kind==="article").map(a=>{
+    const authors=a.authors.map(author=>literal(author.name)).join(", ");
+    return [`*[Article card (preview; full article not acquired)](<${a.url}>)*`,`${literal(a.title)} — ${authors}`,
+      a.selection?`*${a.selection.isAutoSelection ? "Automatic article preview" : "Selected article excerpt (not full article)"}, by ${authors}:*\n\n${literal(a.selection.text).split("\n").map(line=>`> ${line}`).join("\n")}`:a.previewText?`*Article preview:* ${literal(a.previewText)}`:""].filter(Boolean).join("\n\n");
+  })??[];
+  const native = note.attachmentEvidence?.attachments.filter(a=>a.kind==="video").map(a=>({...substackNoteVideo(a),ref:"0.0",alt:"",sourceRole:"original" as const}))??[];
+  const text = [body, ...links, ...articles, `*[Substack Note source](<${parseSource(note.url).canonicalUrl}>)${note.publishedLabel ? ` · ${literal(note.publishedLabel)}` : ""}*`].filter(Boolean).join("\n\n");
   return { provider: "substack", id: substackSourceKey(note.url), canonicalUrl: parseSource(note.url).canonicalUrl,
     author: { handle: note.author.handle, name: note.author.name }, text, postTitle: `Substack Note by @${note.author.handle}`,
-    ...(note.postedAt ? { postedAt: note.postedAt } : {}), media: (note.media ?? []).map(item => ({ ...item, ref: "0.0", sourceRole: "original" })),
+    ...(note.postedAt ? { postedAt: note.postedAt } : {}), media: [...(note.media ?? []).map(item => ({ ...item, ref: "0.0", sourceRole: "original" as const })),...native],
     ...(quote?.body.status === "complete" ? { quote: notePost(quote) } : note.quote ? {
       quoteBoundary: { status: note.quote.status ?? "unavailable", id: substackSourceKey(note.quote.url), canonicalUrl: parseSource(note.quote.url).canonicalUrl },
     } : {}),

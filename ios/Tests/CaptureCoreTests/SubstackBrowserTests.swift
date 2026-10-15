@@ -48,6 +48,25 @@ final class SubstackBrowserTests: XCTestCase {
     }
 
     @MainActor
+    func testNativeNoteVideoAndArticleCardsRetainExactEvidenceThroughComposeAndEdit() throws {
+        let runtime = try CaptureRuntime()
+        for name in ["video", "article-card", "selected-article"] {
+            let raw = try fixture("substack-\(name)-note-plan")
+            let expected = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(raw.utf8)) as? [String: Any])
+            let sources = String(decoding: try JSONSerialization.data(withJSONObject: expected["sources"]!), as: UTF8.self)
+            let composed = try runtime.compose(postsJSON: sources, policyJSON: #"{"media":"none"}"#)
+            let result = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(composed.utf8)) as? [String: Any])
+            let actual = try XCTUnwrap(result["plan"] as? NSDictionary)
+            XCTAssertEqual(actual, expected as NSDictionary)
+            let planJSON = String(decoding: try JSONSerialization.data(withJSONObject: actual), as: UTF8.self)
+            let edited = try runtime.edit(planJSON: planJSON, editsJSON: #"{"title":"Authored title"}"#)
+            let envelope = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(edited.utf8)) as? [String: Any])
+            let plan = try XCTUnwrap(envelope["plan"] as? [String: Any])
+            XCTAssertEqual(plan["sources"] as? NSArray, expected["sources"] as? NSArray)
+        }
+    }
+
+    @MainActor
     func testCompletePublicArticleRecordSurvivesNativeComposeAndEdit() throws {
         let runtime = try CaptureRuntime()
         let raw = try fixture("substack-public-article-plan")

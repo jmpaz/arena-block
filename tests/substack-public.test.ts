@@ -154,7 +154,7 @@ test("reply pagination follows opaque cursors and rejects missing, conflicting, 
 test("article and Note thread requests preflight the new receiver contract", async () => {
   for (const input of [{ refs: [articleURL], extraRefs: [], refresh: false }, { refs: [url(100)], extraRefs: [], refresh: false, policy: { threadExpansion: "on" as const } }]) {
     const actions: string[] = [];
-    await expect(resolveWithNative(input, async action => { actions.push(action); return { planCapabilities: ["substack-browser-records-v1"] }; })).rejects.toThrow("matching helper");
+    await expect(resolveWithNative(input, async action => { actions.push(action); return { planCapabilities: ["substack-browser-records-v1"] }; })).rejects.toThrow("No source read was submitted");
     expect(actions).toEqual(["ping"]);
   }
 });
