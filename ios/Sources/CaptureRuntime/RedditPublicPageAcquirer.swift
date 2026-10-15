@@ -38,10 +38,12 @@ import WebKit
                 }
                 view.load(URLRequest(url: address))
             }
-        }, onCancel: { [weak self] in Task { @MainActor in
-            guard self?.generation == generation else { return }
-            self?.finish(.failure(CancellationError()))
-        } })
+        }, onCancel: { [owner = self] in
+            Task { @MainActor [owner] in
+                guard owner.generation == generation else { return }
+                owner.finish(.failure(CancellationError()))
+            }
+        })
     }
     private static func allowed(_ url: URL) -> Bool {
         url.scheme == "https" && url.user == nil && url.password == nil && url.port == nil &&

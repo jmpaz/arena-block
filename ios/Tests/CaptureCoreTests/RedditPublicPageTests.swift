@@ -31,9 +31,9 @@ final class RedditPublicPageTests: XCTestCase {
         }
     }
     @MainActor func testCancelledPublicReadDoesNotStartNavigation() async throws {
+        let reader = RedditPublicPageAcquirer(readerScript: "throw new Error('must not run')")
         let task = Task { @MainActor in
-            try Task.checkCancellation()
-            return try await RedditPublicPageAcquirer(readerScript: "throw new Error('must not run')").acquire(url: "https://www.reddit.com/comments/abc/")
+            return try await reader.acquire(url: "https://www.reddit.com/comments/abc/")
         }
         task.cancel()
         do { _ = try await task.value; XCTFail("Cancelled read completed") }
