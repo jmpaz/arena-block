@@ -260,7 +260,8 @@ final class SubmissionTests: XCTestCase {
             let lookup = try XCTUnwrap(delivery.reserveTransfer(unknown, transferID: "find-create"))
             XCTAssertEqual(try delivery.request(lookup, token: "fixture").request.httpMethod, "GET")
             let found: JSONValue = .object(["data": .array([.object([
-                "id": .number(900), "metadata": .object(["arena_capture_id": .string(id.uuidString)])
+                "id": .number(900), "metadata": .object(["arena_capture_id": .string(id.uuidString)]),
+                "created_at": .string(ISO8601DateFormatter().string(from: lookup.createdAt)), "user": .object(["id": .number(Double(source.accountID))])
             ])]), "meta": .object(["has_more_pages": .bool(false)])])
             let known = try XCTUnwrap(delivery.accept(.init(status: 200, body: try JSONEncoder().encode(found), error: nil, retryAfter: nil), id: id, transferID: "find-create"))
             XCTAssertEqual(known.id, id)

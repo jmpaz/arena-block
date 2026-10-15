@@ -1475,7 +1475,7 @@ final class CaptureDelivery {
                 job.draft.phase = .uncertain; return
             }
             // Legacy scans resumed mid-page have no proof of the earlier
-            // ordering. They may finish the old full scan, but cannot stop early.
+            // ordering. They must restart at page one before accepting a match.
             var window = job.reconcileWindow ?? .init(descendingPages: false)
             let standard = ISO8601DateFormatter()
             let fractional = ISO8601DateFormatter(); fractional.formatOptions.insert(.withFractionalSeconds)
@@ -1517,7 +1517,7 @@ final class CaptureDelivery {
                     job.draft.phase = .uncertain; return
                 }
                 job.page = page
-            } else if let id = job.reconcileCandidateID {
+            } else if let id = job.reconcileCandidateID, window.descendingPages, candidateInsideWindow {
                 job.draft.blockID = id; job.reconcileCandidateID = nil; job.reconcileWindow = nil; job.stage = .read
             } else {
                 fail(&job, "Couldn't confirm this save. Check your channels in Are.na before saving again.")

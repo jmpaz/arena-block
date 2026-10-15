@@ -251,7 +251,8 @@ final class DeliveryTests: XCTestCase {
         try withDelivery { delivery, _ in
             var job = makeJob(stage: .reconcile)
             job.draft.phase = .uncertain
-            let match = JSONValue.object(["id": .number(900), "metadata": .object(["arena_capture_id": .string(job.id.uuidString)])])
+            let match = JSONValue.object(["id": .number(900), "metadata": .object(["arena_capture_id": .string(job.id.uuidString)]),
+                "created_at": .string(ISO8601DateFormatter().string(from: job.createdAt)), "user": .object(["id": .number(Double(job.draft.accountID))])])
             delivery.consume(try response(.object([
                 "data": .array([match]),
                 "meta": .object(["has_more_pages": .bool(true), "next_page": .number(2)])

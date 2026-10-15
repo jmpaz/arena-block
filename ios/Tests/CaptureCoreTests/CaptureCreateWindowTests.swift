@@ -76,6 +76,24 @@ final class CaptureCreateWindowTests: XCTestCase {
         }
     }
 
+    @MainActor func testTerminalPageCannotBypassActorDateRangeOrLegacyWindowProof() throws {
+        try fixture { delivery, store in
+            for variant in 0..<4 {
+                var job = try seed(store, checking: true)
+                var candidate = row(900, at: 20, capture: job.id)
+                if variant == 0 { candidate = .object(["id": .number(900), "metadata": .object(["arena_capture_id": .string(job.id.uuidString)]), "user": .object(["id": .number(42)])]) }
+                if variant == 1 { candidate = row(900, at: 20, capture: job.id, actor: 99) }
+                delivery.consume(try page(1, rows: [candidate]), job: &job)
+                if variant == 3 { job.reconcileWindow = nil }
+                let final = variant == 2 ? row(700, at: 30) : row(700, at: -900)
+                delivery.consume(try response(.object(["data": .array([final]), "meta": .object(["has_more_pages": .bool(false)])])), job: &job)
+                XCTAssertEqual(job.stage, .attention); XCTAssertNil(job.draft.blockID)
+                XCTAssertEqual(job.draft.phase, .uncertain)
+                XCTAssertThrowsError(try delivery.request(job, token: "fixture"))
+            }
+        }
+    }
+
     @MainActor func testCandidateBeforeAdmissionAllowanceCannotUseCausalBoundary() throws {
         try fixture { delivery, store in
             var job = try seed(store, checking: true)
