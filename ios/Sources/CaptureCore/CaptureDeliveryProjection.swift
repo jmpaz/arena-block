@@ -58,7 +58,9 @@ public struct CaptureDeliveryProjection: Decodable, Sendable {
         state.preparationCompleted = effective.map { ![.queued, .reading, .rendering, .attention].contains($0) } ?? false
         state.mediaUploadRequired = mediaPath != nil
         state.mediaUploadCompleted = mediaUploadCompletedAt != nil || (mediaPath != nil && effective.map { [.create, .read, .update, .verify, .connections, .connect, .provenanceContents, .provenanceRead, .provenanceWrite, .provenanceVerify, .done].contains($0) } == true)
-        state.transferProgress = observation?.transferID == transferID ? observation : lastTransferProgress
+        if let observation, let transferID, observation.transferID == transferID {
+            state.transferProgress = observation
+        } else { state.transferProgress = lastTransferProgress }
         state.lastTransferOutcome = lastTransferOutcome ?? state.lastTransferOutcome
         state.interruption = interruption ?? state.interruption
         return .init(state: state, selectedChannelIDs: selected)

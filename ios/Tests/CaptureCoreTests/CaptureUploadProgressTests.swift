@@ -109,6 +109,9 @@ final class CaptureUploadProgressTests: XCTestCase {
             XCTAssertTrue(paused.problem?.contains("background task ended") == true)
             XCTAssertTrue(paused.problem?.contains("No block was created") == true)
             XCTAssertEqual(CaptureContinuedProgress(state: paused.state, selectedChannelIDs: [101, 102]).title, "Save interrupted")
+            let projection = try XCTUnwrap(store.projectedValue(CaptureDeliveryProjection.self, account: 0, kind: "delivery", id: job.id.uuidString))
+            XCTAssertNil(projection.transferID)
+            XCTAssertEqual(projection.progress.activityCompletedUnits, CaptureContinuedProgress(state: paused.state, selectedChannelIDs: [101, 102]).activityCompletedUnits)
             XCTAssertNil(try delivery.reserveTransfer(job, transferID: "late-create"))
         }
     }

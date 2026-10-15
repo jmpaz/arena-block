@@ -98,6 +98,11 @@ struct CaptureStatusView: View {
                     .font(.callout).foregroundStyle(.secondary)
             }
             if !draft.isCanceled, let problem = draft.problem { Text(CaptureSourceAccess.message(problem)).font(.callout).foregroundStyle(Color.primary.opacity(0.75)) }
+            if !draft.isCanceled, let outcome = state?.lastTransferOutcome,
+               outcome.errorCode != NSURLErrorCancelled, let reason = outcome.redactedReason,
+               draft.problem?.contains(reason) != true {
+                Text(reason).font(.callout).foregroundStyle(.secondary)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
