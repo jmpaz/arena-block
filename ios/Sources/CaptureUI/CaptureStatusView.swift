@@ -59,10 +59,15 @@ struct CaptureStatusView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             if draft.statusChannels.count > 2 && draft.problem == nil && state?.stage != .attention {
-                DisclosureGroup("Destinations", isExpanded: $showsDestinations) {
+                DisclosureGroup(isExpanded: $showsDestinations) {
                     destinationRows
+                } label: {
+                    Text("Destinations")
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        .contentShape(Rectangle())
+                        .accessibilityIdentifier("capture.status.destinations")
                 }
-                .accessibilityIdentifier("capture.status.destinations")
+                .buttonStyle(.borderless)
             } else {
                 destinationRows
             }
