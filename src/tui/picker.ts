@@ -367,6 +367,7 @@ export async function runPicker(options: PickerOptions): Promise<PickerResult> {
 
     renderer.keyInput.on("keypress", (key: ParsedKey) => {
       const name = key.name;
+      model.notice = "";
       if (key.ctrl && name === "c") return leave(false);
       if (name === "escape") {
         if (model.escape()) return leave(false);
