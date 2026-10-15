@@ -117,6 +117,9 @@ struct DeliveryJob: Codable, Identifiable {
 
 @MainActor
 final class CaptureDelivery {
+    // Match the CLI's bounded placement lookup. A confirmed older block can
+    // sit beyond the first 300 entries in a manually ordered default channel.
+    private static let provenancePageLimit = 20
     let store: CaptureStore
     private let credentials: CredentialStore
     private let directory: URL
@@ -1141,7 +1144,8 @@ final class CaptureDelivery {
         case .reconcile: address = base + "users/\(job.draft.accountID)/contents?type=Block&sort=created_at_desc&per=100&page=\(job.page)"
         case .provenanceContents:
             guard let provenance = job.provenance else { throw CaptureError.message("The channel for capture details is unavailable.") }
-            address = base + "channels/\(provenance.channelID)/contents?per=100&page=\(job.page)"
+            guard (1...Self.provenancePageLimit).contains(job.page) else { throw CaptureError.message("Couldn't confirm the default-channel save. Open the block in Are.na.") }
+            address = base + "channels/\(provenance.channelID)/contents?per=100&page=\(job.page)&sort=position_desc"
         case .provenanceRead, .provenanceVerify:
             guard let connectionID = job.provenanceConnectionID else { throw CaptureError.message("The default-channel save is unconfirmed.") }
             address = base + "connections/\(connectionID)"
@@ -1351,7 +1355,10 @@ final class CaptureDelivery {
                 job.draft.phase = .uncertain
             }
         case .provenanceContents:
-            let matches = json?["data"]?.array.filter { $0["id"]?.int == job.draft.blockID && $0["type"]?.string != "Channel" } ?? []
+            guard let data = json?["data"], case .array(let rows) = data, rows.count <= 100 else {
+                fail(&job, "Couldn't confirm the default-channel save. Open the block in Are.na."); return
+            }
+            let matches = rows.filter { $0["id"]?.int == job.draft.blockID && $0["type"]?.string != "Channel" }
             guard matches.count <= 1 else { fail(&job, "Couldn't confirm this block in the default channel. Capture details were not changed."); return }
             if let match = matches.first {
                 guard let connectionID = match["connection"]?["id"]?.int, connectionID > 0,
@@ -1366,7 +1373,7 @@ final class CaptureDelivery {
                 return
             }
             if json?["meta"]?["has_more_pages"] == .bool(true) {
-                guard job.page < 3, let page = json?["meta"]?["next_page"]?.int, page > job.page else {
+                guard job.page < Self.provenancePageLimit, let page = json?["meta"]?["next_page"]?.int, page == job.page + 1 else {
                     fail(&job, "Couldn't confirm the default-channel save. Open the block in Are.na."); return
                 }
                 job.page = page

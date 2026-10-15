@@ -715,6 +715,93 @@ final class SubmissionTests: XCTestCase {
     }
 
     @MainActor
+    func testReadOnlyRecoveryFindsOlderDefaultPlacementWithoutMutation() async throws {
+        for foundPage in [4, 20] {
+            try await withDelivery { delivery, store, _ in
+                var source = self.draft(); source.input = "https://example.com/older-inbox"
+                source.provenanceChannelID = 101
+                let id = try delivery.persistQueuedSubmission(draft: source)
+                try await delivery.preparePending(id)
+                var job = try XCTUnwrap(store.value(DeliveryJob.self, account: 0, kind: "delivery", id: id.uuidString))
+                job.draft.blockID = 900; job.contentVerified = true
+                job.stopRequestedAt = Date(); job.readOnlyReconciliation = true
+                job.stage = .connections
+                delivery.consume(try self.members([101]), job: &job)
+                XCTAssertEqual(job.stage, .provenanceContents)
+                for page in 1..<foundPage {
+                    XCTAssertEqual(job.page, page)
+                    XCTAssertEqual(try delivery.request(job, token: "fixture").request.httpMethod, "GET")
+                    let response = JSONValue.object([
+                        "data": .array([]),
+                        "meta": .object(["has_more_pages": .bool(true), "next_page": .number(Double(page + 1))])
+                    ])
+                    delivery.consume(.init(status: 200, body: try JSONEncoder().encode(response), error: nil, retryAfter: nil), job: &job)
+                    XCTAssertEqual(job.stage, .provenanceContents)
+                }
+                XCTAssertEqual(job.page, foundPage)
+                XCTAssertEqual(try delivery.request(job, token: "fixture").request.httpMethod, "GET")
+                delivery.consume(try self.provenanceContents(), job: &job)
+                XCTAssertEqual(job.stage, .provenanceRead)
+                XCTAssertEqual(job.provenanceConnectionID, 500)
+                XCTAssertEqual(try delivery.request(job, token: "fixture").request.httpMethod, "GET")
+                let metadata = try XCTUnwrap(job.provenance).metadata
+                delivery.consume(try self.connection(metadata: metadata), job: &job)
+                XCTAssertEqual(job.stage, .done)
+                XCTAssertEqual(job.draft.blockID, 900)
+                XCTAssertEqual(job.id, id)
+                XCTAssertTrue(job.writesAreFenced)
+            }
+        }
+    }
+
+    @MainActor
+    func testOlderDefaultPlacementLookupIsBoundedAndRejectsPaginationJumps() async throws {
+        try await withDelivery { delivery, store, _ in
+            var source = self.draft(); source.input = "https://example.com/missing-receipt"
+            source.provenanceChannelID = 101
+            let id = try delivery.persistQueuedSubmission(draft: source)
+            try await delivery.preparePending(id)
+            var job = try XCTUnwrap(store.value(DeliveryJob.self, account: 0, kind: "delivery", id: id.uuidString))
+            job.draft.blockID = 900; job.contentVerified = true
+            job.stopRequestedAt = Date(); job.readOnlyReconciliation = true
+            job.stage = .provenanceContents
+            for page in 1...20 {
+                XCTAssertEqual(job.page, page)
+                XCTAssertEqual(try delivery.request(job, token: "fixture").request.httpMethod, "GET")
+                let response = JSONValue.object([
+                    "data": .array([]),
+                    "meta": .object(["has_more_pages": .bool(true), "next_page": .number(Double(page + 1))])
+                ])
+                delivery.consume(.init(status: 200, body: try JSONEncoder().encode(response), error: nil, retryAfter: nil), job: &job)
+                XCTAssertEqual(job.stage, page == 20 ? .attention : .provenanceContents)
+            }
+            XCTAssertEqual(job.page, 20)
+            XCTAssertTrue(job.writesAreFenced)
+            XCTAssertNil(job.provenanceConnectionID)
+            job.stage = .provenanceContents; job.page = 21
+            XCTAssertThrowsError(try delivery.request(job, token: "fixture"))
+            job.page = 1
+            let jump = JSONValue.object([
+                "data": .array([]),
+                "meta": .object(["has_more_pages": .bool(true), "next_page": .number(1000)])
+            ])
+            delivery.consume(.init(status: 200, body: try JSONEncoder().encode(jump), error: nil, retryAfter: nil), job: &job)
+            XCTAssertEqual(job.stage, .attention)
+            XCTAssertEqual(job.page, 1)
+            XCTAssertNil(job.provenanceConnectionID)
+            job.stage = .provenanceContents
+            let oversized = JSONValue.object([
+                "data": .array(Array(repeating: .object(["id": .number(901)]), count: 101)),
+                "meta": .object(["has_more_pages": .bool(true), "next_page": .number(2)])
+            ])
+            delivery.consume(.init(status: 200, body: try JSONEncoder().encode(oversized), error: nil, retryAfter: nil), job: &job)
+            XCTAssertEqual(job.stage, .attention)
+            XCTAssertEqual(job.page, 1)
+            XCTAssertNil(job.provenanceConnectionID)
+        }
+    }
+
+    @MainActor
     func testExistingDefaultOriginalMetadataIsUntouchedUntilFinalLatestEventPatch() async throws {
         try await withDelivery { delivery, store, _ in
             var source = self.draft(); source.input = "https://example.com/article"
