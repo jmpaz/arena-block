@@ -433,7 +433,12 @@ public struct CaptureRootView: View {
             }
             if !isExtension, value.canAddPlacements {
                 Divider()
-                Button("Add to channels") { session.addPlacements(to: value) }
+                Button { session.addPlacements(to: value) } label: {
+                    Text("Add to channels")
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        .contentShape(Rectangle())
+                }
+                    .buttonStyle(.borderless)
                     .foregroundStyle(.primary)
                     .disabled(session.busy).accessibilityIdentifier("capture.add-placements")
             }

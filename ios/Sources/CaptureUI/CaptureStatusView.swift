@@ -98,6 +98,7 @@ struct CaptureStatusView: View {
                         .contentShape(Rectangle())
                     }
                     .accessibilityElement(children: .combine)
+                    .buttonStyle(.borderless)
                     .accessibilityLabel(channel.label + (standingDefault ? ", Default" : ""))
                     .accessibilityIdentifier("placement.\(draft.id).\(channel.id)")
                     .accessibilityValue(state?.preparationFailureStage != nil ? "Selected, not sent" : confirmed ? "Confirmed" : "Awaiting confirmation")

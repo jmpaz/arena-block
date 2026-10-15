@@ -40,6 +40,7 @@ final class CaptureLifecycleUITests: XCTestCase {
     private func editConnecting(_ app: XCUIApplication) {
         let add = app.buttons["capture.add-placements"]
         reveal(add, app); add.tap()
+        XCTAssertEqual(app.state, .runningForeground, "Editing placements must not open a destination link")
         XCTAssertTrue(app.buttons["capture.cancel-placements"].waitForExistence(timeout: 3))
         picker(app)
     }
@@ -68,7 +69,11 @@ final class CaptureLifecycleUITests: XCTestCase {
         app.tabBars.buttons["Active"].tap()
         XCTAssertEqual(ids(app), before)
         element(before.first!, app).tap()
-        XCTAssertTrue(app.staticTexts["Visual notes"].waitForExistence(timeout: 3))
+        let destinations = element("capture.status.destinations", app)
+        XCTAssertTrue(destinations.waitForExistence(timeout: 3)); destinations.tap()
+        let added = element("placement." + before.first!.replacingOccurrences(of: "history.capture.", with: "") + ".103", app)
+        XCTAssertTrue(added.waitForExistence(timeout: 3))
+        XCTAssertEqual(added.value as? String, "Awaiting confirmation")
         shot("lifecycle-active-relaunched", app)
     }
 
