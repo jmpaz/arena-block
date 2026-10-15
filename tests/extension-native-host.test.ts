@@ -118,3 +118,17 @@ test("native messaging rejects unknown actions before contacting a daemon", asyn
   expect(reply.ok).toBe(false);
   expect(reply.value).toBeUndefined();
 });
+
+test("native host bounds UTF-8 responses and returns a recoverable error for oversized plans", async () => {
+  const { nativeReplyBody, NATIVE_REPLY_MAX_BYTES } = await import("../extension/native-host.ts");
+  const overhead = Buffer.byteLength(JSON.stringify({ id: "large", ok: true, value: "" }));
+  const exact = { id: "large", ok: true, value: "a".repeat(NATIVE_REPLY_MAX_BYTES - overhead) };
+  expect(nativeReplyBody(exact).length).toBe(NATIVE_REPLY_MAX_BYTES);
+  expect(JSON.parse(nativeReplyBody(exact).toString()).ok).toBe(true);
+  const tooLarge = nativeReplyBody({ ...exact, value: exact.value + "é" });
+  expect(tooLarge.length).toBeLessThan(NATIVE_REPLY_MAX_BYTES);
+  const result = JSON.parse(tooLarge.toString());
+  expect(result.id).toBe("large"); expect(result.ok).toBe(false);
+  expect(result.error).toContain("1 MiB"); expect(result.error).toContain("preview/export");
+  expect(result.value).toBeUndefined();
+});

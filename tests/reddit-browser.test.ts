@@ -205,3 +205,72 @@ test("local-helper acquisition checks capabilities and refuses a stripped browse
   returned = plan;
   expect(await resolveWithNative(input, native)).toEqual(plan);
 });
+
+test("import rejects unsupported player containers before stripping, including cross-post parents", () => {
+  for (const field of ["media", "secure_media"]) for (const nested of [false, true]) {
+    const post = { ...fixture.post, [field]: { oembed: { provider_name: "Embedded player" } } };
+    const raw = { ...fixture, post: nested ? { ...fixture.post, crosspost_parent_list: [post] } : post };
+    expect(() => normalizeRedditCapture(raw)).toThrow();
+  }
+});
+
+test("complete-media validation follows only the included quote ancestry", async () => {
+  const parent = { ...fixture.post, id: "parent1", permalink: "/comments/parent1/", post_hint: undefined, url: undefined,
+    selftext: "![gif](anim123)", media_metadata: { anim123: { status: "valid", e: "AnimatedImage", s: { gif: "https://i.redd.it/anim123.gif" } } } };
+  const posts = await resolved(normalizeRedditCapture({ ...fixture, post: { ...fixture.post, crosspost_parent_list: [parent] } }));
+  expect(posts[0]!.quote!.mediaIssues?.[0]?.status).toBe("unsupported");
+  for (const media of ["all", "images"] as const) {
+    expect(() => composePlan(posts, { media })).toThrow("anim123");
+    expect(() => composePlan(posts, { media, quote: "omit" })).not.toThrow();
+    const deeper = structuredClone(posts); deeper[0]!.quote = { ...deeper[0]!.quote!, mediaIssues: undefined, quote: posts[0]!.quote };
+    expect(() => composePlan(deeper, { media, quoteDepth: 1 })).not.toThrow();
+    expect(() => composePlan(deeper, { media, quoteDepth: 2 })).toThrow("anim123");
+  }
+});
+
+test("imported media stays on matching Reddit asset origins and bounded metadata", async () => {
+  for (const href of ["https://127.0.0.1:8443/private/image.png", "https://preview.redd.it:8443/fixtureimageb.png",
+    "https://user:pass@i.redd.it/fixtureimageb.png", "https://i.redd.it/other.png", "https://example.com/fixtureimageb.png"]) {
+    const media_metadata = { fixtureimageb: { status: "valid", e: "Image", s: { u: href } } };
+    expect(() => normalizeRedditCapture({ ...fixture, post: { ...fixture.post, gallery_data: { items: [{ media_id: "fixtureimageb" }] }, media_metadata } })).toThrow();
+  }
+  for (const href of ["https://127.0.0.1:8443/private/video.m3u8", "https://v.redd.it:8443/id/HLSPlaylist.m3u8", "https://example.com/id/HLSPlaylist.m3u8"]) {
+    expect(() => normalizeRedditCapture({ ...fixture, post: { ...fixture.post, media: { reddit_video: { hls_url: href, width: 640, height: 480 } } } })).toThrow();
+  }
+  expect(() => normalizeRedditCapture({ ...fixture, post: { ...fixture.post, post_hint: "image", url: "https://127.0.0.1/image.png" } })).toThrow();
+  const video = normalizeRedditCapture({ ...fixture, post: { ...fixture.post, media: { reddit_video: {
+    hls_url: "https://v.redd.it/clip1/HLSPlaylist.m3u8?a=1", fallback_url: "https://v.redd.it/clip1/DASH_720.mp4", width: 640, height: 480,
+  } } } });
+  expect(composePlan(await resolved(video), { media: "all" }).sources[0]!.media[0]!.url).toContain("v.redd.it/clip1/");
+  const raw = { ...fixture, sourceUrl: "https://www.reddit.com/comments/abc1234/comment/def4567/", comment: {
+    id: "def4567", link_id: "t3_abc1234", author: "commenter", body: "A reply", created_utc: 1700000001,
+    permalink: "/comments/abc1234/comment/def4567/", media_metadata: Object.fromEntries(Array.from({ length: 101 }, (_, i) => [`img${i}`, { status: "valid", e: "Image" }])),
+  } };
+  expect(() => normalizeRedditCapture(raw)).toThrow("Too many Reddit media records");
+  const external = normalizeRedditCapture({ ...fixture, post: { ...fixture.post, url: "https://example.com/story", post_hint: "link", selftext: "", media_metadata: undefined } });
+  expect((await resolved(external))[0]!.text).toBe("https://example.com/story");
+});
+
+test("reopening an imported draft preserves its snapshot, policy and destinations across URL aliases or tabs", async () => {
+  const { containsDraftSource, shouldReplaceAutomaticDraft } = await import("../extension/src/draft-retention.ts");
+  const saved = { primary: fixture.sourceUrl, redditCaptures: [capture()], media: "all", selectedChannels: ["retained"] };
+  expect(containsDraftSource(saved.primary, "https://www.reddit.com/r/test/comments/abc1234/a_post/")).toBe(true);
+  expect(shouldReplaceAutomaticDraft(saved, "https://www.reddit.com/r/test/comments/abc1234/a_post/", false)).toBe(false);
+  expect(shouldReplaceAutomaticDraft(saved, "https://www.reddit.com/comments/another/", false)).toBe(false);
+  expect(shouldReplaceAutomaticDraft({ ...saved, redditCaptures: [] }, "https://www.reddit.com/comments/another/", false)).toBe(true);
+  expect(shouldReplaceAutomaticDraft({ primary: fixture.sourceUrl }, "https://www.reddit.com/r/test/comments/abc1234/a_post/", false)).toBe(false);
+});
+
+
+test("import preserves supported animated gallery videos on matching Reddit image origins", async () => {
+  for (const mp4 of ["https://i.redd.it/anim123.mp4", "https://preview.redd.it/anim123.gif?format=mp4&s=fixture"]) {
+    const value = normalizeRedditCapture({ ...fixture, post: { ...fixture.post, selftext: "Gallery animation", post_hint: undefined, url: undefined,
+      gallery_data: { items: [{ media_id: "anim123" }] }, media_metadata: {
+        anim123: { status: "valid", e: "AnimatedImage", s: { gif: "https://i.redd.it/anim123.gif", mp4, x: 640, y: 480 } },
+      },
+    } });
+    const plan = composePlan(await resolved(value), { media: "all" });
+    expect(plan.block.selectedMedia).toEqual(["1.1"]);
+    expect(plan.sources[0]!.media[0]).toMatchObject({ id: "anim123", kind: "video", url: mp4 });
+  }
+});

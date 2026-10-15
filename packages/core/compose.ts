@@ -309,7 +309,8 @@ export function composePlan(
   if (posts.length > MAX_EXPANDED_SOURCE_POSTS) throw new Error(`At most ${MAX_EXPANDED_SOURCE_POSTS} resolved source posts are supported`);
   const policy = compositionPolicySchema.parse(policyInput);
   if (["all", "images"].includes(policy.media)) {
-    const issue = posts.flatMap(post => post.mediaIssues ?? [])[0];
+    const issue = posts.flatMap(post => [post, ...availableQuoteNodes(post).slice(0, renderedQuoteDepth(policy))])
+      .flatMap(post => post.mediaIssues ?? [])[0];
     if (issue) throw new Error(`Body media ${issue.id ?? issue.url ?? "reference"} is ${issue.status}; choose available media explicitly`);
   }
   if (posts.some(post => post.provider === "web")) {

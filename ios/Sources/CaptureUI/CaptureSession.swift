@@ -771,7 +771,7 @@ public final class CaptureSession {
                     }
                 }
                 if source["kind"]?.string == "social" {
-                    let identity = "\(draft.accountID):\(draft.id):primary=\(urls.map(\.absoluteString).joined(separator: "|")):extra=\(extraURLs.map(\.absoluteString).joined(separator: "|")):thread=\(draft.threadExpansion?.rawValue ?? "auto")"
+                    let identity = draft.sourceReadIdentity(primary: urls.map(\.absoluteString), extra: extraURLs.map(\.absoluteString))
                     if renderedIdentity != identity { renderedSources.removeAll(); renderedIdentity = identity }
                     if quoteSourceIdentity != identity {
                         quoteSourceIdentity = identity
@@ -781,7 +781,7 @@ public final class CaptureSession {
                     acquisition["quoteDepth"] = expandedQuotes ? .string("full") : .number(2)
                     let sourceCache = expandedQuotes ? expandedSources : resolvedSources
                     let posts = try await sourceCache.value(identity: identity) { [self] in
-                        let response = try JSONDecoder().decode(JSONValue.self, from: Data(try await core().resolve(
+                        let response = try JSONDecoder().decode(JSONValue.self, from: Data(try await core().resolve(draft: draft,
                             refs: urls.map(\.absoluteString), extraRefs: extraURLs.map(\.absoluteString),
                             policyJSON: json(.object(acquisition))).utf8))
                         guard let sources = response["plan"]?["sources"] else { throw CaptureError.message("The source could not be read.") }
@@ -809,7 +809,7 @@ public final class CaptureSession {
                         if canonical != url.absoluteString {
                             self.draft?.input = canonical
                             cleanedSourceURL = canonical
-                            let newIdentity = "\(draft.accountID):\(draft.id):primary=\(canonical):extra=:thread=\(draft.threadExpansion?.rawValue ?? "auto")"
+                            let newIdentity = draft.sourceReadIdentity(primary: [canonical], extra: [])
                             sourceCache.rekey(from: identity, to: newIdentity)
                             quoteSourceIdentity = newIdentity
                         }
@@ -1137,7 +1137,7 @@ public final class CaptureSession {
         return found
     }
 
-    @discardableResult func newCapture(input: String = "", consumingIncoming: Bool = false, redditCaptureJSON: String? = nil) -> Bool {
+    @discardableResult func newCapture(input: String = "", consumingIncoming: Bool = false) -> Bool {
         guard let account, !busy else { return false }
         if isAddingPlacements { cancelPlacements() }
         do {
@@ -1149,7 +1149,6 @@ public final class CaptureSession {
                 next.input = ""; next.originalLinkOnly = nil; next.redditCapturesJSON = nil; next.media = .auto; next.selectedMedia = nil; next.videoFrames = nil; next.quoteDepth = nil; next.phase = .editing; next.problem = nil
                 next.selection = DestinationSelection(defaultChannel: defaultChannel)
             } else { next = CaptureDraft(accountID: account.id, defaultChannel: defaultChannel, input: input) }
-            next.redditCapturesJSON = redditCaptureJSON.map { "[" + $0 + "]" }
             next.videoFrameThresholdSeconds = autoFrameThresholdSeconds
             if let identity = Self.singleThreadSourceIdentity(input, roles: nil) {
                 next.threadExpansion = Self.defaultThreadExpansion(for: identity)
@@ -1161,20 +1160,10 @@ public final class CaptureSession {
             let nextRetained = try workspace.retainedResultID.flatMap {
                 try store.value(CaptureDraft.self, account: account.id, kind: "draft", id: $0.uuidString)
             }
-            var nextIncoming = incomingLinks
-            try store.transaction {
-                if next.hasDraftContent { try store.save(next, account: account.id, kind: "draft", id: next.id.uuidString) }
-                try store.save(workspace, account: account.id, kind: "workspace", id: workspaceID)
-                if consumingIncoming {
-                    for pending in try store.values(PendingShare.self, account: 0, kind: "incoming") where pending.urls.contains(input) {
-                        let remaining = pending.urls.filter { $0 != input }
-                        if remaining.isEmpty { try store.remove(account: 0, kind: "incoming", id: pending.id.uuidString) }
-                        else { try store.save(PendingShare(id: pending.id, urls: remaining), account: 0, kind: "incoming", id: pending.id.uuidString) }
-                    }
-                    nextIncoming = try readIncomingLinks()
-                }
-            }
-            retainedResult = nextRetained; incomingLinks = nextIncoming
+            let committed = try store.commitNewCapture(next, workspace: workspace, workspaceID: workspaceID,
+                                                        consumingIncoming: consumingIncoming)
+            next = committed.draft
+            retainedResult = nextRetained; incomingLinks = committed.incoming ?? incomingLinks
             historyReturnDraft = nil
             resolvedSources.invalidate(); expandedSources.invalidate(); renderedSources.removeAll(); renderedIdentity = nil
             resolution?.cancel(); generation = UUID(); preview = nil; draft = next; progress = ""; problem = nil
@@ -1422,11 +1411,10 @@ public final class CaptureSession {
             combined.append(object)
             let bytes = try JSONSerialization.data(withJSONObject: combined)
             guard bytes.count <= 2 * 1024 * 1024 else { throw CaptureError.message("Reddit captures exceed 2 MiB") }
-            draft?.redditCapturesJSON = String(decoding: bytes, as: UTF8.self)
-            draft?.problem = nil; draft?.originalLinkOnly = nil; draft?.phase = .editing
-            draft?.previewSnapshot = nil; preview = nil
+            let replacement = try store.replaceBrowserSnapshot(in: current, recordsJSON: String(decoding: bytes, as: UTF8.self), workspaceID: workspaceID)
+            draft = replacement; preview = nil
             resolvedSources.invalidate(); expandedSources.invalidate(); renderedSources.removeAll(); renderedIdentity = nil
-            persistOrReport(); resolve()
+            resolve()
         } else { receive(urls: [url], redditCaptureJSON: normalized) }
     }
 
@@ -1454,8 +1442,7 @@ public final class CaptureSession {
     }
 
     func useIncoming(_ url: String) {
-        let captured = (try? store.values(PendingShare.self, account: 0, kind: "incoming"))?.first { $0.urls.contains(url) && $0.redditCaptureJSON != nil }?.redditCaptureJSON
-        guard newCapture(input: url, consumingIncoming: true, redditCaptureJSON: captured) else { return }
+        guard newCapture(input: url, consumingIncoming: true) else { return }
         resolve()
     }
 
@@ -1477,11 +1464,5 @@ public final class CaptureSession {
 }
 
 enum CaptureVideoChoice: Hashable { case none, video, frame }
-
-struct PendingShare: Codable {
-    var id: UUID
-    var urls: [String]
-    var redditCaptureJSON: String? = nil
-}
 
 #endif

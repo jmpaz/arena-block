@@ -1,3 +1,4 @@
+import { containsDraftSource, shouldReplaceAutomaticDraft } from "./draft-retention.ts";
 import { resolveWithNative } from "./native-reddit.ts";
 import { normalizeRedditCapture, redditReadNeedsBrowser, redditCapturesSchema, redditSourceKey, REDDIT_CAPTURE_MAX_BYTES, type RedditBrowserCapture } from "../../packages/core/reddit-record.ts";
 import { readActiveRedditTab, type RedditTabAPI } from "./reddit-tab.ts";
@@ -1323,8 +1324,7 @@ void (async () => {
       defaultChannel.value = saved.defaultChannel ?? "";
       defaultMode.value = saved.defaultMode ?? "fallback";
       const unconfirmed = saved.pending && !["saved", "rejected", "not_saved"].includes(saved.pending.phase);
-      const replaceAuto = Boolean(source && !saved.primary?.split(/\r?\n/).includes(source)
-        && !saved.manualContentEdit && !unconfirmed);
+      const replaceAuto = shouldReplaceAutomaticDraft(saved, source, Boolean(unconfirmed));
       if (replaceAuto) {
         primary.value = source!;
         retain();
@@ -1357,7 +1357,7 @@ void (async () => {
     renderSelectedChannels();
     renderCapturePreview();
     $<HTMLDetailsElement>("source-details").open = !primary.value.trim();
-    if (!source || primary.value.split(/\r?\n/).includes(source)) {
+    if (!source || containsDraftSource(primary.value, source)) {
       if (source) void resolveAuthorizedSource(source);
       return;
     }

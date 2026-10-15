@@ -32,8 +32,15 @@ function readBytes(length: number): Buffer | undefined {
   return output;
 }
 
-function reply(value: unknown): void {
+export const NATIVE_REPLY_MAX_BYTES = 1024 * 1024;
+export function nativeReplyBody(value: { id?: unknown; [key: string]: unknown }): Buffer {
   const body = Buffer.from(JSON.stringify(value), "utf8");
+  if (body.length <= NATIVE_REPLY_MAX_BYTES) return body;
+  return Buffer.from(JSON.stringify({ id: typeof value.id === "string" ? value.id.slice(0, 100) : undefined,
+    ok: false, error: "The local helper response exceeds the browser's 1 MiB limit. Keep this draft and use browser preview/export, or open the record in the CLI or native Capture." }), "utf8");
+}
+function reply(value: { id?: unknown; [key: string]: unknown }): void {
+  const body = nativeReplyBody(value);
   const header = Buffer.alloc(4);
   header.writeUInt32LE(body.length);
   writeSync(1, header);

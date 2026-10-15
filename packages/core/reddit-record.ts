@@ -63,7 +63,10 @@ export function redditSourceKey(value: string): string {
   return `${source.id}:${source.commentId ?? ""}`;
 }
 function browserPostSchema(depth: number): z.ZodType<z.infer<typeof redditPostSchema>> {
-  return redditPostSchema.extend({ crosspost_parent_list: depth === 4
+  return redditPostSchema.extend({
+    media: videoContainer.unwrap().unwrap().strict().nullish(),
+    secure_media: videoContainer.unwrap().unwrap().strict().nullish(),
+    crosspost_parent_list: depth === 4
     ? z.tuple([]).optional() : z.array(browserPostSchema(depth + 1)).max(1).optional() });
 }
 const envelope = z.object({
@@ -72,10 +75,45 @@ const envelope = z.object({
   post: browserPostSchema(0), comment: redditCommentSchema.optional(),
 }).strict();
 export type RedditBrowserCapture = z.infer<typeof envelope>;
+function mediaURL(value: string, hosts: string[], path: RegExp): URL {
+  const url = new URL(value.replaceAll("&amp;", "&"));
+  if (url.protocol !== "https:" || url.username || url.password || url.port || url.hash ||
+      !hosts.includes(url.hostname) || !path.test(url.pathname)) throw new Error("Invalid Reddit browser media URL");
+  return url;
+}
+function mediaMetadata(value: z.infer<typeof redditPostSchema>["media_metadata"]) {
+  if (Object.keys(value ?? {}).length > 100) throw new Error("Too many Reddit media records");
+  for (const [id, entry] of Object.entries(value ?? {})) {
+    if (!/^[a-z0-9]+$/i.test(id)) throw new Error("Invalid Reddit media identity");
+    for (const [field, href] of Object.entries(entry.s ?? {})) if (["u", "gif", "mp4"].includes(field) && typeof href === "string") {
+      const path = field === "mp4" ? /^\/([a-z0-9]+)\.(?:gif|mp4)$/i : /^\/([a-z0-9]+)\.(?:png|jpe?g|webp|gif)$/i;
+      const url = mediaURL(href, ["i.redd.it", "preview.redd.it"], path);
+      if (url.pathname.slice(1).split(".")[0] !== id) throw new Error("Mismatched Reddit media identity");
+    }
+  }
+}
+function capturedPostMedia(post: z.infer<typeof redditPostSchema>) {
+  mediaMetadata(post.media_metadata);
+  if (post.url && (post.post_hint === "image" || /^https:\/\/i\.redd\.it\//.test(post.url))) {
+    mediaURL(post.url, ["i.redd.it", "preview.redd.it"], /^\/[a-z0-9]+\.(?:png|jpe?g|webp|gif)$/i);
+  }
+  for (const container of [post.media, post.secure_media]) if (container?.reddit_video) {
+    let identity: string | undefined;
+    for (const href of [container.reddit_video.hls_url, container.reddit_video.fallback_url]) if (href) {
+      const url = mediaURL(href, ["v.redd.it"], /^\/[a-z0-9]+\/[a-z0-9_.-]+$/i);
+      const id = url.pathname.split("/")[1];
+      if (identity && identity !== id) throw new Error("Mismatched Reddit video identity");
+      identity = id;
+    }
+  }
+  for (const parent of post.crosspost_parent_list ?? []) capturedPostMedia(parent as z.infer<typeof redditPostSchema>);
+}
 function validateCapture(input: RedditBrowserCapture) {
   bounded(input);
   const post = publicPost(input.post);
   const comment = input.comment;
+  capturedPostMedia(post);
+  mediaMetadata(comment?.media_metadata);
   if (comment?.media != null) throw new Error("Reddit comment media container is unsupported");
   const key = redditSourceKey(input.sourceUrl);
   if (redditSourceKey(new URL(post.permalink, "https://www.reddit.com").href) !== `${post.id}:` ||
