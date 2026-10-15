@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { substackCaptureSchema, substackSourceKey, type SubstackCapture } from "./substack-record.ts";
 import { redditBrowserCaptureSchema, redditCapturesSchema, redditSourceKey, type RedditBrowserCapture } from "./reddit-record.ts";
 import { parseSource } from "./url.ts";
 
@@ -78,7 +79,7 @@ const externalSchema = z.object({ url: z.url(), title: z.string(), description: 
 const embeddedRecordSchema = z.object({ uri: z.string().startsWith("at://"), status: z.enum(["not-found", "blocked", "detached", "unsupported"]), type: z.string().optional() });
 
 export type ResolvedPost = {
-  provider: "reddit" | "x" | "bluesky" | "delve" | "mastodon" | "tiktok" | "instagram" | "hackernews" | "lobsters" | "arena" | "web" | "soundcloud" | "forum_magnum";
+  provider: "substack" | "reddit" | "x" | "bluesky" | "delve" | "mastodon" | "tiktok" | "instagram" | "hackernews" | "lobsters" | "arena" | "web" | "soundcloud" | "forum_magnum";
   id: string;
   canonicalUrl: string;
   /** How this source entered the ordered composition. Provider reads omit this. */
@@ -99,6 +100,7 @@ export type ResolvedPost = {
   storyTitle?: string;
   postTitle?: string;
   soundcloud?: SoundCloudMetadata;
+  substackCapture?: SubstackCapture;
   redditCapture?: RedditBrowserCapture;
   media: MediaAsset[];
   mediaIssues?: z.infer<typeof mediaIssueSchema>[];
@@ -115,7 +117,7 @@ export type ResolvedPost = {
 
 export const resolvedPostSchema: z.ZodType<ResolvedPost> = z.lazy(() =>
   z.object({
-    provider: z.enum(["reddit", "x", "bluesky", "delve", "mastodon", "tiktok", "instagram", "hackernews", "lobsters", "arena", "web", "soundcloud", "forum_magnum"]),
+    provider: z.enum(["substack", "reddit", "x", "bluesky", "delve", "mastodon", "tiktok", "instagram", "hackernews", "lobsters", "arena", "web", "soundcloud", "forum_magnum"]),
     id: z.string().min(1),
     canonicalUrl: z.url(),
     selection: z.object({ role: z.enum(["primary", "extra"]), origin: z.enum(["explicit", "expanded"]),
@@ -135,6 +137,7 @@ export const resolvedPostSchema: z.ZodType<ResolvedPost> = z.lazy(() =>
     storyTitle: z.string().min(1).optional(),
     postTitle: z.string().min(1).optional(),
     soundcloud: soundCloudMetadataSchema.optional(),
+    substackCapture: substackCaptureSchema.optional(),
     redditCapture: redditBrowserCaptureSchema.optional(),
     media: z.array(mediaAssetSchema),
     mediaIssues: z.array(mediaIssueSchema).optional(),
@@ -147,6 +150,14 @@ export const resolvedPostSchema: z.ZodType<ResolvedPost> = z.lazy(() =>
     quoteBoundary: quoteBoundarySchema.optional(), quoteCoverage: quoteCoverageSchema.optional(),
     quoteSnapshot: z.object({ basis: z.literal("embedded"), hydration: z.enum(["unavailable", "deleted"]) }).optional(),
   }).superRefine((post, context) => {
+    if (post.substackCapture) {
+      try {
+        const note = post.substackCapture.note;
+        if (post.provider !== "substack" || post.id !== substackSourceKey(note.url)
+          || substackSourceKey(post.canonicalUrl) !== substackSourceKey(post.substackCapture.sourceUrl)
+          || post.author.handle !== note.author.handle) throw new Error("Mismatched Substack capture provenance");
+      } catch { context.addIssue({ code: "custom", message: "Mismatched Substack capture provenance", path: ["substackCapture"] }); }
+    }
     if (!post.redditCapture) return;
     try {
       if (post.provider !== "reddit" || post.id !== (post.redditCapture.comment?.id ?? post.redditCapture.post.id) ||

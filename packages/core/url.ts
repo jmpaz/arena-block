@@ -8,6 +8,7 @@ const X_HOSTS = new Set([
 ]);
 
 export type ParsedSource =
+  | { provider: "substack"; id: string; canonicalUrl: string }
   | { provider: "arena"; id: string; canonicalUrl: string }
   | { provider: "forum_magnum"; site: "lesswrong" | "alignment_forum" | "ea_forum"; id: string; canonicalUrl: string; commentId?: string }
   | { provider: "reddit"; id: string; canonicalUrl: string; short?: boolean; commentId?: string }
@@ -33,6 +34,12 @@ export function parseSource(value: string): ParsedSource {
   const url = new URL(value);
   const host = url.hostname.toLowerCase().replace(/^www\./, "");
   const parts = url.pathname.split("/").filter(Boolean);
+  if (host === "substack.com" && /\/note\//.test(url.pathname)) {
+    if (url.protocol !== "https:" || url.username || url.password || url.port) throw new Error("Substack Notes require HTTPS without credentials or custom ports");
+    const match = /^\/(?:(@[a-zA-Z0-9_]+|profile\/[1-9]\d*(?:-[a-zA-Z0-9_-]+)?)\/)?note\/c-([1-9]\d*)\/?$/.exec(url.pathname);
+    if (!match) throw new Error(`Expected a Substack Note permalink: ${value}`);
+    return { provider: "substack", id: match[2]!, canonicalUrl: `https://substack.com/${match[1] ? `${match[1]}/` : ""}note/c-${match[2]}` };
+  }
   const forumSites: Record<string, { site: "lesswrong" | "alignment_forum" | "ea_forum"; origin: string }> = {
     "lesswrong.com": { site: "lesswrong", origin: "https://www.lesswrong.com" },
     "greaterwrong.com": { site: "lesswrong", origin: "https://www.lesswrong.com" },

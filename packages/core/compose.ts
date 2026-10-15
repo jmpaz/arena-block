@@ -43,14 +43,17 @@ function escapeAuthoredSeparators(value: string): string {
 }
 
 function description(posts: ResolvedPost[]): string | undefined {
+  const substack = posts.filter(post => post.substackCapture).map(post => `Substack browser DOM capture observed at: ${post.substackCapture!.observedAt}. Full root prose; quoted Note availability and linked/preview/attachment roles retained in the source record. Displayed publication labels have no inferred timezone.`);
   const stories = posts.filter((post) => post.storyTitle !== undefined);
   if (stories.length) {
-    return stories.map((post) => post.postedAt ? `Posted at: ${post.postedAt}` : "").join("\n\n---\n\n");
+    const dates = stories.map((post) => post.postedAt ? `Posted at: ${post.postedAt}` : "").join("\n\n---\n\n");
+    return substack.length ? [...substack, dates].filter(Boolean).join("\n\n") : dates;
   }
   const introductions = posts
     .filter((post) => post.article !== undefined && post.text.trim())
     .map((post) => escapeAuthoredSeparators(post.text.trim()));
-  return introductions.length ? introductions.join("\n\n---\n\n") : undefined;
+  const introduction = introductions.length ? introductions.join("\n\n---\n\n") : undefined;
+  return substack.length ? [...substack, introduction].filter(Boolean).join("\n\n") : introduction;
 }
 
 const MEDIA_FIRST_PROVIDERS = new Set<ResolvedPost["provider"]>(["reddit", "instagram", "tiktok", "arena", "soundcloud"]);

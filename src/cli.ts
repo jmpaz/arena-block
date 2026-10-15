@@ -7,6 +7,8 @@ import { Command } from "commander";
 import { ArenaBlockClient, PublicationError } from "./client.ts";
 import { composePlan, planHash } from "./compose.ts";
 import { SocialResolver } from "./providers/index.ts";
+import { SubstackProvider } from "../packages/core/providers/substack.ts";
+import { bindSubstackCaptures, normalizeSubstackCapture, SUBSTACK_CAPTURE_MAX_BYTES } from "../packages/core/substack-record.ts";
 import { RedditProvider } from "../packages/core/providers/reddit.ts";
 import { bindRedditCaptures, normalizeRedditCapture, REDDIT_CAPTURE_MAX_BYTES } from "../packages/core/reddit-record.ts";
 import type { MosaicMode } from "./mosaic-preview.ts";
@@ -38,6 +40,7 @@ type Options = {
   plan?: string;
   force?: boolean;
   extra?: string[];
+  substackCapture?: string[];
   redditCapture?: string[];
   layout?: string;
   outputDir?: string;
@@ -122,10 +125,16 @@ async function captureInputs(values: string[], options: Options) {
     if (file.size > REDDIT_CAPTURE_MAX_BYTES) throw new Error("Reddit capture file exceeds 2 MiB");
     captures.push(normalizeRedditCapture(await file.json()));
   }
+  const substack = [];
+  for (const path of options.substackCapture ?? []) {
+    const file = Bun.file(path);
+    if (file.size > SUBSTACK_CAPTURE_MAX_BYTES) throw new Error("Substack capture file exceeds 2 MiB");
+    substack.push(normalizeSubstackCapture(await file.json()));
+  }
   const inputs = splitInputs(values, options.to);
-  if (!inputs.refs.length && captures.length) inputs.refs = captures.map(capture => capture.sourceUrl);
+  if (!inputs.refs.length) inputs.refs = [...captures, ...substack].map(capture => capture.sourceUrl);
   const normalized = bindRedditCaptures([...inputs.refs, ...(options.extra ?? [])], captures);
-  return { inputs, resolver: new SocialResolver({ reddit: new RedditProvider(undefined, normalized) }) };
+  return { inputs, resolver: new SocialResolver({ reddit: new RedditProvider(undefined, normalized), substack: new SubstackProvider(bindSubstackCaptures([...inputs.refs, ...(options.extra ?? [])], substack)) }) };
 }
 
 async function localPlan(values: string[], options: Options): Promise<{ plan: BlockPlan; destinations: string[] }> {
@@ -150,6 +159,7 @@ function client(): ArenaBlockClient {
 function addCompositionOptions(command: Command, extras = true): Command {
   if (extras) command.option("--extra <url>", "add media from a post or non-text Are.na block (repeatable); keep primary text", (value, values: string[]) => [...values, value], []);
   return command
+    .option("--substack-capture <path>", "import browser-observed public Substack Note prose and explicit source boundaries (repeatable)", (value, values: string[]) => [...values, value], [])
     .option("--reddit-capture <path>", "import a public browser-observed Reddit record (repeatable); no browser session is imported", (value, values: string[]) => [...values, value], [])
     .option("--media <mode>", "auto, none, all, video, audio (SoundCloud original download), images, indexes (1+4), or refs (1.1,1.4)", "auto")
     .option("--frame <refs>", "use observed source poster frames for selected video refs (1.1,2.1)")
@@ -202,7 +212,7 @@ const program = addCompositionOptions(new Command("arena-block"))
   .option("--json", "print stable JSON")
   .option("--config <path>", "private configuration file; never contains credential values")
   .action(async (refs: string[], options: Options) => {
-    if (!refs.length && !options.extra?.length && !options.redditCapture?.length) {
+    if (!refs.length && !options.extra?.length && !options.redditCapture?.length && !options.substackCapture?.length) {
       console.log(program.helpInformation());
       return;
     }
@@ -221,7 +231,7 @@ program.command("version").description("Report this CLI build and optionally the
 addCompositionOptions(program.command("resolve").description("Resolve provider-native post data").argument("[refs...]").option("--json", "print JSON"), false)
   .action(async (refs: string[], options: Options) => {
     const { inputs, resolver } = await captureInputs(refs, options);
-    if (!inputs.refs.length) throw new Error("At least one source URL or --reddit-capture file is required");
+    if (!inputs.refs.length) throw new Error("At least one source URL or browser-capture file is required");
     const posts = await resolver.resolve(inputs.refs, undefined, compositionPolicySchema.parse(policy(options, inputs.refs.length)));
     console.log(JSON.stringify(posts, null, options.json ? 2 : 0));
   });
@@ -240,7 +250,7 @@ addCompositionOptions(program.command("render").description("Render a local medi
   .option("--canvas <width>x<height>", "explicit-layout canvas; reading defaults to 4096x4096, wallpaper to 1440x2560")
   .option("--min-scale <number>", "reading-page minimum original pixel scale (default 1; smaller values explicitly allow downsampling)"))
   .action(async (refs: string[], options: Options) => {
-    if (options.plan && (refs.length || options.extra?.length || options.redditCapture?.length)) throw new Error("--plan cannot accompany source URLs, --extra, or --reddit-capture");
+    if (options.plan && (refs.length || options.extra?.length || options.redditCapture?.length || options.substackCapture?.length)) throw new Error("--plan cannot accompany source URLs, --extra, --reddit-capture, or --substack-capture");
     if (options.layout && !["reading", "wallpaper"].includes(options.layout)) throw new Error("--layout must be reading or wallpaper");
     if (options.layout ? (!options.outputDir || options.output) : (!options.output || options.outputDir || options.canvas || options.minScale)) {
       throw new Error("Normal rendering requires -o; --layout requires --output-dir and writes local preview pages");
@@ -282,7 +292,7 @@ addCompositionOptions(addReceiptOptions(program.command("publish").description("
   .action(async (refs: string[], options: Options) => {
     activeReceiptOptions = options;
     const display = receiptOutputMode(options, Boolean(process.stdout.isTTY));
-    if (options.plan && (refs.length || options.extra?.length || options.redditCapture?.length)) throw new Error("--plan cannot accompany source URLs, --extra, or --reddit-capture");
+    if (options.plan && (refs.length || options.extra?.length || options.redditCapture?.length || options.substackCapture?.length)) throw new Error("--plan cannot accompany source URLs, --extra, --reddit-capture, or --substack-capture");
     const planned = options.plan
       ? { plan: await readLocalPlan(options.plan), destinations: options.to ?? [] }
       : await localPlan(refs, options);

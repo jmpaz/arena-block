@@ -39,6 +39,10 @@ Use `resolve`, `plan`, `publish`, `save`, `status`, `cancel` or `retry` as shown
 
 ## Source providers
 
+An isolated [Substack Notes import candidate](docs/substack-notes.md) supports local
+planning from explicit browser-observed record files with `--substack-capture`.
+It requires separate receiver support before any publication.
+
 | Provider | Accepted sources | Acquisition |
 |---|---|---|
 | x.com | Post permalinks and article posts | Public FxTwitter responses |

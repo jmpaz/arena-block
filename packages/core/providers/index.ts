@@ -9,6 +9,7 @@ import { HackerNewsProvider } from "./hackernews.ts";
 import { LobstersProvider } from "./lobsters.ts";
 import { MastodonProvider } from "./mastodon.ts";
 
+import { SubstackProvider } from "./substack.ts";
 import { RedditProvider } from "./reddit.ts";
 import { ForumMagnumProvider } from "./forum-magnum.ts";
 import { AtmosphereProvider } from "./atmosphere.ts";
@@ -19,6 +20,7 @@ export class SocialResolver {
 
   constructor(providers?: Partial<Record<ReturnType<typeof parseSource>["provider"], SocialProvider>>) {
     this.providers = {
+      substack: providers?.substack ?? new SubstackProvider(),
       arena: providers?.arena ?? new ArenaMediaProvider(),
       reddit: providers?.reddit ?? new RedditProvider(),
       forum_magnum: providers?.forum_magnum ?? new ForumMagnumProvider(),
