@@ -386,7 +386,7 @@ export async function runPicker(options: PickerOptions): Promise<PickerResult> {
       else if (key.ctrl && name === "v") model.cycleVisibility();
       else if ((name === "right" || (key.ctrl && name === "]")) && !model.query) model.enter();
       else if (name === "left" && !model.query) model.back();
-      else if (key.ctrl && name === "u") { model.query = ""; model.rebuild(); search(); }
+      else if (key.ctrl && name === "u") { model.clearQuery(); search(); }
       else if (key.ctrl && name === "o") { const c = model.previewChannel(); if (c) model.notice = `would open ${channelUrl(c)}`; }
       else if (key.meta && /^[1-9]$/.test(name)) model.toggleRecent(Number(name));
       else if (name === "backspace") { model.backspace(); search(); }

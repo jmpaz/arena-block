@@ -254,7 +254,9 @@ export class PickerModel {
 
   /** In filter mode the cursor starts on the best match; the create row is one step above it. */
   private resetCursor(): void {
+    const before = this.rows[this.cursor];
     this.rebuild();
+    if (!this.query.trim() && before?.kind === "channel") return this.keepPlace(before.channel.id);
     if (this.mode === "filter") {
       const first = this.rows.findIndex(r => r.kind === "channel");
       this.cursor = first >= 0 ? first : 0;
@@ -266,9 +268,23 @@ export class PickerModel {
   escape(): boolean {
     if (this.showHeld) { this.showHeld = false; this.rebuild(); return false; }
     if (!this.query) return !this.back();
+    this.clearQuery();
+    return false;
+  }
+
+  clearQuery(): void {
+    const before = this.rows[this.cursor];
     this.query = "";
     this.rebuild();
-    return false;
+    if (before?.kind === "channel") this.keepPlace(before.channel.id);
+  }
+
+  /** After the query empties, the cursor stays on the channel it was on, now seen in the full arrangement. */
+  private keepPlace(channelId: number): void {
+    const at = this.rows.findIndex(r => r.kind === "channel" && r.channel.id === channelId);
+    if (at < 0) return;
+    this.cursor = at;
+    this.top = Math.max(0, Math.min(at - Math.floor(this.listRows / 2), this.rows.length - this.listRows));
   }
 
   move(delta: number): void {

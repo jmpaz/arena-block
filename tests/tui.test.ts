@@ -62,6 +62,15 @@ describe("model", () => {
     expect(m.notice).toContain("already in");
   });
 
+  test("clearing the query keeps the cursor on the channel it was on", () => {
+    const m = model();
+    m.type("gardens room");
+    const row = m.rows[m.cursor];
+    m.clearQuery();
+    const after = m.rows[m.cursor];
+    expect(after?.kind === "channel" && row?.kind === "channel" && after.channel.id === row.channel.id).toBe(true);
+  });
+
   test("jump mode keeps the arrangement and moves the cursor to the best match", () => {
     const m = model("jump");
     const before = m.rows.map(r => r.kind === "channel" ? r.channel.id : r.kind);
