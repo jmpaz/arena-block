@@ -8,6 +8,10 @@ public struct BackgroundHTTPResult: Codable, Sendable {
     public var errorCode: Int? = nil
     public var errorDomain: String? = nil
     public var completedAt: Date? = nil
+    public init(status: Int?, body: Data, error: String?, retryAfter: Date?, errorCode: Int? = nil, errorDomain: String? = nil, completedAt: Date? = nil) {
+        self.status = status; self.body = body; self.error = error; self.retryAfter = retryAfter
+        self.errorCode = errorCode; self.errorDomain = errorDomain; self.completedAt = completedAt
+    }
     public var json: JSONValue? { try? JSONDecoder().decode(JSONValue.self, from: body) }
 }
 
