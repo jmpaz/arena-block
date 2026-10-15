@@ -125,7 +125,7 @@ export class PickerView {
     if (this.preview) this.preview.content = this.previewText(thumb);
     const trail = m.path.map(c => truncate(c.title, 14)).join(" › ");
     const fieldText = `${trail ? `${trail} ` : ""}› ${m.query}`;
-    this.renderer.setCursorPosition(Math.min(w - 1, width(fieldText)), 1, true);
+    this.renderer.setCursorPosition(Math.min(w - 1, width(fieldText)) + 1, this.lines[1]!.y + 1, true);
   }
 
   private thumb(): [number, number] {
@@ -197,7 +197,7 @@ export class PickerView {
     const changed = visibility !== c.visibility;
     const parent = m.query.trim() && !m.room ? m.parentOf(c) : undefined;
     const where = m.isMine(c) ? (parent ? `in ${truncate(parent.title, 16)} · ` : "") : `${truncate(c.owner.name, 18)} · `;
-    const state = changed ? `${c.visibility} → ${visibility}` : visibility;
+    const state = changed ? `${c.visibility} to ${visibility}` : visibility;
     const right = `${where}${state}`;
     const kids = m.childrenOf(c).length;
     const count = c.pending ? " new" : c.count === undefined ? "" : ` ${c.count}`;
@@ -233,7 +233,7 @@ export class PickerView {
       return line([dim(`  ${truncate(hint, w - 2)}`)]);
     }
     const chips = this.trayChips(w);
-    const pieces: Piece[] = [ink.plain("→ ")];
+    const pieces: Piece[] = [dim("held ")];
     chips.forEach((chip, i) => {
       if (i) pieces.push(dim(" · "));
       pieces.push(ink[chip.channel.visibility](truncate(chip.channel.title, 24)));
@@ -248,9 +248,9 @@ export class PickerView {
     const selectable = m.rows.filter(r => r.kind === "channel").length;
     const position = m.rows.slice(0, m.cursor + 1).filter(r => r.kind === "channel").length;
     const n = m.held.length;
-    const act: [string, string] = m.block ? ["⏎", n ? `connect ${n}` : "connect"] : ["⏎", "done"];
-    const hints: Array<[string, string]> = m.showHeld ? [["⇧⇥", "all"], act, ["esc", "back"]]
-      : [["⇥", m.block ? "put down" : "pick"], act, ["^y", "copy"], ["esc", "leave"]];
+    const act: [string, string] = m.block ? ["enter", n ? `connect ${n}` : "connect"] : ["enter", "done"];
+    const hints: Array<[string, string]> = m.showHeld ? [["shift-tab", "all"], act, ["esc", "back"]]
+      : [["tab", m.block ? "put down" : "pick"], act, ["^y", "copy"], ["esc", m.rooms.length ? "back" : "leave"]];
     const pieces: Piece[] = [];
     hints.forEach(([key, label], i) => pieces.push(i ? "  " : "", key, dim(` ${label}`)));
     const hintWidth = hints.reduce((sum, [k, l], i) => sum + (i ? 2 : 0) + width(k) + 1 + width(l), 0);
@@ -350,7 +350,7 @@ export async function runPicker(options: PickerOptions): Promise<PickerResult> {
       output.write(`\x1b[${height}A\r\x1b[J`);
       if (outcome && (outcome.destinations.length || outcome.requests.length)) {
         const names = outcome.destinations.map(c => c.title).join(", ");
-        if (names) output.write(`${model.block ? `◆ ${model.block.title} → ` : "→ "}${names}\n`);
+        if (names) output.write(`${model.block ? `◆ ${model.block.title}  into ` : "picked "}${names}\n`);
         for (const request of outcome.requests) {
           const body = request.body ? ` ${JSON.stringify(request.body)}` : "";
           output.write(`\x1b[2m  would send ${truncate(`${request.method} ${request.path}${body}`, columns - 14)}\x1b[22m\n`);
@@ -459,6 +459,7 @@ export async function runPicker(options: PickerOptions): Promise<PickerResult> {
     });
 
     redraw();
+    setTimeout(redraw, 20);
   });
   return result;
 }
