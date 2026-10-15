@@ -15,7 +15,7 @@
           src = ./.;
           filter = path: type:
             let base = baseNameOf path;
-            in !(base == ".git" || base == "node_modules" || base == "result" || base == "dist" || base == ".build" || base == "DerivedData" || base == ".swiftpm" || base == "Local.xcconfig" || base == ".DS_Store"
+            in !(base == ".git" || base == "node_modules" || base == "result" || base == "dist" || base == ".build" || base == "DerivedData" || base == ".swiftpm" || base == "Local.xcconfig" || base == ".DS_Store" || base == "__pycache__"
               || pkgs.lib.hasSuffix ".xcodeproj" base || pkgs.lib.hasSuffix ".xcworkspace" base);
         };
         nodeModulesHash = {
@@ -79,6 +79,11 @@
             browserExtension.overrideAttrs (_: {
               ARENA_BLOCK_CHROME_PUBLIC_KEY = chromePublicKey;
             });
+          passthru.withBrowserConfig = { chromePublicKey, oauthClientId ? "" }:
+            browserExtension.overrideAttrs (_: {
+              ARENA_BLOCK_CHROME_PUBLIC_KEY = chromePublicKey;
+              ARENA_BLOCK_OAUTH_CLIENT_ID = oauthClientId;
+            });
           nativeBuildInputs = [ pkgs.bun pkgs.zip ];
           buildPhase = ''
             runHook preBuild
@@ -91,18 +96,28 @@
             target="$out/share/arena-block-extension"
             mkdir -p "$target"
             cp -R extension/dist/chrome extension/dist/firefox "$target/"
+            cp ${pkgs.writeText "arena-block-extension-release.json" (builtins.toJSON {
+              version = metadata.version;
+              revision = self.rev or (self.dirtyRev or null);
+              sourceId = builtins.hashString "sha256" (toString source);
+            })} "$target/chrome/release.json"
+            cp "$target/chrome/release.json" "$target/firefox/release.json"
             find "$target/chrome" "$target/firefox" -type f -exec touch -t 198001010000.00 {} +
             (cd "$target/chrome" && find . -type f -print | LC_ALL=C sort | zip -q -X "$target/chrome.zip" -@)
             (cd "$target/firefox" && find . -type f -print | LC_ALL=C sort | zip -q -X "$target/firefox-unsigned.zip" -@)
             runHook postInstall
           '';
         };
+        extensionManager = pkgs.writeShellScriptBin "arena-block-extension-manage" ''
+          exec ${pkgs.python3}/bin/python3 ${./scripts/extension-deploy.py} "$@"
+        '';
       in {
         packages = {
           default = arenaBlock;
           arena-block = arenaBlock;
           node-modules = nodeModules;
           browser-extension = browserExtension;
+          extension-manager = extensionManager;
         };
         apps.default = {
           type = "app";
@@ -119,6 +134,15 @@
           bun test --max-concurrency=4 --timeout=30000
           arena-block --help >/dev/null
           arena-block version >/dev/null
+          touch "$out"
+        '';
+        checks.extension-deployment = pkgs.runCommand "arena-block-extension-deployment-check" {
+          nativeBuildInputs = [ pkgs.python3 ];
+        } ''
+          cp -R ${source} source
+          chmod -R u+w source
+          cd source
+          python3 -m unittest discover -s tests -p 'extension_deploy_test.py'
           touch "$out"
         '';
         devShells.default = pkgs.mkShell {
