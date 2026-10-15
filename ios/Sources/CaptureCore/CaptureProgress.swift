@@ -94,7 +94,7 @@ public enum CaptureSourceAccess {
         }
     }
     public static func message(_ problem: String) -> String {
-        redditDenied(problem) ? "Share the page from Safari to Capture, or import a browser capture file. A pasted link does not include the browser record." : problem
+        redditDenied(problem) ? "Reddit didn’t allow Capture to read this link. Open the post or comment in Safari, then choose Share → Capture." : problem
     }
 }
 

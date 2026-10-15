@@ -53,7 +53,7 @@ final class ShareViewController: UIViewController {
                     let value = try await provider.loadItem(forTypeIdentifier: UTType.json.identifier)
                     if let url = value as? URL { try session.receiveBrowserCaptureFile(url) }
                     else if let data = value as? Data, data.count <= 2 * 1024 * 1024, let json = String(data: data, encoding: .utf8) { try session.receiveBrowserCapture(json) }
-                    else { throw CaptureError.message("Expected a browser capture JSON file under 2 MiB") }
+                    else { throw CaptureError.message("Couldn’t read the shared file. Share the page from Safari instead.") }
                     return
                 } catch { session.reportInputFailure(error.localizedDescription); return }
             }
@@ -66,7 +66,7 @@ final class ShareViewController: UIViewController {
                         let value = try await provider.loadItem(forTypeIdentifier: UTType.url.identifier)
                         if let url = value as? URL {
                             if url.isFileURL {
-                                guard url.pathExtension.lowercased() == "json" else { throw CaptureError.message("Choose a browser capture JSON file.") }
+                                guard url.pathExtension.lowercased() == "json" else { throw CaptureError.message("Couldn’t read the shared file. Share the page from Safari instead.") }
                                 try session.receiveBrowserCaptureFile(url); return
                             }
                             urls.append(url)

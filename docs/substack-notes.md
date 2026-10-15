@@ -13,8 +13,8 @@ in the extension reads the selected Note using existing scripting and active-tab
 access. Safari's Share action passes the selected page to Capture. A refused read,
 challenge page or incomplete root stops capture.
 
-Use **Export browser capture** to move a record to the CLI or native Capture's
-**Import browser capture**. Repeat `--substack-capture` for ordered roots. Without
+Use **Export browser capture** to move a record to the CLI or share its file to
+native Capture. Repeat `--substack-capture` for ordered roots. Without
 source arguments, the files supply their source URLs. Note IDs identify aliases;
 unrelated or duplicate files are errors.
 

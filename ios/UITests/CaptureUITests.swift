@@ -40,6 +40,7 @@ final class CaptureUITests: XCTestCase {
 
     func testEmptyCaptureKeepsPasteAndDestinationVisible() {
         let app = launch("empty")
+        XCTAssertFalse(app.buttons["Import browser capture"].exists)
         XCTAssertTrue(app.descendants(matching: .any)["capture.source.1"].firstMatch.exists)
         XCTAssertTrue(app.buttons["capture.destinations"].exists)
         XCTAssertFalse(app.navigationBars.buttons["Save"].isEnabled)

@@ -1405,13 +1405,13 @@ public final class CaptureSession {
     }
 
     public func receiveBrowserCapture(_ json: String) throws {
-        guard json.utf8.count <= 2 * 1024 * 1024 else { throw CaptureError.message("Browser capture exceeds 2 MiB") }
+        guard json.utf8.count <= 2 * 1024 * 1024 else { throw CaptureError.message("This shared page is too large to capture.") }
         let raw = try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any]
         let isSubstack = raw?["schema"] as? String == "arena-block/substack-browser-capture"
         let normalized = try isSubstack ? core().importSubstackCapture(json) : core().importRedditCapture(json)
         guard let object = try JSONSerialization.jsonObject(with: Data(normalized.utf8)) as? [String: Any],
               let source = object["sourceUrl"] as? String, let url = URL(string: source) else {
-            throw CaptureError.message("The browser capture has no source link.")
+            throw CaptureError.message("Couldn’t identify the shared page.")
         }
         if !busy, let current = draft, !hasDurableSubmission(current.id),
            CaptureInput.urls(in: current.input).contains(where: { CaptureInput.canonicalSourceIdentity($0) == CaptureInput.canonicalSourceIdentity(url) }) {
@@ -1423,7 +1423,7 @@ public final class CaptureSession {
             }
             combined.append(object)
             let bytes = try JSONSerialization.data(withJSONObject: combined)
-            guard bytes.count <= 2 * 1024 * 1024 else { throw CaptureError.message("Browser captures exceed 2 MiB") }
+            guard bytes.count <= 2 * 1024 * 1024 else { throw CaptureError.message("These shared pages are too large to capture together.") }
             let replacement = try store.replaceBrowserSnapshot(in: current, recordsJSON: String(decoding: bytes, as: UTF8.self), workspaceID: workspaceID, substack: isSubstack)
             draft = replacement; preview = nil
             resolvedSources.invalidate(); expandedSources.invalidate(); renderedSources.removeAll(); renderedIdentity = nil
@@ -1435,9 +1435,9 @@ public final class CaptureSession {
         let access = url.startAccessingSecurityScopedResource()
         defer { if access { url.stopAccessingSecurityScopedResource() } }
         let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
-        guard size <= 2 * 1024 * 1024 else { throw CaptureError.message("Browser capture file exceeds 2 MiB") }
+        guard size <= 2 * 1024 * 1024 else { throw CaptureError.message("This shared file is too large to capture.") }
         let data = try Data(contentsOf: url, options: [.mappedIfSafe])
-        guard data.count <= 2 * 1024 * 1024, let json = String(data: data, encoding: .utf8) else { throw CaptureError.message("Expected a browser capture JSON file under 2 MiB") }
+        guard data.count <= 2 * 1024 * 1024, let json = String(data: data, encoding: .utf8) else { throw CaptureError.message("Couldn’t read the shared file. Share the page from Safari instead.") }
         try receiveBrowserCapture(json)
     }
 

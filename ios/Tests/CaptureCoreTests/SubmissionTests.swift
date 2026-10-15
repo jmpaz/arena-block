@@ -838,7 +838,7 @@ final class SubmissionTests: XCTestCase {
             var job = try XCTUnwrap(store.value(DeliveryJob.self, account: 0, kind: "delivery", id: id.uuidString))
             XCTAssertEqual(job.preparationFailureStage, .reading)
             XCTAssertEqual(job.state.title, "Couldn’t read source")
-            XCTAssertEqual(CaptureSourceAccess.message(job.problem ?? ""), "Share the page from Safari to Capture, or import a browser capture file. A pasted link does not include the browser record.")
+            XCTAssertEqual(CaptureSourceAccess.message(job.problem ?? ""), "Reddit didn’t allow Capture to read this link. Open the post or comment in Safari, then choose Share → Capture.")
             XCTAssertTrue(job.problem?.contains("HTTP 403") == true)
             XCTAssertTrue(job.permitsEditing)
             XCTAssertNil(job.draft.blockID); XCTAssertNil(job.transferID)

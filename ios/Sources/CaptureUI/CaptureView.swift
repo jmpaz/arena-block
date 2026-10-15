@@ -4,7 +4,6 @@ import CaptureCore
 import ImageIO
 import SwiftUI
 import UIKit
-import UniformTypeIdentifiers
 
 public struct CaptureRootView: View {
     private struct PreviewInvalidationKey: Equatable {
@@ -24,7 +23,6 @@ public struct CaptureRootView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var tab = CaptureTab.capture
     @State private var channels = false
-    @State private var importingReddit = false
     @State private var retryConfirmation = false
     @State private var offeredClipboard = -1
     @State private var historyPath: [UUID] = []
@@ -84,10 +82,6 @@ public struct CaptureRootView: View {
                         .tabItem { Label("Settings", systemImage: "gearshape") }.tag(CaptureTab.settings)
                 }
             }
-        }
-        .fileImporter(isPresented: $importingReddit, allowedContentTypes: [.json]) { result in
-            do { try session.receiveBrowserCaptureFile(result.get()) }
-            catch { session.reportInputFailure(error.localizedDescription) }
         }
         .tint(.accentColor)
         .preferredColorScheme(fixtureColorScheme)
@@ -201,14 +195,6 @@ public struct CaptureRootView: View {
                 }
                 if session.draft?.blockID == nil && !pending && session.draft?.phase != .uncertain {
                   Section {
-                    Button("Import browser capture") { importingReddit = true }
-                        .disabled(locked).accessibilityIdentifier("capture.import-reddit")
-                    if session.draft?.substackCapturesJSON != nil {
-                        Text("Using a retained Substack source snapshot.").font(.footnote).foregroundStyle(.secondary)
-                    }
-                    if session.draft?.redditCapturesJSON != nil {
-                        Text("Using a browser-observed Reddit snapshot.").font(.footnote).foregroundStyle(.secondary)
-                    }
                     ForEach(session.sourceRows.indices, id: \.self) { index in
                         sourcePostRow(at: index)
                         .listRowInsets(EdgeInsets(top: session.sourceRows.count == 1 ? 12 : 6,
