@@ -159,7 +159,7 @@ final class CaptureLifecycleUITests: XCTestCase {
             XCTAssertFalse(app.buttons["capture.toolbar.continue"].exists)
             if mode == "partial" {
                 XCTAssertTrue(element("placement." + rowID.replacingOccurrences(of: "history.capture.", with: "") + ".102", app).exists)
-                XCTAssertTrue(app.staticTexts["1 of 2 channels confirmed"].exists)
+                XCTAssertTrue(app.staticTexts["1 of 3 channels confirmed"].exists)
             }
             if mode == "unknown" {
                 XCTAssertTrue(app.staticTexts["No block has been confirmed. An already sent request may still have reached Are.na."].exists)
