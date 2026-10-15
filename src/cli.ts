@@ -164,7 +164,7 @@ function addCompositionOptions(command: Command, extras = true): Command {
     .option("--media <mode>", "auto, none, all, video, audio (SoundCloud original download), images, indexes (1+4), or refs (1.1,1.4)", "auto")
     .option("--frame <refs>", "use observed source poster frames for selected video refs (1.1,2.1)")
     .option("--video-frame-threshold <seconds>", "auto-use observed poster for videos longer than this (default 600; 1-600)")
-    .option("--thread-expansion <mode>", "auto (single Bluesky, Delvetown, or Forum Magnum comment seed), on (bounded x.com/AT Protocol threads or Forum Magnum replies), or off")
+    .option("--thread-expansion <mode>", "auto (single Bluesky, Delvetown, or Forum Magnum comment seed), on (bounded x.com/AT Protocol threads, Substack author chains, or Forum Magnum replies), or off")
     .option("--media-order <refs>", "complete tile order using stable source refs (2.1,1.2,1.1); includes the first item")
     .option("--audio <mode>", "video-mosaic soundtrack: auto, mix, index (2), or post.media ref (1.2)")
     .option("--quote <mode>", "block, sequence, or omit", "block")

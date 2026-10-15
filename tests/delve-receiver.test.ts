@@ -143,7 +143,7 @@ test("capabilities and Delve save endpoints retain bearer and MCP authorization"
     }
     const headers = { authorization: "Bearer fixture-engine-token" };
     const response = await service.handler(new Request("https://fixture.invalid/v1/version", { headers }));
-    expect((await response.json()).planCapabilities).toEqual(["atproto-post-records-v1", "delve-posts-v1", "bluesky-thread-coverage-v1", "forum-magnum-posts-v1", "expanded-source-count-32-v1", "reddit-browser-records-v1", "substack-browser-records-v1"]);
+    expect((await response.json()).planCapabilities).toEqual(["atproto-post-records-v1", "delve-posts-v1", "bluesky-thread-coverage-v1", "forum-magnum-posts-v1", "expanded-source-count-32-v1", "reddit-browser-records-v1", "substack-browser-records-v1", "substack-public-sources-v2"]);
     const denied = await service.handler(new Request("https://fixture.invalid/v1/mcp-saves", { method: "POST", headers, body: JSON.stringify(input) }));
     expect(denied.status).toBe(403);
     await denied.text();
