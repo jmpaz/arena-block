@@ -159,10 +159,12 @@ public enum CaptureIntent: String, Codable, Sendable { case capture, placements 
 
 /// The selected draft and prior result are independent identities, stored per account and composer.
 public struct CaptureWorkspace: Codable, Sendable {
+    public var shareInvocationID: UUID?
     public var activeDraftID: UUID?
     public var retainedResultID: UUID?
     public var emptySelection: DestinationSelection?
-    public init(activeDraftID: UUID? = nil, retainedResultID: UUID? = nil, emptySelection: DestinationSelection? = nil) {
+    public init(activeDraftID: UUID? = nil, retainedResultID: UUID? = nil, emptySelection: DestinationSelection? = nil, shareInvocationID: UUID? = nil) {
+        self.shareInvocationID = shareInvocationID
         self.activeDraftID = activeDraftID; self.retainedResultID = retainedResultID; self.emptySelection = emptySelection
     }
 }

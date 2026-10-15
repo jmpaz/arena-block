@@ -530,7 +530,7 @@
         return;
       }
       if (!["www.reddit.com", "reddit.com", "old.reddit.com", "new.reddit.com"].includes(location.hostname)) {
-        arguments_.completionFunction({});
+        arguments_.completionFunction({ sourceUrl: location.href });
         return;
       }
       readRedditPage().then((value) => arguments_.completionFunction({ redditCapture: JSON.stringify(value) }), (error) => {

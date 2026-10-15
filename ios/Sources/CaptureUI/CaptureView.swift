@@ -66,7 +66,14 @@ public struct CaptureRootView: View {
                     } else { ConnectView(session: session) }
                 }
             } else if isExtension {
-                NavigationStack { composer }
+                NavigationStack {
+                    if session.receivingShareInput {
+                        ProgressView("Reading link").frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .accessibilityIdentifier("capture.share.loading")
+                            .navigationTitle("Capture").navigationBarTitleDisplayMode(.inline)
+                            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { completion?() } } }
+                    } else { composer }
+                }
             } else {
                 TabView(selection: $tab) {
                     NavigationStack { composer }

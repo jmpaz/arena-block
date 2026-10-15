@@ -30,6 +30,7 @@ public final class CaptureSession {
     var automaticPaste = false
     var autoFrameThresholdSeconds = 600
     var incomingLinks: [String] = []
+    public private(set) var receivingShareInput = false
     var busy = false
     var deliveryRevision = 0
     var transferRevision = 0
@@ -66,6 +67,11 @@ public final class CaptureSession {
     let defaults: UserDefaults
     let container: URL
     private let workspaceID: String
+    private let freshShare: Bool
+    private let shareInvocationID = UUID()
+    private var shareAccounts = Set<Int>()
+    private var sharePendingIDs = Set<UUID>()
+    private var sharePresentationClosed = false
     private let isMainApplication: Bool
     private let allowsLegacyWorkspaceMigration: Bool
     private let initialDefaultMode: DefaultChannelMode
@@ -92,7 +98,12 @@ public final class CaptureSession {
     private var historyReturnDraft: CaptureDraft?
     var isResumingHistory: Bool { historyReturnDraft != nil }
 
-    public init(bundle: Bundle = .main) throws {
+    public init(bundle: Bundle = .main, freshShare: Bool = false) throws {
+        #if DEBUG && targetEnvironment(simulator)
+        let freshShare = freshShare || ProcessInfo.processInfo.environment["CAPTURE_UI_FRESH_SHARE"] == "1"
+        #endif
+        self.freshShare = freshShare
+        receivingShareInput = freshShare
         #if DEBUG && targetEnvironment(simulator)
         let separateFixtureComposer = ProcessInfo.processInfo.environment["CAPTURE_UI_FIXTURE"] != nil && ProcessInfo.processInfo.environment["CAPTURE_UI_COMPOSER"] == "share"
         #else
@@ -147,7 +158,11 @@ public final class CaptureSession {
             let workspace = try store.value(CaptureWorkspace.self, account: fixture.account.id, kind: "workspace", id: workspaceID)
             // A workspace with no active draft is an intentional empty composer.
             // Reopening it must not seed the fixture capture again.
-            if separateFixtureComposer || workspace != nil {
+            if freshShare {
+                let opened = try store.startShareWorkspace(account: fixture.account.id, id: workspaceID, defaultChannel: defaultChannel, invocationID: shareInvocationID)
+                shareAccounts.insert(fixture.account.id)
+                draft = opened.draft; preview = nil; retainedResult = nil
+            } else if separateFixtureComposer || workspace != nil {
                 let opened = try store.openWorkspace(account: fixture.account.id, id: workspaceID, defaultChannel: defaultChannel, migrateLegacy: false)
                 draft = opened.draft; draft?.recoverAfterInterruption(); preview = draft?.previewSnapshot; retainedResult = opened.retainedResult
             } else {
@@ -177,16 +192,26 @@ public final class CaptureSession {
                     try store.save(fixture.draft.id, account: fixture.account.id, kind: "publicationLock", id: "offline-unknown-save")
                 }
             }
-            if let id = workspace?.retainedResultID {
+            if !freshShare, let id = workspace?.retainedResultID {
                 retainedResult = try store.value(CaptureDraft.self, account: fixture.account.id, kind: "draft", id: id.uuidString)
             }
             delivery = try CaptureDelivery(store: store, credentials: credentials, directory: directory.appendingPathComponent("delivery"), group: "capture-fixture", identifier: "capture-fixture", ingestBase: nil)
             try delivery.refreshPreparationFailures()
             refreshDelivery()
-            try restorePlacementEdit()
+            if !freshShare { try restorePlacementEdit() }
             restoreInvalidSourceFailure()
             if let capture = ProcessInfo.processInfo.environment["CAPTURE_UI_REDDIT_CAPTURE"], !capture.isEmpty,
                draft?.redditCapturesJSON == nil { try receiveBrowserCapture(capture) }
+            if freshShare, let outcome = ProcessInfo.processInfo.environment["CAPTURE_UI_SHARE_INTAKE"] {
+                Task {
+                    let delay = min(30_000, max(0, Int(ProcessInfo.processInfo.environment["CAPTURE_UI_SHARE_DELAY_MS"] ?? "1500") ?? 1500))
+                    try? await Task.sleep(for: .milliseconds(delay))
+                    guard !sharePresentationClosed else { return }
+                    if outcome == "error" { reportInputFailure("Couldn’t read the shared link. Share the page again.") }
+                    else if let value = ProcessInfo.processInfo.environment["CAPTURE_UI_SHARE_URL"], let url = URL(string: value) { receive(urls: [url]) }
+                    finishReceivingShareInput()
+                }
+            }
             return
         }
         #endif
@@ -211,6 +236,7 @@ public final class CaptureSession {
     }
 
     func reloadAccount() throws {
+        guard !sharePresentationClosed else { return }
         guard !isPreviewFixture else { return }
         let saved = try store.values(Account.self, account: 0, kind: "account", limit: 1).first
         if saved?.id != account?.id {
@@ -220,6 +246,9 @@ public final class CaptureSession {
             resolution?.cancel(); generation = UUID()
         }
         if let saved, let token = try credentials.read("arena.\(saved.id)") {
+            if freshShare && shareAccounts.contains(saved.id) {
+                try store.requireShareInvocation(shareInvocationID, account: saved.id, workspaceID: workspaceID)
+            }
             account = saved; api = ArenaAPI(token: token)
             defaultChannel = try store.values(Channel.self, account: saved.id, kind: "default", limit: 1).first
             let storedPolicy = try store.value(DefaultChannelPolicy.self, account: saved.id, kind: "defaultPolicy", id: "default")
@@ -237,12 +266,18 @@ public final class CaptureSession {
                 resolution?.cancel(); generation = UUID(); draft = nil; preview = nil
             }
             if draft == nil {
-                let workspace = try store.openWorkspace(account: saved.id, id: workspaceID, defaultChannel: defaultChannel, migrateLegacy: allowsLegacyWorkspaceMigration)
+                let workspace: CaptureWorkspaceContents
+                if freshShare && !shareAccounts.contains(saved.id) {
+                    workspace = try store.startShareWorkspace(account: saved.id, id: workspaceID, defaultChannel: defaultChannel, invocationID: shareInvocationID)
+                    shareAccounts.insert(saved.id)
+                } else {
+                    workspace = try store.openWorkspace(account: saved.id, id: workspaceID, defaultChannel: defaultChannel, migrateLegacy: allowsLegacyWorkspaceMigration, shareInvocationID: freshShare ? shareInvocationID : nil)
+                }
                 draft = workspace.draft; retainedResult = workspace.retainedResult
                 draft?.recoverAfterInterruption()
                 preview = draft?.previewSnapshot
             }
-            try restorePlacementEdit()
+            if !freshShare { try restorePlacementEdit() }
             restoreInvalidSourceFailure()
         } else { account = nil; api = nil; draft = nil; preview = nil; retainedResult = nil; recent = []; cached = []; defaultChannel = nil; defaultPolicy = DefaultChannelPolicy(); autoFrameThresholdSeconds = 600 }
     }
@@ -283,6 +318,7 @@ public final class CaptureSession {
     }
 
     func setDefault(_ channel: Channel, seededPolicy: DefaultChannelPolicy? = nil) throws {
+        guard !sharePresentationClosed else { throw CancellationError() }
         guard let account, channel.can?.addTo == true else { throw CaptureError.message("Choose a channel you can add to.") }
         var policy = seededPolicy ?? defaultPolicy
         if channel.visibility != "private" || channel.owner.id != account.id || channel.owner.type != "User" { policy.provenance = false }
@@ -290,6 +326,7 @@ public final class CaptureSession {
             _ = try CaptureDefaultRoute.destinations(draft.selection, defaultChannel: channel, mode: policy.mode)
         }
         try store.transaction {
+            try store.requireShareInvocation(freshShare ? shareInvocationID : nil, account: account.id, workspaceID: workspaceID)
             try store.save(channel, account: account.id, kind: "default", id: "default")
             try store.save(policy, account: account.id, kind: "defaultPolicy", id: "default")
             try store.save(true, account: account.id, kind: "defaultSeedApplied", id: "default")
@@ -304,7 +341,7 @@ public final class CaptureSession {
     }
 
     private func configureInitialDefault() async {
-        guard !isPreviewFixture, let account, account.id == initialDefaultAccountID,
+        guard !sharePresentationClosed, !isPreviewFixture, let account, account.id == initialDefaultAccountID,
               let identifier = initialDefaultChannelID, identifier > 0, let api else { return }
         do {
             let configured = try store.value(Bool.self, account: account.id, kind: "defaultSeedApplied", id: "default") == true
@@ -315,7 +352,7 @@ public final class CaptureSession {
             guard current.id == account.id else { throw CaptureError.message("The configured default belongs to a different account.") }
             let channel = try CaptureDefaultRoute.verifiedProvenanceChannel(try await api.channel(String(identifier)), accountID: account.id, expectedChannelID: identifier)
             let nowConfigured = try store.value(Bool.self, account: account.id, kind: "defaultSeedApplied", id: "default") == true
-            guard self.account?.id == account.id,
+            guard !sharePresentationClosed, self.account?.id == account.id,
                   CaptureDefaultRoute.shouldApplyInitialDefault(accountID: account.id, configuredAccountID: initialDefaultAccountID,
                                                                targetChannelID: identifier, replacingChannelID: initialReplacedDefaultChannelID,
                                                                currentDefaultID: defaultChannel?.id, alreadyConfigured: nowConfigured) else { return }
@@ -420,12 +457,17 @@ public final class CaptureSession {
     }
 
     func persist(allowReopenUnknown: Bool = false) throws {
+        guard !sharePresentationClosed else { return }
         if isAddingPlacements, let draft {
-            try store.save(CapturePlacementEdit(captureID: draft.id, selection: draft.selection, baseline: placementBaseline), account: draft.accountID, kind: "placementEdit", id: workspaceID)
+            try store.transaction {
+                try store.requireShareInvocation(freshShare ? shareInvocationID : nil, account: draft.accountID, workspaceID: workspaceID)
+                try store.save(CapturePlacementEdit(captureID: draft.id, selection: draft.selection, baseline: placementBaseline), account: draft.accountID, kind: "placementEdit", id: workspaceID)
+            }
             return
         }
         guard var value = draft else { return }
         try store.transaction {
+            try store.requireShareInvocation(freshShare ? shareInvocationID : nil, account: value.accountID, workspaceID: workspaceID)
             guard try store.value(DeletedCapture.self, account: value.accountID, kind: "deletedDraft", id: value.id.uuidString) == nil else {
                 throw CaptureError.message("This draft was deleted. Start a new capture.")
             }
@@ -730,6 +772,7 @@ public final class CaptureSession {
     }
 
     func resolve() {
+        guard !sharePresentationClosed else { return }
         resolution?.cancel()
         let ticket = UUID(); generation = ticket
         guard let draft, !draft.input.isEmpty, draft.blockID == nil,
@@ -933,6 +976,7 @@ public final class CaptureSession {
     }
 
     private func commitSubmission(_ source: CaptureDraft) throws -> UUID {
+        guard !sharePresentationClosed else { throw CancellationError() }
         var approved = source
         approved.requestedChannelIDs = approved.selection.implicitDefault ? [] : approved.selection.channels.map(\.id)
         approved.defaultChannelMode = defaultPolicy.mode
@@ -942,7 +986,12 @@ public final class CaptureSession {
             approved.provenanceChannelID = defaultPolicy.provenance ? defaultChannel.id : nil
             approved.submittedDefaultChannelID = defaultChannel.id
         } else { approved.provenanceChannelID = nil; approved.submittedDefaultChannelID = nil }
-        return try delivery.persistQueuedSubmission(draft: approved)
+        var submittedID = source.id
+        try store.transaction {
+            try store.requireShareInvocation(freshShare ? shareInvocationID : nil, account: source.accountID, workspaceID: workspaceID)
+            submittedID = try delivery.persistQueuedSubmission(draft: approved)
+        }
+        return submittedID
     }
 
     private func continueSubmittedWork(_ id: UUID) {
@@ -1139,7 +1188,14 @@ public final class CaptureSession {
         return job.draft.accountID == account.id && job.canceledAt == nil && job.draft.deliveryState?.canceledAt == nil
     }
 
-    public func finishSharing() { delivery?.finishSharing() }
+    public func finishReceivingShareInput() { receivingShareInput = false }
+
+    public func finishSharing() {
+        sharePresentationClosed = true
+        resolution?.cancel(); generation = UUID()
+        receivingShareInput = false
+        delivery?.finishSharing()
+    }
 
     public func handleBackgroundEvents(identifier: String, completion: @escaping @Sendable () -> Void) {
         #if DEBUG && targetEnvironment(simulator)
@@ -1153,7 +1209,7 @@ public final class CaptureSession {
         catch { completion() }
     }
 
-    public func resumeDelivery() async { guard !isPreviewFixture else { return }; await delivery.resume(); refreshDelivery() }
+    public func resumeDelivery() async { guard !isPreviewFixture, !sharePresentationClosed else { return }; await delivery.resume(); refreshDelivery() }
 
     private func refreshDelivery() {
         defer { deliveryDidChange?() }
@@ -1277,7 +1333,7 @@ public final class CaptureSession {
     }
 
     @discardableResult func newCapture(input: String = "", consumingIncoming: Bool = false) -> Bool {
-        guard let account, !busy else { return false }
+        guard !sharePresentationClosed, let account, !busy else { return false }
         if isAddingPlacements { cancelPlacements() }
         do {
             try persist()
@@ -1300,7 +1356,8 @@ public final class CaptureSession {
                 try store.value(CaptureDraft.self, account: account.id, kind: "draft", id: $0.uuidString)
             }
             let committed = try store.commitNewCapture(next, workspace: workspace, workspaceID: workspaceID,
-                                                        consumingIncoming: consumingIncoming)
+                                                        consumingIncoming: consumingIncoming, incomingIDs: freshShare ? sharePendingIDs : nil,
+                                                        shareInvocationID: freshShare ? shareInvocationID : nil)
             next = committed.draft
             retainedResult = nextRetained; incomingLinks = committed.incoming ?? incomingLinks
             historyReturnDraft = nil
@@ -1325,8 +1382,11 @@ public final class CaptureSession {
     }
 
     func cancelPlacements() {
-        guard !busy, let previous = placementReturnDraft else { return }
-        do { try store.remove(account: previous.accountID, kind: "placementEdit", id: workspaceID) }
+        guard !sharePresentationClosed, !busy, let previous = placementReturnDraft else { return }
+        do { try store.transaction {
+            try store.requireShareInvocation(freshShare ? shareInvocationID : nil, account: previous.accountID, workspaceID: workspaceID)
+            try store.remove(account: previous.accountID, kind: "placementEdit", id: workspaceID)
+        } }
         catch { problem = error.localizedDescription; return }
         placementReturnDraft = nil; placementBaseline = nil
         resolution?.cancel(); generation = UUID()
@@ -1383,10 +1443,11 @@ public final class CaptureSession {
     }
 
     func editSubmission() {
-        guard !busy, let previous = draft else { return }
+        guard !sharePresentationClosed, !busy, let previous = draft else { return }
         do {
             var replacement: CaptureDraft?
             try store.transaction {
+                try store.requireShareInvocation(freshShare ? shareInvocationID : nil, account: previous.accountID, workspaceID: workspaceID)
                 guard let job = try store.value(DeliveryJob.self, account: 0, kind: "delivery", id: previous.id.uuidString),
                       job.permitsEditing else { return }
                 var next = job.draft
@@ -1419,7 +1480,7 @@ public final class CaptureSession {
     }
 
     func retryAfterInspection() {
-        guard !busy, let previous = draft, previous.phase == .uncertain, previous.blockID == nil else { return }
+        guard !sharePresentationClosed, !busy, let previous = draft, previous.phase == .uncertain, previous.blockID == nil else { return }
         do {
             var replacement = previous
             replacement.id = UUID()
@@ -1431,6 +1492,7 @@ public final class CaptureSession {
             replacement.updatedAt = Date()
             replacement.phase = replacement.previewSnapshot == nil ? .editing : .ready
             try store.transaction {
+                try store.requireShareInvocation(freshShare ? shareInvocationID : nil, account: previous.accountID, workspaceID: workspaceID)
                 if var job = try store.value(DeliveryJob.self, account: 0, kind: "delivery", id: previous.id.uuidString) {
                     guard job.stage == .attention, job.transferID == nil, job.draft.blockID == nil else {
                         throw CaptureError.message("Wait until the earlier save has been checked.")
@@ -1445,7 +1507,7 @@ public final class CaptureSession {
                     try store.remove(account: previous.accountID, kind: "publicationLock", id: key)
                 }
                 try store.save(replacement, account: replacement.accountID, kind: "draft", id: replacement.id.uuidString)
-                try store.save(CaptureWorkspace(activeDraftID: replacement.id, retainedResultID: previous.id), account: replacement.accountID, kind: "workspace", id: workspaceID)
+                try store.save(CaptureWorkspace(activeDraftID: replacement.id, retainedResultID: previous.id, shareInvocationID: freshShare ? shareInvocationID : nil), account: replacement.accountID, kind: "workspace", id: workspaceID)
             }
             resolvedSources.invalidate(); expandedSources.invalidate(); renderedSources.removeAll(); renderedIdentity = nil
             resolution?.cancel()
@@ -1459,20 +1521,25 @@ public final class CaptureSession {
     }
 
     func restore(_ value: CaptureDraft) {
-        guard value.accountID == account?.id, !value.isCanceled, !busy else { return }
+        guard !sharePresentationClosed, value.accountID == account?.id, !value.isCanceled, !busy else { return }
         if isAddingPlacements { cancelPlacements() }
         resolvedSources.invalidate(); expandedSources.invalidate(); renderedSources.removeAll(); renderedIdentity = nil
         resolution?.cancel(); generation = UUID(); preview = nil
         do {
-            guard try store.value(DeletedCapture.self, account: value.accountID, kind: "deletedDraft", id: value.id.uuidString) == nil else {
-                throw CaptureError.message("Restore this draft from Deleted captures.")
+            var restored = value
+            try store.transaction {
+                try store.requireShareInvocation(freshShare ? shareInvocationID : nil, account: value.accountID, workspaceID: workspaceID)
+                guard try store.value(DeletedCapture.self, account: value.accountID, kind: "deletedDraft", id: value.id.uuidString) == nil else {
+                    throw CaptureError.message("Restore this draft from Deleted captures.")
+                }
+                restored = try store.value(CaptureDraft.self, account: value.accountID, kind: "draft", id: value.id.uuidString) ?? value
+                guard !restored.isCanceled else { return }
+                restored.recoverAfterInterruption()
+                var workspace = try store.value(CaptureWorkspace.self, account: value.accountID, kind: "workspace", id: workspaceID) ?? CaptureWorkspace()
+                workspace.activeDraftID = restored.id
+                try store.save(workspace, account: value.accountID, kind: "workspace", id: workspaceID)
             }
-            var restored = try store.value(CaptureDraft.self, account: value.accountID, kind: "draft", id: value.id.uuidString) ?? value
             guard !restored.isCanceled else { return }
-            restored.recoverAfterInterruption()
-            var workspace = try store.value(CaptureWorkspace.self, account: value.accountID, kind: "workspace", id: workspaceID) ?? CaptureWorkspace()
-            workspace.activeDraftID = restored.id
-            try store.save(workspace, account: value.accountID, kind: "workspace", id: workspaceID)
             draft = restored; preview = restored.previewSnapshot
             restoreInvalidSourceFailure()
             if draft?.phase == .editing { resolve() }
@@ -1526,14 +1593,15 @@ public final class CaptureSession {
     }
 
     @discardableResult func deleteDrafts(_ ids: [UUID]) throws -> [UUID] {
-        guard let account, !busy else { return [] }
+        guard !sharePresentationClosed, let account, !busy else { return [] }
         if let previous = placementReturnDraft, ids.contains(previous.id) { cancelPlacements() }
         var removed: [UUID] = []
         var next: CaptureWorkspaceContents?
         try store.transaction {
+            try store.requireShareInvocation(freshShare ? shareInvocationID : nil, account: account.id, workspaceID: workspaceID)
             removed = try store.deleteDrafts(ids, account: account.id)
             if let current = draft, removed.contains(current.id) {
-                next = try store.openWorkspace(account: account.id, id: workspaceID, defaultChannel: defaultChannel, migrateLegacy: false)
+                next = try store.openWorkspace(account: account.id, id: workspaceID, defaultChannel: defaultChannel, migrateLegacy: false, shareInvocationID: freshShare ? shareInvocationID : nil)
             }
         }
         if let next {
@@ -1564,6 +1632,7 @@ public final class CaptureSession {
     }
 
     public func receiveBrowserCapture(_ json: String) throws {
+        guard !sharePresentationClosed else { throw CancellationError() }
         guard json.utf8.count <= 2 * 1024 * 1024 else { throw CaptureError.message("This shared page is too large to capture.") }
         let raw = try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any]
         let isSubstack = raw?["schema"] as? String == "arena-block/substack-browser-capture"
@@ -1583,7 +1652,7 @@ public final class CaptureSession {
             combined.append(object)
             let bytes = try JSONSerialization.data(withJSONObject: combined)
             guard bytes.count <= 2 * 1024 * 1024 else { throw CaptureError.message("These shared pages are too large to capture together.") }
-            let replacement = try store.replaceBrowserSnapshot(in: current, recordsJSON: String(decoding: bytes, as: UTF8.self), workspaceID: workspaceID, substack: isSubstack)
+            let replacement = try store.replaceBrowserSnapshot(in: current, recordsJSON: String(decoding: bytes, as: UTF8.self), workspaceID: workspaceID, substack: isSubstack, shareInvocationID: freshShare ? shareInvocationID : nil)
             draft = replacement; preview = nil
             resolvedSources.invalidate(); expandedSources.invalidate(); renderedSources.removeAll(); renderedIdentity = nil
             resolve()
@@ -1602,12 +1671,17 @@ public final class CaptureSession {
 
     public func receive(urls: [URL]) { receive(urls: urls, redditCaptureJSON: nil) }
     private func receive(urls: [URL], redditCaptureJSON: String?, substackCaptureJSON: String? = nil) {
+        guard !sharePresentationClosed else { return }
         var seen = Set<String>()
         let values = urls.map(\.absoluteString).filter { seen.insert($0).inserted }
         guard !values.isEmpty else { return }
         let pending = PendingShare(id: UUID(), urls: values, redditCaptureJSON: redditCaptureJSON, substackCaptureJSON: substackCaptureJSON)
         do {
-            try store.save(pending, account: 0, kind: "incoming", id: pending.id.uuidString)
+            try store.transaction {
+                if freshShare, let account { try store.requireShareInvocation(shareInvocationID, account: account.id, workspaceID: workspaceID) }
+                try store.save(pending, account: 0, kind: "incoming", id: pending.id.uuidString)
+            }
+            if freshShare { sharePendingIDs.insert(pending.id) }
             try refreshIncoming()
             if account != nil && values.count == 1 && !busy { useIncoming(values[0]) }
         } catch { problem = error.localizedDescription }
@@ -1629,10 +1703,15 @@ public final class CaptureSession {
 
     private func readIncomingLinks() throws -> [String] {
         var seen = Set<String>()
-        return try store.values(PendingShare.self, account: 0, kind: "incoming").flatMap(\.urls).filter { seen.insert($0).inserted }
+        return try store.values(PendingShare.self, account: 0, kind: "incoming")
+            .filter { !freshShare || sharePendingIDs.contains($0.id) }
+            .flatMap(\.urls).filter { seen.insert($0).inserted }
     }
 
-    public func reportInputFailure(_ message: String = "Couldn't read the link. Paste it in Capture.") { problem = message }
+    public func reportInputFailure(_ message: String = "Couldn’t read the shared link. Share the page again.") {
+        guard !sharePresentationClosed else { return }
+        problem = message
+    }
 }
 
 enum CaptureVideoChoice: Hashable { case none, video, frame }

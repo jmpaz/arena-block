@@ -30,13 +30,14 @@ extension CaptureRuntime {
 
 extension CaptureStore {
     /// Return replacement state only after the draft and workspace commit together.
-    public func replaceBrowserSnapshot(in current: CaptureDraft, recordsJSON: String, workspaceID: String, substack: Bool = false) throws -> CaptureDraft {
+    public func replaceBrowserSnapshot(in current: CaptureDraft, recordsJSON: String, workspaceID: String, substack: Bool = false, shareInvocationID: UUID? = nil) throws -> CaptureDraft {
         var replacement = current
         if substack { replacement.substackCapturesJSON = recordsJSON }
         else { replacement.redditCapturesJSON = recordsJSON }
         replacement.problem = nil; replacement.originalLinkOnly = nil; replacement.phase = .editing
         replacement.previewSnapshot = nil; replacement.renderPath = nil; replacement.updatedAt = Date()
         try transaction {
+            try requireShareInvocation(shareInvocationID, account: current.accountID, workspaceID: workspaceID)
             if try value(DeletedCapture.self, account: current.accountID, kind: "deletedDraft", id: current.id.uuidString) != nil {
                 throw CaptureError.message("This draft was deleted. Start a new capture.")
             }
@@ -53,12 +54,13 @@ extension CaptureStore {
     }
 
     public func commitNewCapture(_ draft: CaptureDraft, workspace: CaptureWorkspace, workspaceID: String,
-                                 consumingIncoming: Bool) throws -> (draft: CaptureDraft, incoming: [String]?) {
+                                 consumingIncoming: Bool, incomingIDs: Set<UUID>? = nil, shareInvocationID: UUID? = nil) throws -> (draft: CaptureDraft, incoming: [String]?) {
         var next = draft
         var incoming: [String]?
         try transaction {
+            try requireShareInvocation(shareInvocationID, account: next.accountID, workspaceID: workspaceID)
             if consumingIncoming {
-                let pending = try values(PendingShare.self, account: 0, kind: "incoming")
+                let pending = try values(PendingShare.self, account: 0, kind: "incoming").filter { incomingIDs?.contains($0.id) ?? true }
                 let matching = pending.filter { $0.urls.contains(next.input) }
                 // Newest matching snapshot supersedes earlier intake for this URL.
                 next.substackCapturesJSON = matching.first(where: { $0.substackCaptureJSON != nil })?.substackCaptureJSON.map { "[" + $0 + "]" }
