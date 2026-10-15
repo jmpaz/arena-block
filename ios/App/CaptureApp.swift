@@ -135,58 +135,67 @@ final class CaptureApplicationDelegate: NSObject, UIApplicationDelegate {
 @MainActor
 private final class CaptureContinuedCoordinator {
     private weak var session: CaptureSession?
-    private var registered: Set<UUID> = []
-    private var submitted: Set<UUID> = []
+    private var registered: Set<String> = []
+    private var submitted: [UUID: UUID] = [:]
+    private var runningReceipts: [UUID: UUID] = [:]
     private var running: [UUID: BGContinuedProcessingTask] = [:]
     private let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Capture", category: "continued-save")
 
     init(session: CaptureSession) { self.session = session }
 
-    private func identifier(_ id: UUID) -> String {
-        (Bundle.main.bundleIdentifier ?? "capture") + ".save." + id.uuidString
+    private func identifier(_ id: UUID, receipt: UUID) -> String {
+        (Bundle.main.bundleIdentifier ?? "capture") + ".save." + id.uuidString + (receipt == id ? "" : "." + receipt.uuidString)
     }
 
     func registerPersisted() {
         for id in session?.continuedOperationIDs ?? [] {
-            if register(id) { submitted.insert(id) }
+            if let receipt = session?.continuedSaveReceiptID(id), register(id, receipt: receipt) { submitted[id] = receipt }
         }
     }
 
-    private func register(_ id: UUID) -> Bool {
-        guard !registered.contains(id) else { return true }
-        let accepted = BGTaskScheduler.shared.register(forTaskWithIdentifier: identifier(id), using: .main) { [weak self] raw in
+    private func register(_ id: UUID, receipt: UUID) -> Bool {
+        let name = identifier(id, receipt: receipt)
+        guard !registered.contains(name) else { return true }
+        let accepted = BGTaskScheduler.shared.register(forTaskWithIdentifier: name, using: .main) { [weak self] raw in
             MainActor.assumeIsolated {
                 guard let continued = raw as? BGContinuedProcessingTask else { raw.setTaskCompleted(success: false); return }
-                self?.handle(continued, id: id)
+                self?.handle(continued, id: id, receipt: receipt)
             }
         }
-        if accepted { registered.insert(id) }
+        if accepted { registered.insert(name) }
         return accepted
     }
 
     func start(_ id: UUID) {
-        guard UIApplication.shared.applicationState == .active, let session, register(id) else { return }
+        guard UIApplication.shared.applicationState == .active, let session,
+              let receipt = session.continuedSaveReceiptID(id) else { return }
+        // Reusing a capture for placement edits must not submit or clear its
+        // existing continued task. Receipt identities fence later cycles.
+        guard submitted[id] != receipt, runningReceipts[id] != receipt else { return }
+        if let previous = submitted[id] { BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: identifier(id, receipt: previous)) }
+        if let task = running[id] { finish(task, id: id, success: false, releaseClaim: false) }
+        guard register(id, receipt: receipt) else { return }
         do {
-            guard try session.beginContinuedSave(id) else { return }
+            guard try session.beginContinuedSave(id, receiptID: receipt) else { return }
             let fact = session.continuedProgress(id)
-            let request = BGContinuedProcessingTaskRequest(identifier: identifier(id),
+            let request = BGContinuedProcessingTaskRequest(identifier: identifier(id, receipt: receipt),
                 title: fact?.title ?? "Saving to Are.na", subtitle: fact?.subtitle ?? "Checking save")
             request.strategy = .queue
             try BGTaskScheduler.shared.submit(request)
-            submitted.insert(id)
+            submitted[id] = receipt
         } catch {
-            try? session.endContinuedSave(id)
+            try? session.endContinuedSave(id, receiptID: receipt)
             log.error("Continued save could not start: \(error.localizedDescription, privacy: .public)")
         }
     }
 
-    private func handle(_ task: BGContinuedProcessingTask, id: UUID) {
-        guard let session, session.continuedOperationIDs.contains(id) else {
+    private func handle(_ task: BGContinuedProcessingTask, id: UUID, receipt: UUID) {
+        guard let session, session.continuedOperationIDs.contains(id), session.continuedSaveReceiptID(id) == receipt else {
             task.setTaskCompleted(success: false)
             return
         }
-        running[id] = task
-        submitted.insert(id)
+        running[id] = task; runningReceipts[id] = receipt
+        submitted[id] = receipt
         task.expirationHandler = { [weak self, weak task] in
             let persistPause = {
                 MainActor.assumeIsolated {
@@ -199,25 +208,26 @@ private final class CaptureContinuedCoordinator {
             if Thread.isMainThread { persistPause() }
             else { DispatchQueue.main.sync(execute: persistPause) }
         }
-        session.activateContinuedSave(id)
+        session.activateContinuedSave(id, receiptID: receipt)
         refresh(id)
         Task { await session.resumeDelivery() }
     }
 
     func refresh() {
         for id in Array(running.keys) { refresh(id) }
-        for id in Array(submitted) where running[id] == nil {
+        for (id, receipt) in submitted where running[id] == nil {
             let fact = session?.continuedProgress(id)
             if fact == nil || fact?.isDone == true || fact?.needsAttention == true {
-                BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: identifier(id))
-                submitted.remove(id)
-                try? session?.endContinuedSave(id)
+                BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: identifier(id, receipt: receipt))
+                submitted.removeValue(forKey: id)
+                try? session?.endContinuedSave(id, receiptID: receipt)
             }
         }
     }
 
     private func refresh(_ id: UUID) {
-        guard let task = running[id] else { return }
+        guard let task = running[id], let receipt = runningReceipts[id] else { return }
+        guard session?.continuedSaveReceiptID(id) == receipt || session?.continuedProgress(id)?.isDone == true else { finish(task, id: id, success: false, releaseClaim: false); return }
         guard let fact = session?.continuedProgress(id) else { finish(task, id: id, success: false); return }
         task.progress.totalUnitCount = fact.isQuantifiable ? fact.totalUnits : 0
         task.progress.completedUnitCount = fact.completedUnits
@@ -227,31 +237,32 @@ private final class CaptureContinuedCoordinator {
     }
 
     private func expire(_ task: BGContinuedProcessingTask, id: UUID) {
-        guard running[id] === task else { return }
+        guard running[id] === task, let receipt = runningReceipts[id] else { return }
         do {
-            try session?.pauseContinuedSave(id)
+            try session?.pauseContinuedSave(id, receiptID: receipt)
             finish(task, id: id, success: false)
         } catch {
             // Retain the durable claim if SQLite could not record Stop. No
             // unowned continuation may issue another mutation.
-            session?.deactivateContinuedSave(id)
+            session?.deactivateContinuedSave(id, receiptID: receipt)
             log.error("Could not persist continued-save pause: \(error.localizedDescription, privacy: .public)")
             finish(task, id: id, success: false, releaseClaim: false)
         }
     }
 
     func cancel(_ id: UUID) {
-        BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: identifier(id))
-        submitted.remove(id)
+        if let receipt = submitted[id] { BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: identifier(id, receipt: receipt)) }
+        submitted.removeValue(forKey: id)
         if let task = running[id] { finish(task, id: id, success: false) }
     }
 
     private func finish(_ task: BGContinuedProcessingTask, id: UUID, success: Bool, releaseClaim: Bool = true) {
         guard running[id] === task else { return }
+        let receipt = runningReceipts.removeValue(forKey: id)
         running.removeValue(forKey: id)
-        submitted.remove(id)
+        submitted.removeValue(forKey: id)
         task.expirationHandler = nil
-        if releaseClaim { try? session?.endContinuedSave(id) }
+        if releaseClaim { try? session?.endContinuedSave(id, receiptID: receipt) }
         task.setTaskCompleted(success: success)
     }
 }
@@ -268,7 +279,7 @@ enum ShortcutCaptureMedia: String, AppEnum {
 
 struct SubmitCaptureIntent: AppIntent {
     static var title: LocalizedStringResource = "Save Link to Are.na"
-    static var description = IntentDescription("Save a link to Are.na. Check its progress in Capture's History.")
+    static var description = IntentDescription("Save a link to Are.na. Check its progress in Capture's Active tab.")
     static var openAppWhenRun = false
     @Parameter(title: "URL") var url: URL
     @Parameter(title: "Title") var captureTitle: String?
@@ -279,6 +290,6 @@ struct SubmitCaptureIntent: AppIntent {
     @MainActor func perform() async throws -> some IntentResult & ReturnsValue<String> & ProvidesDialog {
         let session = try CaptureApplicationDelegate.makeSession()
         let id = try session.submitLink(url, title: captureTitle, description: captureDescription, media: media.policy, channelIDs: channelIDs ?? [])
-        return .result(value: id.uuidString, dialog: "Capture queued. Check History for progress.")
+        return .result(value: id.uuidString, dialog: "Capture queued. Open Active to check progress.")
     }
 }

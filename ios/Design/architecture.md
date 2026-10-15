@@ -10,13 +10,13 @@ Keep the source text and protocol records when formatting the block. A UI edit c
 
 `CaptureView` renders the source field, preview, media choices and Add to row. `ChannelPicker` renders search, channel rows and selected destinations. `CaptureSession` applies each action to the draft and persists the updated values through `CaptureStore`.
 
-A manual channel toggle updates the explicit selection. Reset to default calls `resetDestinations()` when a default is configured. With no default, Clear calls `clearDestinations()`. During a queued save, the session retains the submitted selection and disables draft mutation.
+A manual channel toggle updates the explicit selection. Reset to default calls `resetDestinations()` when a default is configured. With no default, Clear calls `clearDestinations()`. After Save, source, writing and media stay frozen. Placement edits keep the same capture UUID and apply a picker delta against the latest durable selection. Already sent or confirmed channels remain protected; unsent choices can be removed. An open picker is persisted separately and never overwrites a running job.
 
 ## Delivery and recovery
 
 Save stores the accepted operation before asynchronous resolution or media work. `CaptureDelivery` acquires the approved source/media, creates the remote block and records the returned ID. It checks the block and requested destinations before displaying completion.
 
-When a create response is lost, the coordinator records uncertainty and checks the retained attempt before another creation request. During placement scans, it keeps the last complete confirmed set until another complete scan returns. History displays that retained state.
+When a create response is lost, the coordinator records uncertainty and checks the retained attempt before another creation request. During placement scans, it keeps the last complete confirmed set until another complete scan returns. Active displays queued, connecting, paused and uncertain saves separately from Drafts and saved History. Source-preparation failures stay with Drafts. Placement changes and completed delivery receipts retain their own audit identities while the capture remains one visible item. Later additive cycles request only new channels, so they do not recreate a historical connection removed in Are.na. Continued-processing claims are fenced by receipt cycle as well as capture UUID.
 
 The app and Share extension read the same account-scoped SQLite data. Signing configuration supplies the app-group and keychain settings. These identifiers determine access to shared storage and credentials; keep them consistent across both targets and app updates.
 

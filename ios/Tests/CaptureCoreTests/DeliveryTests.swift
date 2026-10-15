@@ -520,13 +520,13 @@ final class DeliveryTests: XCTestCase {
             original.titleOverride = "Old approved title"; original.descriptionOverride = "My writing"
             original.media = .all; original.publicationKey = "original-plan"
             let next = try XCTUnwrap(original.addingPlacements())
-            XCTAssertNotEqual(next.id, original.id)
-            XCTAssertTrue(next.selection.channels.isEmpty)
+            XCTAssertEqual(next.id, original.id)
+            XCTAssertEqual(next.selection.channels, original.selection.channels)
             XCTAssertFalse(next.selection.implicitDefault)
             XCTAssertEqual(next.titleOverride, original.titleOverride)
             XCTAssertEqual(next.media, .all)
             XCTAssertNil(next.publicationKey)
-            var selected = next; selected.selection.toggle(original.selection.channels[0])
+            let selected = next
             _ = try delivery.persistSubmission(draft: selected, prepared: .init(payload: [:], update: [:]), media: nil, contentType: nil)
             var job = try XCTUnwrap(store.value(DeliveryJob.self, account: 0, kind: "delivery", id: selected.id.uuidString))
             delivery.consume(try response(.object(["can": .object(["add_to": .bool(true)])])), job: &job)

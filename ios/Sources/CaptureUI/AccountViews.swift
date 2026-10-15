@@ -147,6 +147,7 @@ struct SettingsView: View {
 
 struct DraftsView: View {
     @Bindable var session: CaptureSession
+    var activeOnly = false
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     var resume: (CaptureDraft) -> Void
     var addPlacements: (CaptureDraft) -> Void
@@ -168,20 +169,19 @@ struct DraftsView: View {
     var body: some View {
         List {
             if let problem {
-                ContentUnavailableView("History couldn’t load", systemImage: "exclamationmark.triangle", description: Text(problem))
+                ContentUnavailableView(activeOnly ? "Active captures couldn’t load" : "History couldn’t load", systemImage: "exclamationmark.triangle", description: Text(problem))
                 Button("Try again") { reload() }
             } else if captures.isEmpty {
-                ContentUnavailableView("No captures yet", systemImage: "clock")
+                ContentUnavailableView(activeOnly ? "No active captures" : "No captures yet", systemImage: activeOnly ? "checkmark.circle" : "clock")
             } else if visible.isEmpty { ContentUnavailableView.search(text: query) }
             else {
-                ForEach(visible) { draft in
-                    NavigationLink(value: draft.id) { HistoryRow(draft: draft) }
-                        .accessibilityIdentifier("history.capture.\(draft.id)")
-                        .swipeActions {
-                            if session.canDeleteDraft(draft) {
-                                Button("Delete", role: .destructive) { _ = delete([draft.id]) }
-                            }
-                        }
+                if activeOnly {
+                    Section("Active captures") { captureRows(visible) }
+                } else {
+                    let drafts = visible.filter { $0.isDraftCapture }
+                    let saved = visible.filter { !$0.isDraftCapture }
+                    if !drafts.isEmpty { Section("Drafts") { captureRows(drafts) } }
+                    if !saved.isEmpty { Section("Saved captures") { captureRows(saved) } }
                 }
             }
             if hasMore {
@@ -189,7 +189,7 @@ struct DraftsView: View {
             }
         }
         .contentMargins(.top, 24, for: .scrollContent)
-        .navigationTitle("History")
+        .navigationTitle(activeOnly ? "Active" : "History")
         .navigationBarTitleDisplayMode(dynamicTypeSize.isAccessibilitySize ? .inline : .large)
         .searchable(text: $query, prompt: "Search captures")
         .navigationDestination(for: UUID.self) { id in
@@ -199,14 +199,14 @@ struct DraftsView: View {
             } else { ContentUnavailableView("Capture unavailable", systemImage: "clock") }
         }
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
+            if !activeOnly { ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     Button("Clear drafts", role: .destructive) { clearConfirmation = true }
                         .disabled(!captures.contains(where: { session.canDeleteDraft($0) }))
                     NavigationLink("Deleted captures") { DeletedDraftsView(session: session) }
                 } label: { Image(systemName: "ellipsis.circle") }
                     .accessibilityLabel("History actions")
-            }
+            } }
         }
         .confirmationDialog("Clear drafts?", isPresented: $clearConfirmation, titleVisibility: .visible) {
             Button("Clear drafts", role: .destructive) {
@@ -233,6 +233,18 @@ struct DraftsView: View {
         .onChange(of: session.account?.id) { reload() }
     }
 
+    private func captureRows(_ values: [CaptureDraft]) -> some View {
+        ForEach(values) { draft in
+            NavigationLink(value: draft.id) { HistoryRow(draft: draft) }
+                .accessibilityIdentifier("history.capture.\(draft.id)")
+                .swipeActions {
+                    if session.canDeleteDraft(draft) {
+                        Button("Delete", role: .destructive) { _ = delete([draft.id]) }
+                    }
+                }
+        }
+    }
+
     private func delete(_ ids: [UUID]) -> Bool {
         do {
             removedIDs = try session.deleteDrafts(ids)
@@ -243,7 +255,7 @@ struct DraftsView: View {
 
     private func reload() {
         do {
-            let loaded = try session.savedDrafts(limit: limit + 1)
+            let loaded = try session.savedDrafts(activeOnly: activeOnly, limit: limit + 1)
             hasMore = loaded.count > limit
             captures = Array(loaded.prefix(limit)); problem = nil
         }

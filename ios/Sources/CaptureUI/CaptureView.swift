@@ -26,6 +26,7 @@ public struct CaptureRootView: View {
     @State private var retryConfirmation = false
     @State private var offeredClipboard = -1
     @State private var historyPath: [UUID] = []
+    @State private var activePath: [UUID] = []
     @State private var savedNotice: CaptureDraft?
     @State private var compositionPreviewURL: URL?
     @State private var compositionPreviewProblem: String?
@@ -69,6 +70,15 @@ public struct CaptureRootView: View {
                                     .accessibilityHidden(true)
                             }
                         }.tag(CaptureTab.capture)
+                    NavigationStack(path: $activePath) {
+                        DraftsView(session: session, activeOnly: true, resume: { draft in
+                            session.resumeFromHistory(draft); tab = .capture
+                        }, addPlacements: { draft in
+                            session.addPlacements(to: draft)
+                            if session.isAddingPlacements { tab = .capture }
+                        })
+                    }.tabItem { Label("Active", systemImage: "arrow.triangle.2.circlepath") }
+                        .badge(session.activeCaptureCount).tag(CaptureTab.active)
                     NavigationStack(path: $historyPath) {
                         DraftsView(session: session, resume: { draft in
                             session.resumeFromHistory(draft)
@@ -94,7 +104,7 @@ public struct CaptureRootView: View {
         .onChange(of: session.draft?.input) { _, input in
             if input?.isEmpty == false && session.draft?.phase != .saved { savedNotice = nil }
         }
-        .onChange(of: session.account?.id) { _, _ in savedNotice = nil; historyPath = [] }
+        .onChange(of: session.account?.id) { _, _ in savedNotice = nil; historyPath = []; activePath = [] }
         .onChange(of: scenePhase) { _, phase in
             #if DEBUG
             session.logLockState("scenePhase.\(phase)")
@@ -343,7 +353,7 @@ public struct CaptureRootView: View {
                     } label: { Image(systemName: "plus") }
                         .disabled(session.busy || session.draft?.hasDraftContent != true)
                         .accessibilityLabel("New capture")
-                        .accessibilityHint("Keep this capture in History and start with an empty link")
+                        .accessibilityHint("Keep this capture and start with an empty link")
                         .accessibilityIdentifier("capture.new")
                 }
             }
@@ -367,7 +377,7 @@ public struct CaptureRootView: View {
                     }
                     if isExtension { Button("Done") { completion?() } }
                 } else {
-                    Button(session.draft?.isPlacementOnly == true ? "Add" : "Save") {
+                    Button(session.isAddingPlacements ? "Apply" : "Save") {
                         focusedField = nil
                         Task { await session.save() }
                     }
@@ -971,7 +981,7 @@ public struct CaptureRootView: View {
 
 private enum CaptureField: Hashable { case source(Int), title, description }
 
-private enum CaptureTab: Hashable { case capture, history, settings }
+private enum CaptureTab: Hashable { case capture, active, history, settings }
 
 func blockURL(_ id: Int) -> URL { URL(string: "https://www.are.na/block/\(id)")! }
 

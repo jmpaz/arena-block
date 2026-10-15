@@ -171,6 +171,10 @@ struct PreviewFixtures {
             sample.problem = "The earlier save could not be confirmed."
             sample.publicationKey = "offline-unknown-save"
             sample.deliveryState = CaptureDeliveryState(operationID: sample.id, stage: .attention)
+        case "connecting":
+            sample.selection.toggle(channels[1])
+            sample.phase = .checking; sample.blockID = saved.blockID; sample.savedBlock = saved.savedBlock
+            sample.deliveryState = CaptureDeliveryState(operationID: sample.id, stage: .connections, confirmedChannelIDs: [101], contentVerified: true)
         case "partial":
             sample.selection.toggle(channels[1]); sample.selection.toggle(channels[2])
             sample.phase = .checking; sample.blockID = saved.blockID; sample.savedBlock = saved.savedBlock

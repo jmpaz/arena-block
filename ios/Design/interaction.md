@@ -16,11 +16,11 @@ The picker shows the current capture preview and selected channel names. Its che
 
 ## Submitted work
 
-A valid Save stores the approved input and UUID before resolution starts. During that operation, source, block, media and destination edits remain disabled. The UI shows observed stages and complete confirmed destination counts.
+A valid Save stores the approved input and UUID before resolution starts. During that operation, source, block and media edits remain disabled. Once the block has been verified, Add to channels is available while its placements are still connecting. Apply updates the original capture; it does not add another History item. The UI shows observed stages and complete confirmed destination counts.
 
-If a create response is ambiguous, keep the attempt visible and inspect its status. A new save would use a new UUID. History preserves the retained operation for checking and recovery.
+If a create response is ambiguous, keep the attempt visible and inspect its status. A new save would use a new UUID. Active keeps submitted work and interrupted saves easy to find, with a count in the tab bar. History separates unsubmitted Drafts from saved captures and retains their outcomes.
 
-Add placements uses the stored block ID. The confirmation action creates a separate retained operation for the chosen additions. Cancelling the picker returns to the current capture.
+Add to channels uses the stored block ID. An open picker and its baseline survive relaunch. Apply merges its changes with newer choices; Cancel discards them. Sent or confirmed channels stay selected and can be disconnected in Are.na. Unsent choices can be removed locally. Each accepted amendment and completed receipt is retained for audit under the same logical capture. Later additions do not restore connections removed outside Capture. Older placement entries without a parent identity remain separate; the app does not guess which historical captures to merge.
 
 ## Testing
 

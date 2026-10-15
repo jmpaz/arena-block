@@ -124,10 +124,11 @@ extension CaptureDraft {
 
     public func addingPlacements() -> CaptureDraft? {
         guard canAddPlacements else { return nil }
-        var next = CaptureDraft(accountID: accountID, defaultChannel: nil, input: input)
-        next.intent = .placements; next.phase = .ready; next.blockID = blockID
-        next.media = media; next.titleOverride = titleOverride; next.descriptionOverride = descriptionOverride
-        next.previewSnapshot = previewSnapshot; next.savedBlock = savedBlock; next.renderPath = renderPath
+        var next = self
+        // Keep the logical capture and its block identity. Delivery applies the
+        // selection to the latest durable state, not this potentially old copy.
+        next.intent = .placements; next.phase = .ready
+        next.problem = nil; next.publicationKey = nil
         return next
     }
 }

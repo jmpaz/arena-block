@@ -10,6 +10,30 @@ public struct DeletedCapture: Codable, Identifiable, Sendable {
     }
 }
 
+/// A placement edit belongs to a capture, rather than another history item.
+/// The prior snapshot retains the receipt and intent before each amendment.
+public struct CapturePlacementChange: Codable, Identifiable, Sendable {
+    public var id: UUID
+    public var captureID: UUID
+    public var before: CaptureDraft
+    public var selectedChannels: [Channel]
+    public var changedAt: Date
+    public init(before: CaptureDraft, selectedChannels: [Channel]) {
+        id = UUID(); captureID = before.id; self.before = before
+        self.selectedChannels = selectedChannels; changedAt = Date()
+    }
+}
+
+/// A picker can survive relaunch without changing an accepted save until Apply.
+public struct CapturePlacementEdit: Codable, Sendable {
+    public var captureID: UUID
+    public var selection: DestinationSelection
+    public var baseline: DestinationSelection?
+    public init(captureID: UUID, selection: DestinationSelection, baseline: DestinationSelection? = nil) {
+        self.captureID = captureID; self.selection = selection; self.baseline = baseline
+    }
+}
+
 extension CaptureDraft {
     public var hasDraftContent: Bool {
         !input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -21,6 +45,14 @@ extension CaptureDraft {
         [.editing, .preparing, .ready, .failed].contains(phase)
     }
 
+    public var isActiveCapture: Bool {
+        if deliveryState?.preparationFailureStage != nil { return false }
+        return [.queued, .creating, .checking, .uncertain].contains(phase)
+            || (deliveryState != nil && deliveryState?.stage != .done)
+    }
+
+    public var isDraftCapture: Bool { isUnsubmittedDraft || deliveryState?.preparationFailureStage != nil }
+
     public var hasUserEdits: Bool { titleOverride != nil || descriptionOverride != nil }
 
     public func automaticDraftExpired(at date: Date) -> Bool {
@@ -31,6 +63,19 @@ extension CaptureDraft {
 
 extension CaptureStore {
     private struct DeliveryCompletion: Decodable { var stage: String }
+
+    /// Filter before limiting so older live work cannot be buried by saved history.
+    public func captureHistory(account: Int, activeOnly: Bool? = nil, limit: Int = 100) throws -> [CaptureDraft] {
+        guard limit > 0 else { return [] }
+        var captures: [CaptureDraft] = []
+        for id in try recordIDs(account: account, kind: "draft") {
+            guard let draft = try value(CaptureDraft.self, account: account, kind: "draft", id: id), !draft.input.isEmpty,
+                  activeOnly == nil || draft.isActiveCapture == activeOnly else { continue }
+            captures.append(draft)
+            if captures.count == limit { break }
+        }
+        return captures
+    }
 
     public func canDeleteDraft(_ draft: CaptureDraft) throws -> Bool {
         if draft.phase == .saved {
@@ -61,7 +106,7 @@ extension CaptureStore {
             for id in ids {
                 guard let draft = try value(CaptureDraft.self, account: account, kind: "draft", id: id.uuidString) else { continue }
                 guard try canDeleteDraft(draft) else {
-                    throw CaptureError.message("This capture has been submitted. Review its save in History.")
+                    throw CaptureError.message("This capture has been submitted. Review its save in Active.")
                 }
                 try save(DeletedCapture(draft: draft), account: account, kind: "deletedDraft", id: id.uuidString)
                 try remove(account: account, kind: "draft", id: id.uuidString)

@@ -85,6 +85,7 @@ public final class CaptureSession {
     private var expandedQuotes = false
     private var previousQuoteDepth: CaptureQuoteDepth?
     private var placementReturnDraft: CaptureDraft?
+    private var placementBaseline: DestinationSelection?
     var isAddingPlacements: Bool { placementReturnDraft != nil }
     private var historyReturnDraft: CaptureDraft?
     var isResumingHistory: Bool { historyReturnDraft != nil }
@@ -160,6 +161,10 @@ public final class CaptureSession {
                         prepared: .init(payload: [:], update: [:]), submission: try .init(draft: fixture.draft),
                         attemptedChannelIDs: [], resumeStage: .reading, stage: .attention, problem: fixture.draft.problem)
                     try store.save(job, account: 0, kind: "delivery", id: job.id.uuidString)
+                } else if mode == "connecting" {
+                    let job = DeliveryJob(id: fixture.draft.id, draft: fixture.draft, prepared: .init(payload: [:], update: [:]),
+                        attemptedChannelIDs: [101], contentVerified: true, stage: .connections, connected: [101], block: fixture.draft.savedBlock)
+                    try store.save(job, account: 0, kind: "delivery", id: job.id.uuidString)
                 } else if mode == "partial" {
                     let job = DeliveryJob(id: fixture.draft.id, draft: fixture.draft, prepared: .init(payload: [:], update: [:]), resumeStage: .connections, contentVerified: true, stage: .attention, connected: [102], block: fixture.draft.savedBlock, problem: fixture.draft.problem)
                     try store.save(job, account: 0, kind: "delivery", id: job.id.uuidString)
@@ -175,6 +180,7 @@ public final class CaptureSession {
             delivery = try CaptureDelivery(store: store, credentials: credentials, directory: directory.appendingPathComponent("delivery"), group: "capture-fixture", identifier: "capture-fixture", ingestBase: nil)
             try delivery.refreshPreparationFailures()
             refreshDelivery()
+            try restorePlacementEdit()
             restoreInvalidSourceFailure()
             if let capture = ProcessInfo.processInfo.environment["CAPTURE_UI_REDDIT_CAPTURE"], !capture.isEmpty,
                draft?.redditCapturesJSON == nil { try receiveBrowserCapture(capture) }
@@ -232,6 +238,7 @@ public final class CaptureSession {
                 draft?.recoverAfterInterruption()
                 preview = draft?.previewSnapshot
             }
+            try restorePlacementEdit()
             restoreInvalidSourceFailure()
         } else { account = nil; api = nil; draft = nil; preview = nil; retainedResult = nil; recent = []; cached = []; defaultChannel = nil; defaultPolicy = DefaultChannelPolicy(); autoFrameThresholdSeconds = 600 }
     }
@@ -324,7 +331,7 @@ public final class CaptureSession {
 
     var actualDestinations: [Channel] {
         guard let draft else { return [] }
-        if [.queued, .creating, .checking, .uncertain, .saved].contains(draft.phase) { return draft.selection.channels }
+        if isAddingPlacements || [.queued, .creating, .checking, .uncertain, .saved].contains(draft.phase) { return draft.selection.channels }
         return (try? CaptureDefaultRoute.destinations(draft.selection, defaultChannel: defaultChannel, mode: defaultPolicy.mode)) ?? []
     }
 
@@ -349,7 +356,8 @@ public final class CaptureSession {
 
     func toggle(_ channel: Channel) {
         guard !busy, [.editing, .preparing, .ready, .failed].contains(draft?.phase ?? .saved) else { return }
-        let reservesDefault = defaultPolicy.mode == .always && defaultChannel != nil
+        guard !isAddingPlacements || !draft!.selection.contains(channel) || canRemovePlacement(channel) else { return }
+        let reservesDefault = !isAddingPlacements && defaultPolicy.mode == .always && defaultChannel != nil
             && draft?.selection.channels.contains(where: { $0.id == defaultChannel?.id }) != true && channel.id != defaultChannel?.id
         draft?.selection.toggle(channel, maxCount: reservesDefault ? 19 : 20)
         persistOrReport()
@@ -357,12 +365,14 @@ public final class CaptureSession {
 
     func resetDestinations() {
         guard !busy, [.editing, .preparing, .ready, .failed].contains(draft?.phase ?? .saved) else { return }
+        if isAddingPlacements { resetPendingPlacements(); return }
         draft?.selection = DestinationSelection(defaultChannel: defaultChannel)
         persistOrReport()
     }
 
     func clearDestinations() {
         guard !busy, [.editing, .preparing, .ready, .failed].contains(draft?.phase ?? .saved) else { return }
+        if isAddingPlacements { resetPendingPlacements(); return }
         draft?.selection = DestinationSelection(defaultChannel: nil)
         persistOrReport()
     }
@@ -378,13 +388,30 @@ public final class CaptureSession {
     func canAddDestination(_ channel: Channel) -> Bool {
         guard let draft else { return false }
         if draft.selection.contains(channel) || draft.selection.implicitDefault { return true }
-        let reservesDefault = defaultPolicy.mode == .always && defaultChannel != nil
+        let reservesDefault = !isAddingPlacements && defaultPolicy.mode == .always && defaultChannel != nil
             && !draft.selection.channels.contains(where: { $0.id == defaultChannel?.id }) && channel.id != defaultChannel?.id
         return draft.selection.channels.count < (reservesDefault ? 19 : 20)
     }
 
+    func canRemovePlacement(_ channel: Channel) -> Bool {
+        guard isAddingPlacements, let draft else { return true }
+        return (try? delivery.protectedPlacementIDs(draft.id, account: draft.accountID).contains(channel.id)) == false
+    }
+
+    private func resetPendingPlacements() {
+        guard let current = draft else { return }
+        let protected = (try? delivery.protectedPlacementIDs(current.id, account: current.accountID)) ?? Set(current.selection.channels.map(\.id))
+        var selection = DestinationSelection(defaultChannel: nil)
+        for channel in current.selection.channels where protected.contains(channel.id) { selection.toggle(channel) }
+        draft?.selection = selection
+        persistOrReport()
+    }
+
     func persist(allowReopenUnknown: Bool = false) throws {
-        guard !isAddingPlacements else { return }
+        if isAddingPlacements, let draft {
+            try store.save(CapturePlacementEdit(captureID: draft.id, selection: draft.selection, baseline: placementBaseline), account: draft.accountID, kind: "placementEdit", id: workspaceID)
+            return
+        }
         guard var value = draft else { return }
         try store.transaction {
             guard try store.value(DeletedCapture.self, account: value.accountID, kind: "deletedDraft", id: value.id.uuidString) == nil else {
@@ -887,6 +914,7 @@ public final class CaptureSession {
     var canSubmitCapture: Bool {
         guard !busy, account != nil, let draft, canSaveToDestinations,
               [.editing, .preparing, .ready, .failed].contains(draft.phase) else { return false }
+        if isAddingPlacements { return draft.selection.channels.map(\.id) != placementBaseline?.channels.map(\.id) }
         if CaptureSourceAccess.redditDenied(draft.problem) { return false }
         return draft.isPlacementOnly ? draft.blockID != nil :
             (try? CaptureInput.selectedPosts(draft.input, roles: draft.sourceRoles)) != nil
@@ -921,6 +949,20 @@ public final class CaptureSession {
 
     @discardableResult func save() async -> Bool {
         guard let source = draft else { return false }
+        if isAddingPlacements {
+            guard !busy else { return false }
+            busy = true; defer { busy = false }
+            do {
+                let id = try delivery.amendPlacements(source.id, account: source.accountID, selection: source.selection, baseline: placementBaseline)
+                try store.remove(account: source.accountID, kind: "placementEdit", id: workspaceID)
+                placementReturnDraft = nil; placementBaseline = nil
+                refreshDelivery(); persistOrReport()
+                // A paused/interrupted operation retains its explicit retry or
+                // Continue action; editing channels does not consent to retry.
+                if draft?.deliveryState?.stage != .attention && draft?.deliveryState?.stopRequested != true { continueSubmittedWork(id) }
+                return true
+            } catch { problem = error.localizedDescription; return false }
+        }
         if hasDurableSubmission(source.id) { return true }
         guard canSubmitCapture else { return false }
         busy = true; defer { busy = false }
@@ -994,18 +1036,23 @@ public final class CaptureSession {
 
     public var continuedOperationIDs: [UUID] { (try? delivery.continuedOperationIDs()) ?? [] }
 
-    public func beginContinuedSave(_ id: UUID) throws -> Bool { try delivery.beginContinued(id) }
+    public func continuedSaveReceiptID(_ id: UUID) -> UUID? {
+        guard let job = try? store.value(DeliveryJob.self, account: 0, kind: "delivery", id: id.uuidString) else { return nil }
+        return job.receiptID ?? job.id
+    }
 
-    public func activateContinuedSave(_ id: UUID) { delivery.activateContinued(id) }
+    public func beginContinuedSave(_ id: UUID, receiptID: UUID? = nil) throws -> Bool { try delivery.beginContinued(id, receiptID: receiptID) }
 
-    public func deactivateContinuedSave(_ id: UUID) { delivery.deactivateContinued(id) }
+    public func activateContinuedSave(_ id: UUID, receiptID: UUID? = nil) { delivery.activateContinued(id, receiptID: receiptID) }
 
-    public func endContinuedSave(_ id: UUID) throws { try delivery.endContinued(id) }
+    public func deactivateContinuedSave(_ id: UUID, receiptID: UUID? = nil) { delivery.deactivateContinued(id, receiptID: receiptID) }
+
+    public func endContinuedSave(_ id: UUID, receiptID: UUID? = nil) throws { try delivery.endContinued(id, receiptID: receiptID) }
 
     public func pauseUnclaimedContinuedSaves() throws -> [UUID] { try delivery.pauseUnclaimedContinued() }
 
-    public func pauseContinuedSave(_ id: UUID) throws {
-        try delivery.requestStop(id)
+    public func pauseContinuedSave(_ id: UUID, receiptID: UUID? = nil) throws {
+        try delivery.requestStop(id, receiptID: receiptID)
         refreshDelivery()
     }
 
@@ -1048,7 +1095,7 @@ public final class CaptureSession {
         defer { deliveryDidChange?() }
         deliveryRevision += 1
         scheduleRecovery?()
-        guard let current = draft else { return }
+        guard let current = draft, !isAddingPlacements else { return }
         if let stored = try? store.value(CaptureDraft.self, account: current.accountID, kind: "draft", id: current.id.uuidString),
            [.queued, .creating, .checking, .uncertain, .saved].contains(stored.phase) || stored.problem != nil {
             draft = stored; preview = stored.previewSnapshot
@@ -1188,16 +1235,20 @@ public final class CaptureSession {
                   let next = stored.addingPlacements() else { return }
             try persist()
             placementReturnDraft = draft
+            placementBaseline = stored.selection
             resolvedSources.invalidate(); expandedSources.invalidate(); renderedSources.removeAll(); renderedIdentity = nil
             resolution?.cancel(); generation = UUID(); draft = next; preview = next.previewSnapshot; progress = ""; problem = nil
+            try persist()
         } catch { problem = error.localizedDescription }
     }
 
     func cancelPlacements() {
         guard !busy, let previous = placementReturnDraft else { return }
-        placementReturnDraft = nil
+        do { try store.remove(account: previous.accountID, kind: "placementEdit", id: workspaceID) }
+        catch { problem = error.localizedDescription; return }
+        placementReturnDraft = nil; placementBaseline = nil
         resolution?.cancel(); generation = UUID()
-        draft = previous; preview = previous.previewSnapshot; progress = ""; problem = nil
+        draft = (try? store.value(CaptureDraft.self, account: previous.accountID, kind: "draft", id: previous.id.uuidString)) ?? previous; preview = previous.previewSnapshot; progress = ""; problem = nil
         if [.editing, .preparing].contains(previous.phase), !previous.input.isEmpty { resolve() }
     }
 
@@ -1345,17 +1396,25 @@ public final class CaptureSession {
         } catch { problem = error.localizedDescription }
     }
 
-    func savedDrafts(limit: Int = 100) throws -> [CaptureDraft] {
+    private func restorePlacementEdit() throws {
+        guard !isAddingPlacements, let account, let current = draft,
+              let edit = try store.value(CapturePlacementEdit.self, account: account.id, kind: "placementEdit", id: workspaceID),
+              let stored = try store.value(CaptureDraft.self, account: account.id, kind: "draft", id: edit.captureID.uuidString),
+              var next = stored.addingPlacements() else { return }
+        placementReturnDraft = current; placementBaseline = edit.baseline ?? stored.selection
+        next.selection = edit.selection; draft = next; preview = next.previewSnapshot
+    }
+
+    var activeCaptureCount: Int {
+        _ = deliveryRevision
+        guard let account else { return 0 }
+        return (try? store.captureHistory(account: account.id, activeOnly: true, limit: Int.max).count) ?? 0
+    }
+
+    func savedDrafts(activeOnly: Bool? = nil, limit: Int = 100) throws -> [CaptureDraft] {
         guard let account else { return [] }
         try store.archiveExpiredAutomaticDrafts(account: account.id, excluding: Set([draft?.id, placementReturnDraft?.id].compactMap { $0 }))
-        var captures: [CaptureDraft] = []
-        for id in try store.recordIDs(account: account.id, kind: "draft") {
-            if let draft = try store.value(CaptureDraft.self, account: account.id, kind: "draft", id: id), !draft.input.isEmpty {
-                captures.append(draft)
-                if captures.count == limit { break }
-            }
-        }
-        return captures
+        return try store.captureHistory(account: account.id, activeOnly: activeOnly, limit: limit)
     }
 
     func historyDraft(_ id: UUID) -> CaptureDraft? {
