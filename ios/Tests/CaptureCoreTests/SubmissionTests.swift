@@ -207,13 +207,14 @@ final class SubmissionTests: XCTestCase {
             let read = try XCTUnwrap(delivery.reserveTransfer(accepted, transferID: "placement-read"))
             XCTAssertEqual(read.stage, .connections)
             let stopped = try XCTUnwrap(delivery.accept(try self.members([101, 102]), id: id, transferID: "placement-read"))
-            XCTAssertEqual(stopped.stage, .attention)
+            XCTAssertEqual(stopped.stage, .done)
             XCTAssertEqual(stopped.connected, Set([101, 102]))
             XCTAssertEqual(stopped.state.stopRequested, true)
             XCTAssertEqual(stopped.draft.blockID, 900)
             XCTAssertNil(try delivery.reserveTransfer(accepted, transferID: "late-connect"))
             let reopened = try CaptureStore(url: root.appendingPathComponent("capture.sqlite"))
-            XCTAssertEqual(try reopened.value(DeliveryJob.self, account: 0, kind: "delivery", id: id.uuidString)?.connected, Set([101, 102]))
+            XCTAssertNil(try reopened.value(DeliveryJob.self, account: 0, kind: "delivery", id: id.uuidString))
+            XCTAssertEqual(try reopened.value(CaptureDraft.self, account: source.accountID, kind: "draft", id: id.uuidString)?.deliveryState?.confirmedChannelIDs, Set([101, 102]))
         }
     }
 
@@ -264,7 +265,7 @@ final class SubmissionTests: XCTestCase {
             let known = try XCTUnwrap(delivery.accept(.init(status: 200, body: try JSONEncoder().encode(found), error: nil, retryAfter: nil), id: id, transferID: "find-create"))
             XCTAssertEqual(known.id, id)
             XCTAssertEqual(known.draft.blockID, 900)
-            XCTAssertEqual(known.stage, .connections)
+            XCTAssertEqual(known.stage, .read)
             XCTAssertFalse(known.contentVerified == true)
             XCTAssertEqual(try delivery.request(known, token: "fixture").request.httpMethod, "GET")
             XCTAssertNil(try delivery.reserveTransfer(job, transferID: "duplicate-create"))

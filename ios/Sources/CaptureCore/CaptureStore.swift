@@ -17,6 +17,21 @@ public final class CaptureStore {
     private let url: URL
     private var schemaConfigured = false
     private let transient = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
+    struct CachedHistorySummary {
+        var revision: Double
+        var summary: CaptureHistorySummary
+    }
+    var historySummaryCache: [Int: [String: CachedHistorySummary]] = [:]
+    private struct ProjectionRecord: Hashable {
+        var account: Int
+        var kind: String
+        var id: String
+    }
+    private struct CachedProjection {
+        var revision: Double
+        var value: Any
+    }
+    private var projectionCache: [ProjectionRecord: [ObjectIdentifier: CachedProjection]] = [:]
 
     public init(url: URL) throws {
         self.url = url
@@ -40,6 +55,8 @@ public final class CaptureStore {
             try execute("PRAGMA synchronous=FULL")
             if !schemaConfigured {
                 try execute("CREATE TABLE IF NOT EXISTS records (account INTEGER NOT NULL, kind TEXT NOT NULL, id TEXT NOT NULL, value BLOB NOT NULL, updated REAL NOT NULL, PRIMARY KEY(account,kind,id))")
+                // Cover list revisions without visiting source-bearing BLOB rows.
+                try execute("CREATE INDEX IF NOT EXISTS records_recent ON records(account,kind,updated DESC,id)")
                 schemaConfigured = true
             }
             #if os(iOS)
@@ -89,13 +106,23 @@ public final class CaptureStore {
 
     public func save<T: Encodable>(_ value: T, account: Int, kind: String, id: String) throws {
         let data = try JSONEncoder().encode(value)
-        let sql = "INSERT INTO records(account,kind,id,value,updated) VALUES(?,?,?,?,?) ON CONFLICT(account,kind,id) DO UPDATE SET value=excluded.value,updated=excluded.updated"
+        // Keep each record's revision increasing even for same-tick writes or a
+        // corrected wall clock. Every writer uses the database's latest revision.
+        let sql = "INSERT INTO records(account,kind,id,value,updated) VALUES(?,?,?,?,?) ON CONFLICT(account,kind,id) DO UPDATE SET value=excluded.value,updated=MAX(excluded.updated,records.updated+0.000001) RETURNING updated"
         let statement = try prepare(sql); defer { sqlite3_finalize(statement) }
         bind(account: account, kind: kind, statement: statement)
         sqlite3_bind_text(statement, 3, id, -1, transient)
         _ = data.withUnsafeBytes { sqlite3_bind_blob(statement, 4, $0.baseAddress, Int32($0.count), transient) }
         sqlite3_bind_double(statement, 5, Date().timeIntervalSince1970)
+        guard sqlite3_step(statement) == SQLITE_ROW else { throw failure() }
+        let revision = sqlite3_column_double(statement, 0)
         guard sqlite3_step(statement) == SQLITE_DONE else { throw failure() }
+        projectionCache[ProjectionRecord(account: account, kind: kind, id: id)] = nil
+        if kind == "draft" {
+            if let draft = value as? CaptureDraft {
+                historySummaryCache[account, default: [:]][id] = .init(revision: revision, summary: .init(draft: draft))
+            } else { historySummaryCache[account]?[id] = nil }
+        }
     }
 
     public func recordIDs(account: Int, kind: String) throws -> [String] {
@@ -110,6 +137,69 @@ public final class CaptureStore {
         }
         guard result == SQLITE_DONE else { throw failure() }
         return ids
+    }
+
+    /// Small revisions let list readers detect both app and Share writers
+    /// without retaining or decoding the capture bodies again.
+    public func recordRevisions(account: Int, kind: String) throws -> [(id: String, revision: Double)] {
+        let statement = try prepare("SELECT id,updated FROM records WHERE account=? AND kind=? ORDER BY updated DESC")
+        defer { sqlite3_finalize(statement) }
+        bind(account: account, kind: kind, statement: statement)
+        var records: [(id: String, revision: Double)] = []
+        var result = sqlite3_step(statement)
+        while result == SQLITE_ROW {
+            if let text = sqlite3_column_text(statement, 0) {
+                records.append((String(cString: text), sqlite3_column_double(statement, 1)))
+            }
+            result = sqlite3_step(statement)
+        }
+        guard result == SQLITE_DONE else { throw failure() }
+        return records
+    }
+
+    /// Cache only a caller's compact metadata type, never a full draft or job.
+    /// A small revision read observes Share-process writes before cache reuse.
+    /// Entries are bounded; eviction changes read cost, never persisted state.
+    public func projectedValue<T: Decodable>(_ type: T.Type, account: Int, kind: String, id: String) throws -> T? {
+        let key = ProjectionRecord(account: account, kind: kind, id: id)
+        guard let revision = try recordRevision(account: account, kind: kind, id: id) else {
+            projectionCache[key] = nil
+            return nil
+        }
+        let typeID = ObjectIdentifier(type)
+        if let cached = projectionCache[key]?[typeID], cached.revision == revision, let value = cached.value as? T {
+            return value
+        }
+        guard let projected = try value(type, account: account, kind: kind, id: id) else {
+            projectionCache[key] = nil
+            return nil
+        }
+        if projectionCache[key] == nil, projectionCache.count >= 512, let evicted = projectionCache.keys.first {
+            projectionCache[evicted] = nil
+        }
+        projectionCache[key, default: [:]][typeID] = .init(revision: revision, value: projected)
+        return projected
+    }
+
+    private func recordRevision(account: Int, kind: String, id: String) throws -> Double? {
+        let statement = try prepare("SELECT updated FROM records WHERE account=? AND kind=? AND id=?")
+        defer { sqlite3_finalize(statement) }
+        bind(account: account, kind: kind, statement: statement)
+        sqlite3_bind_text(statement, 3, id, -1, transient)
+        let result = sqlite3_step(statement)
+        if result == SQLITE_DONE { return nil }
+        guard result == SQLITE_ROW else { throw failure() }
+        return sqlite3_column_double(statement, 0)
+    }
+
+    func containsRecord(account: Int, kind: String, id: String) throws -> Bool {
+        let statement = try prepare("SELECT 1 FROM records WHERE account=? AND kind=? AND id=?")
+        defer { sqlite3_finalize(statement) }
+        bind(account: account, kind: kind, statement: statement)
+        sqlite3_bind_text(statement, 3, id, -1, transient)
+        let result = sqlite3_step(statement)
+        guard result == SQLITE_ROW || result == SQLITE_DONE else { throw failure() }
+        return result == SQLITE_ROW
     }
 
     public func containsValue<T: Decodable>(_ type: T.Type, account: Int, kind: String, matching: (T) -> Bool) throws -> Bool {
@@ -143,6 +233,8 @@ public final class CaptureStore {
         bind(account: account, kind: kind, statement: statement)
         sqlite3_bind_text(statement, 3, id, -1, transient)
         guard sqlite3_step(statement) == SQLITE_DONE else { throw failure() }
+        projectionCache[ProjectionRecord(account: account, kind: kind, id: id)] = nil
+        if kind == "draft" { historySummaryCache[account]?[id] = nil }
     }
 
     public func value<T: Decodable>(_ type: T.Type, account: Int, kind: String, id: String) throws -> T? {

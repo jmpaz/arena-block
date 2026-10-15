@@ -146,6 +146,9 @@ struct PreviewFixtures {
             sample.phase = .failed
             sample.problem = "Paste a link to capture."
         case "saved": sample = saved
+        case "saved-stopped":
+            sample = saved
+            sample.deliveryState?.stopRequested = true
         case "queued":
             sample.phase = .queued
             sample.deliveryState = CaptureDeliveryState(operationID: sample.id, stage: .queued)

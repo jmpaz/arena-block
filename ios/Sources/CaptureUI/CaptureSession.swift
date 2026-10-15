@@ -38,7 +38,7 @@ public final class CaptureSession {
     public var cancelContinuedProcessing: ((UUID) -> Void)?
     public var deliveryDidChange: (() -> Void)?
     public var hasPendingDeliveries: Bool {
-        (try? store.containsValue(DeliveryJob.self, account: 0, kind: "delivery", matching: { ![.done, .attention].contains($0.stage) })) ?? true
+        (try? delivery.hasPendingWork()) ?? true
     }
     private var isPreviewFixture = false
     /// Recomposition fixtures need the observed source payload after the
@@ -426,7 +426,7 @@ public final class CaptureSession {
                 throw CaptureError.message("This draft was deleted. Start a new capture.")
             }
             if let existing = try store.value(CaptureDraft.self, account: value.accountID, kind: "draft", id: value.id.uuidString),
-               [.queued, .creating, .checking, .uncertain, .saved].contains(existing.phase), !allowReopenUnknown {
+               existing.isCanceled || ([.queued, .creating, .checking, .uncertain, .saved].contains(existing.phase) && !allowReopenUnknown) {
                 value = existing
                 if value.phase == .creating { value.recoverAfterInterruption() }
             } else if value.hasDraftContent {
@@ -920,7 +920,7 @@ public final class CaptureSession {
     #endif
 
     var canSubmitCapture: Bool {
-        guard !busy, account != nil, let draft, canSaveToDestinations,
+        guard !busy, account != nil, let draft, !draft.isCanceled, canSaveToDestinations,
               [.editing, .preparing, .ready, .failed].contains(draft.phase) else { return false }
         if isAddingPlacements { return draft.selection.channels.map(\.id) != placementBaseline?.channels.map(\.id) }
         if CaptureSourceAccess.redditDenied(draft.problem) { return false }
@@ -956,7 +956,7 @@ public final class CaptureSession {
     }
 
     @discardableResult func save() async -> Bool {
-        guard let source = draft else { return false }
+        guard let source = draft, !source.isCanceled else { return false }
         if isAddingPlacements {
             guard !busy else { return false }
             busy = true; defer { busy = false }
@@ -1019,7 +1019,7 @@ public final class CaptureSession {
     func checkAgain(_ operationID: UUID) async {
         guard !isPreviewFixture, let account,
               let job = try? store.value(DeliveryJob.self, account: 0, kind: "delivery", id: operationID.uuidString),
-              job.draft.accountID == account.id else { return }
+              job.draft.accountID == account.id, !job.draft.isCanceled else { return }
         await delivery.check(operationID)
         refreshDelivery()
     }
@@ -1027,17 +1027,61 @@ public final class CaptureSession {
     func stopSave(_ operationID: UUID) {
         guard let account,
               let job = try? store.value(DeliveryJob.self, account: 0, kind: "delivery", id: operationID.uuidString),
-              job.draft.accountID == account.id else { return }
+              job.draft.accountID == account.id, !job.draft.isCanceled else { return }
         do { try delivery.requestStop(operationID); cancelContinuedProcessing?(operationID); refreshDelivery() }
         catch { problem = error.localizedDescription }
     }
 
-    func continueSave(_ operationID: UUID) async {
+    func canCancelCapture(_ value: CaptureHistorySummary) -> Bool {
+        value.accountID == account?.id && !value.isCanceled &&
+            (value.isActiveCapture || (value.deliveryState?.operationID == value.id && value.phase != .saved))
+    }
+
+    /// Commit terminal intent before cancelling any execution owner. In-flight
+    /// acknowledgements may still add receipt evidence to this same capture.
+    @discardableResult func cancelCapture(_ operationID: UUID) -> Bool {
+        guard let current = historyDraft(operationID), current.accountID == account?.id else { return false }
+        if current.isCanceled { return true }
+        guard canCancelCapture(CaptureHistorySummary(draft: current)) else { return false }
+        do {
+            try delivery.cancel(operationID, accountID: current.accountID)
+            guard let canceled = historyDraft(operationID), canceled.isCanceled else { refreshDelivery(); return false }
+            cancelContinuedProcessing?(operationID)
+            if draft?.id == operationID {
+                if isAddingPlacements {
+                    do { try store.remove(account: current.accountID, kind: "placementEdit", id: workspaceID) }
+                    catch { problem = error.localizedDescription }
+                    placementReturnDraft = nil; placementBaseline = nil
+                }
+                resolution?.cancel(); generation = UUID()
+                draft = canceled; preview = canceled.previewSnapshot
+            }
+            if historyReturnDraft?.id == operationID { historyReturnDraft = historyDraft(operationID) }
+            refreshDelivery()
+            return true
+        } catch {
+            problem = error.localizedDescription
+            refreshDelivery()
+            return false
+        }
+    }
+
+    func continuationTargets(_ operationID: UUID) -> Set<Int>? {
+        guard let account, let current = historyDraft(operationID), current.accountID == account.id, !current.isCanceled else { return nil }
+        return try? delivery.continuationTargets(operationID)
+    }
+
+    func continueSave(_ operationID: UUID, reaffirmingChannelIDs: Set<Int> = []) async {
         guard !isPreviewFixture, let account,
               let job = try? store.value(DeliveryJob.self, account: 0, kind: "delivery", id: operationID.uuidString),
-              job.draft.accountID == account.id else { return }
+              job.draft.accountID == account.id, !job.draft.isCanceled else { return }
+        guard let targets = continuationTargets(operationID), targets == reaffirmingChannelIDs else {
+            problem = "The save status changed. Review the remaining channels before continuing."
+            refreshDelivery()
+            return
+        }
         beginSubmission?()
-        await delivery.continueStopped(operationID)
+        await delivery.continueStopped(operationID, reaffirmingChannelIDs: reaffirmingChannelIDs)
         startContinuedProcessing?(operationID)
         refreshDelivery()
     }
@@ -1045,7 +1089,7 @@ public final class CaptureSession {
     public var continuedOperationIDs: [UUID] { (try? delivery.continuedOperationIDs()) ?? [] }
 
     public func continuedSaveReceiptID(_ id: UUID) -> UUID? {
-        guard let job = try? store.value(DeliveryJob.self, account: 0, kind: "delivery", id: id.uuidString) else { return nil }
+        guard let job = try? store.projectedValue(CaptureDeliveryProjection.self, account: 0, kind: "delivery", id: id.uuidString) else { return nil }
         return job.receiptID ?? job.id
     }
 
@@ -1065,12 +1109,12 @@ public final class CaptureSession {
     }
 
     public func continuedProgress(_ id: UUID) -> CaptureContinuedProgress? {
-        if let job = try? store.value(DeliveryJob.self, account: 0, kind: "delivery", id: id.uuidString) {
-            return CaptureContinuedProgress(state: job.state, selectedChannelIDs: Set(job.draft.selection.channels.map(\.id)))
+        if let job = try? store.projectedValue(CaptureDeliveryProjection.self, account: 0, kind: "delivery", id: id.uuidString) {
+            return job.progress
         }
         guard let accounts = try? store.values(Account.self, account: 0, kind: "account") else { return nil }
         for owner in accounts {
-            if let saved = try? store.value(CaptureDraft.self, account: owner.id, kind: "draft", id: id.uuidString),
+            if let saved = try? store.projectedValue(CaptureHistorySummary.self, account: owner.id, kind: "draft", id: id.uuidString),
                let state = saved.deliveryState, state.operationID == id {
                 return CaptureContinuedProgress(state: state, selectedChannelIDs: Set(saved.selection.channels.map(\.id)))
             }
@@ -1079,8 +1123,8 @@ public final class CaptureSession {
     }
 
     func canCheck(_ operationID: UUID) -> Bool {
-        guard let account, let job = try? store.value(DeliveryJob.self, account: 0, kind: "delivery", id: operationID.uuidString) else { return false }
-        return job.draft.accountID == account.id
+        guard let account, let job = try? store.projectedValue(CaptureDeliveryProjection.self, account: 0, kind: "delivery", id: operationID.uuidString) else { return false }
+        return job.draft.accountID == account.id && job.canceledAt == nil && job.draft.deliveryState?.canceledAt == nil
     }
 
     public func finishSharing() { delivery?.finishSharing() }
@@ -1237,7 +1281,7 @@ public final class CaptureSession {
     }
 
     func addPlacements(to result: CaptureDraft) {
-        guard !busy, !isAddingPlacements, result.accountID == account?.id, draft != nil else { return }
+        guard !busy, !isAddingPlacements, !result.isCanceled, result.accountID == account?.id, draft != nil else { return }
         do {
             guard let stored = try store.value(CaptureDraft.self, account: result.accountID, kind: "draft", id: result.id.uuidString),
                   let next = stored.addingPlacements() else { return }
@@ -1261,7 +1305,7 @@ public final class CaptureSession {
     }
 
     func resumeFromHistory(_ value: CaptureDraft) {
-        guard !busy, value.accountID == account?.id else { return }
+        guard !busy, !value.isCanceled, historyDraft(value.id)?.isCanceled != true, value.accountID == account?.id else { return }
         if isAddingPlacements { cancelPlacements() }
         guard let current = draft else { return }
         do {
@@ -1385,7 +1429,7 @@ public final class CaptureSession {
     }
 
     func restore(_ value: CaptureDraft) {
-        guard value.accountID == account?.id, !busy else { return }
+        guard value.accountID == account?.id, !value.isCanceled, !busy else { return }
         if isAddingPlacements { cancelPlacements() }
         resolvedSources.invalidate(); expandedSources.invalidate(); renderedSources.removeAll(); renderedIdentity = nil
         resolution?.cancel(); generation = UUID(); preview = nil
@@ -1394,6 +1438,7 @@ public final class CaptureSession {
                 throw CaptureError.message("Restore this draft from Deleted captures.")
             }
             var restored = try store.value(CaptureDraft.self, account: value.accountID, kind: "draft", id: value.id.uuidString) ?? value
+            guard !restored.isCanceled else { return }
             restored.recoverAfterInterruption()
             var workspace = try store.value(CaptureWorkspace.self, account: value.accountID, kind: "workspace", id: workspaceID) ?? CaptureWorkspace()
             workspace.activeDraftID = restored.id
@@ -1416,7 +1461,7 @@ public final class CaptureSession {
     var activeCaptureCount: Int {
         _ = deliveryRevision
         guard let account else { return 0 }
-        return (try? store.captureHistory(account: account.id, activeOnly: true, limit: Int.max).count) ?? 0
+        return (try? store.activeCaptureCount(account: account.id)) ?? 0
     }
 
     func savedDrafts(activeOnly: Bool? = nil, limit: Int = 100) throws -> [CaptureDraft] {
@@ -1425,12 +1470,22 @@ public final class CaptureSession {
         return try store.captureHistory(account: account.id, activeOnly: activeOnly, limit: limit)
     }
 
+    func historySummaries(activeOnly: Bool? = nil, limit: Int = 100) throws -> [CaptureHistorySummary] {
+        guard let account else { return [] }
+        try store.archiveExpiredAutomaticDrafts(account: account.id, excluding: Set([draft?.id, placementReturnDraft?.id].compactMap { $0 }))
+        return try store.captureHistorySummaries(account: account.id, activeOnly: activeOnly, limit: limit)
+    }
+
     func historyDraft(_ id: UUID) -> CaptureDraft? {
         guard let account else { return nil }
         return try? store.value(CaptureDraft.self, account: account.id, kind: "draft", id: id.uuidString)
     }
 
     func canDeleteDraft(_ value: CaptureDraft) -> Bool {
+        value.accountID == account?.id && (try? store.canDeleteDraft(value)) == true
+    }
+
+    func canDeleteDraft(_ value: CaptureHistorySummary) -> Bool {
         value.accountID == account?.id && (try? store.canDeleteDraft(value)) == true
     }
 

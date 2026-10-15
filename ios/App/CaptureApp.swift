@@ -81,8 +81,8 @@ final class CaptureApplicationDelegate: NSObject, UIApplicationDelegate {
     }
 
     func applicationDidBecomeActive(_ application: UIApplication) {
-        // A user may have closed the app in the switcher. That cancels a
-        // continued task without a callback, so do not auto-submit its journal.
+        // A relaunched process has no proof that an unclaimed continued task
+        // still owns execution. Persist the fence without assuming why it ended.
         if let paused = try? Self.session?.pauseUnclaimedContinuedSaves(), #available(iOS 26.0, *) {
             for id in paused { Self.continuedCoordinator?.cancel(id) }
         }
@@ -139,6 +139,7 @@ private final class CaptureContinuedCoordinator {
     private var submitted: [UUID: UUID] = [:]
     private var runningReceipts: [UUID: UUID] = [:]
     private var running: [UUID: BGContinuedProcessingTask] = [:]
+    private var displayed: [UUID: CaptureContinuedProgress] = [:]
     private let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Capture", category: "continued-save")
 
     init(session: CaptureSession) { self.session = session }
@@ -190,10 +191,19 @@ private final class CaptureContinuedCoordinator {
     }
 
     private func handle(_ task: BGContinuedProcessingTask, id: UUID, receipt: UUID) {
-        guard let session, session.continuedOperationIDs.contains(id), session.continuedSaveReceiptID(id) == receipt else {
+        guard let session else {
             task.setTaskCompleted(success: false)
             return
         }
+        if let fact = session.continuedProgress(id), fact.receiptID == receipt, fact.isTerminal {
+            task.progress.totalUnitCount = fact.totalUnits
+            task.progress.completedUnitCount = fact.completedUnits
+            task.updateTitle(fact.title, subtitle: fact.subtitle)
+            submitted.removeValue(forKey: id)
+            task.setTaskCompleted(success: fact.isDone)
+            return
+        }
+        guard session.continuedSaveReceiptID(id) == receipt else { task.setTaskCompleted(success: false); return }
         running[id] = task; runningReceipts[id] = receipt
         submitted[id] = receipt
         task.expirationHandler = { [weak self, weak task] in
@@ -215,9 +225,9 @@ private final class CaptureContinuedCoordinator {
 
     func refresh() {
         for id in Array(running.keys) { refresh(id) }
-        for (id, receipt) in submitted where running[id] == nil {
+        for (id, receipt) in Array(submitted) where running[id] == nil {
             let fact = session?.continuedProgress(id)
-            if fact == nil || fact?.isDone == true || fact?.needsAttention == true {
+            if fact == nil || fact?.receiptID != receipt || fact?.isTerminal == true {
                 BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: identifier(id, receipt: receipt))
                 submitted.removeValue(forKey: id)
                 try? session?.endContinuedSave(id, receiptID: receipt)
@@ -227,13 +237,16 @@ private final class CaptureContinuedCoordinator {
 
     private func refresh(_ id: UUID) {
         guard let task = running[id], let receipt = runningReceipts[id] else { return }
-        guard session?.continuedSaveReceiptID(id) == receipt || session?.continuedProgress(id)?.isDone == true else { finish(task, id: id, success: false, releaseClaim: false); return }
         guard let fact = session?.continuedProgress(id) else { finish(task, id: id, success: false); return }
-        task.progress.totalUnitCount = fact.isQuantifiable ? fact.totalUnits : 0
-        task.progress.completedUnitCount = fact.completedUnits
-        task.updateTitle(fact.title, subtitle: fact.subtitle)
+        guard fact.receiptID == receipt else { finish(task, id: id, success: false, releaseClaim: false); return }
+        if displayed[id] != fact {
+            task.progress.totalUnitCount = fact.totalUnits
+            task.progress.completedUnitCount = fact.completedUnits
+            task.updateTitle(fact.title, subtitle: fact.subtitle)
+            displayed[id] = fact
+        }
         if fact.isDone { finish(task, id: id, success: true) }
-        else if fact.needsAttention { finish(task, id: id, success: false) }
+        else if fact.isTerminal { finish(task, id: id, success: false) }
     }
 
     private func expire(_ task: BGContinuedProcessingTask, id: UUID) {
@@ -259,6 +272,7 @@ private final class CaptureContinuedCoordinator {
     private func finish(_ task: BGContinuedProcessingTask, id: UUID, success: Bool, releaseClaim: Bool = true) {
         guard running[id] === task else { return }
         let receipt = runningReceipts.removeValue(forKey: id)
+        displayed.removeValue(forKey: id)
         running.removeValue(forKey: id)
         submitted.removeValue(forKey: id)
         task.expirationHandler = nil

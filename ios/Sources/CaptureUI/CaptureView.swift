@@ -15,6 +15,12 @@ public struct CaptureRootView: View {
         var inCaptureTab: Bool
     }
 
+    private struct ContinuationOffer {
+        let operationID: UUID
+        let channelIDs: Set<Int>
+        let channels: [Channel]
+    }
+
     @Bindable var session: CaptureSession
     let isExtension: Bool
     let completion: (() -> Void)?
@@ -24,9 +30,11 @@ public struct CaptureRootView: View {
     @State private var tab = CaptureTab.capture
     @State private var channels = false
     @State private var retryConfirmation = false
+    @State private var continuationOffer: ContinuationOffer?
+    @State private var continuationRequest: ContinuationOffer?
+    @State private var continuationConfirmation = false
     @State private var offeredClipboard = -1
     @State private var historyPath: [UUID] = []
-    @State private var activePath: [UUID] = []
     @State private var savedNotice: CaptureDraft?
     @State private var compositionPreviewURL: URL?
     @State private var compositionPreviewProblem: String?
@@ -70,15 +78,6 @@ public struct CaptureRootView: View {
                                     .accessibilityHidden(true)
                             }
                         }.tag(CaptureTab.capture)
-                    NavigationStack(path: $activePath) {
-                        DraftsView(session: session, activeOnly: true, resume: { draft in
-                            session.resumeFromHistory(draft); tab = .capture
-                        }, addPlacements: { draft in
-                            session.addPlacements(to: draft)
-                            if session.isAddingPlacements { tab = .capture }
-                        })
-                    }.tabItem { Label("Active", systemImage: "arrow.triangle.2.circlepath") }
-                        .badge(session.activeCaptureCount).tag(CaptureTab.active)
                     NavigationStack(path: $historyPath) {
                         DraftsView(session: session, resume: { draft in
                             session.resumeFromHistory(draft)
@@ -87,7 +86,8 @@ public struct CaptureRootView: View {
                             session.addPlacements(to: draft)
                             if session.isAddingPlacements { tab = .capture }
                         })
-                    }.tabItem { Label("History", systemImage: "clock") }.tag(CaptureTab.history)
+                    }.tabItem { Label("History", systemImage: "clock") }
+                        .badge(session.activeCaptureCount).tag(CaptureTab.history)
                     NavigationStack { SettingsView(session: session) }
                         .tabItem { Label("Settings", systemImage: "gearshape") }.tag(CaptureTab.settings)
                 }
@@ -98,13 +98,18 @@ public struct CaptureRootView: View {
         .alert("Capture", isPresented: Binding(get: { session.problem != nil }, set: { if !$0 { session.problem = nil } })) {
             Button("OK") { session.problem = nil }
         } message: { Text(session.problem ?? "") }
-        .onChange(of: session.draft?.phase) { _, _ in acknowledgeSave() }
+        .onChange(of: session.draft?.phase) { _, _ in acknowledgeSave(); refreshContinuationOffer() }
+        .onChange(of: session.draft?.id) { _, _ in refreshContinuationOffer() }
+        .onChange(of: session.deliveryRevision) { _, _ in
+            refreshContinuationOffer()
+            if let savedNotice, session.historyDraft(savedNotice.id)?.isCanceled == true { self.savedNotice = nil }
+        }
         .onChange(of: session.busy) { _, busy in if !busy { acknowledgeSave() } }
         .onChange(of: previewInvalidationKey) { _, _ in resetCompositionPreview() }
         .onChange(of: session.draft?.input) { _, input in
             if input?.isEmpty == false && session.draft?.phase != .saved { savedNotice = nil }
         }
-        .onChange(of: session.account?.id) { _, _ in savedNotice = nil; historyPath = []; activePath = [] }
+        .onChange(of: session.account?.id) { _, _ in savedNotice = nil; historyPath = [] }
         .onChange(of: scenePhase) { _, phase in
             #if DEBUG
             session.logLockState("scenePhase.\(phase)")
@@ -126,6 +131,7 @@ public struct CaptureRootView: View {
             session.logLockState("sceneTask")
             #endif
             await session.resumeDelivery()
+            refreshContinuationOffer()
             if session.draft?.phase == .editing && session.draft?.input.isEmpty == false { session.resolve() }
             acknowledgeSave()
             offerClipboard()
@@ -160,10 +166,10 @@ public struct CaptureRootView: View {
         session.busy || [.queued, .creating, .checking, .uncertain, .saved].contains(session.draft?.phase ?? .editing)
     }
 
-    private var stoppedSubmission: CaptureDraft? {
-        guard let draft = session.draft, draft.deliveryState?.stopRequested == true,
-              draft.deliveryState?.stage == .attention, session.canCheck(draft.id) else { return nil }
-        return draft
+    private var continuableSubmission: ContinuationOffer? {
+        guard let offer = continuationOffer, session.draft?.id == offer.operationID,
+              session.draft?.isCanceled != true else { return nil }
+        return offer
     }
 
     private var sourceControlLayout: AnyLayout {
@@ -193,7 +199,10 @@ public struct CaptureRootView: View {
                     }
                 }
             }
-            if session.draft?.phase == .saved {
+            if session.draft?.isCanceled == true {
+                if let result = session.draft { Section { deliveryStatus(result) } }
+                if let block = session.savedBlock { Section { BlockContentView(block: block, showTitle: false) } }
+            } else if session.draft?.phase == .saved {
                 if let result = session.draft { Section { deliveryStatus(result) } }
                 Section {
                     if let block = session.savedBlock { BlockContentView(block: block, showTitle: false) }
@@ -358,10 +367,15 @@ public struct CaptureRootView: View {
                 }
             }
             ToolbarItemGroup(placement: .confirmationAction) {
-                if session.draft?.phase == .saved {
+                if session.draft?.isCanceled == true {
                     if isExtension { Button("Done") { completion?() } }
-                } else if let stopped = stoppedSubmission {
-                    Button("Continue") { Task { await session.continueSave(stopped.id) } }
+                } else if session.draft?.phase == .saved {
+                    if isExtension { Button("Done") { completion?() } }
+                } else if continuableSubmission != nil {
+                    Button("Continue") {
+                        continuationRequest = continuableSubmission
+                        continuationConfirmation = true
+                    }
                         .accessibilityLabel("Continue save")
                         .accessibilityIdentifier("capture.toolbar.continue")
                     if isExtension { Button("Done") { completion?() } }
@@ -419,6 +433,19 @@ public struct CaptureRootView: View {
         .confirmationDialog("Save again?", isPresented: $retryConfirmation, titleVisibility: .visible) {
             Button("I checked; save again") { session.retryAfterInspection() }
         } message: { Text("Check your channels in Are.na first. Saving again may create a duplicate block.") }
+        .confirmationDialog("Continue this save?", isPresented: $continuationConfirmation, titleVisibility: .visible) {
+            if let offer = continuationRequest {
+                Button("Continue save") {
+                    Task { await session.continueSave(offer.operationID, reaffirmingChannelIDs: offer.channelIDs) }
+                }
+            }
+        } message: {
+            if let offer = continuationRequest {
+                Text((offer.channelIDs.isEmpty ? "Continue preparing and checking this capture for:\n" : "Check the block and continue saving to these remaining channels:\n")
+                     + offer.channels.map(\.label).joined(separator: "\n")
+                     + (offer.channelIDs.isEmpty ? "" : "\nAn earlier request may already have reached these channels."))
+            }
+        }
       }
     }
 
@@ -431,7 +458,7 @@ public struct CaptureRootView: View {
                 VStack(alignment: .leading, spacing: 0) { resultLinks(value) }
                     .font(.callout).buttonStyle(.borderless)
             }
-            if !isExtension, value.canAddPlacements {
+            if !isExtension, !value.isCanceled, value.canAddPlacements {
                 Divider()
                 Button { session.addPlacements(to: value) } label: {
                     Text("Add to channels")
@@ -447,7 +474,7 @@ public struct CaptureRootView: View {
 
     @ViewBuilder
     private func resultLinks(_ value: CaptureDraft) -> some View {
-        if value.deliveryState?.preparationFailureStage != nil {
+        if !value.isCanceled, value.deliveryState?.preparationFailureStage != nil {
             if let source = try? CaptureInput.selectedPosts(value.input, roles: value.sourceRoles).primary.first {
                 Link(destination: source) {
                     Text("Open source").frame(maxWidth: .infinity, minHeight: 44, alignment: .leading).contentShape(Rectangle())
@@ -470,7 +497,7 @@ public struct CaptureRootView: View {
                     .accessibilityIdentifier("capture.preparation.edit")
             }
             if session.canUseOriginalLink { originalLinkChoice }
-        } else if value.phase != .saved, session.canCheck(value.id) {
+        } else if !value.isCanceled, value.phase != .saved, session.canCheck(value.id) {
             if value.deliveryState?.stopRequested == true {
                 if value.deliveryState?.stage == .attention {
                     if value.blockID != nil || value.phase == .uncertain {
@@ -504,7 +531,7 @@ public struct CaptureRootView: View {
 
     private func hasInlineStatusActions(_ value: CaptureDraft) -> Bool {
         if value.blockID != nil { return true }
-        guard value.phase != .saved, session.canCheck(value.id) else { return false }
+        guard !value.isCanceled, value.phase != .saved, session.canCheck(value.id) else { return false }
         if value.deliveryState?.stopRequested == true {
             return value.phase == .uncertain
         }
@@ -965,13 +992,20 @@ public struct CaptureRootView: View {
 
     private func acknowledgeSave() {
         guard !isExtension, !session.busy, !session.isAddingPlacements,
-              let result = session.draft, result.phase == .saved, result.blockID != nil else { return }
+              let result = session.draft, !result.isCanceled, result.phase == .saved, result.blockID != nil else { return }
         if session.newCapture() {
             savedNotice = result
             if UIAccessibility.isVoiceOverRunning {
                 UIAccessibility.post(notification: .announcement, argument: "Saved to Are.na")
             }
         }
+    }
+
+    private func refreshContinuationOffer() {
+        guard let current = session.draft, !current.isCanceled, current.deliveryState?.stage == .attention,
+              let targets = session.continuationTargets(current.id) else { continuationOffer = nil; return }
+        continuationOffer = ContinuationOffer(operationID: current.id, channelIDs: targets,
+            channels: current.selection.channels.filter { targets.isEmpty || targets.contains($0.id) })
     }
 
     private func offerClipboard() {
@@ -986,7 +1020,7 @@ public struct CaptureRootView: View {
 
 private enum CaptureField: Hashable { case source(Int), title, description }
 
-private enum CaptureTab: Hashable { case capture, active, history, settings }
+private enum CaptureTab: Hashable { case capture, history, settings }
 
 func blockURL(_ id: Int) -> URL { URL(string: "https://www.are.na/block/\(id)")! }
 

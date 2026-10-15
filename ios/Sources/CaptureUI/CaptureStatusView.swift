@@ -11,6 +11,7 @@ struct CaptureStatusView: View {
         draft.deliveryState?.operationID == draft.id ? draft.deliveryState : nil
     }
     private var title: String {
+        if draft.isCanceled { return "Canceled" }
         if draft.phase == .saved { return "Saved to Are.na" }
         if let state {
             if state.stopRequested == true { return state.stage == .attention ? "Save paused" : "Stopping save" }
@@ -21,7 +22,7 @@ struct CaptureStatusView: View {
         return draft.problem == nil ? "Waiting to save" : "Save interrupted"
     }
     private var confirmedCount: Int {
-        if state == nil && draft.phase == .saved { return draft.statusChannels.count }
+        if state == nil && !draft.isCanceled && draft.phase == .saved { return draft.statusChannels.count }
         return draft.statusChannels.filter { state?.confirmedChannelIDs.contains($0.id) == true }.count
     }
     private var sourceTitle: (text: String, label: String, value: String)? {
@@ -41,12 +42,25 @@ struct CaptureStatusView: View {
                     .accessibilityLabel(name.label).accessibilityValue(name.value)
                     .accessibilityIdentifier("capture.source-summary.\(draft.id)")
             }
-            Label(title, systemImage: draft.phase == .saved ? "checkmark.circle.fill" : state?.preparationFailureStage != nil ? "exclamationmark.circle" : "arrow.triangle.2.circlepath")
+            Label(title, systemImage: draft.isCanceled ? "xmark.circle" : draft.phase == .saved ? "checkmark.circle.fill" : state?.preparationFailureStage != nil ? "exclamationmark.circle" : "arrow.triangle.2.circlepath")
                 .font(.headline.weight(.semibold))
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .accessibilityIdentifier("capture.status.\(draft.id)")
-            if state?.preparationFailureStage != nil {
+            if draft.isCanceled {
+                Text("No more save attempts will be made. Existing blocks and confirmed channels remain on Are.na.")
+                    .font(.callout).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                if draft.blockID == nil {
+                    Text(state?.canceledWithUnconfirmedRequest == false
+                         ? "No block was created."
+                         : "No block has been confirmed. An already sent request may still have reached Are.na.")
+                        .font(.callout).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Text("\(confirmedCount) of \(draft.statusChannels.count) channels confirmed")
+                    .font(.footnote.monospacedDigit()).foregroundStyle(.secondary)
+            } else if state?.preparationFailureStage != nil {
                 Text("No block was created.")
                     .font(.callout).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -58,7 +72,7 @@ struct CaptureStatusView: View {
                     .font(.footnote.monospacedDigit()).foregroundStyle(Color.primary.opacity(0.75))
                     .fixedSize(horizontal: false, vertical: true)
             }
-            if draft.statusChannels.count > 2 && draft.problem == nil && state?.stage != .attention {
+            if !draft.isCanceled && draft.statusChannels.count > 2 && draft.problem == nil && state?.stage != .attention {
                 DisclosureGroup(isExpanded: $showsDestinations) {
                     destinationRows
                 } label: {
@@ -71,11 +85,11 @@ struct CaptureStatusView: View {
             } else {
                 destinationRows
             }
-            if let date = state?.notBefore, date > Date() {
+            if !draft.isCanceled, let date = state?.notBefore, date > Date() {
                 Text("Trying again at \(date.formatted(date: .omitted, time: .shortened)).")
                     .font(.callout).foregroundStyle(.secondary)
             }
-            if let problem = draft.problem { Text(CaptureSourceAccess.message(problem)).font(.callout).foregroundStyle(Color.primary.opacity(0.75)) }
+            if !draft.isCanceled, let problem = draft.problem { Text(CaptureSourceAccess.message(problem)).font(.callout).foregroundStyle(Color.primary.opacity(0.75)) }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -84,7 +98,7 @@ struct CaptureStatusView: View {
         VStack(alignment: .leading, spacing: 0) {
             ForEach(draft.statusChannels) { channel in
                     let standingDefault = channel.id == draft.submittedDefaultChannelID
-                    let confirmed = state?.confirmedChannelIDs.contains(channel.id) == true || (state == nil && draft.phase == .saved)
+                    let confirmed = state?.confirmedChannelIDs.contains(channel.id) == true || (state == nil && !draft.isCanceled && draft.phase == .saved)
                     Link(destination: channel.url) {
                         HStack(alignment: .firstTextBaseline, spacing: 8) {
                             (Text(channel.title).foregroundColor(state?.preparationFailureStage != nil ? .primary : ChannelAppearance.tint(channel)) +
@@ -106,7 +120,7 @@ struct CaptureStatusView: View {
                     .buttonStyle(.borderless)
                     .accessibilityLabel(channel.label + (standingDefault ? ", Default" : ""))
                     .accessibilityIdentifier("placement.\(draft.id).\(channel.id)")
-                    .accessibilityValue(state?.preparationFailureStage != nil ? "Selected, not sent" : confirmed ? "Confirmed" : "Awaiting confirmation")
+                    .accessibilityValue(confirmed ? "Confirmed" : draft.isCanceled ? "Not confirmed; capture canceled" : state?.preparationFailureStage != nil ? "Selected, not sent" : "Awaiting confirmation")
             }
         }
     }

@@ -366,6 +366,7 @@ final class DeliveryTests: XCTestCase {
     func testReuseConnectsOnlyMissingChannelsAndReconcilesAmbiguousConnection() throws {
         try withDelivery { delivery, _ in
             var job = makeJob(stage: .connections, channels: [101, 102])
+            job.attemptedChannelIDs = []
             job.draft.blockID = 900
             job.reuseExisting = true
             delivery.consume(try response(.object([
@@ -551,6 +552,7 @@ final class DeliveryTests: XCTestCase {
     func testVerifiedPartialRecoveryChecksMembershipBeforeAddingOnlyMissingPlacement() throws {
         try withDelivery { delivery, _ in
             var job = makeJob(stage: .attention, channels: [101, 102])
+            job.attemptedChannelIDs = [101]
             job.draft.blockID = 900; job.contentVerified = true; job.resumeStage = .connections
             job.connected = [101]; job.problem = "Pending destination"
             job.resumeAfterAttention()
@@ -604,8 +606,11 @@ final class DeliveryTests: XCTestCase {
             let body = try JSONDecoder().decode(JSONValue.self, from: XCTUnwrap(delivery.request(job, token: "fixture").body))
             XCTAssertNil(body["channel_ids"])
             XCTAssertNil(body["channels"]?.array[0]["metadata"])
-            XCTAssertEqual(body["channels"]?.array[1]["metadata"]?["ac_capture_id"], .string(job.id.uuidString))
-            XCTAssertEqual(body["channels"]?.array[1]["metadata"]?["ac_snapshot_complete"], .bool(false))
+            XCTAssertEqual(body["channels"]?.array.count, 1)
+            job.draft.blockID = 900; job.stage = .connect; job.connected = [101]
+            let addition = try JSONDecoder().decode(JSONValue.self, from: XCTUnwrap(delivery.request(job, token: "fixture").body))
+            XCTAssertEqual(addition["channels"]?.array[0]["metadata"]?["ac_capture_id"], .string(job.id.uuidString))
+            XCTAssertEqual(addition["channels"]?.array[0]["metadata"]?["ac_snapshot_complete"], .bool(false))
             XCTAssertNil(body["metadata"]?["ac_capture_id"])
             let original = try JSONDecoder().decode(JSONValue.self, from: Data(try XCTUnwrap(job.draft.provenanceSnapshotJSON).utf8))
             XCTAssertEqual(original["draft"]?["input"], .string(source.draft.input))
