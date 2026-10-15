@@ -293,7 +293,7 @@ enum ShortcutCaptureMedia: String, AppEnum {
 
 struct SubmitCaptureIntent: AppIntent {
     static var title: LocalizedStringResource = "Save Link to Are.na"
-    static var description = IntentDescription("Save a link to Are.na. Check its progress in Capture's Active tab.")
+    static var description = IntentDescription("Save a link to Are.na. Check its progress in Capture's History tab.")
     static var openAppWhenRun = false
     @Parameter(title: "URL") var url: URL
     @Parameter(title: "Title") var captureTitle: String?
@@ -304,6 +304,6 @@ struct SubmitCaptureIntent: AppIntent {
     @MainActor func perform() async throws -> some IntentResult & ReturnsValue<String> & ProvidesDialog {
         let session = try CaptureApplicationDelegate.makeSession()
         let id = try session.submitLink(url, title: captureTitle, description: captureDescription, media: media.policy, channelIDs: channelIDs ?? [])
-        return .result(value: id.uuidString, dialog: "Capture queued. Open Active to check progress.")
+        return .result(value: id.uuidString, dialog: "Capture queued. Open History to check progress.")
     }
 }

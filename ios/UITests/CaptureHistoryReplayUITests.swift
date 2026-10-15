@@ -37,8 +37,12 @@ final class CaptureHistoryReplayUITests: XCTestCase {
             let backStarted = ProcessInfo.processInfo.systemUptime
             app.coordinate(withNormalizedOffset: CGVector(dx: 0.01, dy: 0.5))
                 .press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: 0.5)))
-            if app.navigationBars.buttons["History"].isHittable { app.navigationBars.buttons["History"].tap() }
-            else if app.navigationBars.buttons["Active"].isHittable { app.navigationBars.buttons["Active"].tap() }
+            if !historyRow.exists {
+                let historyBack = app.navigationBars.buttons["History"]
+                let activeBack = app.navigationBars.buttons["Active"]
+                if historyBack.exists { historyBack.tap() }
+                else if activeBack.exists { activeBack.tap() }
+            }
             XCTAssertTrue(historyRow.waitForExistence(timeout: 10))
             record("back", cycle: cycle, started: backStarted)
             app.tabBars.buttons["Capture"].tap()
@@ -56,6 +60,8 @@ final class CaptureHistoryReplayUITests: XCTestCase {
 
     private func record(_ transition: String, cycle: Int, started: TimeInterval) {
         let milliseconds = (ProcessInfo.processInfo.systemUptime - started) * 1000
-        print("CAPTURE_HISTORY_REPLAY transition=\(transition) cycle=\(cycle) milliseconds=\(milliseconds)")
+        // XCUI durations include animation, command synchronization and polling.
+        // Read-path costs are measured independently against the SQLite copy.
+        print("CAPTURE_HISTORY_REPLAY transition=\(transition) cycle=\(cycle) automationMilliseconds=\(milliseconds)")
     }
 }
