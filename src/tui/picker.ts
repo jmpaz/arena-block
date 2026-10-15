@@ -303,7 +303,7 @@ export async function runPicker(options: PickerOptions): Promise<PickerResult> {
   const renderer = await createCliRenderer({
     stdin: input as unknown as NodeJS.ReadStream, stdout: output as unknown as NodeJS.WriteStream,
     remote: false, screenMode: "split-footer", footerHeight: height, useMouse: true, clearOnShutdown: false,
-    exitOnCtrlC: false, useKittyKeyboard: null, targetFps: 60,
+    exitOnCtrlC: false, useKittyKeyboard: {}, targetFps: 60,
   });
   const view = new PickerView(renderer, model, height, { me: options.me, previewWidth });
 
@@ -367,7 +367,11 @@ export async function runPicker(options: PickerOptions): Promise<PickerResult> {
 
     renderer.keyInput.on("keypress", (key: ParsedKey) => {
       const name = key.name;
-      if ((key.ctrl && name === "c") || (name === "escape" && model.escape())) return leave(false);
+      if (key.ctrl && name === "c") return leave(false);
+      if (name === "escape") {
+        if (model.escape()) return leave(false);
+        return redraw();
+      }
       if (name === "return") return leave(true);
       if (key.ctrl && name === "y") return leave(true, true);
       if (name === "tab" && key.shift) model.toggleHeldView();
