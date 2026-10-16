@@ -301,6 +301,7 @@ function renderMedia(): void {
     const name = document.createElement("strong");
     const owner = mediaSources(plan!.sources, renderedQuoteDepth(plan!.policy)).find(node => node.media.some(item => item.ref === asset.ref));
     name.textContent = `${asset.kind[0]!.toUpperCase()}${asset.kind.slice(1)} · ${asset.ref}${owner?.quoteDepth ? ` · quoted from @${owner.source.author.handle.replace(/^@/, "")}` : ""}`;
+    if(asset.sourceAttribution)name.textContent+=` · from ${asset.sourceAttribution.title}, by ${asset.sourceAttribution.authors.join(", ")}`;
     const link = document.createElement("a");
     link.href = asset.url;
     link.target = "_blank";

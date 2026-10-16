@@ -447,9 +447,20 @@ async function renderSoundCloudAudio(plan: BlockPlan, directory: string, options
 
 async function renderSubstackAudio(plan: BlockPlan, directory: string, options: RenderOptions): Promise<RenderedMedia> {
   const assets = selectedAssets(plan), source = selectedAudioSource(plan), asset = assets[0];
+  let original=source?.substackArticle?.nativeMedia?.find(item=>item.kind==="audio"&&item.url===asset?.url);
+  if(asset?.sourceAttribution){
+    const node=mediaSources(plan.sources).find(node=>node.media.some(item=>item.ref===asset.ref));
+    let note=source?.substackCapture?.note;
+    if(!note){
+      note=node&&plan.sources[node.rootIndex]?.substackCapture?.note;
+      for(let depth=0;note&&depth<(node?.quoteDepth??0);depth++)note=note.quote?.expanded;
+    }
+    const attachment=note?.attachmentEvidence?.attachments.find(item=>item.id===asset.sourceAttribution!.attachmentId);
+    original=attachment?.kind==="article"?attachment.podcast?.article?.audio:undefined;
+  }
   if (plan.sources.length !== 1 || assets.length !== 1 || asset?.kind !== "audio" || asset.acquisition !== "substack-public-original"
-    || !source?.substackArticle?.nativeMedia?.some(item => item.kind === "audio" && item.url === asset.url
-      && item.durationSeconds === asset.durationSeconds)) throw new Error("Original Substack audio is missing consistent complete public source evidence");
+    || !original || original.kind!=="audio" || original.url!==asset.url
+      || original.durationSeconds!==asset.durationSeconds) throw new Error("Original Substack audio is missing consistent complete public source evidence");
   try { blockPlanSchema.parse(plan); }
   catch { throw new Error("Original Substack audio is missing consistent complete public source evidence"); }
   const signal = AbortSignal.any([...(options.signal ? [options.signal] : []), AbortSignal.timeout(options.downloadTimeoutMs ?? 60_000)]);

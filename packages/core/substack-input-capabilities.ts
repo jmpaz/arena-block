@@ -25,9 +25,14 @@ export function requiredSubstackResolutionCapabilities(input: Input): string[] {
   if(input.substackCaptures?.length)required.add("substack-browser-records-v1");
   if(needsSubstackPublicV2(input))required.add("substack-public-sources-v2");
   const captured=new Set((input.substackCaptures??[]).flatMap(c=>{try{return[parseSource(c.sourceUrl).id];}catch{return[];}}));
-  if(noteInputs(input).some(s=>!captured.has(s.id)))required.add("substack-note-attachments-v1");
-  if(threadSeed(input))required.add("substack-note-attachments-v1");
-  for(const capture of input.substackCaptures??[]){let node: SubstackCapture["note"]|undefined=capture.note;while(node){if(node.attachmentEvidence||node.quote?.status==="depth_limit"&&!node.quote.expanded)required.add("substack-note-attachments-v1");node=node.quote?.expanded;}}
+  if(noteInputs(input).some(s=>!captured.has(s.id))||threadSeed(input)){
+    required.add("substack-note-attachments-v1");required.add("substack-note-podcast-audio-v1");
+  }
+  for(const capture of input.substackCaptures??[]){let node: SubstackCapture["note"]|undefined=capture.note;while(node){
+    if(node.attachmentEvidence||node.quote?.status==="depth_limit"&&!node.quote.expanded)required.add("substack-note-attachments-v1");
+    if(node.attachmentEvidence?.attachments.some(a=>a.kind==="article"&&a.podcast)||node.quote?.status==="depth_limit"&&!node.quote.expanded)required.add("substack-note-podcast-audio-v1");
+    node=node.quote?.expanded;
+  }}
   return [...required];
 }
 export function needsSubstackPublicV2(input: Input): boolean {

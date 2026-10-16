@@ -87,7 +87,15 @@ export async function readSubstackPage(expectedUrl?: string, environment?: {
       if(a.type==="post"){
         const p=a.post,s=a.postSelection;
         if(!p||a.mediaClip||a.clipInfo||a.postImageSelection||p.publication_id!==a.publication?.id||!Array.isArray(p.publishedBylines))throw new Error("Substack article card has unsupported or inconsistent source evidence");
+        const u=p.podcastUpload;
+        let podcast;
+        if(u&&!p.videoUpload&&!a.postSelection){
+          if(u.media_type!=="audio"||u.state!=="transcoded"||u.is_free_preview||u.post_id!==p.id||u.publication_id!==p.publication_id
+            ||p.podcast_url!==`https://api.substack.com/api/v1/audio/upload/${u.id}/src`)throw new Error("Substack podcast card has no verified full original audio");
+          podcast={uploadId:u.id,userId:u.user_id,postId:u.post_id,publicationId:u.publication_id,durationSeconds:u.duration};
+        }
         return {kind:"article",id:a.id,postId:p.id,publicationId:p.publication_id,url:p.canonical_url,title:p.title,previewText:p.subtitle??"",authors:p.publishedBylines.map((b:any)=>({id:b.id,name:b.name,handle:b.handle??null})),
+          ...(podcast?{podcast}:{}),
           ...(s?{selection:{id:s.id,postId:s.post_id,startParagraph:s.start_paragraph,endParagraph:s.end_paragraph,startOffset:s.start_offset,endOffset:s.end_offset,text:s.text,isAutoSelection:s.is_auto_selection}}:{})};
       }
       throw new Error(`Substack Note attachment ${a.type} has no complete supported projection`);

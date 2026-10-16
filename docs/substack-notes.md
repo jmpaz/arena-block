@@ -57,6 +57,8 @@ hundred links per Note. Reply discovery permits at most 64 pages, 8 MiB aggregat
 Compatible helpers and receivers retain the records used by the plan. Notes need
 `substack-browser-records-v1`; articles and expanded threads also need
 `substack-public-sources-v2`. Public article media needs
-`substack-native-media-v1`. Note attachments and article cards need
+`substack-native-media-v1`. Podcast article players in Notes additionally need
+`substack-note-podcast-audio-v1`; the retained record distinguishes the Note's
+prose from the article and its original audio. Note attachments and article cards need
 `substack-note-attachments-v1`. The helper checks support before reading or saving,
 then checks the returned plan for missing source fields.

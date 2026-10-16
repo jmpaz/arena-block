@@ -58,7 +58,7 @@ test("normal Note helper resolution preflights acquisition before any source rea
  const {resolveWithNative}=await import("../extension/src/native-reddit.ts"),{requireSubstackPublicResult}=await import("../packages/core/substack-input-capabilities.ts");
  const {post}=await capture("video"),input={refs:[post.canonicalUrl],extraRefs:[],refresh:false,policy:{media:"none" as const}},calls:string[]=[];
  await expect(resolveWithNative(input,async action=>{calls.push(action);return {planCapabilities:["substack-browser-records-v1","substack-public-sources-v2","substack-native-media-v1"]};})).rejects.toThrow("Update the local helper and receiver to read this source.");expect(calls).toEqual(["ping"]);
- const plan=composePlan([post],{media:"none"});expect(await resolveWithNative(input,async action=>action==="ping"?{planCapabilities:["substack-note-attachments-v1","quoted-image-media-v1","quoted-video-audio-v1"]}:plan)).toEqual(plan);
+ const plan=composePlan([post],{media:"none"});expect(await resolveWithNative(input,async action=>action==="ping"?{planCapabilities:["substack-note-attachments-v1","quoted-image-media-v1","quoted-video-audio-v1", "substack-note-podcast-audio-v1"]}:plan)).toEqual(plan);
  const stripped=structuredClone(plan);delete stripped.sources[0]!.substackCapture!.note.attachmentEvidence;
  expect(()=>requireSubstackPublicResult(input,stripped)).toThrow("incomplete capture");
 });

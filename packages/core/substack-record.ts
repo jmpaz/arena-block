@@ -126,6 +126,11 @@ export function requireRetainedSubstackCaptures(plan: { sources: { substackCaptu
     const retained = plan.sources.find(source => source.substackCapture && substackSourceKey(source.substackCapture.sourceUrl) === substackSourceKey(expected.sourceUrl))?.substackCapture;
     const originalProjection = retained && JSON.parse(JSON.stringify(retained)) as SubstackCapture | undefined;
     const pruneHydration = (original: SubstackNote, result: SubstackNote) => {
+      for(const a of original.attachmentEvidence?.attachments??[]){
+        if(a.kind!=="article"||!a.podcast||a.podcast.article)continue;
+        const hydrated=result.attachmentEvidence?.attachments.find(item=>item.id===a.id);
+        if(hydrated?.kind==="article"&&hydrated.podcast)delete hydrated.podcast.article;
+      }
       if (original.quote && result.quote) {
         if (!original.quote.expanded && original.quote.status === "depth_limit" && result.quote.expanded?.acquisition?.method === "public-html") delete result.quote.expanded;
         else if (original.quote.expanded && result.quote.expanded) pruneHydration(original.quote.expanded, result.quote.expanded);

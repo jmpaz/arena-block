@@ -57,6 +57,14 @@ const MEDIA_FIRST_PROVIDERS = new Set<ResolvedPost["provider"]>(["reddit", "inst
 
 function mediaMarker(media: MediaAsset[], frameRefs: Set<string>): string {
   if (!media.length) return "";
+  if(media.some(asset=>asset.sourceAttribution)){
+    const literal=(value:string)=>value.replace(/[\r\n]+/g," ").replace(/[\\`*_{}\[\]<>]/g,"\\$&");
+    return media.map(asset=>{
+      const source=asset.sourceAttribution;
+      return source?`*Audio from [${literal(source.title)}](<${source.url}>), by ${source.authors.map(literal).join(", ")}*`:
+        `*[${frameRefs.has(asset.ref)?"video frame":asset.kind}]*`;
+    }).join("\n\n");
+  }
   const kinds = media.map((item) => frameRefs.has(item.ref) ? "video frame" : item.kind);
   const uniform = new Set(kinds).size === 1;
   return `*[${uniform && kinds.length > 1 ? `${kinds[0]}s` : kinds.join(", ")}]*`;
@@ -168,6 +176,8 @@ function selectedMedia(posts: ResolvedPost[], policy: CompositionPolicy): MediaA
   if (policy.media === "audio") return rootMedia.filter((item) => item.kind === "audio");
   if (policy.media === "images") return rootMedia.filter((item) => item.kind === "image");
   const automaticMedia = rootMedia.filter(item => item.sourcePlacement !== "body");
+  if(automaticMedia.length>1&&automaticMedia.every(asset=>asset.kind==="audio")&&automaticMedia.some(asset=>asset.sourceAttribution))
+    throw new Error("Choose one original audio attachment. Audio files must be captured separately.");
   const quotedAV = mediaSources(posts, renderedQuoteDepth(policy)).filter(node => node.quoteDepth > 0)
     .flatMap(node => node.media).some(item => item.kind !== "image");
   if (quotedAV) {

@@ -2,7 +2,7 @@ import { z } from "zod";
 import { substackCaptureSchema, substackCapturesSchema, substackSourceKey, type SubstackCapture, type SubstackNote } from "./substack-record.ts";
 import { redditBrowserCaptureSchema, redditCapturesSchema, redditSourceKey, type RedditBrowserCapture } from "./reddit-record.ts";
 import { parseSource } from "./url.ts";
-import { substackNoteVideo } from "./substack-note-attachments.ts";
+import { substackNoteVideo, substackNotePodcastAudio, substackPodcastAttributionSchema } from "./substack-note-attachments.ts";
 import { substackArticleRecordSchema, substackRelationSchema, substackThreadSchema, type SubstackArticleRecord } from "./substack-article-record.ts";
 import { planMedia } from "./media-tree.ts";
 
@@ -27,6 +27,7 @@ export const mediaAssetSchema = z.object({
     return url.protocol === "https:" && !url.username && !url.password;
   }).optional(),
   acquisition: z.enum(["soundcloud-original-download", "substack-public-original"]).optional(),
+  sourceAttribution: substackPodcastAttributionSchema.optional(),
   alt: z.string().default(""),
 });
 export type MediaAsset = z.infer<typeof mediaAssetSchema>;
@@ -205,17 +206,26 @@ export const resolvedPostSchema: z.ZodType<ResolvedPost> = resolvedPostNodeSchem
     const bound = notes.filter((note): note is SubstackNote => matchesNote(note, post));
     const completeEvidence = notes.length > 0 && bound.length === notes.length;
     for (const [index, asset] of post.media.entries()) {
+      if(asset.sourceAttribution&&asset.acquisition!=="substack-public-original")context.addIssue({code:"custom",message:"Podcast attribution requires its original source evidence",path:[...path,"media",index]});
       if (asset.acquisition !== "substack-public-original") continue;
       let consistent = false;
       if (post.provider === "substack") {
         if (post.substackArticle && notes.length === 0) {
-          consistent = post.substackArticle.nativeMedia?.some(item => matches(asset, item)) === true;
+          consistent = !asset.sourceAttribution && post.substackArticle.nativeMedia?.some(item => matches(asset, item)) === true;
         } else {
-          consistent = completeEvidence && bound.every(note => note.attachmentEvidence?.attachments.some(item =>
-            item.kind === "video" && matches(asset, substackNoteVideo(item))) === true);
+          consistent = completeEvidence && bound.every(note => note.attachmentEvidence?.attachments.some(item => {
+            const original=item.kind==="video"?substackNoteVideo(item):substackNotePodcastAudio(item);
+            return original&&matches(asset,original)&&JSON.stringify(asset.sourceAttribution)===JSON.stringify("sourceAttribution"in original?original.sourceAttribution:undefined);
+          }) === true);
         }
       }
       if (!consistent) context.addIssue({ code: "custom", message: "Substack original media disagrees with its complete source record", path: [...path, "media", index] });
+    }
+    for(const note of bound)for(const attachment of note.attachmentEvidence?.attachments??[]){
+      if(attachment.kind!=="article"||!attachment.podcast)continue;
+      const original=substackNotePodcastAudio(attachment);
+      if(!original||post.media.filter(asset=>matches(asset,original)&&JSON.stringify(asset.sourceAttribution)===JSON.stringify(original.sourceAttribution)).length!==1)
+        context.addIssue({code:"custom",message:"Substack podcast card lost its complete audio projection",path:[...path,"media"]});
     }
     // A child cannot replace a missing/incomplete ancestor observation, or
     // reparent a deeper quote while borrowing media evidence from the same tree.

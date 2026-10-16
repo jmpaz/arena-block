@@ -160,7 +160,7 @@ test("receiver resolve/plan, browser edit and native-helper paths retain the exa
     const edited = revisePlan(browserPlan, { markdown: "Authored edit", title: "Authored title" });
     requireRetainedSubstackCaptures(edited, [value]); expect(edited.block.markdown).toBe("Authored edit");
     const actions: string[] = []; let supported = false, returned = browserPlan;
-    const native = async (action: string) => { actions.push(action); return action === "ping" ? { planCapabilities: supported ? ["substack-browser-records-v1","quoted-image-media-v1","quoted-video-audio-v1"] : [] } : returned; };
+    const native = async (action: string) => { actions.push(action); return action === "ping" ? { planCapabilities: supported ? ["substack-browser-records-v1","quoted-image-media-v1","quoted-video-audio-v1", "substack-note-podcast-audio-v1"] : [] } : returned; };
     await expect(resolveWithNative({ ...input, extraRefs: [], refresh: false }, native)).rejects.toThrow("Update the local helper and receiver to read this source."); expect(actions).toEqual(["ping"]);
     supported = true; returned = structuredClone(browserPlan); delete returned.sources[0]!.substackCapture;
     await expect(resolveWithNative({ ...input, extraRefs: [], refresh: false }, native)).rejects.toThrow("did not retain");

@@ -155,7 +155,7 @@ struct CaptureMediaSelection: View {
         .sheet(item: $inspected) { asset in
             NavigationStack {
                 Group {
-                    if let url = asset.url { CaptureMediaView(url: url, isVideo: asset.kind == "video") }
+                    if let url = asset.url { CaptureMediaView(url: url, isVideo: asset.kind == "video", isAudio: asset.kind == "audio") }
                     else { ContentUnavailableView("Preview unavailable", systemImage: "photo") }
                 }
                 .navigationTitle(asset.label).navigationBarTitleDisplayMode(.inline)
@@ -202,6 +202,10 @@ struct CaptureMediaSelection: View {
                     .font(.footnote).foregroundStyle(.secondary)
             }
         } else {
+            if asset.canPreviewAudio {
+                Button("Preview audio", systemImage: "play.circle") { inspected = asset }
+                    .accessibilityIdentifier("capture.audio-preview.open")
+            }
             HStack {
                 if let label = asset.ownershipLabel {
                     Text(label).font(.caption).foregroundStyle(.secondary)
@@ -232,13 +236,17 @@ private struct MediaChoice: Identifiable {
     let label: String
     let position: Int
     let isPreview: Bool
+    let canPreviewAudio: Bool
     let ownershipLabel: String?
 
     init?(_ asset: JSONValue, position: Int, localFixturePoster: URL? = nil, ownershipLabel: String? = nil) {
         guard let ref = asset["ref"]?.string else { return nil }
         id = ref
-        self.ownershipLabel = ownershipLabel
+        let articleAuthors = asset["sourceAttribution"]?["authors"]?.array.compactMap(\.string).joined(separator: ", ")
+        let ownership = [ownershipLabel, articleAuthors.map { "Audio by \($0)" }].compactMap { $0 }.joined(separator: " · ")
+        self.ownershipLabel = ownership.isEmpty ? nil : ownership
         kind = asset["kind"]?.string ?? "image"
+        canPreviewAudio = kind == "audio" && asset["acquisition"]?.string == "substack-public-original"
         isPreview = asset["sourceRole"]?.string == "preview"
         self.position = position
         url = asset["url"]?.string.flatMap(URL.init(string:))

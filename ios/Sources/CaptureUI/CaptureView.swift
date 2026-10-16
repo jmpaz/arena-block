@@ -738,7 +738,7 @@ public struct CaptureRootView: View {
 
     private var canOfferCompositionPreview: Bool {
         session.draft?.phase == .ready && !session.busy && session.preview?.kind == "social" &&
-            singleImageChoice == nil && !session.includedMediaRefs.isEmpty
+            singleImageChoice == nil && session.preview?.plan?["block"]?["kind"]?.string != "audio" && !session.includedMediaRefs.isEmpty
     }
 
     private var soundtrackChoices: [SoundtrackChoice] {
@@ -1072,13 +1072,29 @@ func blockURL(_ id: Int) -> URL { URL(string: "https://www.are.na/block/\(id)")!
 struct CaptureMediaView: View {
     let url: URL
     var isVideo = false
+    var isAudio = false
     @State private var player: AVPlayer?
+    @State private var audioPlaying = false
     @State private var localImage: UIImage?
     @State private var localLoadFinished = false
     private var video: Bool { isVideo || ["mp4", "mov", "m4v", "webm"].contains(url.pathExtension.lowercased()) }
+    private var audio: Bool { isAudio || ["mp3", "m4a", "wav", "flac", "ogg", "opus", "aac"].contains(url.pathExtension.lowercased()) }
     var body: some View {
         VStack(spacing: 0) {
-            if video {
+            if audio {
+                Button(audioPlaying ? "Pause audio" : "Play audio", systemImage: audioPlaying ? "pause.circle.fill" : "play.circle.fill") {
+                    if player == nil { player = AVPlayer(url: url) }
+                    if audioPlaying { player?.pause() } else { player?.play() }
+                    audioPlaying.toggle()
+                }
+                .buttonStyle(.bordered).controlSize(.large).frame(maxWidth: .infinity, minHeight: 140)
+                .accessibilityIdentifier("capture.audio-preview.play")
+                .onDisappear { player?.pause(); player = nil; audioPlaying = false }
+                .onReceive(NotificationCenter.default.publisher(for: AVPlayerItem.didPlayToEndTimeNotification)) { notification in
+                    guard let item = notification.object as? AVPlayerItem, item === player?.currentItem else { return }
+                    audioPlaying = false; player?.seek(to: .zero)
+                }
+            } else if video {
                 VideoPlayer(player: player).frame(minHeight: 230)
                     .onAppear { player = AVPlayer(url: url) }
                     .onDisappear { player?.pause(); player = nil }
@@ -1095,9 +1111,9 @@ struct CaptureMediaView: View {
                     }
                 }
             }
-        }.frame(maxWidth: .infinity).accessibilityLabel(video ? "Block video preview" : "Block image preview")
+        }.frame(maxWidth: .infinity).accessibilityLabel(audio ? (audioPlaying ? "Pause audio" : "Play audio") : video ? "Block video preview" : "Block image preview")
             .task(id: url) {
-                guard url.isFileURL, !video else { return }
+                guard url.isFileURL, !video, !audio else { return }
                 localImage = nil; localLoadFinished = false
                 let sourceURL = url
                 let image = await Task.detached(priority: .userInitiated) {

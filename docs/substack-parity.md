@@ -18,6 +18,7 @@
 | Drafts and saves | Retains source records in browser and native drafts, save snapshots, helper requests and receiver plans. |
 | Public article video and audio | Checks that the upload belongs to the complete public article and its publication. When the source supplies a preview image, video over ten minutes uses that frame. One original audio file can be copied without conversion, up to 250 MiB. |
 | Native Note video | Checks the upload against its Note and author. Videos inside included quotes use the same selection, framing and soundtrack controls as outer videos. |
+| Podcast audio players in Notes | Checks the card's upload, article, publication and byline against the complete freely public article. Captures one original audio file with the Note's prose and independent article attribution. Selected article excerpts remain excerpts. |
 | Inline article video | Checks the upload against its article and publication. Unsupported players or captions that cannot be preserved stop capture. |
 | External players | Keeps the observed link and title when available. |
 
@@ -62,6 +63,14 @@ Receiver capability names and retained-record limits are listed in
 [Substack captures](substack-notes.md#retained-records-and-compatibility).
 
 The observed native Note attachment contract supports images, video and article
-cards. Standalone original audio is verified through complete public article
-records. External audio and video players remain links; their URLs are not
-promoted to native attachments.
+cards. A podcast article card can expose original audio. Capture retains the
+article's identity, byline, audio metadata and a digest of its verified public
+body; it does not include the article's full prose in the Note. Hydration is
+bounded to eight distinct articles and sixty seconds per Note tree. Old queued
+card-only captures retain their existing selection. New podcast-card records
+require `substack-note-podcast-audio-v1` on the helper and receiver.
+
+A separate native audio-upload Note attachment has not been verified. External
+audio and video players remain links; their URLs are not promoted to native
+attachments. Cards with `mediaClip`, `clipInfo` or image-selection data remain
+unsupported.

@@ -112,3 +112,42 @@ extension SubstackQuotedMediaUITests {
         app.terminate()
     }
 }
+
+extension SubstackQuotedMediaUITests {
+    func testActualPodcastNoteHasSeparateArticleCreditAndAudioPreviewWithoutSave() throws {
+        guard ProcessInfo.processInfo.environment["CAPTURE_LIVE_SUBSTACK_QUOTED_MEDIA"] == "1" else {
+            throw XCTSkip("Opt-in public podcast Note/audio preview; no Save or Continue.")
+        }
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchEnvironment = ["CAPTURE_UI_FIXTURE":"empty","CAPTURE_UI_STORE_ID":UUID().uuidString,
+            "CAPTURE_UI_COMPOSER":"share","CAPTURE_UI_PRESENTATION":"share","CAPTURE_UI_LIVE_SOURCE":"1",
+            "CAPTURE_UI_FRESH_SHARE":"1","CAPTURE_UI_SHARE_DELAY_MS":"500","CAPTURE_UI_SHARE_INTAKE":"url",
+            "CAPTURE_UI_SHARE_URL":"https://substack.com/@evadmartain/note/c-311363713",
+            "CAPTURE_UI_CLIPBOARD":"","CAPTURE_UI_CLIPBOARD_URL":"","CAPTURE_UI_STYLE":"light"]
+        app.launch()
+        let title = app.textFields["capture.title"]
+        let ready = XCTNSPredicateExpectation(predicate:NSPredicate(format:"value == %@","Note by @evadmartain"),object:title)
+        XCTAssertEqual(XCTWaiter.wait(for:[ready],timeout:60),.completed)
+        let description = app.textFields["capture.description"].value as? String ?? ""
+        XCTAssertTrue(description.contains("AUDIO GRAM")); XCTAssertTrue(description.contains("Audio from [Introducing new audio transcription tools"))
+        let preview = app.buttons["capture.audio-preview.open"]
+        for _ in 0..<8 where !preview.isHittable { app.swipeUp() }
+        XCTAssertTrue(preview.waitForExistence(timeout:20)); XCTAssertTrue(preview.isHittable)
+        XCTAssertTrue(app.staticTexts["Audio by Hamish McKenzie"].exists)
+        XCTAssertFalse(app.buttons["capture.composition-preview.start"].exists)
+        let before = XCTAttachment(screenshot:app.screenshot()); before.name="actual-podcast-note-source-and-credit"; before.lifetime = .keepAlways; add(before)
+        preview.tap()
+        let play = app.buttons["capture.audio-preview.play"]
+        XCTAssertTrue(play.waitForExistence(timeout:10))
+        let details = XCTAttachment(string:play.debugDescription); details.name="actual-podcast-audio-control-accessibility"; details.lifetime = .keepAlways; add(details)
+        XCTAssertTrue(play.label.contains("Play audio")); play.tap()
+        let paused = XCTNSPredicateExpectation(predicate:NSPredicate(format:"label CONTAINS %@","Pause audio"),object:play)
+        XCTAssertEqual(XCTWaiter.wait(for:[paused],timeout:10),.completed)
+        let playing = XCTAttachment(screenshot:app.screenshot()); playing.name="actual-podcast-note-audio-preview-controls"; playing.lifetime = .keepAlways; add(playing)
+        play.tap(); XCTAssertTrue(play.label.contains("Play audio"))
+        app.buttons["Done"].tap()
+        XCTAssertTrue(title.waitForExistence(timeout:10))
+        app.terminate()
+    }
+}
