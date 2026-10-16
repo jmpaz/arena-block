@@ -94,7 +94,7 @@ def main_browser_running(profile):
         raise ValueError("Could not verify whether Chrome is running.")
     for line in result.stdout.splitlines():
         fields = line.strip().split(None, 1)
-        if len(fields) != 2 or not fields[0].isdigit():
+        if len(fields) != 2 or not re.fullmatch(r"-?\d+", fields[0]):
             raise ValueError("Could not verify whether Chrome is running.")
         if int(fields[0]) == os.getuid() and Path(fields[1]).name in {
                 "Google Chrome", "google-chrome", "google-chrome-stable", "chrome"}:

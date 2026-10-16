@@ -269,6 +269,12 @@ class ExtensionDeploymentTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "Could not verify"):
                     deploy.browser_running(self.profile)
 
+    def test_signed_system_uid_and_chrome_helpers_are_not_main_browser_processes(self):
+        processes = f"-2 /usr/libexec/dhcp6d\n{os.getuid()} /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Helper\n"
+        with patch.object(deploy, "default_user_data_directories", return_value={self.profile.parent}), \
+                patch.object(deploy.subprocess, "run", return_value=SimpleNamespace(stdout=processes)):
+            self.assertFalse(deploy.browser_running(self.profile))
+
     def test_browser_starting_during_backup_preparation_prevents_exchange(self):
         deploy.deploy(self.args)
         self.register()
