@@ -15,6 +15,8 @@ import type { CaptureJob } from "./capture-job.ts";
 import { parseSource } from "../../packages/core/url.ts";
 import { CaptureAccess, renderCaptureAccess } from "./capture-access.ts";
 import type { PermissionManifest, PermissionRequest } from "../permission-policy.ts";
+import { markdownSummary, renderBlockTextPreview } from "./markdown-preview.ts";
+import { quoteAuthorChoice, quoteAuthorPolicy, reviseQuoteAuthorLink } from "./quote-presentation.ts";
 
 type BrowserAPI = {
   permissions: { request(value: { origins?: string[]; permissions?: string[] }): Promise<boolean>;
@@ -60,6 +62,7 @@ const threadPolicy = $<HTMLSelectElement>("thread-policy");
 const quotePolicy = $<HTMLSelectElement>("quote-policy");
 const quoteDepth = $<HTMLSelectElement>("quote-depth");
 const quoteDates = $<HTMLSelectElement>("quote-dates");
+const quoteAuthorLink = $<HTMLSelectElement>("quote-author-link");
 const separatorPolicy = $<HTMLSelectElement>("separator-policy");
 const title = $<HTMLInputElement>("title");
 const writing = $<HTMLTextAreaElement>("writing");
@@ -125,6 +128,7 @@ function draft() {
   return { primary: primary.value, extras: extras.value, redditCaptures, substackCaptures, media: mediaPolicy.value,
     thread: threadPolicy.value, quote: quotePolicy.value, depth: quoteDepth.value,
     dates: quoteDates.value, separator: separatorPolicy.value,
+    ...(quoteAuthorLink.value ? { quoteAuthorLink: quoteAuthorChoice(quoteAuthorLink.value) } : {}),
     channel: channel.value, selectedChannels: [...picker.selected.values()],
     defaultChannel: defaultChannel.value, defaultMode: defaultMode.value, plan, pending, resolvedInput,
     manualContentEdit, manualFields };
@@ -135,15 +139,18 @@ function editedFields(): { title?: string; markdown?: string; description?: stri
     ...(manualFields.writing ? { markdown: writing.value } : {}),
     ...(manualFields.description ? { description: description.value } : {}) };
 }
-function inputSignature(): string {
-  return JSON.stringify([primary.value, extras.value, mediaPolicy.value, threadPolicy.value,
-    quotePolicy.value, quoteDepth.value, quoteDates.value, separatorPolicy.value, redditCaptures, substackCaptures]);
+function inputSignature(authorChoice = quoteAuthorLink.value): string {
+  const values: unknown[] = [primary.value, extras.value, mediaPolicy.value, threadPolicy.value,
+    quotePolicy.value, quoteDepth.value, quoteDates.value, separatorPolicy.value, redditCaptures, substackCaptures];
+  // Preserve legacy unset signatures and frozen drafts byte for byte.
+  if (authorChoice) values.push(authorChoice);
+  return JSON.stringify(values);
 }
 function destinationsFrozen(): boolean { return Boolean(pending || saveInFlight); }
 function syncDestinationLock(): void {
   const frozen = destinationsFrozen();
   for (const id of ["choose-channel", "clear-channels", "add-channel", "default-channel", "default-mode",
-    "primary", "extras", "media-policy", "thread-policy", "quote-policy", "quote-depth", "quote-dates",
+    "primary", "extras", "media-policy", "thread-policy", "quote-policy", "quote-depth", "quote-dates", "quote-author-link",
     "separator-policy", "import-reddit", "reddit-file", "title", "writing", "description", "resolve-local", "add-current",
     "single-media-toggle", "audio-choice"])
     $(id).toggleAttribute("disabled", frozen);
@@ -441,8 +448,11 @@ function renderCapturePreview(): void {
     ? `${host}${count > 1 ? ` · ${count} posts` : ""}` : "Source";
   $("capture-preview-title").textContent = current ? plan!.block.title : ref ? host : "Add a source";
   $("capture-preview-excerpt").textContent = current
-    ? (manualFields.writing ? writing.value.trim() : plan!.sources[0]?.text.trim()) || ref!
+    ? markdownSummary(document, (manualFields.writing ? writing.value : plan!.sources[0]?.text) ?? "") || ref!
     : ref ?? "Paste a link to begin";
+  $("block-preview").hidden = !current;
+  if (current) renderBlockTextPreview($("block-text-preview"), plan!);
+  else $("block-text-preview").replaceChildren();
   let needsProviderPreview = false;
   try { needsProviderPreview = Boolean(ref && requiredOrigins([ref]).length); }
   catch { /* Incomplete sources remain in Edit sources. */ }
@@ -1013,6 +1023,7 @@ function chosenPolicy(): Partial<CompositionPolicy> {
     quote: quotePolicy.value as CompositionPolicy["quote"],
     quoteDepth: quoteDepth.value === "full" ? "full" : Number(quoteDepth.value),
     quoteDates: quoteDates.value as NonNullable<CompositionPolicy["quoteDates"]>,
+    ...quoteAuthorPolicy(quoteAuthorChoice(quoteAuthorLink.value)),
     separator: separatorPolicy.value as CompositionPolicy["separator"],
   };
 }
@@ -1170,6 +1181,26 @@ for (const field of [primary, extras, mediaPolicy, threadPolicy, quotePolicy, qu
   }
   intakeChanged();
 });
+quoteAuthorLink.addEventListener("change", () => {
+  if (destinationsFrozen()) {
+    quoteAuthorLink.value = plan?.policy.quoteAuthorLink ?? "";
+    return;
+  }
+  const choice = quoteAuthorChoice(quoteAuthorLink.value);
+  const wasCurrent = plan && resolvedInput === inputSignature(plan.policy.quoteAuthorLink ?? "");
+  if (!wasCurrent || !plan) { intakeChanged(); return; }
+  resolutionGuard.changed();
+  if (previewTimer) clearTimeout(previewTimer);
+  try {
+    plan = reviseQuoteAuthorLink(plan, choice, editedFields());
+    resolvedInput = inputSignature();
+    renderPlan();
+    message("");
+  } catch (error) {
+    quoteAuthorLink.value = plan.policy.quoteAuthorLink ?? "";
+    message(error instanceof Error ? error.message : "Could not update quoted authors.", true);
+  }
+});
 for (const field of [title, writing, description]) field.addEventListener("input", editPlan);
 channel.addEventListener("input", () => {
   picker.query = channel.value.trim();
@@ -1277,6 +1308,7 @@ async function startNewCapture(): Promise<void> {
   for (const select of [mediaPolicy, threadPolicy, quotePolicy, quoteDates, separatorPolicy]) select.value = "auto";
   quotePolicy.value = "block";
   quoteDepth.value = "2";
+  quoteAuthorLink.value = "";
   title.value = writing.value = description.value = "";
   picker.selected.clear();
   channel.value = "";
@@ -1407,6 +1439,7 @@ void (async () => {
         quoteDepth.value = saved.depth ?? "2";
         quoteDates.value = saved.dates ?? "auto";
         separatorPolicy.value = saved.separator ?? "auto";
+        quoteAuthorLink.value = quoteAuthorChoice(saved.quoteAuthorLink, saved.plan);
         picker.restore(saved.selectedChannels);
         if (!saved.selectedChannels && saved.channel) {
           try { picker.add(saved.channel); } catch { /* Ignore an invalid old typed destination. */ }

@@ -17,7 +17,9 @@ In Chrome, open `chrome://extensions`, enable Developer mode and load `extension
 
 ## Editing and saving
 
-The browser action opens the capture popup. It displays the source preview and selected destinations. Edit block provides title, text, description and media controls. Edit sources provides URLs and capture options. New starts another draft.
+The browser action opens the capture popup. It displays the source preview, formatted block text and selected destinations. The text preview preserves links, emphasis, lists, code and nested quotes. It uses the text fields prepared for Are.na; media stays in its own controls. Raw HTML remains literal text, and the preview does not load embedded resources. Edit block provides title, Markdown text, description and media controls. New starts another draft.
+
+Under **Edit sources → Capture options → Composition**, **Quoted authors** offers **Link to quoted post** or **Name only**. **Keep current style** leaves the setting unset and preserves the existing presentation. The choice stays with the draft. Changing it uses retained sources and keeps manually edited text, title and description. During an unfinished save, the choice is locked with the approved plan.
 
 The channel picker keeps the source preview above search and loads additional owned-channel pages as needed. Selected destinations persist through filtering and reopening. During a queued Save, the background worker retains the approved plan, account, channels and UUID while the editor disables changes.
 
@@ -30,6 +32,10 @@ With a configured public `ARENA_BLOCK_OAUTH_CLIENT_ID`, the browser uses PKCE fo
 The native host reads its configured daemon credential for each message. It returns source, plan, channel or save-status data to the browser. It requires explicit registration and the exact extension allowlist.
 
 For UI checks, use `extension/scripts/receive_picker_fixture.py` with a temporary build and fake account responses. The source fixtures and tests use fictional authors and channels.
+
+`extension/scripts/receive_text_preview_chrome.py` checks the built editor with retained public Note plans, fixture browser APIs and blocked HTTP(S). It uses an empty temporary profile, installs no extension and performs no save. Pass the build directory, a JSON array of `{id, plan}` cases and an output directory for screenshots and the receiving report.
+
+Prepare those cases offline with `bun extension/scripts/prepare_text_preview_cases.ts /tmp/arena-text-cases.json`. They use the pinned public responses for Joodaloop Note c-347044458 and Lucy Ives Note c-348712218. This verifies browser text presentation; it does not qualify media playback or unsupported Substack attachment variants.
 
 ## Nix and Chrome identity
 

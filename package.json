@@ -29,6 +29,7 @@
     "abort-controller": "^3.0.0",
     "commander": "^14.0.1",
     "core-js-pure": "^3.50.0",
+    "marked": "18.1.1",
     "turndown": "^7.2.4",
     "whatwg-fetch": "^3.6.20",
     "zod": "^4.3.5"

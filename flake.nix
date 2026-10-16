@@ -19,8 +19,8 @@
               || pkgs.lib.hasSuffix ".xcodeproj" base || pkgs.lib.hasSuffix ".xcworkspace" base);
         };
         nodeModulesHash = {
-          x86_64-linux = "sha256-/NKSU8rYaYvNBFcE9ty1UXSvYBo3FEfvR9RTnWvgUFk=";
-          aarch64-darwin = "sha256-KNzmEJx1QXfU5bk8Jot7T46HEwjSXoD8EEEOOlKZAcU=";
+          x86_64-linux = "sha256-cSAYJujhrxf+6WOAewcLORvybdhbqW6VSkDh2hGNOwo=";
+          aarch64-darwin = "sha256-wzbQ9vnDvaRV5nMzcOYMjqJE8A2eORsSj7k+t6zzYsI=";
         }.${system};
         nodeModules = pkgs.stdenvNoCC.mkDerivation {
           pname = "arena-block-node-modules";
