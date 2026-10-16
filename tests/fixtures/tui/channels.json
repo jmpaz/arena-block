@@ -1809,12 +1809,12 @@
   9020,
   9030
  ],
- "held": {
-  "title": "A held block",
+ "block": {
+  "title": "A sample block",
   "source": "example.com",
   "kind": "Link",
   "blockId": 42,
-  "alreadyIn": [
+  "connectedTo": [
    9011
   ]
  }

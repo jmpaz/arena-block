@@ -2,15 +2,16 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { join } from "node:path";
 import { createTestRenderer } from "@opentui/core/testing";
 import { ArenaBlockClient } from "../src/client.ts";
-import { readSnapshot, startFixtureDaemon, type FixtureDaemon } from "../src/tui/fixture-daemon.ts";
+import { readSnapshot, startSnapshotDaemon, type SnapshotDaemon } from "../src/tui/snapshot-daemon.ts";
 import { PickerModel, type Channel } from "../src/tui/model.ts";
 import { emitText, PickerView } from "../src/tui/picker.ts";
 import { ChannelRanker } from "../src/tui/rank.ts";
 
 const snapshot = readSnapshot(join(import.meta.dir, "fixtures/tui/channels.json"));
+const block = snapshot.block && { ...snapshot.block, alreadyIn: snapshot.block.connectedTo };
 const channels = snapshot.channels as Channel[];
-const model = (mode: "filter" | "jump" = "filter") => new PickerModel(channels, snapshot.recents, snapshot.held, 10, { mode, me: "Ana Ruiz" });
-const daemons: FixtureDaemon[] = [];
+const model = (mode: "filter" | "jump" = "filter") => new PickerModel(channels, snapshot.recents, block, 10, { mode, me: "Ana Ruiz" });
+const daemons: SnapshotDaemon[] = [];
 afterEach(() => daemons.splice(0).forEach(d => d.stop()));
 
 describe("ranking", () => {
@@ -91,9 +92,9 @@ describe("model", () => {
   });
 });
 
-describe("fixture daemon", () => {
+describe("snapshot daemon", () => {
   test("serves the read routes and refuses every write", async () => {
-    const daemon = startFixtureDaemon(snapshot);
+    const daemon = startSnapshotDaemon(snapshot);
     daemons.push(daemon);
     const client = new ArenaBlockClient(daemon.endpoint, daemon.token);
     expect((await client.channelIndex()).channels).toHaveLength(150);
@@ -122,7 +123,7 @@ describe("view", () => {
 });
 
 describe("nesting and visibility", () => {
-  const nested = () => new PickerModel(channels, snapshot.recents, snapshot.held, 10, {
+  const nested = () => new PickerModel(channels, snapshot.recents, block, 10, {
     me: "Ana Ruiz", nesting: { parents: { "9012": [9013, 9014], "9013": [9015] }, channels: [] },
   });
 

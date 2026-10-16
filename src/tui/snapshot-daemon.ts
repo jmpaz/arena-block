@@ -8,8 +8,8 @@ export const snapshotSchema = z.object({
   channels: z.array(channelRecordSchema.extend({ updatedAt: z.string().nullable().optional(), children: z.array(z.number().int()).optional() })).max(3000),
   me: z.string().optional(),
   recents: z.array(z.number().int()).default([]),
-  held: z.object({ title: z.string(), source: z.string(), kind: z.string(), blockId: z.number().int().positive().optional(),
-    url: z.string().optional(), alreadyIn: z.array(z.number().int()).default([]) }).optional(),
+  block: z.object({ title: z.string(), source: z.string(), kind: z.string(), blockId: z.number().int().positive().optional(),
+    url: z.string().optional(), connectedTo: z.array(z.number().int()).default([]) }).optional(),
   updatedAt: z.string().default(""),
   completeAt: z.string().nullable().default(null),
 }).passthrough();
@@ -19,13 +19,13 @@ export function readSnapshot(path: string): Snapshot {
   return snapshotSchema.parse(JSON.parse(readFileSync(path, "utf8")));
 }
 
-export type FixtureDaemon = { endpoint: string; token: string; refused: string[]; stop(): void };
+export type SnapshotDaemon = { endpoint: string; token: string; refused: string[]; stop(): void };
 
 /**
- * Serves a scoped snapshot over the read routes of the arena-block daemon protocol.
+ * Serves a saved channel snapshot over the read routes of the arena-block daemon protocol.
  * Every write route answers 405, and the refused requests are kept so a caller can show them.
  */
-export function startFixtureDaemon(snapshot: Snapshot, token = crypto.randomUUID()): FixtureDaemon {
+export function startSnapshotDaemon(snapshot: Snapshot, token = crypto.randomUUID()): SnapshotDaemon {
   const refused: string[] = [];
   const ranker = new ChannelRanker(snapshot.channels);
   const json = (value: unknown, status = 200) => Response.json(value, { status });
@@ -40,9 +40,9 @@ export function startFixtureDaemon(snapshot: Snapshot, token = crypto.randomUUID
       if (request.headers.get("authorization") !== `Bearer ${token}`) return json({ error: "Unauthorized" }, 401);
       if (request.method !== "GET") {
         refused.push(`${request.method} ${url.pathname}`);
-        return json({ error: "This fixture daemon is read-only" }, 405);
+        return json({ error: "This snapshot daemon is read-only" }, 405);
       }
-      if (url.pathname === "/v1/version") return json({ version: "fixture", sourceId: "fixture", planCapabilities: [] });
+      if (url.pathname === "/v1/version") return json({ version: "snapshot", sourceId: "snapshot", planCapabilities: [] });
       if (url.pathname === "/v1/channel-index") {
         return json({ accountId: snapshot.accountId, channels: records, updatedAt: snapshot.updatedAt, completeAt: snapshot.completeAt });
       }
@@ -61,9 +61,9 @@ export function startFixtureDaemon(snapshot: Snapshot, token = crypto.randomUUID
         return json({ accountId: snapshot.accountId, channels: found.slice(0, 30), nextPage: null });
       }
       const existing = url.pathname.match(/^\/v1\/existing-blocks\/(\d+)$/);
-      if (existing && snapshot.held?.blockId === Number(existing[1])) {
-        return json({ blockId: snapshot.held.blockId, blockUrl: `https://www.are.na/block/${snapshot.held.blockId}`,
-          title: snapshot.held.title, type: snapshot.held.kind, state: "available" });
+      if (existing && snapshot.block?.blockId === Number(existing[1])) {
+        return json({ blockId: snapshot.block.blockId, blockUrl: `https://www.are.na/block/${snapshot.block.blockId}`,
+          title: snapshot.block.title, type: snapshot.block.kind, state: "available" });
       }
       return json({ error: "Not found" }, 404);
     },
