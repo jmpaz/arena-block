@@ -565,6 +565,7 @@ program.command("pick").description("Pick channels in the terminal; print the ch
   .option("--mode <mode>", "filter (narrow the list as you type) or jump (keep the list, move to the best match)", "filter")
   .option("--height <rows>", "rows the picker occupies below the prompt", "18")
   .option("--preview <columns>", "width of the preview column, or off")
+  .option("--verbose", "also print the requests a save would send")
   .action(async (options: import("./tui/command.ts").PickOptions) => {
     if (!["id", "slug", "url", "json"].includes(options.emit ?? "id")) throw new Error("--emit is id, slug, url or json");
     if (!["filter", "jump"].includes(options.mode ?? "filter")) throw new Error("--mode is filter or jump");

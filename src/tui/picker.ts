@@ -20,6 +20,7 @@ export type PickerOptions = {
   copy?: boolean;
   me?: string;
   previewWidth?: number;
+  verbose?: boolean;
 };
 
 export type PickerResult = { accepted: boolean; outcome?: Outcome; emitted: string };
@@ -97,6 +98,31 @@ function copyText(text: string, output: tty.WriteStream): string {
   if (tool && Bun.spawnSync(tool, { stdin: Buffer.from(text) }).exitCode === 0) return tool[0]!;
   output.write(`\x1b]52;c;${Buffer.from(text).toString("base64")}\x07`);
   return "OSC 52";
+}
+
+/**
+ * Lists the chosen channels the way `arena-block publish` prints its receipt. The picker sends nothing yet, so the
+ * first line says so; with `columns` set, the requests a save would send follow, cut to that width.
+ */
+export function receipt(model: PickerModel, outcome: Outcome, columns = 0): string {
+  const lines = [model.block ? `Dry run, not saved: ${model.block.title}` : "Dry run, not saved"];
+  if (outcome.destinations.length) {
+    lines.push("Channels:");
+    for (const c of outcome.destinations) lines.push(`  ${c.title}${c.pending ? ` (new ${visibilityWord(c.visibility)} channel)` : ""}`);
+  }
+  if (model.proposedVisibility.size) {
+    lines.push("Visibility:");
+    for (const [id, visibility] of model.proposedVisibility) lines.push(`  ${model.channelById(id)?.title ?? id}: ${visibilityWord(visibility)}`);
+  }
+  if (columns) {
+    lines.push("Requests:");
+    for (const request of outcome.requests) {
+      const body = request.body ? ` ${JSON.stringify(request.body)}` : "";
+      lines.push(`\x1b[2m  ${truncate(`${request.method} ${request.path}${body}`, columns - 2)}\x1b[22m`);
+      if (request.note) lines.push(`\x1b[2m    ${request.note}\x1b[22m`);
+    }
+  }
+  return `${lines.join("\n")}\n`;
 }
 
 /** Widths of the right-hand columns, measured over the rows on screen so every visible row lines up. */
@@ -399,18 +425,11 @@ export async function runPicker(options: PickerOptions): Promise<PickerResult> {
       const emitted = outcome && outcome.destinations.length ? emitText(outcome, options.emit ?? "id") : "";
       renderer.destroy();
       output.write(`\x1b[${height}A\r\x1b[J`);
-      if (outcome && (outcome.destinations.length || outcome.requests.length)) {
-        const names = outcome.destinations.map(c => c.title).join(", ");
-        if (names) output.write(`${model.block ? `◆ ${model.block.title}  to ` : "chose "}${names}\n`);
-        for (const request of outcome.requests) {
-          const body = request.body ? ` ${JSON.stringify(request.body)}` : "";
-          output.write(`\x1b[2m  would send ${truncate(`${request.method} ${request.path}${body}`, columns - 14)}\x1b[22m\n`);
-          if (request.note) output.write(`\x1b[2m    ${request.note}\x1b[22m\n`);
-        }
-        if (copy || options.copy) {
-          const via = copyText(emitted.trim(), output);
-          output.write(`\x1b[2m  copied ${outcome.destinations.length} to the clipboard (${via})\x1b[22m\n`);
-        }
+      if (outcome && (outcome.destinations.length || outcome.requests.length)) output.write(receipt(model, outcome, options.verbose ? columns : 0));
+      if (outcome?.destinations.length && (copy || options.copy)) {
+        copyText(emitted.trim(), output);
+        const n = outcome.destinations.length;
+        output.write(`Copied ${n} ${options.emit === "url" ? "URL" : options.emit === "slug" ? "slug" : "ID"}${n === 1 ? "" : "s"}\n`);
       }
       input.destroy();
       resolve({ accepted: Boolean(outcome?.destinations.length), outcome, emitted });

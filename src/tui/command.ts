@@ -15,6 +15,7 @@ export type PickOptions = {
   height?: string;
   mode?: Mode;
   preview?: string;
+  verbose?: boolean;
 };
 
 function recentsPath(environment = process.env): string {
@@ -58,7 +59,7 @@ export async function pickCommand(options: PickOptions): Promise<number> {
   }
   try {
     const result = await runPicker({
-      client, block, recents, me, emit: options.emit, copy: options.copy, mode: options.mode,
+      client, block, recents, me, emit: options.emit, copy: options.copy, mode: options.mode, verbose: options.verbose,
       height: options.height ? Number(options.height) : undefined,
       previewWidth: options.preview === "off" ? 0 : options.preview ? Number(options.preview) : undefined,
     });

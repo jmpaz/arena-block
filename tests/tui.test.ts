@@ -4,7 +4,7 @@ import { createTestRenderer } from "@opentui/core/testing";
 import { ArenaBlockClient } from "../src/client.ts";
 import { readSnapshot, startSnapshotDaemon, type SnapshotDaemon } from "../src/tui/snapshot-daemon.ts";
 import { PickerModel, type Channel } from "../src/tui/model.ts";
-import { emitText, PickerView } from "../src/tui/picker.ts";
+import { emitText, PickerView, receipt } from "../src/tui/picker.ts";
 import { ChannelRanker } from "../src/tui/rank.ts";
 
 const snapshot = readSnapshot(join(import.meta.dir, "fixtures/tui/channels.json"));
@@ -90,6 +90,16 @@ describe("model", () => {
     const outcome = m.commit();
     expect(outcome.requests.map(r => `${r.method} ${r.path}`)).toEqual(["POST /v3/channels", "POST /v1/existing-placements"]);
     expect(emitText(outcome, "id")).toBe("9020\nnew:brand new\n");
+  });
+
+  test("the receipt lists channels the way the CLI does and says nothing was saved", () => {
+    const m = model();
+    m.toggleRecent(2);
+    m.type("brand new");
+    m.toggle(1);
+    const lines = receipt(m, m.commit()).trimEnd().split("\n");
+    expect(lines[0]).toBe("Dry run, not saved: A sample block");
+    expect(lines.slice(1)).toEqual(["Channels:", `  ${m.selected[0]!.title}`, "  brand new (new private channel)"]);
   });
 });
 

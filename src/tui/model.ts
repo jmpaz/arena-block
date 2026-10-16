@@ -79,6 +79,10 @@ export class PickerModel {
     return (this.children.get(channel.id) ?? []).map(id => this.known.get(id)!);
   }
 
+  channelById(id: number): Channel | undefined {
+    return this.known.get(id);
+  }
+
   parentOf(channel: Channel): Channel | undefined {
     const id = this.parents.get(channel.id)?.[0];
     return id === undefined ? undefined : this.known.get(id);
