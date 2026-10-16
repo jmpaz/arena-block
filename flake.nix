@@ -76,15 +76,20 @@
           version = metadata.version;
           src = source;
           ARENA_BLOCK_SUBSTACK_TAB_READING = "true";
+          ARENA_BLOCK_PERMISSION_PROFILE = "legacy";
+          ARENA_BLOCK_MASTODON_ORIGINS = "[]";
           passthru.withChromePublicKey = chromePublicKey:
             browserExtension.overrideAttrs (_: {
               ARENA_BLOCK_CHROME_PUBLIC_KEY = chromePublicKey;
             });
-          passthru.withBrowserConfig = { chromePublicKey, oauthClientId ? "", substackTabReading ? true }:
+          passthru.withBrowserConfig = { chromePublicKey, oauthClientId ? "", substackTabReading ? true,
+            permissionProfile ? "legacy", mastodonOrigins ? [] }:
             browserExtension.overrideAttrs (_: {
               ARENA_BLOCK_CHROME_PUBLIC_KEY = chromePublicKey;
               ARENA_BLOCK_OAUTH_CLIENT_ID = oauthClientId;
               ARENA_BLOCK_SUBSTACK_TAB_READING = pkgs.lib.boolToString substackTabReading;
+              ARENA_BLOCK_PERMISSION_PROFILE = permissionProfile;
+              ARENA_BLOCK_MASTODON_ORIGINS = builtins.toJSON mastodonOrigins;
             });
           nativeBuildInputs = [ pkgs.bun pkgs.zip ];
           buildPhase = ''
@@ -103,6 +108,8 @@
               revision = self.rev or (self.dirtyRev or null);
               sourceId = builtins.hashString "sha256" (toString source);
               features.substackTabReading = finalAttrs.ARENA_BLOCK_SUBSTACK_TAB_READING == "true";
+              features.permissionProfile = finalAttrs.ARENA_BLOCK_PERMISSION_PROFILE;
+              features.mastodonOrigins = builtins.fromJSON finalAttrs.ARENA_BLOCK_MASTODON_ORIGINS;
             })} "$target/chrome/release.json"
             cp "$target/chrome/release.json" "$target/firefox/release.json"
             find "$target/chrome" "$target/firefox" -type f -exec touch -t 198001010000.00 {} +

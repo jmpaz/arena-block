@@ -68,12 +68,24 @@ in {
       default = true;
       description = "Declare optional scripting for Substack tab reading. Disabling this retains public URL acquisition and marks tab reading unavailable; it does not request or grant permissions.";
     };
+    permissionProfile = lib.mkOption {
+      type = lib.types.enum [ "legacy" "named-sources" ];
+      default = "legacy";
+      description = "Optional host declaration: named-sources lists supported source APIs and configured Mastodon instances. This changes the manifest and requires separate installation review; it grants no browser access.";
+    };
+    mastodonOrigins = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = [];
+      description = "Exact HTTPS Mastodon origins available for optional consent. Setup requests only instances in the current capture. Other instances require the local helper or a package rebuild.";
+    };
     package = lib.mkOption {
       type = lib.types.package;
       default = self.packages.${system}.browser-extension.withBrowserConfig {
           chromePublicKey = if cfg.chromePublicKey == null then "" else cfg.chromePublicKey;
           oauthClientId = cfg.oauthClientId;
           substackTabReading = cfg.substackTabReading;
+          permissionProfile = cfg.permissionProfile;
+          mastodonOrigins = cfg.mastodonOrigins;
         };
       description = "Unpacked Chrome and Firefox extension bundles.";
     };

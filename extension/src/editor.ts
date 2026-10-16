@@ -10,13 +10,18 @@ import { BrowserSaver, browserCanPublish, routeBrowserDestinations, type Browser
 import { ResolutionGuard } from "./resolution-guard.ts";
 import { ChannelPickerModel, channelPage, channelValue, type ChannelRow, type ChannelScope } from "./channel-picker.ts";
 import type { CaptureJob } from "./capture-job.ts";
+import { parseSource } from "../../packages/core/url.ts";
+import { CaptureAccess, renderCaptureAccess } from "./capture-access.ts";
+import type { PermissionManifest, PermissionRequest } from "../permission-policy.ts";
 
 type BrowserAPI = {
   permissions: { request(value: { origins?: string[]; permissions?: string[] }): Promise<boolean>;
-    contains(value: { origins?: string[]; permissions?: string[] }): Promise<boolean> };
+    contains(value: { origins?: string[]; permissions?: string[] }): Promise<boolean>;
+    onAdded?: { addListener(listener: () => void): void };
+    onRemoved?: { addListener(listener: () => void): void } };
   storage: { local: { get(key: string): Promise<Record<string, unknown>>; set(value: Record<string, unknown>): Promise<void>; remove(key: string): Promise<void> };
     onChanged: { addListener(listener: (changes: Record<string, { newValue?: unknown }>, area: string) => void): void } };
-  runtime: { sendNativeMessage(host: string, message: unknown): Promise<unknown>; sendMessage(message: unknown): Promise<unknown>; getURL(path: string): string; getManifest(): TabReadingManifest };
+  runtime: { sendNativeMessage(host: string, message: unknown): Promise<unknown>; sendMessage(message: unknown): Promise<unknown>; getURL(path: string): string; getManifest(): TabReadingManifest & PermissionManifest };
   tabs: { query(query: { active: boolean; currentWindow: boolean }): Promise<Array<{ id?: number; url?: string }>> };
   scripting?: { executeScript(value: { target: { tabId: number }; world: "MAIN" | "ISOLATED"; func: (...args: any[]) => any; args: string[] }): Promise<Array<{ result?: unknown }>> };
   identity: { getRedirectURL(): string; launchWebAuthFlow(options: { url: string; interactive: boolean }): Promise<string | undefined> };
@@ -31,6 +36,23 @@ const substackTabReading = configureSubstackTabReading(manifest, $<HTMLButtonEle
 $("read-substack").setAttribute("aria-describedby", "substack-tab-availability");
 const primary = $<HTMLTextAreaElement>("primary");
 const extras = $<HTMLTextAreaElement>("extras");
+const captureAccess = new CaptureAccess(browser.permissions, manifest, () =>
+  [...new Set([...lines(primary.value), ...lines(extras.value)].flatMap(ref => {
+    try { return parseSource(ref).provider === "mastodon" ? [new URL(ref).origin] : []; }
+    catch { return []; }
+  }))], state => renderCaptureAccess(state, $<HTMLButtonElement>("allow-capture-access"),
+    $("capture-access-status"), $("capture-access-origins"), $("capture-access-unavailable")));
+$("allow-capture-access").addEventListener("click", () => { void captureAccess.requestFromClick(); });
+browser.permissions.onAdded?.addListener(() => { void captureAccess.refresh(); });
+browser.permissions.onRemoved?.addListener(() => { void captureAccess.refresh(); });
+async function capturePermission(request: PermissionRequest): Promise<boolean> {
+  const allowed = await browser.permissions.contains(request);
+  if (!allowed) {
+    $<HTMLDetailsElement>("capture-access").open = true;
+    void captureAccess.refresh();
+  }
+  return allowed;
+}
 const mediaPolicy = $<HTMLSelectElement>("media-policy");
 const threadPolicy = $<HTMLSelectElement>("thread-policy");
 const quotePolicy = $<HTMLSelectElement>("quote-policy");
@@ -184,6 +206,7 @@ function refreshSaveButton(): void {
   syncDestinationLock();
 }
 function intakeChanged(): void {
+  void captureAccess.refresh();
   resolutionGuard.changed();
   if (previewTimer) clearTimeout(previewTimer);
   retain();
@@ -452,8 +475,8 @@ function renderPickerPreview(): void {
 
 type NativeReply = { id?: string; ok: boolean; value?: any; error?: string };
 async function native(action: string, fields: Record<string, unknown> = {}, askPermission = true): Promise<any> {
-  if (askPermission && !await browser.permissions.request({ permissions: ["nativeMessaging"] } as any)) {
-    throw new Error("Access to the local helper was not granted.");
+  if (askPermission && !await capturePermission({ permissions: ["nativeMessaging"] })) {
+    throw new Error("Allow local helper access in Capture access.");
   }
   const id = crypto.randomUUID();
   const result = await browser.runtime.sendNativeMessage("net.fjpaz.arena_block", { id, action, ...fields }) as NativeReply;
@@ -625,11 +648,11 @@ async function save(): Promise<void> {
   syncDestinationLock();
   try {
     if (method === "browser") {
-      if (!await browser.permissions.request({ origins: ["https://api.are.na/*"] }))
-        throw new Error("Are.na access was not granted.");
+      if (!await capturePermission({ origins: ["https://api.are.na/*"] }))
+        throw new Error("Allow Are.na access in Capture access.");
       try { await oauth!.token(); } catch { await oauth!.signIn(); }
-    } else if (!await browser.permissions.request({ permissions: ["nativeMessaging"] })) {
-      throw new Error("Local helper access was not granted.");
+    } else if (!await capturePermission({ permissions: ["nativeMessaging"] })) {
+      throw new Error("Allow local helper access in Capture access.");
     }
     if (!pending) {
       const saveId = crypto.randomUUID();
@@ -677,16 +700,16 @@ async function saveSourceIntent(destinations: string[]): Promise<void> {
     if (pending?.phase === "needs_auth") await oauth!.signIn();
     else if (pending?.phase === "rejected" && pending.jobMethod === "browser") await oauth!.signIn();
     else if (pending?.phase === "needs_helper") {
-      if (!await browser.permissions.request({ permissions: ["nativeMessaging"] }))
-        throw new Error("Local helper access was not granted.");
+      if (!await capturePermission({ permissions: ["nativeMessaging"] }))
+        throw new Error("Allow local helper access in Capture access.");
     }
     if (!pending) {
       const origins = requiredOrigins([...refs, ...extraRefs], redditCaptures, substackCaptures);
       if (oauth) origins.push("https://api.are.na/*");
-      if (origins.length && !await browser.permissions.request({ origins: [...new Set(origins)] }))
-        throw new Error("Source access was not granted.");
-      if (!oauth && !await browser.permissions.request({ permissions: ["nativeMessaging"] }))
-        throw new Error("Local helper access was not granted.");
+      if (origins.length && !await capturePermission({ origins: [...new Set(origins)] }))
+        throw new Error("Allow source access in Capture access.");
+      if (!oauth && !await capturePermission({ permissions: ["nativeMessaging"] }))
+        throw new Error("Allow local helper access in Capture access.");
       const saveId = crypto.randomUUID();
       const edits = editedFields();
       const job: CaptureJob = { saveId, input: { primary: refs, extras: extraRefs, policy: chosenPolicy(), redditCaptures, substackCaptures },
@@ -950,9 +973,9 @@ async function openChannels(force = false): Promise<void> {
   picker.query = channel.value.trim();
   renderChannelRows();
   try {
-    const allowed = oauth ? await browser.permissions.request({ origins: ["https://api.are.na/*"] })
-      : await browser.permissions.request({ permissions: ["nativeMessaging"] });
-    if (!allowed) throw new Error("Channel access was not granted.");
+    const allowed = oauth ? await capturePermission({ origins: ["https://api.are.na/*"] })
+      : await capturePermission({ permissions: ["nativeMessaging"] });
+    if (!allowed) throw new Error("Allow channel access in Capture access.");
     channelAccessGranted = true;
     if (oauth) {
       const headers = { accept: "application/json", authorization: `Bearer ${await oauth.token()}` };
@@ -1039,13 +1062,12 @@ async function resolve(): Promise<void> {
     const origins = requiredOrigins([...refs, ...extraRefs], redditCaptures, substackCaptures);
     if (origins.length) {
       let allowed: boolean;
-      try { allowed = await browser.permissions.contains({ origins })
-        || await browser.permissions.request({ origins }); }
+      try { allowed = await capturePermission({ origins }); }
       catch (error) {
         if (!await browser.permissions.contains({ origins })) throw error;
         allowed = true;
       }
-      if (!allowed) throw new Error("Access to the source sites was not granted.");
+      if (!allowed) throw new Error("Allow source access in Capture access.");
     }
     const resolved = await resolveCapture({ primary: refs, extras: extraRefs, policy: chosenPolicy(), redditCaptures, substackCaptures });
     if (!resolutionGuard.current(ticket) || signature !== inputSignature()) return;
@@ -1107,7 +1129,10 @@ async function acceptSubstackCapture(value: unknown) {
 $("read-substack").addEventListener("click", () => {
   if (!substackTabReading || destinationsFrozen() || resolveInFlight) return;
   const signature = inputSignature();
-  void readActiveSubstackTab(browser).then(capture => {
+  void capturePermission({ permissions: ["scripting"] }).then(allowed => {
+    if (!allowed) throw new Error("Allow tab reading in Capture access.");
+    return readActiveSubstackTab(browser);
+  }).then(capture => {
     if (signature !== inputSignature()) throw new Error("The draft changed while reading Substack. Read the tab again.");
     return acceptSubstackCapture(capture);
   }).catch(error => message(error instanceof Error ? error.message : String(error), true));
@@ -1394,6 +1419,7 @@ void (async () => {
         if (plan && resolvedInput !== inputSignature()) intakeChanged();
       }
     }
+    await captureAccess.refresh();
     renderSelectedChannels();
     renderCapturePreview();
     $<HTMLDetailsElement>("source-details").open = !primary.value.trim();

@@ -11,6 +11,13 @@
   <main class="shell">
     <header class="topbar"><span class="brand"><span class="mark" aria-hidden="true">a.</span><span>Capture</span></span><button id="new-capture" class="header-action" type="button" aria-label="New capture" title="New capture">New</button><button id="back-to-capture" class="back-button" type="button" hidden>Done</button></header>
     <div class="viewport">
+      <details id="capture-access" class="intake"><summary>Capture access</summary>
+        <p class="hint">Read supported source sites and the current page. Connect to the local helper to prepare blocks and save them to your chosen Are.na channels.</p>
+        <button id="allow-capture-access" class="quiet" type="button">Allow capture access</button>
+        <p id="capture-access-status" class="hint" role="status" aria-live="polite"></p>
+        <p id="capture-access-unavailable" class="hint" hidden></p>
+        <details><summary>Sites included</summary><pre id="capture-access-origins" class="hint"></pre></details>
+      </details>
       <div id="capture-view">
         <section id="capture-preview" class="capture-preview" aria-label="Source preview">
           <img id="capture-preview-image" alt="" referrerpolicy="no-referrer" hidden>

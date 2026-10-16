@@ -78,6 +78,28 @@ The package also exposes `browser-extension.withBrowserConfig { chromePublicKey 
 
 Set `programs.arenaBlockExtension.substackTabReading = false` to build without the optional `scripting` declaration. The editor marks Substack tab reading unavailable, keeps its button disabled, and uses ordinary public URL acquisition. It does not request a scripting grant. The default remains `true`; tab reading then uses an existing scripting grant and the user-invoked active tab. For a direct Bun build, set `ARENA_BLOCK_SUBSTACK_TAB_READING=false`. This setting changes the manifest, so choose the variant matching the existing installation before updating; the deployment tool still rejects manifest differences.
 
+### Capture access
+
+Open **Capture access** and choose **Allow capture access** to request the optional APIs and source sites together. The request runs directly from that click. Opening the editor, previewing a source and choosing channels only check existing grants. Declining leaves existing grants in place; the editor reports partial access or an unavailable permission check without retrying the prompt. A completed request is followed by a readback of each grant. Chrome controls which confirmation prompts appear.
+
+The package declares `activeTab`, `storage` and `identity` as required APIs, and `nativeMessaging` and `scripting` as optional APIs. `activeTab` supplies access to the invoked page; scripting can read that page when separately granted. Persistent site access permits reading and modifying pages on those sites, including signed-in content. The current Substack reader only reads the matching active Note. The local helper can prepare blocks, inspect channels and save, retry or cancel saves through the configured receiver. Its registered extension allowlist and receiver credentials remain separate from the browser grant.
+
+Use a finite source declaration on both platforms with:
+
+```nix
+programs.arenaBlockExtension = {
+  permissionProfile = "named-sources";
+  substackTabReading = true;
+  mastodonOrigins = [ "https://mastodon.social" ];
+};
+```
+
+The named profile lists the thirteen source API patterns in [permission-policy.ts](permission-policy.ts). It contains no unrestricted HTTPS pattern. Setup requests a configured Mastodon instance only when it appears in the current capture. An unlisted instance requires a package rebuild or the local helper; Chrome cannot grant an origin absent from the manifest. Substack public URLs and generic link captures do not add site grants. Redirects and media delivery may involve other hosts; this list describes browser source preflight, not universal browser acquisition.
+
+The default `legacy` profile preserves the existing optional HTTPS declaration for compatible updates. Its setup action still requests only named source sites and selected Mastodon instances. For direct builds, use `ARENA_BLOCK_PERMISSION_PROFILE=named-sources` and `ARENA_BLOCK_MASTODON_ORIGINS='["https://mastodon.social"]'`. Nix builds the same permission profile on macOS and Linux and records it in `release.json`; Chrome handles consent. Changing the profile still requires separate manifest review. The updater does not grant permissions or modify Chrome's stored registration.
+
+The updater checks the profile lock and, for the normal Chrome user-data directory, main Chrome processes before replacement. A separate Chrome process conservatively blocks a normal-profile update. Custom user-data directories use their own lock. Process-query errors stop replacement. The final check runs immediately before directory exchange, including recovery after a failed receipt write. These checks cannot prevent a new process starting after the check; keep Chrome closed throughout the update and verify the running extension after reopening it.
+
 Chrome's [external installation methods](https://developer.chrome.com/docs/extensions/how-to/distribute/install-extensions) differ by platform. macOS Chrome accepts external update declarations for Chrome Web Store items. Linux also accepts local CRX packages and self-hosted updates. Home Manager's [Chromium module](https://github.com/nix-community/home-manager/blob/master/modules/programs/chromium.nix) follows those restrictions; proprietary Chrome on Linux reads external declarations from system-managed directories. The unpacked workflow above uses the existing development identity. Producing a CRX with that identity would require its private signing key. Browser-store publication and enterprise management require separate setup.
 
 ## Retained Reddit records
