@@ -294,6 +294,29 @@ class ExtensionDeploymentTests(unittest.TestCase):
                 deploy.rollback(self.args)
         self.assertEqual(deploy.fingerprint(self.directory), current)
 
+    def test_first_load_without_flushed_registration_protects_existing_files(self):
+        deploy.deploy(self.args)
+        previous = deploy.fingerprint(self.directory)
+        (self.package / "background.js").write_text("const release = 2;\n")
+        self.running_lock()
+        self.assertIsNone(deploy.registered(self.profile, ID))
+        with self.assertRaisesRegex(ValueError, "Chrome is running"):
+            deploy.deploy(self.args)
+        self.assertEqual(deploy.fingerprint(self.directory), previous)
+
+    def test_fresh_target_receipt_failure_preserves_files_if_browser_starts_or_is_unknown(self):
+        for last_check in [True, ValueError("Could not verify whether Chrome is running.")]:
+            with self.subTest(last_check=last_check):
+                if self.directory.exists():
+                    import shutil
+                    shutil.rmtree(self.directory)
+                with patch.object(deploy, "browser_running", side_effect=[False, False, last_check]), \
+                        patch.object(deploy, "write_json", side_effect=OSError("disk full")):
+                    with self.assertRaisesRegex(OSError, "New extension files remain at"):
+                        deploy.deploy(self.args)
+                self.assertEqual(deploy.fingerprint(self.directory), deploy.fingerprint(self.package))
+                self.assertFalse(self.args.state.exists())
+
     def test_receipt_failure_with_browser_restart_preserves_both_versions(self):
         deploy.deploy(self.args)
         self.register()

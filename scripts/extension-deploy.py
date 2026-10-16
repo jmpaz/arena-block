@@ -175,6 +175,9 @@ def deploy(args):
     desired = fingerprint(args.package)
     entry = registered(args.profile, args.extension_id)
     pending_registration = not entry or entry.get("path") != str(args.directory)
+    # A first unpacked load can be live before Chrome flushes registration.
+    # Existing target files need protection even when that receipt is absent.
+    protect_directory = not pending_registration or args.directory.exists()
     if entry and entry.get("location") != 4:
         raise ValueError("The existing extension is not an unpacked registration; review its installation separately.")
     if entry and pending_registration:
@@ -192,7 +195,7 @@ def deploy(args):
                 raise ValueError("The managed directory changed outside the deployment tool.")
         elif not (args.adopt and entry and not pending_registration):
             raise ValueError("Adopting an existing directory requires --adopt and its matching browser registration.")
-    if browser_running(args.profile) and not pending_registration:
+    if browser_running(args.profile) and protect_directory:
         if args.defer_if_running:
             return {"outcome": "deferred", "reason": "Close Chrome normally, then apply the Nix generation or run the configured update command.", **status(args)}
         raise ValueError("Chrome is running; close it normally before updating extension files.")
@@ -208,14 +211,14 @@ def deploy(args):
             path.chmod(0o755 if path.is_dir() else 0o644)
         if fingerprint(stage) != desired:
             raise ValueError("The staged extension differs from its Nix package.")
-        if browser_running(args.profile) and not pending_registration:
+        if browser_running(args.profile) and protect_directory:
             raise ValueError("Chrome started during staging; close it normally before updating.")
         if args.directory.exists():
             backup_fingerprint = fingerprint(args.directory)
             backup = args.directory.with_name("." + args.directory.name + "-backup-" + str(uuid.uuid4()))
             stage.rename(backup)
             stage = backup
-            if browser_running(args.profile) and not pending_registration:
+            if browser_running(args.profile) and protect_directory:
                 raise ValueError("Chrome started before replacement; close it normally before updating.")
             preserve_stage = True
             try:
@@ -232,7 +235,7 @@ def deploy(args):
         except Exception:
             if backup:
                 try:
-                    recovery_blocked = browser_running(args.profile) and not pending_registration
+                    recovery_blocked = browser_running(args.profile) and protect_directory
                 except ValueError:
                     raise OSError(f"Could not verify Chrome before receipt recovery. Previous files remain at {backup}; review before restoring.") from None
                 if recovery_blocked:
@@ -243,6 +246,12 @@ def deploy(args):
                     raise OSError(f"Could not restore the extension directory. Previous files remain at {backup}.") from error
                 preserve_stage = False
             else:
+                try:
+                    recovery_blocked = browser_running(args.profile)
+                except ValueError:
+                    raise OSError(f"Could not verify Chrome before receipt recovery. New extension files remain at {args.directory}; review before removing.") from None
+                if recovery_blocked:
+                    raise OSError(f"Chrome started before receipt recovery. New extension files remain at {args.directory}; review before removing.")
                 args.directory.rename(stage)
             raise
     finally:
