@@ -35,20 +35,21 @@ describe("ranking", () => {
 describe("model", () => {
   test("an empty query shows recents first, numbered, then the rest without repeats", () => {
     const m = model();
-    expect(m.rows[0]).toEqual({ kind: "label", text: "recent channels" });
-    const recent = m.rows.slice(1, 4).map(r => r.kind === "channel" ? [r.channel.id, r.slot] : null);
+    expect(m.rows.slice(0, 2)).toEqual([{ kind: "gap" }, { kind: "label", text: "recent channels" }]);
+    const recent = m.rows.slice(2, 5).map(r => r.kind === "channel" ? [r.channel.id, r.slot] : null);
     expect(recent).toEqual([[9010, 1], [9020, 2], [9030, 3]]);
     const ids = m.rows.flatMap(r => r.kind === "channel" ? [r.channel.id] : []);
     expect(new Set(ids).size).toBe(ids.length);
+    m.rows.forEach((row, i) => { if (row.kind === "label") expect(m.rows[i - 1]).toEqual({ kind: "gap" }); });
   });
 
   test("typing offers a create row above the matches, and the cursor starts on the first match", () => {
     const m = model();
     m.type("garden");
-    expect(m.rows[0]).toMatchObject({ kind: "create", title: "garden", visibility: "private" });
+    expect(m.rows[1]).toMatchObject({ kind: "create", title: "garden", visibility: "private" });
     expect(m.rows[m.cursor]?.kind).toBe("channel");
     m.cycleCreateVisibility();
-    expect(m.rows[0]).toMatchObject({ kind: "create", visibility: "closed" });
+    expect(m.rows[1]).toMatchObject({ kind: "create", visibility: "closed" });
   });
 
   test("tab selects a channel and deselects it; channels with the block already refuse", () => {
@@ -85,7 +86,7 @@ describe("model", () => {
     const m = model();
     m.toggleRecent(2);
     m.type("brand new");
-    m.toggle(0);
+    m.toggle(1);
     const outcome = m.commit();
     expect(outcome.requests.map(r => `${r.method} ${r.path}`)).toEqual(["POST /v3/channels", "POST /v1/existing-placements"]);
     expect(emitText(outcome, "id")).toBe("9020\nnew:brand new\n");
@@ -105,9 +106,9 @@ describe("snapshot daemon", () => {
 });
 
 describe("view", () => {
-  test("rows carry the visibility tint, the count after the title, and owners other than the account", async () => {
+  test("rows set counts and visibility in columns, and show owners other than the account", async () => {
     const { renderer, renderOnce, captureCharFrame } = await createTestRenderer({ width: 80, height: 14 });
-    const m = model();
+    const m = new PickerModel(channels, snapshot.recents, block, 14 - 5, { me: "Ana Ruiz" });
     const view = new PickerView(renderer, m, 14, { me: "Ana Ruiz", previewWidth: 0 });
     m.type("gardens room");
     view.draw();
@@ -115,8 +116,11 @@ describe("view", () => {
     const lines = captureCharFrame().split("\n");
     expect(lines[1]).toStartWith("› gardens room");
     const row = lines.find(l => l.includes("Gardens room"))!;
-    expect(row).toMatch(/Gardens room \d+/);
+    expect(row).toMatch(/Gardens room +\d+ +(private|closed|open) *$/);
     expect(row).not.toContain("Ana Ruiz");
+    const rows = lines.slice(view.listStart, view.listStart + m.listRows).filter(l => /(private|closed|open) *$/.test(l));
+    expect(new Set(rows.map(l => l.search(/(private|closed|open) *$/))).size).toBe(1);
+    expect(lines[view.trayLine - 1]!.trim()).toBe("");
     expect(lines[13]).toContain("enter save");
     renderer.destroy();
   });

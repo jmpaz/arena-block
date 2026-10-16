@@ -9,7 +9,8 @@ export type Channel = ChannelRecord & { pending?: true; updatedAt?: string | nul
 export type Block = { title: string; source: string; kind: string; blockId?: number; url?: string; connectedTo: number[] };
 
 export type Row =
-  | { kind: "label"; text: string; aside?: string }
+  | { kind: "gap" }
+  | { kind: "label"; text: string }
   | { kind: "channel"; channel: Channel; spans: Array<[number, number]>; slot?: number; faint?: boolean }
   | { kind: "create"; title: string; visibility: Visibility }
   | { kind: "pending"; text: string };
@@ -113,23 +114,20 @@ export class PickerModel {
     const recentIds = new Set(recent.map(c => c.id));
     const rows: Row[] = [];
     if (recent.length) {
-      rows.push({ kind: "label", text: "recent channels" });
+      rows.push({ kind: "gap" }, { kind: "label", text: "recent channels" });
       recent.forEach((channel, i) => rows.push({ kind: "channel", channel, spans: [], slot: i < 9 ? i + 1 : undefined }));
     }
     const mine = this.channels.filter(c => !recentIds.has(c.id));
     if (mine.length) {
-      const tally = (["private", "closed", "public"] as const).map(v => `${this.channels.filter(c => c.visibility === v).length} ${visibilityWord(v)}`).join(" · ");
-      rows.push({ kind: "label", text: "my channels", aside: tally });
+      rows.push({ kind: "gap" }, { kind: "label", text: "my channels" });
       for (const channel of mine) rows.push({ kind: "channel", channel, spans: [] });
     }
     return rows;
   }
 
   private roomRows(room: Channel): Row[] {
-    const kids = this.childrenOf(room);
-    const mineCount = kids.filter(c => this.isMine(c)).length;
-    return [{ kind: "label", text: this.path.map(c => c.title).join(" › "), aside: `${kids.length} channels inside${mineCount < kids.length ? `, ${kids.length - mineCount} not yours` : ""}` },
-      ...kids.map(channel => ({ kind: "channel" as const, channel, spans: [] }))];
+    return [{ kind: "gap" }, { kind: "label", text: this.path.map(c => c.title).join(" › ") },
+      ...this.childrenOf(room).map(channel => ({ kind: "channel" as const, channel, spans: [] }))];
   }
 
   /** Steps into the cursor row's nested channels, remembering where the step was taken from. */
@@ -142,9 +140,9 @@ export class PickerModel {
     this.rooms.push({ id: row.channel.id, cursor: index, top: this.top });
     this.query = "";
     this.notice = "";
-    this.cursor = 1;
     this.top = 0;
     this.rebuild();
+    this.cursor = this.rows.findIndex(r => r.kind === "channel");
     return true;
   }
 
@@ -170,7 +168,7 @@ export class PickerModel {
     const next = VISIBILITY_CYCLE[(VISIBILITY_CYCLE.indexOf(this.visibilityOf(c)) + 1) % VISIBILITY_CYCLE.length]!;
     if (next === c.visibility) this.proposedVisibility.delete(c.id);
     else this.proposedVisibility.set(c.id, next);
-    this.notice = next === c.visibility ? "" : `${visibilityWord(next)} on save`;
+    this.notice = "";
   }
 
   private exactTitle(): boolean {
@@ -181,7 +179,7 @@ export class PickerModel {
   rebuild(): void {
     const query = this.query.trim();
     if (this.showSelected) {
-      this.rows = this.selected.map(channel => ({ kind: "channel", channel, spans: [] }));
+      this.rows = [{ kind: "gap" }, { kind: "label", text: "selected" }, ...this.selected.map(channel => ({ kind: "channel" as const, channel, spans: [] }))];
     } else if (this.scope !== "mine") {
       this.rows = this.remoteRows();
     } else if (this.mode === "jump" || !query) {
@@ -196,7 +194,7 @@ export class PickerModel {
       }
       this.rows = rows;
     } else {
-      const rows: Row[] = [];
+      const rows: Row[] = [{ kind: "gap" }];
       if (!this.exactTitle()) rows.push({ kind: "create", title: query, visibility: this.createVisibility });
       for (const match of this.ranker.rank(query)) rows.push({ kind: "channel", channel: match.channel, spans: match.spans });
       this.rows = rows;
@@ -205,6 +203,10 @@ export class PickerModel {
   }
 
   private remoteRows(): Row[] {
+    return [{ kind: "gap" }, ...this.remoteResults()];
+  }
+
+  private remoteResults(): Row[] {
     const remote = this.remote;
     if (!this.query.trim()) return [{ kind: "pending", text: `type to search ${this.scope === "all" ? "all of Are.na" : "my network"}` }];
     if (remote.state === "loading" || remote.query !== this.query.trim() || remote.scope !== this.scope)
@@ -240,7 +242,8 @@ export class PickerModel {
   }
 
   private scrollTo(index: number): void {
-    const before = index > 0 && this.rows[index - 1]?.kind === "label" ? index - 1 : index;
+    let before = index;
+    while (before > 0 && (this.rows[before - 1]?.kind === "label" || this.rows[before - 1]?.kind === "gap")) before--;
     if (before < this.top) this.top = before;
     if (index >= this.top + this.listRows) this.top = index + 1 - this.listRows;
     this.top = Math.max(0, Math.min(this.top, Math.max(0, this.rows.length - this.listRows)));
