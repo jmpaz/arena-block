@@ -130,7 +130,7 @@ export class PickerModel {
   }
 
   private roomRows(room: Channel): Row[] {
-    return [{ kind: "gap" }, { kind: "label", text: this.path.map(c => c.title).join(" › ") },
+    return [{ kind: "gap" }, { kind: "label", text: room.title },
       ...this.childrenOf(room).map(channel => ({ kind: "channel" as const, channel, spans: [] }))];
   }
 

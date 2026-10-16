@@ -155,8 +155,9 @@ export class PickerView {
     renderer.root.add(frame);
   }
 
+  /** Width of the main column, leaving one cell of margin before the preview column. */
   get columnWidth(): number {
-    return this.renderer.width - (this.preview ? this.opts.previewWidth : 0);
+    return this.renderer.width - (this.preview ? this.opts.previewWidth + 1 : 0);
   }
 
   get trayLine(): number {
@@ -269,11 +270,11 @@ export class PickerView {
     const visibility = m.visibilityOf(c);
     const changed = visibility !== c.visibility;
     const parent = m.query.trim() && !m.room ? m.parentOf(c) : undefined;
-    const trail = parent ? `${truncate(parent.title, 16)} ${NEST} ` : "";
+    const trail = parent ? `${truncate(parent.title, 24)} ${NEST} ` : "";
     const owner = columns.owner ? padEnd(m.isMine(c) ? "" : truncate(c.owner.name, columns.owner), columns.owner) + "  " : "";
     const count = padStart(this.countText(c), columns.count);
     const nest = columns.nest ? "  " + padEnd(this.nestText(c), columns.nest) : "";
-    const state = padEnd(visibilityWord(visibility), VISIBILITY_WIDTH);
+    const word = visibilityWord(visibility);
     const right = width(owner) + width(count) + width(nest) + 2 + VISIBILITY_WIDTH;
     const room = w - 2 - width(trail) - right - 2;
     const title = truncate(c.title, room);
@@ -281,8 +282,8 @@ export class PickerView {
     const paint = here ? ink.plain : ink[visibility];
     const faint = (row.faint || c.canAdd === false) && !here;
     const titled = titlePieces(title, title.endsWith("…") ? [] : row.spans, paint).map(p => (faint ? dim(p) : p));
-    const stateInk = changed ? underline((here ? ink.plain : ink[visibility])(state)) : dim(state);
-    const body: Piece[] = [dim(trail), ...titled, gap, dim(owner), dim(count), dim(nest), "  ", stateInk];
+    const stateInk = changed ? underline((here ? ink.plain : ink[visibility])(word)) : dim(word);
+    const body: Piece[] = [dim(trail), ...titled, gap, dim(owner), dim(count), dim(nest), "  ", stateInk, " ".repeat(VISIBILITY_WIDTH - width(word))];
     return line([this.gutter(row), ...body.map(lit)]);
   }
 
