@@ -3,6 +3,43 @@ import Foundation
 import XCTest
 
 final class RuntimeTests: XCTestCase {
+    @MainActor func testLiveActualImageOnlySubstackNote() async throws {
+        guard ProcessInfo.processInfo.environment["CAPTURE_LIVE_SUBSTACK_IMAGE_NOTE"] == "1" else {
+            throw XCTSkip("Opt-in credentialless public Note read; no save.")
+        }
+        let canonical = "https://substack.com/@norvidstudies/note/c-362104813"
+        let runtime = try CaptureRuntime()
+        let value = try await runtime.resolve(refs: [canonical + "?r=1ir8aw&utm_medium=ios&utm_source=notes-share-"], policyJSON: #"{"threadExpansion":"off"}"#)
+        let envelope = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(value.utf8)) as? [String: Any])
+        let plan = try XCTUnwrap(envelope["plan"] as? [String: Any])
+        let block = try XCTUnwrap(plan["block"] as? [String: Any])
+        XCTAssertEqual(block["title"] as? String, "Note by @norvidstudies")
+        XCTAssertEqual(block["canonicalSource"] as? String, canonical)
+        XCTAssertFalse((block["markdown"] as? String ?? "").contains("📸"))
+        let source = try XCTUnwrap((plan["sources"] as? [[String: Any]])?.first)
+        XCTAssertEqual(source["text"] as? String, "")
+        let image = try XCTUnwrap((source["media"] as? [[String: Any]])?.first)
+        XCTAssertEqual(image["url"] as? String, "https://substack-post-media.s3.amazonaws.com/public/images/9fc436fc-78b9-407e-9a44-70f18500a27d_1448x1086.png")
+        XCTAssertEqual(image["width"] as? Int, 1448)
+        XCTAssertEqual(image["height"] as? Int, 1086)
+        for id in ["346876542", "347044458"] {
+            let url = "https://substack.com/@joodaloop/note/c-\(id)"
+            let output = try await runtime.resolve(refs: [url + "?r=1ir8aw&utm_medium=ios&utm_source=notes-share-"], policyJSON: #"{"threadExpansion":"off"}"#)
+            let result = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(output.utf8)) as? [String: Any])
+            let contrast = try XCTUnwrap(result["plan"] as? [String: Any])
+            let block = try XCTUnwrap(contrast["block"] as? [String: Any])
+            XCTAssertEqual(block["canonicalSource"] as? String, url)
+            let post = try XCTUnwrap((contrast["sources"] as? [[String: Any]])?.first)
+            if id == "347044458" {
+                XCTAssertTrue((post["text"] as? String ?? "").contains("still online at"))
+                XCTAssertTrue((post["text"] as? String ?? "").contains("http://colly.com/v4"))
+                XCTAssertEqual((post["media"] as? [Any])?.count, 1)
+                let quote = try XCTUnwrap(post["quote"] as? [String: Any])
+                XCTAssertEqual(quote["id"] as? String, "346876542")
+                XCTAssertTrue((quote["text"] as? String ?? "").contains("as an act of reverence for the medium"))
+            } else { XCTAssertNil(post["quote"]) }
+        }
+    }
     func testPublicFacetSnapshotsComposeIdenticallyInJavaScriptCore() async throws {
         try await MainActor.run {
             let fixture = URL(fileURLWithPath: #filePath).deletingLastPathComponent()

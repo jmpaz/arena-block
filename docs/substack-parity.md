@@ -9,6 +9,8 @@
 | Reply expansion | With `threadExpansion: on`, follows a verified same-author linear chain. Other authors, branches and incomplete reply sets are excluded or stop expansion. |
 | Rich text | Preserves authored HTML in the source record and converts it to Markdown. Relative links resolve against their containing source. |
 | Original images | Uses shared media selection, ordering and rendering. |
+| Image-only Notes | Verifies empty authored text and the original images against the public Note record. Camera placeholders stay out of the saved text. |
+| External link cards | Retains the observed title, URL and labelled preview separately from authored prose and quoted Notes. The public record must agree with the visible card. HTTP links remain links; Capture does not fetch their destination. |
 | Multiple sources | Preserves explicit source order and deduplicates Note aliases by ID. Media extras use the common composer. |
 | Publication dates | Retains explicit-offset timestamps and offset-free display labels. Quote dates use source dates; acquisition times remain in source records. |
 | Drafts and saves | Retains source records in browser and native drafts, save snapshots, helper requests and receiver plans. |

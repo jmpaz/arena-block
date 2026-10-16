@@ -1,6 +1,7 @@
 import CryptoKit
 import Foundation
 import JavaScriptCore
+import OSLog
 
 @MainActor
 public final class CaptureRuntime {
@@ -11,6 +12,8 @@ public final class CaptureRuntime {
     private var nextTimer = 0
     private var continuations: [String: CheckedContinuation<String, Error>] = [:]
     private let session: URLSession
+    private let sourceLog = Logger(subsystem: "net.fjpaz.arena-capture", category: "source")
+    public private(set) var lastSourceDiagnostic: String?
 
     public init() throws {
         guard let context = JSContext(), let resource = Bundle.module.url(forResource: "capture-core", withExtension: "js") else {
@@ -28,6 +31,11 @@ public final class CaptureRuntime {
         }
         let http: @convention(block) (Int, String) -> Void = { [weak self] id, request in self?.request(id: id, json: request) }
         let cancel: @convention(block) (Int) -> Void = { [weak self] id in self?.requests.removeValue(forKey: id)?.cancel() }
+        let diagnostic: @convention(block) (String) -> Void = { [weak self] value in
+            guard value.utf8.count <= 1024 else { return }
+            self?.lastSourceDiagnostic = value
+            self?.sourceLog.error("Source read detail: \(value, privacy: .private)")
+        }
         let complete: @convention(block) (String, JSValue, JSValue) -> Void = { [weak self] id, result, error in
             guard let continuation = self?.continuations.removeValue(forKey: id) else { return }
             if !error.isNull && !error.isUndefined { continuation.resume(throwing: RuntimeError(error.toString())) }
@@ -53,6 +61,7 @@ public final class CaptureRuntime {
         context.setObject(hash, forKeyedSubscript: "nativeSHA256" as NSString)
         context.setObject(http, forKeyedSubscript: "nativeHTTP" as NSString)
         context.setObject(cancel, forKeyedSubscript: "nativeCancelHTTP" as NSString)
+        context.setObject(diagnostic, forKeyedSubscript: "nativeSourceDiagnostic" as NSString)
         context.setObject(complete, forKeyedSubscript: "nativeResolveComplete" as NSString)
         context.setObject(setTimer, forKeyedSubscript: "setTimeout" as NSString)
         context.setObject(clearTimer, forKeyedSubscript: "clearTimeout" as NSString)
@@ -61,6 +70,7 @@ public final class CaptureRuntime {
     }
 
     public func resolve(refs: [String], extraRefs: [String] = [], policyJSON: String = "{}", refresh: Bool = false, redditCapturesJSON: String = "[]", substackCapturesJSON: String = "[]") async throws -> String {
+        lastSourceDiagnostic = nil
         let refsJSON = String(decoding: try JSONEncoder().encode(refs), as: UTF8.self)
         let arguments = [refsJSON, policyJSON, refresh ? "true" : "false",
                          String(decoding: try JSONEncoder().encode(extraRefs), as: UTF8.self), redditCapturesJSON, substackCapturesJSON]

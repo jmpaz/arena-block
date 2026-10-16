@@ -18,12 +18,18 @@ const attachmentSchema = z.object({ kind: z.enum(["image", "video"]), url: https
 }, "Expected an observed original Substack media URL");
 const linkSchema = z.object({
   kind: z.enum(["link", "article", "image", "video", "audio"]),
-  role: z.enum(["linked", "preview", "attachment"]), url: httpsURL,
+  role: z.enum(["linked", "preview", "attachment"]), url: z.url().refine(value => {
+    const url = new URL(value);
+    return ["https:", "http:"].includes(url.protocol) && !url.username && !url.password && !url.port && !/[\u0000-\u0020<>]/.test(value);
+  }, "Expected a public HTTP or HTTPS link without credentials or a custom port"),
   title: z.string().max(1000).optional(),
+  previewText: z.string().max(20_000).optional(),
   excerptAuthor: z.string().min(1).max(512).optional(),
   // An intentional selected article quote is an excerpt, never an article body.
   excerptHtml: z.string().max(50_000).optional(),
-}).strict().refine(link => !link.excerptHtml || (link.kind === "article" && !!link.excerptAuthor), "An article excerpt requires its own author");
+}).strict().refine(link => !link.excerptHtml || (link.kind === "article" && !!link.excerptAuthor), "An article excerpt requires its own author")
+  .refine(link => !link.previewText || (link.kind === "link" && link.role === "preview" && !!link.title), "A link preview requires its own title and scope")
+  .refine(link => link.url.startsWith("https:") || link.kind === "link", "Media and article references require HTTPS");
 export type SubstackNote = {
   url: string; author: z.infer<typeof authorSchema>; body: z.infer<typeof bodySchema>;
   acquisition?: { method: "public-html" | "browser-dom"; observedAt: string };

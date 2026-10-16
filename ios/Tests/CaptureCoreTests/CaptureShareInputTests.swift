@@ -5,6 +5,22 @@ import XCTest
 final class CaptureShareInputTests: XCTestCase {
     private let source = "https://www.tiktok.com/@kylemakesshortfilms/video/7696537875722013983"
 
+    func testSubstackShareTrackingIsCleanedBeforeReadingTheSource() {
+        let canonical = "https://substack.com/@norvidstudies/note/c-362104813"
+        let tracked = canonical + "?r=1ir8aw&utm_medium=ios&utm_source=notes-share-#shared"
+        for value: Any in [URL(string: tracked)!, tracked, Data(tracked.utf8), NSAttributedString(string: "Read " + tracked)] {
+            XCTAssertEqual(CaptureShareInput.urls(in: value).map(\.absoluteString), [canonical])
+        }
+        XCTAssertEqual(CaptureInput.canonicalSourceText(" \(tracked) \nhttps://example.com/?q=kept"), canonical + "\nhttps://example.com/?q=kept")
+        XCTAssertEqual(CaptureInput.pasteableSourceText("\(tracked)\n\(canonical)"), canonical)
+        for value in ["https://www.lesswrong.com/posts/post/?commentId=comment#comment-comment",
+                      "https://substack.com/p/article?r=kept", "https://substack.com/@person/note/c-0?r=kept",
+                      "https://substack.com:443/@person/note/c-1?r=kept", "https://substack.com/%40person/note/c-1?r=kept",
+                      "https://substack.com.example.org/@person/note/c-1?r=kept"] {
+            XCTAssertEqual(CaptureInput.canonicalSourceURL(URL(string: value)!).absoluteString, value)
+        }
+    }
+
     func testBrowserOnlyPropertyListCarriesExactSharedPageWithoutURLAttachment() throws {
         let wrapped = ["NSExtensionJavaScriptPreprocessingResultsKey": ["sourceUrl": source]]
         for format in [PropertyListSerialization.PropertyListFormat.xml, .binary] {

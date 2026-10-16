@@ -17,7 +17,7 @@ public enum CaptureShareInput {
             guard url.absoluteString.utf8.count <= maximumBytes,
                   ["http", "https"].contains(scheme) || (scheme == "at" && CaptureInput.isAtprotoPost(url)),
                   url.host?.isEmpty == false, url.user == nil, url.password == nil else { return [] }
-            return [url]
+            return [CaptureInput.canonicalSourceURL(url)]
         }
         let text: String
         if let string = value as? String { text = string }

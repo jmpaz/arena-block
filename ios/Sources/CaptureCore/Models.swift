@@ -203,6 +203,29 @@ public struct CaptureDraft: Codable, Identifiable, Sendable {
 }
 
 public enum CaptureInput {
+    /// Note identity is in its verified path. Remove sharing parameters before
+    /// displaying intake, while leaving other providers' query/fragment IDs intact.
+    public static func canonicalSourceURL(_ url: URL) -> URL {
+        guard url.scheme?.lowercased() == "https", ["substack.com", "www.substack.com"].contains(url.host?.lowercased() ?? ""),
+              url.user == nil, url.password == nil, url.port == nil,
+              var components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              components.percentEncodedPath.range(of: #"^/(?:(@[A-Za-z0-9_]+|profile/[1-9][0-9]*(?:-[A-Za-z0-9_-]+)?)/)?note/c-[1-9][0-9]*/?$"#, options: .regularExpression) != nil else { return url }
+        components.scheme = "https"; components.host = "substack.com"
+        components.query = nil; components.fragment = nil
+        if components.path.hasSuffix("/") { components.path.removeLast() }
+        return components.url ?? url
+    }
+
+    public static func canonicalSourceText(_ text: String) -> String {
+        text.components(separatedBy: "\n").map { line in
+            let value = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard value.rangeOfCharacter(from: .whitespacesAndNewlines) == nil,
+                  let url = URL(string: value) else { return line }
+            let canonical = canonicalSourceURL(url)
+            return canonical == url ? line : canonical.absoluteString
+        }.joined(separator: "\n")
+    }
+
     /// Local preflight identity for post variants. The shared resolver remains
     /// authoritative for provider canonicalization and coverage.
     public static func canonicalSourceIdentity(_ url: URL) -> String {
@@ -305,7 +328,7 @@ public enum CaptureInput {
         return matches.compactMap { match in
             guard let url = match.url, ["https", "http"].contains(url.scheme?.lowercased() ?? ""),
                   url.user == nil, url.password == nil, seen.insert(url.absoluteString).inserted else { return nil }
-            return url
+            return canonicalSourceURL(url)
         }
     }
 
@@ -332,7 +355,7 @@ public enum CaptureInput {
         }
         var seen = Set<String>()
         let links = candidates.sorted { $0.0 < $1.0 }.compactMap { _, url -> String? in
-            seen.insert(canonicalSourceIdentity(url)).inserted ? url.absoluteString : nil
+            seen.insert(canonicalSourceIdentity(url)).inserted ? canonicalSourceURL(url).absoluteString : nil
         }
         guard !links.isEmpty, links.count <= 20 else { return nil }
         return links.joined(separator: "\n")

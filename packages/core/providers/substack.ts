@@ -55,6 +55,7 @@ function notePost(note: SubstackNote): ResolvedPost {
   collectTextReferences(document.body);
   const links = note.links.map(link => {
     const reference = link.title ? `[${literal(link.title)}](<${link.url}>)` : `<${link.url}>`;
+    if (link.previewText) return `*Preview of ${reference}:*\n\n${literal(link.previewText).split("\n").map(line => line ? `> ${line}` : ">").join("\n")}`;
     if (link.excerptHtml) return `*Excerpt from ${reference}, by ${literal(link.excerptAuthor!)}:*\n\n${prose(link.excerptHtml, link.url).split("\n").map(line => line ? `> ${line}` : ">").join("\n")}`;
     return !link.title && bodyReferences.has(link.url) ? "" : reference;
   });

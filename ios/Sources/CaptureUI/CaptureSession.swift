@@ -497,6 +497,7 @@ public final class CaptureSession {
     func setInput(_ text: String, keepingExpansion: Bool = false, keepingRoles: Bool = false,
                   preservingChoices: Bool = false) {
         guard !busy, draft?.blockID == nil, [.editing, .preparing, .ready, .failed].contains(draft?.phase ?? .saved) else { return }
+        let text = CaptureInput.canonicalSourceText(text)
         let startingEmpty = draft?.hasDraftContent == false
         cleanedSourceURL = nil
         draft?.renderPath = nil; draft?.previewSnapshot = nil
@@ -1677,7 +1678,7 @@ public final class CaptureSession {
     private func receive(urls: [URL], redditCaptureJSON: String?, substackCaptureJSON: String? = nil) {
         guard !sharePresentationClosed else { return }
         var seen = Set<String>()
-        let values = urls.map(\.absoluteString).filter { seen.insert($0).inserted }
+        let values = urls.map(CaptureInput.canonicalSourceURL).map(\.absoluteString).filter { seen.insert($0).inserted }
         guard !values.isEmpty else { return }
         let pending = PendingShare(id: UUID(), urls: values, redditCaptureJSON: redditCaptureJSON, substackCaptureJSON: substackCaptureJSON)
         do {

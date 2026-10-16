@@ -34,7 +34,12 @@ host.captureResolve = (id: string, refsJSON: string, policyJSON: string, refresh
       if (controller.signal.aborted || jobs.get(id) !== controller) return;
       const plan = composePlan(resolved.posts, resolved.policy);
       host.nativeResolveComplete(id, JSON.stringify({ plan, fields: publicationFields(plan) }), null);
-    }, error => { if (jobs.get(id) === controller) host.nativeResolveComplete(id, null, error instanceof Error ? error.message : String(error)); })
+    }, error => {
+      if (jobs.get(id) !== controller) return;
+      if (error instanceof Error && error.cause && typeof error.cause === "object" && (error.cause as any).code === "substack_note_body_unavailable")
+        host.nativeSourceDiagnostic?.(JSON.stringify(error.cause));
+      host.nativeResolveComplete(id, null, error instanceof Error ? error.message : String(error));
+    })
     .catch(error => { if (jobs.get(id) === controller) host.nativeResolveComplete(id, null, String(error)); })
     .finally(() => { if (jobs.get(id) === controller) jobs.delete(id); });
 };
