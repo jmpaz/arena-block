@@ -6,13 +6,13 @@ import {
 } from "@opentui/core";
 import type { ArenaBlockClient } from "../client.ts";
 import { arenaDestination } from "../url.ts";
-import { PickerModel, type Channel, type HeldBlock, type Mode, type Outcome, type Row } from "./model.ts";
+import { PickerModel, visibilityWord, type Block, type Channel, type Mode, type Outcome, type Row } from "./model.ts";
 
 export type Emit = "id" | "slug" | "url" | "json";
 
 export type PickerOptions = {
   client: ArenaBlockClient;
-  block?: HeldBlock;
+  block?: Block;
   recents?: number[];
   height?: number;
   mode?: Mode;
@@ -31,6 +31,17 @@ const ink = {
   plain: fg(RGBA.defaultForeground()),
 };
 type Piece = string | TextChunk;
+const SCOPE_WORDS = { mine: "my are.na", network: "my network", all: "all" } as const;
+const SCOPE_LINE = Object.values(SCOPE_WORDS).join("  ");
+
+function scopeAt(x: number): keyof typeof SCOPE_WORDS | undefined {
+  let start = 0;
+  for (const [scope, word] of Object.entries(SCOPE_WORDS) as Array<[keyof typeof SCOPE_WORDS, string]>) {
+    if (x >= start && x < start + word.length) return scope;
+    start += word.length + 2;
+  }
+  return undefined;
+}
 const width = (text: string) => Bun.stringWidth(text);
 
 function truncate(text: string, max: number): string {
@@ -137,8 +148,8 @@ export class PickerView {
 
   private hand(w: number) {
     const block = this.model.block;
-    if (!block) return line([dim("pick channels")]);
-    const right = block.alreadyIn.length ? `already in ${block.alreadyIn.length}` : "";
+    if (!block) return line([dim("choose channels")]);
+    const right = block.connectedTo.length ? `in ${block.connectedTo.length} channels` : "";
     const left = `◆ ${block.title}`;
     const source = `  ${block.source} · ${block.kind.toLowerCase()}`;
     const room = w - width(right) - 1;
@@ -151,11 +162,11 @@ export class PickerView {
     const m = this.model;
     const scopes: Piece[] = [];
     for (const scope of ["mine", "network", "all"] as const) {
-      if (scopes.length) scopes.push(dim(" "));
-      scopes.push(scope === m.scope ? underline(ink.plain(scope)) : dim(scope));
+      if (scopes.length) scopes.push(dim("  "));
+      scopes.push(scope === m.scope ? underline(ink.plain(SCOPE_WORDS[scope])) : dim(SCOPE_WORDS[scope]));
     }
     const tag = m.mode === "jump" ? "jump  " : "";
-    const right = width(tag) + "mine network all".length;
+    const right = width(tag) + SCOPE_LINE.length;
     const trail = m.path.map(c => truncate(c.title, 14)).join(" › ");
     const prompt = `${trail ? `${trail} ` : ""}› ${m.query}`;
     return line([prompt, " ".repeat(Math.max(1, w - width(prompt) - right)), dim(tag), ...scopes]);
@@ -164,8 +175,8 @@ export class PickerView {
   private gutter(row: Extract<Row, { kind: "channel" }>): Piece {
     const m = this.model;
     const paint = ink[m.visibilityOf(row.channel)];
-    if (m.isHeld(row.channel)) return paint("■ ");
-    if (m.alreadyIn.has(row.channel.id)) return dim("◇ ");
+    if (m.isSelected(row.channel)) return paint("■ ");
+    if (m.connectedTo.has(row.channel.id)) return dim("◇ ");
     if (row.slot) return dim(`${row.slot} `);
     return "  ";
   }
@@ -187,7 +198,7 @@ export class PickerView {
     }
     if (row.kind === "create") {
       const paint = ink[row.visibility];
-      const text = truncate(`+ new ${row.visibility} channel "${row.title}"`, w - 18);
+      const text = truncate(`+ new ${visibilityWord(row.visibility)} channel "${row.title}"`, w - 18);
       const hint = "^v visibility";
       const gap = " ".repeat(Math.max(1, w - 2 - width(text) - width(hint)));
       return line(["  ", here ? reverse(ink.plain(text)) : paint(text), lit(gap), dim(hint)]);
@@ -197,7 +208,7 @@ export class PickerView {
     const changed = visibility !== c.visibility;
     const parent = m.query.trim() && !m.room ? m.parentOf(c) : undefined;
     const where = m.isMine(c) ? (parent ? `in ${truncate(parent.title, 16)} · ` : "") : `${truncate(c.owner.name, 18)} · `;
-    const state = changed ? `${c.visibility} to ${visibility}` : visibility;
+    const state = changed ? `${visibilityWord(c.visibility)} to ${visibilityWord(visibility)}` : visibilityWord(visibility);
     const right = `${where}${state}`;
     const kids = m.childrenOf(c).length;
     const count = c.pending ? " new" : c.count === undefined ? "" : ` ${c.count}`;
@@ -215,8 +226,8 @@ export class PickerView {
 
   trayChips(w: number): Array<{ channel: Channel; from: number; to: number }> {
     const chips: Array<{ channel: Channel; from: number; to: number }> = [];
-    let x = width("held ");
-    for (const channel of this.model.held) {
+    let x = width("selected ");
+    for (const channel of this.model.selected) {
       const label = truncate(channel.title, 24);
       if (x + width(label) + 6 > w) break;
       chips.push({ channel, from: x, to: x + width(label) });
@@ -228,17 +239,14 @@ export class PickerView {
   private tray(w: number) {
     const m = this.model;
     if (m.notice) return line([dim(`  ${truncate(m.notice, w - 2)}`)]);
-    if (!m.held.length) {
-      const hint = m.block ? "tab puts it down here · click a row · drag ◆ onto a channel" : "tab picks · click a row";
-      return line([dim(`  ${truncate(hint, w - 2)}`)]);
-    }
+    if (!m.selected.length) return line([]);
     const chips = this.trayChips(w);
-    const pieces: Piece[] = [dim("held ")];
+    const pieces: Piece[] = [dim("selected ")];
     chips.forEach((chip, i) => {
       if (i) pieces.push(dim(" · "));
       pieces.push(ink[chip.channel.visibility](truncate(chip.channel.title, 24)));
     });
-    const more = m.held.length - chips.length;
+    const more = m.selected.length - chips.length;
     if (more > 0) pieces.push(dim(` +${more}`));
     return line(pieces);
   }
@@ -247,10 +255,10 @@ export class PickerView {
     const m = this.model;
     const selectable = m.rows.filter(r => r.kind === "channel").length;
     const position = m.rows.slice(0, m.cursor + 1).filter(r => r.kind === "channel").length;
-    const n = m.held.length;
-    const act: [string, string] = m.block ? ["enter", n ? `connect ${n}` : "connect"] : ["enter", "done"];
-    const hints: Array<[string, string]> = m.showHeld ? [["shift-tab", "all"], act, ["esc", "back"]]
-      : [["tab", m.block ? "put down" : "pick"], act, ["^y", "copy"], ["esc", m.rooms.length ? "back" : "leave"]];
+    const n = m.selected.length;
+    const act: [string, string] = m.block ? ["enter", n ? `save to ${n}` : "save"] : ["enter", "done"];
+    const hints: Array<[string, string]> = m.showSelected ? [["shift-tab", "all channels"], act, ["esc", "back"]]
+      : [["tab", "select"], act, ["^y", "copy"], ["esc", m.rooms.length ? "back" : "close"]];
     const pieces: Piece[] = [];
     hints.forEach(([key, label], i) => pieces.push(i ? "  " : "", key, dim(` ${label}`)));
     const hintWidth = hints.reduce((sum, [k, l], i) => sum + (i ? 2 : 0) + width(k) + 1 + width(l), 0);
@@ -272,13 +280,13 @@ export class PickerView {
     if (c) {
       const paint = ink[c.visibility];
       rows.push(bar([paint(truncate(c.title, pw))]));
-      rows.push(bar([dim(truncate(`${c.visibility} · ${c.pending ? "created on connect" : `${c.count ?? "?"} blocks`}`, pw))]));
+      rows.push(bar([dim(truncate(`${visibilityWord(c.visibility)} · ${c.pending ? "created on save" : `${c.count ?? "?"} blocks`}`, pw))]));
       rows.push(bar([dim(truncate(c.owner.name, pw))]));
       if (c.updatedAt) rows.push(bar([dim(`updated ${c.updatedAt.slice(0, 10)}`)]));
       rows.push(bar([]));
-      if (this.model.alreadyIn.has(c.id)) rows.push(bar([dim("◇ already holds this block")]));
-      if (this.model.isHeld(c)) rows.push(bar([ink[c.visibility]("■ "), "put down here"]));
-      if (c.canAdd === false) rows.push(bar([dim("closed to you")]));
+      if (this.model.connectedTo.has(c.id)) rows.push(bar([dim("◇ this block is here")]));
+      if (this.model.isSelected(c)) rows.push(bar([ink[c.visibility]("■ "), "selected"]));
+      if (c.canAdd === false) rows.push(bar([dim("you cannot add here")]));
     }
     while (rows.length < this.height) rows.push(bar([]));
     const pieces: Piece[] = [];
@@ -324,7 +332,7 @@ export async function runPicker(options: PickerOptions): Promise<PickerResult> {
         const found = await options.client.channelSearch(query, scope === "network" ? "following" : "all");
         if (model.query.trim() === query && model.scope === scope) model.setRemote({ query, scope, state: "done", channels: found.channels as Channel[] });
       } catch (error) {
-        const message = /403|Premium/i.test(String(error)) ? "searching beyond your channels needs Are.na Premium" : "search failed";
+        const message = /403|Premium/i.test(String(error)) ? "search across Are.na requires Premium" : "search failed";
         model.setRemote({ query, scope, state: "error", channels: [], message });
       }
       redraw();
@@ -335,7 +343,7 @@ export async function runPicker(options: PickerOptions): Promise<PickerResult> {
     const slug = /^https?:\/\//.test(text.trim()) ? arenaDestination(text.trim()) : undefined;
     if (!slug) return false;
     const at = model.rows.findIndex(r => r.kind === "channel" && (r.channel.slug === slug || String(r.channel.id) === slug));
-    if (at < 0) { model.notice = `${slug} is not among your channels`; return true; }
+    if (at < 0) { model.notice = `no channel in my channels matches ${slug}`; return true; }
     model.focusRow(at);
     model.notice = "";
     return true;
@@ -350,7 +358,7 @@ export async function runPicker(options: PickerOptions): Promise<PickerResult> {
       output.write(`\x1b[${height}A\r\x1b[J`);
       if (outcome && (outcome.destinations.length || outcome.requests.length)) {
         const names = outcome.destinations.map(c => c.title).join(", ");
-        if (names) output.write(`${model.block ? `◆ ${model.block.title}  into ` : "picked "}${names}\n`);
+        if (names) output.write(`${model.block ? `◆ ${model.block.title}  to ` : "chose "}${names}\n`);
         for (const request of outcome.requests) {
           const body = request.body ? ` ${JSON.stringify(request.body)}` : "";
           output.write(`\x1b[2m  would send ${truncate(`${request.method} ${request.path}${body}`, columns - 14)}\x1b[22m\n`);
@@ -375,7 +383,7 @@ export async function runPicker(options: PickerOptions): Promise<PickerResult> {
       }
       if (name === "return") return leave(true);
       if (key.ctrl && name === "y") return leave(true, true);
-      if (name === "tab" && key.shift) model.toggleHeldView();
+      if (name === "tab" && key.shift) model.toggleSelectedView();
       else if (name === "tab") model.toggle();
       else if (name === "up" || (key.ctrl && name === "p")) model.move(-1);
       else if (name === "down" || (key.ctrl && name === "n")) model.move(1);
@@ -387,7 +395,7 @@ export async function runPicker(options: PickerOptions): Promise<PickerResult> {
       else if ((name === "right" || (key.ctrl && name === "]")) && !model.query) model.enter();
       else if (name === "left" && !model.query) model.back();
       else if (key.ctrl && name === "u") { model.clearQuery(); search(); }
-      else if (key.ctrl && name === "o") { const c = model.previewChannel(); if (c) model.notice = `would open ${channelUrl(c)}`; }
+      else if (key.ctrl && name === "o") { const c = model.previewChannel(); if (c) model.notice = channelUrl(c); }
       else if (key.meta && /^[1-9]$/.test(name)) model.toggleRecent(Number(name));
       else if (name === "backspace") { model.backspace(); search(); }
       else if (!key.ctrl && !key.meta && key.sequence && !key.sequence.startsWith("\x1b") && key.sequence >= " ") {
@@ -410,13 +418,12 @@ export async function runPicker(options: PickerOptions): Promise<PickerResult> {
       const rowAt = () => model.top + lineIndex - view.listStart;
       const inList = lineIndex >= view.listStart && lineIndex < view.listStart + model.listRows;
       if (lineIndex === 0) {
-        text.onMouseDown = () => { if (model.block) { carrying = true; model.notice = "carrying ◆, release over a channel"; redraw(); } };
+        text.onMouseDown = () => { if (model.block) carrying = true; };
       }
       if (lineIndex === 1) {
         text.onMouseDown = event => {
-          const right = view.columnWidth - "mine network all".length;
-          const x = event.x - right;
-          const scope = x >= 0 && x < 4 ? "mine" : x >= 5 && x < 12 ? "network" : x >= 13 ? "all" : undefined;
+          const x = event.x - (view.columnWidth - SCOPE_LINE.length);
+          const scope = scopeAt(x);
           if (!scope) return;
           while (model.scope !== scope) model.cycleScope();
           search();
@@ -429,7 +436,7 @@ export async function runPicker(options: PickerOptions): Promise<PickerResult> {
         text.onMouseUp = event => {
           const at = model.top + event.y - view.lines[0]!.y - view.listStart;
           if (at !== rowAt()) return;
-          if (carrying) { carrying = false; model.notice = ""; model.focusRow(at); model.putDown(at); }
+          if (carrying) { carrying = false; model.focusRow(at); model.select(at); }
           else if (downRow === at) {
             const now = performance.now();
             const second = lastClick && lastClick.row === at && now - lastClick.at < 400;
@@ -448,8 +455,7 @@ export async function runPicker(options: PickerOptions): Promise<PickerResult> {
       }
       if (lineIndex === height - 2) {
         const drop = () => {
-          if (downRow !== null) model.putDown(downRow);
-          else if (carrying) model.notice = "release over a channel row";
+          if (downRow !== null) model.select(downRow);
           carrying = false;
           downRow = null;
           redraw();
@@ -458,7 +464,7 @@ export async function runPicker(options: PickerOptions): Promise<PickerResult> {
         text.onMouseDrop = drop;
         text.onMouseDown = event => {
           const chip = view.trayChips(view.columnWidth).find(c => event.x >= c.from && event.x < c.to);
-          if (chip) { model.pickUp(chip.channel.id); model.notice = `picked up from ${chip.channel.title}`; redraw(); }
+          if (chip) { model.deselect(chip.channel.id); redraw(); }
         };
       }
     });

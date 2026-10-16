@@ -8,7 +8,7 @@ import { emitText, PickerView } from "../src/tui/picker.ts";
 import { ChannelRanker } from "../src/tui/rank.ts";
 
 const snapshot = readSnapshot(join(import.meta.dir, "fixtures/tui/channels.json"));
-const block = snapshot.block && { ...snapshot.block, alreadyIn: snapshot.block.connectedTo };
+const block = snapshot.block;
 const channels = snapshot.channels as Channel[];
 const model = (mode: "filter" | "jump" = "filter") => new PickerModel(channels, snapshot.recents, block, 10, { mode, me: "Ana Ruiz" });
 const daemons: SnapshotDaemon[] = [];
@@ -35,7 +35,7 @@ describe("ranking", () => {
 describe("model", () => {
   test("an empty query shows recents first, numbered, then the rest without repeats", () => {
     const m = model();
-    expect(m.rows[0]).toEqual({ kind: "label", text: "recent" });
+    expect(m.rows[0]).toEqual({ kind: "label", text: "recent channels" });
     const recent = m.rows.slice(1, 4).map(r => r.kind === "channel" ? [r.channel.id, r.slot] : null);
     expect(recent).toEqual([[9010, 1], [9020, 2], [9030, 3]]);
     const ids = m.rows.flatMap(r => r.kind === "channel" ? [r.channel.id] : []);
@@ -51,16 +51,16 @@ describe("model", () => {
     expect(m.rows[0]).toMatchObject({ kind: "create", visibility: "closed" });
   });
 
-  test("tab puts the block down and picks it back up; already-holding channels refuse", () => {
+  test("tab selects a channel and deselects it; channels with the block already refuse", () => {
     const m = model();
     m.toggleRecent(1);
-    expect(m.held.map(c => c.id)).toEqual([9010]);
+    expect(m.selected.map(c => c.id)).toEqual([9010]);
     m.toggleRecent(1);
-    expect(m.held).toHaveLength(0);
+    expect(m.selected).toHaveLength(0);
     const at = m.rows.findIndex(r => r.kind === "channel" && r.channel.id === 9011);
     m.toggle(at);
-    expect(m.held).toHaveLength(0);
-    expect(m.notice).toContain("already in");
+    expect(m.selected).toHaveLength(0);
+    expect(m.notice).toBe("this block is in Screens programs");
   });
 
   test("clearing the query keeps the cursor on the channel it was on", () => {
@@ -117,7 +117,7 @@ describe("view", () => {
     const row = lines.find(l => l.includes("Gardens room"))!;
     expect(row).toMatch(/Gardens room \d+/);
     expect(row).not.toContain("Ana Ruiz");
-    expect(lines[13]).toContain("enter connect");
+    expect(lines[13]).toContain("enter save");
     renderer.destroy();
   });
 });

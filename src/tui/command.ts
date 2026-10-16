@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { ArenaBlockClient } from "../client.ts";
 import { parseArenaBlockUrl } from "../url.ts";
 import { readSnapshot, startSnapshotDaemon, type SnapshotDaemon } from "./snapshot-daemon.ts";
-import type { HeldBlock, Mode } from "./model.ts";
+import type { Block, Mode } from "./model.ts";
 import { runPicker, type Emit } from "./picker.ts";
 
 export type PickOptions = {
@@ -32,14 +32,14 @@ function readRecents(accountId: number): number[] {
 export async function pickCommand(options: PickOptions): Promise<number> {
   let daemon: SnapshotDaemon | undefined;
   let client: ArenaBlockClient;
-  let block: HeldBlock | undefined;
+  let block: Block | undefined;
   let recents: number[] = [];
   let me: string | undefined;
   if (options.snapshot) {
     const snapshot = readSnapshot(options.snapshot);
     daemon = startSnapshotDaemon(snapshot);
     client = new ArenaBlockClient(daemon.endpoint, daemon.token);
-    block = snapshot.block && { ...snapshot.block, alreadyIn: snapshot.block.connectedTo };
+    block = snapshot.block;
     recents = snapshot.recents;
     me = snapshot.me;
   } else {
@@ -53,7 +53,7 @@ export async function pickCommand(options: PickOptions): Promise<number> {
     me = [...owners].sort((a, b) => b[1] - a[1])[0]?.[0];
     if (options.block) {
       const preview = await client.existingBlock(parseArenaBlockUrl(options.block));
-      block = { title: preview.title, source: "are.na", kind: preview.type, blockId: preview.blockId, url: preview.blockUrl, alreadyIn: [] };
+      block = { title: preview.title, source: "are.na", kind: preview.type, blockId: preview.blockId, url: preview.blockUrl, connectedTo: [] };
     }
   }
   try {

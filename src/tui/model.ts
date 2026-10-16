@@ -6,7 +6,7 @@ export type Scope = "mine" | "network" | "all";
 export type Mode = "filter" | "jump";
 export type Channel = ChannelRecord & { pending?: true; updatedAt?: string | null };
 
-export type HeldBlock = { title: string; source: string; kind: string; blockId?: number; url?: string; alreadyIn: number[] };
+export type Block = { title: string; source: string; kind: string; blockId?: number; url?: string; connectedTo: number[] };
 
 export type Row =
   | { kind: "label"; text: string; aside?: string }
@@ -23,15 +23,20 @@ export type Outcome = { destinations: Channel[]; requests: Request[]; created: C
 const VISIBILITY_CYCLE: Visibility[] = ["private", "closed", "public"];
 const SCOPES: Scope[] = ["mine", "network", "all"];
 
+/** Are.na and the iOS app call a public channel open. */
+export function visibilityWord(visibility: Visibility): string {
+  return visibility === "public" ? "open" : visibility;
+}
+
 /** Picker state for one session. The view reads it; key and mouse handlers call its methods. */
 export class PickerModel {
   query = "";
   mode: Mode;
   scope: Scope = "mine";
-  showHeld = false;
+  showSelected = false;
   cursor = 0;
   top = 0;
-  held: Channel[] = [];
+  selected: Channel[] = [];
   createVisibility: Visibility = "private";
   notice = "";
   hover: number | null = null;
@@ -50,7 +55,7 @@ export class PickerModel {
   private nextPendingId = -1;
   private readonly me: string;
 
-  constructor(channels: Channel[], readonly recents: number[], readonly block: HeldBlock | undefined, readonly listRows: number,
+  constructor(channels: Channel[], readonly recents: number[], readonly block: Block | undefined, readonly listRows: number,
     options: { mode?: Mode; me?: string; nesting?: Nesting } = {}) {
     this.me = options.me ?? "you";
     this.channels = [...channels];
@@ -65,8 +70,8 @@ export class PickerModel {
     this.rebuild();
   }
 
-  get alreadyIn(): Set<number> {
-    return new Set(this.block?.alreadyIn ?? []);
+  get connectedTo(): Set<number> {
+    return new Set(this.block?.connectedTo ?? []);
   }
 
   childrenOf(channel: Channel): Channel[] {
@@ -95,8 +100,8 @@ export class PickerModel {
     return this.proposedVisibility.get(channel.id) ?? channel.visibility;
   }
 
-  isHeld(channel: Channel): boolean {
-    return this.held.some(c => c.id === channel.id);
+  isSelected(channel: Channel): boolean {
+    return this.selected.some(c => c.id === channel.id);
   }
 
   private recentChannels(): Channel[] {
@@ -108,13 +113,13 @@ export class PickerModel {
     const recentIds = new Set(recent.map(c => c.id));
     const rows: Row[] = [];
     if (recent.length) {
-      rows.push({ kind: "label", text: "recent" });
+      rows.push({ kind: "label", text: "recent channels" });
       recent.forEach((channel, i) => rows.push({ kind: "channel", channel, spans: [], slot: i < 9 ? i + 1 : undefined }));
     }
     const mine = this.channels.filter(c => !recentIds.has(c.id));
     if (mine.length) {
-      const tally = (["private", "closed", "public"] as const).map(v => `${this.channels.filter(c => c.visibility === v).length} ${v}`).join(" · ");
-      rows.push({ kind: "label", text: "mine", aside: tally });
+      const tally = (["private", "closed", "public"] as const).map(v => `${this.channels.filter(c => c.visibility === v).length} ${visibilityWord(v)}`).join(" · ");
+      rows.push({ kind: "label", text: "my channels", aside: tally });
       for (const channel of mine) rows.push({ kind: "channel", channel, spans: [] });
     }
     return rows;
@@ -131,7 +136,7 @@ export class PickerModel {
   enter(index = this.cursor): boolean {
     const row = this.rows[index];
     if (row?.kind !== "channel" || !this.childrenOf(row.channel).length) {
-      if (row?.kind === "channel") this.notice = `${row.channel.title} holds no channels`;
+      if (row?.kind === "channel") this.notice = `no channels inside ${row.channel.title}`;
       return false;
     }
     this.rooms.push({ id: row.channel.id, cursor: index, top: this.top });
@@ -155,17 +160,17 @@ export class PickerModel {
     return true;
   }
 
-  /** Proposes the next visibility for a channel of the account's own; the change is sent only on connect. */
+  /** Proposes the next visibility for a channel of the account's own; the change is sent only on save. */
   cycleVisibility(index = this.cursor): void {
     const row = this.rows[index];
     if (row?.kind === "create") return this.cycleCreateVisibility();
     if (row?.kind !== "channel") return;
     const c = row.channel;
-    if (!this.isMine(c) || c.pending) { this.notice = c.pending ? "visibility of a new channel is set on its row" : `${c.title} belongs to ${c.owner.name}`; return; }
+    if (!this.isMine(c) || c.pending) { this.notice = c.pending ? "set a new channel's visibility on its row" : `only ${c.owner.name} can change ${c.title}`; return; }
     const next = VISIBILITY_CYCLE[(VISIBILITY_CYCLE.indexOf(this.visibilityOf(c)) + 1) % VISIBILITY_CYCLE.length]!;
     if (next === c.visibility) this.proposedVisibility.delete(c.id);
     else this.proposedVisibility.set(c.id, next);
-    this.notice = next === c.visibility ? `${c.title} stays ${next}` : `${c.title} becomes ${next} on connect`;
+    this.notice = next === c.visibility ? "" : `${visibilityWord(next)} on save`;
   }
 
   private exactTitle(): boolean {
@@ -175,8 +180,8 @@ export class PickerModel {
 
   rebuild(): void {
     const query = this.query.trim();
-    if (this.showHeld) {
-      this.rows = this.held.map(channel => ({ kind: "channel", channel, spans: [] }));
+    if (this.showSelected) {
+      this.rows = this.selected.map(channel => ({ kind: "channel", channel, spans: [] }));
     } else if (this.scope !== "mine") {
       this.rows = this.remoteRows();
     } else if (this.mode === "jump" || !query) {
@@ -201,11 +206,11 @@ export class PickerModel {
 
   private remoteRows(): Row[] {
     const remote = this.remote;
-    if (!this.query.trim()) return [{ kind: "pending", text: `type to search ${this.scope === "all" ? "all of Are.na" : "channels you follow"}` }];
+    if (!this.query.trim()) return [{ kind: "pending", text: `type to search ${this.scope === "all" ? "all of Are.na" : "my network"}` }];
     if (remote.state === "loading" || remote.query !== this.query.trim() || remote.scope !== this.scope)
       return Array.from({ length: Math.min(4, this.listRows) }, () => ({ kind: "pending", text: "" }));
     if (remote.state === "error") return [{ kind: "pending", text: remote.message ?? "search failed" }];
-    if (!remote.channels.length) return [{ kind: "pending", text: `no channels match "${this.query.trim()}"` }];
+    if (!remote.channels.length) return [{ kind: "pending", text: "no channels match" }];
     return remote.channels.map(channel => ({ kind: "channel", channel, spans: [] }));
   }
 
@@ -215,7 +220,7 @@ export class PickerModel {
   }
 
   private clampCursor(): void {
-    if (this.mode === "jump" && this.query.trim() && !this.showHeld && this.scope === "mine") {
+    if (this.mode === "jump" && this.query.trim() && !this.showSelected && this.scope === "mine") {
       const best = this.ranker.rank(this.query.trim())[0];
       const at = best ? this.rows.findIndex(r => r.kind === "channel" && r.channel.id === best.channel.id) : -1;
       if (at >= 0) {
@@ -266,7 +271,7 @@ export class PickerModel {
 
   /** Clears the query, then steps back out of nested channels; reports true when nothing is left to undo. */
   escape(): boolean {
-    if (this.showHeld) { this.showHeld = false; this.rebuild(); return false; }
+    if (this.showSelected) { this.showSelected = false; this.rebuild(); return false; }
     if (!this.query) return !this.back();
     this.clearQuery();
     return false;
@@ -307,40 +312,40 @@ export class PickerModel {
     if (this.selectable(index)) { this.cursor = index; this.scrollTo(index); }
   }
 
-  /** Puts the held block down in the row's channel, or picks it back up. */
+  /** Selects the row's channel as a destination for the block, or deselects it. */
   toggle(index = this.cursor): void {
     const row = this.rows[index];
     if (!row) return;
     if (row.kind === "create") return this.create(row.title);
     if (row.kind !== "channel") return;
     const channel = row.channel;
-    if (this.isHeld(channel)) {
-      this.held = this.held.filter(c => c.id !== channel.id);
-      this.notice = `picked up from ${channel.title}`;
+    if (this.isSelected(channel)) {
+      this.selected = this.selected.filter(c => c.id !== channel.id);
+      this.notice = "";
     } else if (channel.canAdd === false) {
-      this.notice = `${channel.title} is closed to additions from this account`;
+      this.notice = `you cannot add to ${channel.title}`;
       return;
-    } else if (this.alreadyIn.has(channel.id)) {
-      this.notice = `already in ${channel.title}`;
+    } else if (this.connectedTo.has(channel.id)) {
+      this.notice = `this block is in ${channel.title}`;
       return;
-    } else if (this.held.length >= 20) {
-      this.notice = "20 channels at most";
+    } else if (this.selected.length >= 20) {
+      this.notice = "choose at most 20 channels";
       return;
     } else {
-      this.held.push(channel);
+      this.selected.push(channel);
       this.notice = "";
     }
-    if (this.showHeld) this.rebuild();
+    if (this.showSelected) this.rebuild();
   }
 
-  putDown(index: number): void {
+  select(index: number): void {
     const row = this.rows[index];
-    if (row?.kind === "channel" && this.isHeld(row.channel)) return;
+    if (row?.kind === "channel" && this.isSelected(row.channel)) return;
     this.toggle(index);
   }
 
-  pickUp(channelId: number): void {
-    this.held = this.held.filter(c => c.id !== channelId);
+  deselect(channelId: number): void {
+    this.selected = this.selected.filter(c => c.id !== channelId);
     this.rebuild();
   }
 
@@ -357,8 +362,8 @@ export class PickerModel {
     this.channels.unshift(channel);
     this.known.set(channel.id, channel);
     this.ranker = new ChannelRanker([...this.known.values()]);
-    this.held.push(channel);
-    this.notice = `new ${channel.visibility} channel, created on connect`;
+    this.selected.push(channel);
+    this.notice = "";
     this.rebuild();
   }
 
@@ -380,8 +385,8 @@ export class PickerModel {
     this.rebuild();
   }
 
-  toggleHeldView(): void {
-    this.showHeld = !this.showHeld && this.held.length > 0;
+  toggleSelectedView(): void {
+    this.showSelected = !this.showSelected && this.selected.length > 0;
     this.cursor = 0;
     this.rebuild();
   }
@@ -398,21 +403,21 @@ export class PickerModel {
   }
 
   commit(): Outcome {
-    if (!this.held.length) {
+    if (!this.selected.length) {
       const row = this.rows[this.cursor];
-      if (row?.kind === "channel" && row.channel.canAdd !== false && !this.alreadyIn.has(row.channel.id)) this.held.push(row.channel);
+      if (row?.kind === "channel" && row.channel.canAdd !== false && !this.connectedTo.has(row.channel.id)) this.selected.push(row.channel);
       if (row?.kind === "create") this.create(row.title);
     }
-    const created = this.held.filter(c => c.pending);
+    const created = this.selected.filter(c => c.pending);
     const changes: Request[] = [...this.proposedVisibility].map(([id, visibility]) => ({ method: "PUT", path: `/v3/channels/${id}`,
       body: { visibility }, note: "arena-block's daemon has no channel-update route yet" }));
     const requests: Request[] = created.map(c => ({ method: "POST", path: "/v3/channels", body: { title: c.title, visibility: c.visibility },
       note: "arena-block's daemon has no channel-creation route yet" }));
-    const existing = this.held.filter(c => !c.pending).map(c => c.id);
-    if (this.block?.blockId && this.held.length) {
+    const existing = this.selected.filter(c => !c.pending).map(c => c.id);
+    if (this.block?.blockId && this.selected.length) {
       requests.push({ method: "POST", path: "/v1/existing-placements", body: { blockId: this.block.blockId,
         destinations: [...existing, ...created.map(c => `<new ${c.title}>`)], placementId: "<uuid>" } });
     }
-    return { destinations: [...this.held], requests: [...changes, ...requests], created };
+    return { destinations: [...this.selected], requests: [...changes, ...requests], created };
   }
 }
