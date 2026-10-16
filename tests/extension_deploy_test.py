@@ -5,6 +5,8 @@ import os
 from pathlib import Path
 import re
 import socket
+import subprocess
+from types import SimpleNamespace
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -247,6 +249,75 @@ class ExtensionDeploymentTests(unittest.TestCase):
                 deploy.rollback(self.args)
         self.assertEqual(deploy.fingerprint(self.directory), current)
         self.assertEqual(deploy.read_json(self.args.state)["fingerprint"], current)
+
+    def test_main_process_without_lock_blocks_default_profile(self):
+        with patch.object(deploy, "default_user_data_directories", return_value={self.profile.parent}), \
+                patch.object(deploy.subprocess, "run", return_value=SimpleNamespace(stdout=f"{os.getuid()} /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\n")):
+            self.assertTrue(deploy.browser_running(self.profile))
+        # A clearly separate custom user-data directory keeps its own lock guard.
+        with patch.object(deploy.subprocess, "run") as lookup:
+            self.assertFalse(deploy.browser_running(self.profile))
+            lookup.assert_not_called()
+
+    def test_default_profile_process_query_fails_closed(self):
+        with patch.object(deploy, "default_user_data_directories", return_value={self.profile.parent}):
+            for output in ["", "unparseable"]:
+                with patch.object(deploy.subprocess, "run", return_value=SimpleNamespace(stdout=output)):
+                    with self.assertRaisesRegex(ValueError, "Could not verify"):
+                        deploy.browser_running(self.profile)
+            with patch.object(deploy.subprocess, "run", side_effect=subprocess.TimeoutExpired("ps", 5)):
+                with self.assertRaisesRegex(ValueError, "Could not verify"):
+                    deploy.browser_running(self.profile)
+
+    def test_browser_starting_during_backup_preparation_prevents_exchange(self):
+        deploy.deploy(self.args)
+        self.register()
+        original = deploy.fingerprint(self.directory)
+        receipt = self.args.state.read_bytes()
+        (self.package / "background.js").write_text("const release = 2;\n")
+        with patch.object(deploy, "browser_running", side_effect=[False, False, True]), patch.object(deploy, "exchange") as exchange:
+            with self.assertRaisesRegex(ValueError, "started before replacement"):
+                deploy.deploy(self.args)
+            exchange.assert_not_called()
+        self.assertEqual(deploy.fingerprint(self.directory), original)
+        self.assertEqual(self.args.state.read_bytes(), receipt)
+        self.assertEqual(list(self.directory.parent.glob(".chrome-backup-*")), [])
+
+    def test_process_only_running_blocks_rollback(self):
+        deploy.deploy(self.args)
+        (self.package / "background.js").write_text("const release = 2;\n")
+        deploy.deploy(self.args)
+        current = deploy.fingerprint(self.directory)
+        with patch.object(deploy, "default_user_data_directories", return_value={self.profile.parent}), \
+                patch.object(deploy.subprocess, "run", return_value=SimpleNamespace(stdout=f"{os.getuid()} chrome\n")):
+            with self.assertRaisesRegex(ValueError, "before rolling back"):
+                deploy.rollback(self.args)
+        self.assertEqual(deploy.fingerprint(self.directory), current)
+
+    def test_receipt_failure_with_browser_restart_preserves_both_versions(self):
+        deploy.deploy(self.args)
+        self.register()
+        previous = deploy.fingerprint(self.directory)
+        (self.package / "background.js").write_text("const release = 2;\n")
+        desired = deploy.fingerprint(self.package)
+        with patch.object(deploy, "browser_running", side_effect=[False, False, False, True]), \
+                patch.object(deploy, "write_json", side_effect=OSError("disk full")):
+            with self.assertRaisesRegex(OSError, "Chrome started before receipt recovery"):
+                deploy.deploy(self.args)
+        self.assertEqual(deploy.fingerprint(self.directory), desired)
+        backups = list(self.directory.parent.glob(".chrome-backup-*"))
+        self.assertEqual(len(backups), 1)
+        self.assertEqual(deploy.fingerprint(backups[0]), previous)
+
+    def test_rollback_receipt_failure_with_browser_restart_does_not_exchange_again(self):
+        deploy.deploy(self.args)
+        (self.package / "background.js").write_text("const release = 2;\n")
+        deploy.deploy(self.args)
+        with patch.object(deploy, "browser_running", side_effect=[False, True]), \
+                patch.object(deploy, "write_json", side_effect=OSError("disk full")):
+            with self.assertRaisesRegex(OSError, "Both extension versions remain"):
+                deploy.rollback(self.args)
+        self.assertEqual((self.directory / "background.js").read_text(), "const release = 1;\n")
 
 
 if __name__ == "__main__":

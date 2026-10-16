@@ -11,6 +11,7 @@ from pathlib import Path
 import re
 import shutil
 import socket
+import subprocess
 import sys
 import tempfile
 import uuid
@@ -72,7 +73,38 @@ def registered(profile, extension_id):
     return found[0] if found else None
 
 
+def default_user_data_directories():
+    home = Path.home()
+    return {home / "Library/Application Support/Google/Chrome",
+        Path(os.environ.get("XDG_CONFIG_HOME", home / ".config")) / "google-chrome"}
+
+
+def main_browser_running(profile):
+    # SingletonLock appears after process startup. Check main processes as well
+    # for the normal user-data directory. Do not inspect/export command lines.
+    # A separate Chrome instance conservatively blocks normal-profile updates.
+    if profile.parent not in default_user_data_directories():
+        return False
+    try:
+        result = subprocess.run(["/bin/ps", "-axo", "uid=,comm="], check=True,
+            capture_output=True, text=True, timeout=5)
+    except (OSError, subprocess.SubprocessError):
+        raise ValueError("Could not verify whether Chrome is running.") from None
+    if not result.stdout.strip():
+        raise ValueError("Could not verify whether Chrome is running.")
+    for line in result.stdout.splitlines():
+        fields = line.strip().split(None, 1)
+        if len(fields) != 2 or not fields[0].isdigit():
+            raise ValueError("Could not verify whether Chrome is running.")
+        if int(fields[0]) == os.getuid() and Path(fields[1]).name in {
+                "Google Chrome", "google-chrome", "google-chrome-stable", "chrome"}:
+            return True
+    return False
+
+
 def browser_running(profile):
+    if main_browser_running(profile):
+        return True
     lock = profile.parent / "SingletonLock"
     if not lock.is_symlink():
         return lock.exists()
@@ -183,6 +215,8 @@ def deploy(args):
             backup = args.directory.with_name("." + args.directory.name + "-backup-" + str(uuid.uuid4()))
             stage.rename(backup)
             stage = backup
+            if browser_running(args.profile) and not pending_registration:
+                raise ValueError("Chrome started before replacement; close it normally before updating.")
             preserve_stage = True
             try:
                 exchange(stage, args.directory)
@@ -197,6 +231,12 @@ def deploy(args):
                 "backupFingerprint": backup_fingerprint})
         except Exception:
             if backup:
+                try:
+                    recovery_blocked = browser_running(args.profile) and not pending_registration
+                except ValueError:
+                    raise OSError(f"Could not verify Chrome before receipt recovery. Previous files remain at {backup}; review before restoring.") from None
+                if recovery_blocked:
+                    raise OSError(f"Chrome started before receipt recovery. Previous files remain at {backup}; review before restoring.")
                 try:
                     exchange(args.directory, backup)
                 except OSError as error:
@@ -230,6 +270,12 @@ def rollback(args):
         write_json(args.state, {"directory": str(args.directory), "fingerprint": fingerprint(args.directory),
             "package": None, "backup": str(backup), "backupFingerprint": state["fingerprint"]})
     except OSError:
+        try:
+            recovery_blocked = browser_running(args.profile)
+        except ValueError:
+            raise OSError(f"Could not verify Chrome before receipt recovery. Both extension versions remain at {args.directory} and {backup}; review before restoring.") from None
+        if recovery_blocked:
+            raise OSError(f"Chrome started before receipt recovery. Both extension versions remain at {args.directory} and {backup}; review before restoring.") from None
         exchange(args.directory, backup)
         raise
     return {"outcome": "rolled-back", **status(args)}
