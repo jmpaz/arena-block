@@ -66,6 +66,7 @@ struct ConnectView: View {
 
 struct SettingsView: View {
     @Bindable var session: CaptureSession
+    var exportStorageReport: (() -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var defaultSetup = false
@@ -130,7 +131,11 @@ struct SettingsView: View {
                     }))
                 } header: { Text("Clipboard") }
             }
-
+            if let exportStorageReport {
+                Section {
+                    Button("Export storage report", action: exportStorageReport)
+                } header: { Text("Storage") } footer: { Text("Capture is already running. Existing saves may continue; the report does not pause or retry them.") }
+            }
         }
         .contentMargins(.top, 24, for: .scrollContent)
         .navigationTitle("Settings")

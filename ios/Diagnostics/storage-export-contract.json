@@ -1,0 +1,49 @@
+{
+  "format": "capture-storage-export-contract-v1",
+  "status": "source candidate; not installed or physically qualified",
+  "flow": {
+    "normalApp": ["Settings → Export storage report", "Read the existing-save activity notice", "Create report", "Save report to Files and choose the destination"],
+    "isolatedEntry": ["After separate build/install approval, use an idle foreground window", "Open <configured CaptureCallbackScheme>://storage-report when Capture has no existing process", "Verify the screen says this entry has not started Capture's save session", "Tap Create report, then Save report to Files"],
+    "defaultSourceLink": "arena-capture://storage-report",
+    "existingProcess": "The report is presented over the existing Capture view without destroying previews. Settings uses a direct in-process action, not a self-openURL round trip. Existing normal saves/lifecycle continue; the collector does not pause or retry them.",
+    "backgroundEventWinsBeforeRoute": "Ordinary background/explicit save-intent ownership remains valid. A subsequent report is labeled normal Capture already active; no false isolated-entry claim.",
+    "coldBackgroundEvent": "Cancel collection, record interruption, preserve OS completion callbacks without reconnecting or acknowledging undrained events. The user must explicitly confirm Open Capture for ordinary handling. Duplicate session identifiers are attached once and completions fan out once.",
+    "return": "Open Capture requires a separate confirmation that ordinary saves can resume. Canceling, backgrounding, exporting or dismissing the system file picker never opens normal Capture automatically.",
+    "doNotForceQuitForDiagnosis": true
+  },
+  "bounds": {
+    "elapsedSecondsCooperative": 30,
+    "recordsPerSnapshot": 20000,
+    "recordBytes": 4194304,
+    "aggregateRecordBytesPerSnapshot": 67108864,
+    "aggregateDependencyNodes": 250000,
+    "depth": 64,
+    "fileEntriesPerContainerPass": 20000,
+    "retainedFilesTotal": 20000,
+    "reportBytes": 2097152,
+    "projectedBytesReservedBeforeAppend": true,
+    "sqliteBusyTimeoutMs": 250,
+    "blockedOSCallHardDeadlineClaimed": false
+  },
+  "data": {
+    "recordAndMediaMutationsByCollector": false,
+    "initializesCaptureStoreOrCredentialsOrDeliveryOrURLSession": false,
+    "mediaBytesRead": 0,
+    "backgroundSessionsReconnected": 0,
+    "automaticUpload": false,
+    "deletion": false,
+    "references": "Known local-file fields, named structural embedded JSON and typed capture/directory associations; not arbitrary prose, source/provenance records or JSON keys.",
+    "privacy": "Relative paths, arbitrary record IDs/kinds and session identifiers are hashed. Authored content, source URLs, headers, cookies, credentials and raw payloads are not exported. Recognized UUID relationships remain identifiers.",
+    "sqlite": "READONLY | FULLMUTEX | NOFOLLOW, query_only, read transaction, bounded digest re-read; no immutable=1, migration, checkpoint or WAL deletion. SQLite may update shared-memory coordination.",
+    "unknown": "All unprojected source/legacy fields, symlinks, external/unresolved references, OS transfers and extension/system dependencies remain unknown/preserve. Missing observed references never imply deletion eligibility.",
+    "dependencyClosureComplete": false
+  },
+  "remainingApproval": "Review exact frozen source and authorize a later normal build/install plus a separate idle user-triggered export/receiving window. No device operation, signed deployment, Are.na write, main merge or push is authorized by this source increment.",
+  "remainingReceiving": [
+    "Actual cold URL scene routing and ordinary foreground/background/Shortcuts entry on the same normal binary",
+    "Actual Settings sheet keeps the existing preview workspace alive",
+    "Generate/cancel/background/file-picker cancellation and insufficient export space",
+    "Background-event interruption and explicit completion handoff within OS time limits",
+    "Export receipt identity and snapshot scope; unknown dependencies remain protected"
+  ]
+}

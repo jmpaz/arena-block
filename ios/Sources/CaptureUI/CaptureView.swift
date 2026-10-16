@@ -28,6 +28,7 @@ public struct CaptureRootView: View {
     @Bindable var session: CaptureSession
     let isExtension: Bool
     let completion: (() -> Void)?
+    let storageReport: (() -> Void)?
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -51,7 +52,7 @@ public struct CaptureRootView: View {
     @State private var pickerDetent: PresentationDetent = .large
     @FocusState private var focusedField: CaptureField?
 
-    public init(session: CaptureSession, isExtension: Bool = false, completion: (() -> Void)? = nil) {
+    public init(session: CaptureSession, isExtension: Bool = false, completion: (() -> Void)? = nil, storageReport: (() -> Void)? = nil) {
         self.session = session
         #if DEBUG && targetEnvironment(simulator)
         self.isExtension = isExtension || ProcessInfo.processInfo.environment["CAPTURE_UI_PRESENTATION"] == "share"
@@ -59,6 +60,7 @@ public struct CaptureRootView: View {
         self.isExtension = isExtension
         #endif
         self.completion = completion
+        self.storageReport = storageReport
     }
 
     public var body: some View {
@@ -100,7 +102,7 @@ public struct CaptureRootView: View {
                         })
                     }.tabItem { Label("History", systemImage: "clock") }
                         .badge(session.activeCaptureCount).tag(CaptureTab.history)
-                    NavigationStack { SettingsView(session: session) }
+                    NavigationStack { SettingsView(session: session, exportStorageReport: storageReport) }
                         .tabItem { Label("Settings", systemImage: "gearshape") }.tag(CaptureTab.settings)
                 }
             }
