@@ -1,4 +1,7 @@
 import Foundation
+import CoreGraphics
+import ImageIO
+import UniformTypeIdentifiers
 import XCTest
 @testable import CaptureCore
 @testable import CaptureUI
@@ -141,12 +144,14 @@ final class CaptureStorageTests: XCTestCase {
         XCTAssertEqual(exported["complete"] as? Bool, false)
     }
 
-    func testCapacityBlocksPromotionWithoutEvictingProtectedMedia() throws {
+    func testInsufficientDeviceSpaceBlocksPromotionWithoutEvictingProtectedMedia() throws {
         let root = try root(); defer { try? FileManager.default.removeItem(at: root) }
-        let workspace = try NativeMediaWorkspace(container: root, purpose: "render-inputs", persistentLimit: 256)
+        var free: Int64 = 100 * 1024 * 1024
+        let workspace = try NativeMediaWorkspace(container: root, purpose: "render-inputs", availableCapacity: { _ in free })
         let protected = root.appendingPathComponent("renders/unfinished/only-copy.mp4")
         try write(protected, bytes: 220)
         let output = workspace.directory.appendingPathComponent("new.mp4"); try write(output, bytes: 40)
+        free = 0
         XCTAssertThrowsError(try workspace.promote(.init(fileURL: output, contentType: "video/mp4", byteCount: 40), to: root.appendingPathComponent("renders/new/attempt")))
         XCTAssertEqual(try Data(contentsOf: protected).count, 220)
         XCTAssertEqual(try Data(contentsOf: output).count, 40)
@@ -154,17 +159,17 @@ final class CaptureStorageTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: protected.path))
     }
 
-    func testCapacityCheckAndPersistentWriteAreOneAdmissionWithoutEviction() throws {
+    func testPhysicalCapacityCheckAndWriteUseCurrentFreeSpaceWithoutEviction() throws {
         let root = try root(); defer { try? FileManager.default.removeItem(at: root) }
         let first = root.appendingPathComponent("renders/first.mp4")
-        try CaptureStorageCapacity.withSpace(container: root, additionalBytes: 100, limit: 128) { try write(first, bytes: 100) }
+        try CaptureStorageCapacity.withSpace(container: root, additionalBytes: 100, minimumFreeBytes: 0, availableCapacity: { _ in 128 }) { try write(first, bytes: 100) }
         var secondWriteRan = false
-        XCTAssertThrowsError(try CaptureStorageCapacity.withSpace(container: root, additionalBytes: 40, limit: 128) { secondWriteRan = true })
+        XCTAssertThrowsError(try CaptureStorageCapacity.withSpace(container: root, additionalBytes: 40, minimumFreeBytes: 0, availableCapacity: { _ in 28 }) { secondWriteRan = true })
         XCTAssertFalse(secondWriteRan)
         XCTAssertEqual(try Data(contentsOf: first).count, 100)
     }
 
-    @MainActor func testOverBudgetUnfinishedSaveCanReuseItsOnlyCopyWithoutNewPreparation() async throws {
+    @MainActor func testUnfinishedSaveReusesItsOnlyCopyWithNoSpaceForNewPreparation() async throws {
         let root = try root(); defer { try? FileManager.default.removeItem(at: root) }
         let file = root.appendingPathComponent("renders/unfinished/only-copy.mp4"); try write(file, bytes: 1)
         let handle = try FileHandle(forWritingTo: file); try handle.truncate(atOffset: 350_000_001); try handle.close()
@@ -173,7 +178,7 @@ final class CaptureStorageTests: XCTestCase {
         draft.previewSnapshot = .init(kind: "social", url: draft.input, plan: .object(["block": .object(["selectedMedia": .array([.string("1.1")])])]))
         let job = DeliveryJob(id: draft.id, draft: draft, prepared: .init(payload: [:], update: [:]), mediaPath: file.path, stage: .rendering)
         try store.save(job, account: 0, kind: "delivery", id: job.id.uuidString)
-        XCTAssertThrowsError(try NativeMediaWorkspace(container: root, purpose: "render-inputs"))
+        XCTAssertThrowsError(try NativeMediaWorkspace(container: root, purpose: "render-inputs", availableCapacity: { _ in 0 }))
         let delivery = try CaptureDelivery(store: store, credentials: CredentialStore(accessGroup: nil), directory: root.appendingPathComponent("delivery"), group: "fixture", identifier: "fixture", ingestBase: nil)
         try await delivery.preparePending(job.id)
         let retained = try XCTUnwrap(store.value(DeliveryJob.self, account: 0, kind: "delivery", id: job.id.uuidString))
@@ -181,22 +186,60 @@ final class CaptureStorageTests: XCTestCase {
         XCTAssertEqual(try file.resourceValues(forKeys: [.fileSizeKey]).fileSize, 350_000_001)
     }
 
-    func testNormalMaximumVideoFitsAlongsideHistoryAndOtherLiveWorkingCopies() throws {
+    func testNormalMaximumVideoPromotesItsAlreadyAllocatedFileAlongsideLegacyData() throws {
         let root = try root(); defer { try? FileManager.default.removeItem(at: root) }
         func sparse(_ url: URL, bytes: UInt64) throws {
             try write(url, bytes: 1); let handle = try FileHandle(forWritingTo: url)
             try handle.truncate(atOffset: bytes); try handle.close()
         }
-        try sparse(root.appendingPathComponent("history-records.sqlite"), bytes: 12_000_000)
+        try sparse(root.appendingPathComponent("legacy-protected/retained.mp4"), bytes: 2_543_648_971)
         let other = try NativeMediaWorkspace(container: root, purpose: "render-inputs")
         defer { other.discard() }
         try sparse(other.directory.appendingPathComponent("active-source.mp4"), bytes: 400_000_000)
-        let workspace = try NativeMediaWorkspace(container: root, purpose: "render-inputs")
+        var free: Int64 = 1024 * 1024 * 1024
+        let workspace = try NativeMediaWorkspace(container: root, purpose: "render-inputs", availableCapacity: { _ in free })
         defer { workspace.discard() }
         let output = workspace.directory.appendingPathComponent("finished.mp4"), bytes = 250 * 1024 * 1024
         try sparse(output, bytes: UInt64(bytes))
+        free = 2 * 1024 * 1024
         let retained = try workspace.promote(.init(fileURL: output, contentType: "video/mp4", byteCount: bytes), to: root.appendingPathComponent("renders/new/attempt"))
         XCTAssertEqual(try retained.fileURL.resourceValues(forKeys: [.fileSizeKey]).fileSize, bytes)
         XCTAssertTrue(FileManager.default.fileExists(atPath: other.directory.appendingPathComponent("active-source.mp4").path))
+    }
+
+    func testLegacyTwoPointFiveGBDoesNotBlockSmallNewCaptureWithActualSpace() throws {
+        let root = try root(); defer { try? FileManager.default.removeItem(at: root) }
+        let legacy = root.appendingPathComponent("renders/legacy/only-copy.mp4")
+        try write(legacy, bytes: 1)
+        let handle = try FileHandle(forWritingTo: legacy); try handle.truncate(atOffset: 2_543_648_971); try handle.close()
+        let workspace = try NativeMediaWorkspace(container: root, purpose: "render-inputs", availableCapacity: { _ in 100 * 1024 * 1024 })
+        defer { workspace.discard() }
+        let output = workspace.directory.appendingPathComponent("new.jpg"); try write(output, bytes: 1024)
+        let promoted = try workspace.promote(.init(fileURL: output, contentType: "image/jpeg", byteCount: 1024), to: root.appendingPathComponent("renders/new/attempt"))
+        XCTAssertEqual(try Data(contentsOf: promoted.fileURL).count, 1024)
+        XCTAssertEqual(try legacy.resourceValues(forKeys: [.fileSizeKey]).fileSize, 2_543_648_971)
+        XCTAssertGreaterThan(try CaptureStorageCapacity.availableBytes(at: root), 0)
+    }
+
+    func testSmallImageActuallyRendersAndPromotesWithTwoPointFiveGBLegacyData() async throws {
+        let root = try root(); defer { try? FileManager.default.removeItem(at: root) }
+        let legacy = root.appendingPathComponent("renders/legacy/only-copy.mp4"); try write(legacy, bytes: 1)
+        let handle = try FileHandle(forWritingTo: legacy); try handle.truncate(atOffset: 2_543_648_971); try handle.close()
+        let workspace = try NativeMediaWorkspace(container: root, purpose: "render-inputs", availableCapacity: { _ in 100 * 1024 * 1024 })
+        defer { workspace.discard() }
+        let source = workspace.directory.appendingPathComponent("source.jpg")
+        let context = try XCTUnwrap(CGContext(data: nil, width: 64, height: 64, bitsPerComponent: 8, bytesPerRow: 0,
+            space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+        context.setFillColor(CGColor(red: 0.3, green: 0.6, blue: 0.8, alpha: 1)); context.fill(CGRect(x: 0, y: 0, width: 64, height: 64))
+        let destination = try XCTUnwrap(CGImageDestinationCreateWithURL(source as CFURL, UTType.jpeg.identifier as CFString, 1, nil))
+        CGImageDestinationAddImage(destination, try XCTUnwrap(context.makeImage()), nil); XCTAssertTrue(CGImageDestinationFinalize(destination))
+        let recipe = NativeMediaRecipe(kind: "image", width: 64, height: 64,
+            tiles: [.init(ref: "1.1", rect: .init(x: 0, y: 0, width: 64, height: 64))], maximumBytes: 20 * 1024 * 1024)
+        let rendered = try await NativeMediaRenderer.render(recipe: recipe,
+            media: [.init(ref: "1.1", kind: "image", fileURL: source, width: 64, height: 64)], directory: workspace.directory)
+        let promoted = try workspace.promote(rendered, to: root.appendingPathComponent("renders/new/attempt"))
+        XCTAssertEqual(promoted.contentType, "image/jpeg"); XCTAssertGreaterThan(promoted.byteCount, 0)
+        XCTAssertNotNil(CGImageSourceCreateWithURL(promoted.fileURL as CFURL, nil))
+        XCTAssertEqual(try legacy.resourceValues(forKeys: [.fileSizeKey]).fileSize, 2_543_648_971)
     }
 }

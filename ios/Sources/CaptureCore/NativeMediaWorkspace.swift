@@ -15,10 +15,12 @@ public final class NativeMediaWorkspace {
     private var descriptor: Int32 = -1
     private var discarded = false
     private let container: URL
-    private let persistentLimit: Int64
+    private let minimumFreeBytes: Int64
+    private let availableCapacity: (URL) throws -> Int64
 
-    public init(container: URL, purpose: String, now: Date = Date(), persistentLimit: Int64 = CaptureStorageCapacity.persistentLimit) throws {
-        self.container = container; self.persistentLimit = persistentLimit
+    public init(container: URL, purpose: String, now: Date = Date(), minimumFreeBytes: Int64 = CaptureStorageCapacity.metadataReserve,
+                availableCapacity: @escaping (URL) throws -> Int64 = CaptureStorageCapacity.availableBytes) throws {
+        self.container = container; self.minimumFreeBytes = minimumFreeBytes; self.availableCapacity = availableCapacity
         guard ["render-inputs", "composition-preview"].contains(purpose) else {
             throw CaptureError.message("The temporary media purpose is invalid.")
         }
@@ -26,7 +28,7 @@ public final class NativeMediaWorkspace {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         try Self.rejectSymbolicLink(root)
         Self.prune(container: container, now: now)
-        try CaptureStorageCapacity.requireSpace(container: container, limit: persistentLimit)
+        try CaptureStorageCapacity.requireSpace(container: container, minimumFreeBytes: minimumFreeBytes, availableCapacity: availableCapacity)
         directory = root.appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
         let fd = open(directory.appendingPathComponent(".lease").path, O_CREAT | O_EXCL | O_RDWR | O_NOFOLLOW, 0o600)
@@ -65,7 +67,7 @@ public final class NativeMediaWorkspace {
         let file = destination.appendingPathComponent(media.fileURL.lastPathComponent)
         let bytes = try media.fileURL.resourceValues(forKeys: [.fileSizeKey]).fileSize
         guard let bytes, bytes == media.byteCount else { throw CaptureError.message("The prepared media size changed. Existing captures were kept.") }
-        try CaptureStorageCapacity.withSpace(container: container, additionalBytes: Int64(bytes), excluding: directory, limit: persistentLimit) {
+        try CaptureStorageCapacity.withSpace(container: container, additionalBytes: 0, minimumFreeBytes: minimumFreeBytes, availableCapacity: availableCapacity) {
             try FileManager.default.moveItem(at: media.fileURL, to: file)
         }
         return .init(fileURL: file, contentType: media.contentType, byteCount: media.byteCount)
