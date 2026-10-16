@@ -177,7 +177,7 @@ struct CaptureMediaSelection: View {
         let usesAutomaticFrame = asset.posterURL != nil &&
             (asset.durationSeconds.map { $0 > Double(session.draft?.videoFrameThresholdSeconds ?? 600) } ?? false)
         if asset.kind == "video" {
-            Text("Video from post").font(.caption).foregroundStyle(.secondary)
+            Text(asset.ownershipLabel.map { "Video · \($0)" } ?? "Video from post").font(.caption).foregroundStyle(.secondary)
             if session.renderURL == nil {
                 Button { inspected = asset } label: {
                     MediaThumbnail(asset: asset, usesFrame: usesFrame(asset.id), maxPixel: 1200)

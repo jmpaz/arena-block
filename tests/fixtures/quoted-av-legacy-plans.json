@@ -1,0 +1,245 @@
+[
+  {
+    "schemaVersion": 1,
+    "sources": [
+      {
+        "provider": "x",
+        "id": "100",
+        "canonicalUrl": "https://x.com/outer/status/100",
+        "author": {
+          "handle": "outer"
+        },
+        "text": "Outer writing",
+        "media": [],
+        "quote": {
+          "provider": "substack",
+          "id": "359359118",
+          "canonicalUrl": "https://substack.com/@substack/note/c-359359118",
+          "author": {
+            "handle": "substack",
+            "name": "Substack"
+          },
+          "text": "[Rob Stephenson](<https://substack.com/profile/29432745-rob-stephenson>) photographs, writes about, and records every neighborhood in New York City for a living\n\n*[Substack Note source](<https://substack.com/@substack/note/c-359359118>) · Oct 12, 2026, 7:15 PM*",
+          "postTitle": "Substack Note by @substack",
+          "postedAt": "2026-10-12T19:15:09.000Z",
+          "media": [
+            {
+              "kind": "video",
+              "url": "https://substack.com/api/v1/video/upload/9681d26c-5e44-4f6e-bd53-679694ab6da6/src?type=mp4",
+              "durationSeconds": 69.69463,
+              "width": 1080,
+              "height": 1920,
+              "posterUrl": "https://substack-video.s3.amazonaws.com/video_upload/user/81309935/9681d26c-5e44-4f6e-bd53-679694ab6da6/transcoded-00001.png",
+              "acquisition": "substack-public-original",
+              "ref": "quote.1",
+              "alt": "",
+              "sourceRole": "original"
+            }
+          ],
+          "substackCapture": {
+            "schema": "arena-block/substack-browser-capture",
+            "version": 1,
+            "sourceUrl": "https://substack.com/@substack/note/c-359359118",
+            "observedAt": "2026-10-15T15:48:18.824Z",
+            "method": "public-html",
+            "note": {
+              "acquisition": {
+                "method": "public-html",
+                "observedAt": "2026-10-15T15:48:18.824Z"
+              },
+              "url": "https://substack.com/@substack/note/c-359359118",
+              "author": {
+                "handle": "substack",
+                "name": "Substack",
+                "profileUrl": "https://substack.com/@substack"
+              },
+              "body": {
+                "status": "complete",
+                "html": "<p><span class=\"node-substack_mention\"><span style=\"min-width:0\" data-state=\"closed\"><a class=\"mention-LUD0tW\" href=\"https://substack.com/profile/29432745-rob-stephenson\">Rob Stephenson</a></span></span> photographs, writes about, and records every neighborhood in New York City for a living</p>"
+              },
+              "publishedLabel": "Oct 12, 2026, 7:15 PM",
+              "postedAt": "2026-10-12T19:15:09.000Z",
+              "links": [],
+              "attachmentEvidence": {
+                "method": "public-api",
+                "observedAt": "2026-10-15T15:48:18.821Z",
+                "commentId": 359359118,
+                "userId": 81309935,
+                "handle": "substack",
+                "bodyText": "@Rob Stephenson photographs, writes about, and records every neighborhood in New York City for a living",
+                "attachments": [
+                  {
+                    "kind": "video",
+                    "id": "199db938-2d40-49ca-bdc3-7b6fe4ac5534",
+                    "userId": 81309935,
+                    "commentId": 359359118,
+                    "upload": {
+                      "id": "9681d26c-5e44-4f6e-bd53-679694ab6da6",
+                      "userId": 81309935,
+                      "state": "transcoded",
+                      "postId": null,
+                      "publicationId": null,
+                      "durationSeconds": 69.69463,
+                      "width": 1080,
+                      "height": 1920,
+                      "thumbnailId": 1
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "quoteCoverage": {
+            "maxDepth": 8,
+            "actualDepth": 0,
+            "maxReached": false,
+            "truncated": false,
+            "stopped": "end",
+            "sourceIds": [
+              "359359118"
+            ],
+            "acquisitionDepth": 2,
+            "mayExpand": false
+          }
+        }
+      }
+    ],
+    "policy": {
+      "media": "auto",
+      "selectedMedia": [],
+      "quote": "block",
+      "separator": "auto"
+    },
+    "block": {
+      "kind": "text",
+      "title": "Post by @outer",
+      "markdown": "> [`@substack`](<https://substack.com/@substack/note/c-359359118>)\n>\n> [Rob Stephenson](<https://substack.com/profile/29432745-rob-stephenson>) photographs, writes about, and records every neighborhood in New York City for a living\n>\n> *[Substack Note source](<https://substack.com/@substack/note/c-359359118>) · Oct 12, 2026, 7:15 PM*\n>\n> *[video]*\n\nOuter writing",
+      "canonicalSource": "https://x.com/outer/status/100",
+      "selectedMedia": [],
+      "quoteCoverage": [
+        {
+          "sourceId": "100",
+          "availableDepth": 1,
+          "renderedDepth": 1,
+          "requestedDepth": 2,
+          "maxDepth": 8,
+          "maxReached": false,
+          "truncated": false,
+          "stopped": "end",
+          "mayExpand": false,
+          "dateUncertainty": [
+            "missing_or_incomparable_source_days"
+          ]
+        }
+      ]
+    },
+    "hash": "60f117c0b06b907f46fd3087637aad6814a9bdab16fd93a5bf577f80ea692b37"
+  },
+  {
+    "schemaVersion": 1,
+    "sources": [
+      {
+        "provider": "x",
+        "id": "200",
+        "canonicalUrl": "https://x.com/outer/status/200",
+        "author": {
+          "handle": "outer"
+        },
+        "text": "Outer writing",
+        "media": [],
+        "quote": {
+          "provider": "substack",
+          "id": "article:218186983",
+          "canonicalUrl": "https://www.lennysnewsletter.com/p/openai-dev-day-2026-the-releases",
+          "author": {
+            "handle": "clairevo",
+            "name": "Claire Vo"
+          },
+          "text": "",
+          "article": "# OpenAI Dev Day 2026: The releases that actually matter\n\n_🎙️ Claire tests OpenAI’s DevDay releases, from Dots, Spaces, and Sites to AI-picked thumbnails and a $97 game, and shares what’s worth trying first_\n\nBy [Claire Vo](<https://substack.com/@clairevo>)\n\n[https://www.youtube.com/watch?v=pJNM1z9l5mU](<https://www.youtube.com/watch?v=pJNM1z9l5mU>)\n\nI spent the day at OpenAI’s DevDay in San Francisco, and I have good news and bad news: OpenAI released a lot of stuff.  \n  \nIn this episode, I break down the announcements worth paying attention to - and show you what happened when I tested some of them early. We’ll meet my Dot, explore why Spaces and Sites could matter for how teams work, and get into the model and API updates I’m most excited about as a developer.  \n  \nI use the Decisions API to find podcast thumbnails where nobody looks awkward, build a collaborative sketchpad with Astra ultrafast, and let my kids redesign a 3D world in real time. That last experiment cost about $97. My wallet has thoughts.  \n  \nThese are my early impressions: what’s promising, what still feels rough, and what I think you should try first.\n\n**Listen or watch on [YouTube](<https://youtu.be/pJNM1z9l5mU>), [Spotify](<https://open.spotify.com/episode/6YEf51ENKks86DejRTOi23>), or [Apple Podcasts](<https://podcasts.apple.com/us/podcast/openai-dev-day-2026-the-releases-that-actually-matter/id1809663079?i=1000792403879>)**\n\n### What you’ll learn:\n\n1.  What OpenAI’s Dots can do, how I’ve been using mine, and why I’m waiting to give a full verdict\n    \n2.  Why Spaces might be one of the most underhyped announcements for collaboration between humans and agents\n    \n3.  How Sites with connectors and plugins could help teams share internal tools with the right data permissions\n    \n4.  Where GPT-6.1 Sol fits in my model stack—and why speed and cost matter\n    \n5.  What vision adds to the Decisions API, including my thumbnail-selection and hot dog demos\n    \n6.  What Astra ultrafast makes possible for interactive AI apps, from collaborative drawing to a changing 3D game\n    \n7.  Where the speed feels magical, where the experience still needs work, and what it costs\n    \n\n* * *\n\n### In this episode, we cover:\n\n([00:00](<https://www.youtube.com/watch?v=pJNM1z9l5mU>)) OpenAI DevDay recap—and pressing the Codex reset button\n\n([00:58](<https://www.youtube.com/watch?v=pJNM1z9l5mU&t=58s>)) Dots: early impressions and rough edges\n\n([06:57](<https://www.youtube.com/watch?v=pJNM1z9l5mU&t=417s&pp=0gcJCWMAwfN6Pr3D>)) Spaces: working with humans and agents\n\n([10:37](<https://www.youtube.com/watch?v=pJNM1z9l5mU&t=637s>)) Sites, connectors, and sharing internal tools\n\n([13:06](<https://www.youtube.com/watch?v=pJNM1z9l5mU&t=786s>)) Models and platform: GPT-6.1 Sol\n\n([14:36](<https://www.youtube.com/watch?v=pJNM1z9l5mU&t=876s>)) Decisions API: fast decisions with vision\n\n([15:27](<https://www.youtube.com/watch?v=pJNM1z9l5mU&t=927s>)) Finding better podcast thumbnails with AI\n\n([16:29](<https://www.youtube.com/watch?v=pJNM1z9l5mU&t=989s>)) Hot dog or not hot dog?\n\n([17:17](<https://www.youtube.com/watch?v=pJNM1z9l5mU&t=1037s>)) Astra ultrafast: speed, pricing, and possibilities\n\n([18:50](<https://www.youtube.com/watch?v=pJNM1z9l5mU&t=1130s>)) The Other Pencil: drawing alongside AI\n\n([19:45](<https://www.youtube.com/watch?v=pJNM1z9l5mU&t=1185s>)) Little Starship: a 3D world you can change with a prompt\n\n([21:24](<https://www.youtube.com/watch?v=pJNM1z9l5mU&t=1284s>)) The $97 AI game—and what it makes possible\n\n([22:25](<https://www.youtube.com/watch?v=pJNM1z9l5mU&t=1345s>)) Agents API, computer use, plugins, and plan updates\n\n([23:03](<https://www.youtube.com/watch?v=pJNM1z9l5mU&t=1383s>)) What I’d try first\n\n### Tools referenced:\n\n• ChatGPT: Dots, Spaces, and Sites: [https://chatgpt.com/](<https://chatgpt.com/>)\n\n• Codex: [https://openai.com/codex/](<https://openai.com/codex/>)\n\n• OpenAI API — GPT-6.1 Sol, Decisions API, and Astra ultrafast: [https://platform.openai.com/](<https://platform.openai.com/>)\n\n• Jev: [https://typesafe.ai/](<https://typesafe.ai/>)\n\n### Other references:\n\n• OpenAI DevDay 2026: [https://devday.openai.com/](<https://devday.openai.com/>)\n\n### Where to find Claire Vo:\n\nChatPRD: [https://www.chatprd.ai/](<https://www.chatprd.ai/>)\n\nWebsite: [https://clairevo.com/](<https://clairevo.com/>)\n\nLinkedIn: [https://www.linkedin.com/in/clairevo/](<https://www.linkedin.com/in/clairevo/>)\n\nX: [https://x.com/clairevo](<https://x.com/clairevo>)\n\nProduction and marketing by [https://penname.co/](<https://penname.co/>). For inquiries about sponsoring the podcast, email jordan@penname.co.",
+          "substackArticle": {
+            "version": 1,
+            "id": 218186983,
+            "publicationId": 10845,
+            "url": "https://www.lennysnewsletter.com/p/openai-dev-day-2026-the-releases",
+            "slug": "openai-dev-day-2026-the-releases",
+            "title": "OpenAI Dev Day 2026: The releases that actually matter",
+            "subtitle": "🎙️ Claire tests OpenAI’s DevDay releases, from Dots, Spaces, and Sites to AI-picked thumbnails and a $97 game, and shares what’s worth trying first",
+            "authors": [
+              {
+                "id": 5636738,
+                "name": "Claire Vo",
+                "handle": "clairevo",
+                "profileUrl": "https://substack.com/@clairevo"
+              }
+            ],
+            "observedAt": "2026-10-16T06:16:18.758Z",
+            "method": "public-api",
+            "audience": "everyone",
+            "bodyHtml": "<div id=\"youtube2-pJNM1z9l5mU\" class=\"youtube-wrap\" data-attrs=\"{&quot;videoId&quot;:&quot;pJNM1z9l5mU&quot;,&quot;startTime&quot;:null,&quot;endTime&quot;:null}\" data-component-name=\"Youtube2ToDOM\"><div class=\"youtube-inner\"><iframe src=\"https://www.youtube-nocookie.com/embed/pJNM1z9l5mU?rel=0&amp;autoplay=0&amp;showinfo=0&amp;enablejsapi=0\" frameborder=\"0\" loading=\"lazy\" gesture=\"media\" allow=\"autoplay; fullscreen\" allowautoplay=\"true\" allowfullscreen=\"true\" width=\"728\" height=\"409\"></iframe></div></div><p>I spent the day at OpenAI’s DevDay in San Francisco, and I have good news and bad news: OpenAI released a lot of stuff.<br><br>In this episode, I break down the announcements worth paying attention to - and show you what happened when I tested some of them early. We’ll meet my Dot, explore why Spaces and Sites could matter for how teams work, and get into the model and API updates I’m most excited about as a developer.<br><br>I use the Decisions API to find podcast thumbnails where nobody looks awkward, build a collaborative sketchpad with Astra ultrafast, and let my kids redesign a 3D world in real time. That last experiment cost about $97. My wallet has thoughts.<br><br>These are my early impressions: what’s promising, what still feels rough, and what I think you should try first.</p><div class=\"pullquote\"><p><strong>Listen or watch on <a href=\"https://youtu.be/pJNM1z9l5mU\">YouTube</a>, <a href=\"https://open.spotify.com/episode/6YEf51ENKks86DejRTOi23\">Spotify</a>, or <a href=\"https://podcasts.apple.com/us/podcast/openai-dev-day-2026-the-releases-that-actually-matter/id1809663079?i=1000792403879\">Apple Podcasts</a></strong></p></div><h3>What you’ll learn:</h3><ol><li><p>What OpenAI’s Dots can do, how I’ve been using mine, and why I’m waiting to give a full verdict</p></li><li><p>Why Spaces might be one of the most underhyped announcements for collaboration between humans and agents</p></li><li><p>How Sites with connectors and plugins could help teams share internal tools with the right data permissions</p></li><li><p>Where GPT-6.1 Sol fits in my model stack—and why speed and cost matter</p></li><li><p>What vision adds to the Decisions API, including my thumbnail-selection and hot dog demos</p></li><li><p>What Astra ultrafast makes possible for interactive AI apps, from collaborative drawing to a changing 3D game</p></li><li><p>Where the speed feels magical, where the experience still needs work, and what it costs</p></li></ol><div><hr></div><h3>In this episode, we cover:</h3><p>(<a href=\"https://www.youtube.com/watch?v=pJNM1z9l5mU\">00:00</a>) OpenAI DevDay recap—and pressing the Codex reset button</p><p>(<a href=\"https://www.youtube.com/watch?v=pJNM1z9l5mU&amp;t=58s\">00:58</a>) Dots: early impressions and rough edges</p><p>(<a href=\"https://www.youtube.com/watch?v=pJNM1z9l5mU&amp;t=417s&amp;pp=0gcJCWMAwfN6Pr3D\">06:57</a>) Spaces: working with humans and agents</p><p>(<a href=\"https://www.youtube.com/watch?v=pJNM1z9l5mU&amp;t=637s\">10:37</a>) Sites, connectors, and sharing internal tools</p><p>(<a href=\"https://www.youtube.com/watch?v=pJNM1z9l5mU&amp;t=786s\">13:06</a>) Models and platform: GPT-6.1 Sol</p><p>(<a href=\"https://www.youtube.com/watch?v=pJNM1z9l5mU&amp;t=876s\">14:36</a>) Decisions API: fast decisions with vision</p><p>(<a href=\"https://www.youtube.com/watch?v=pJNM1z9l5mU&amp;t=927s\">15:27</a>) Finding better podcast thumbnails with AI</p><p>(<a href=\"https://www.youtube.com/watch?v=pJNM1z9l5mU&amp;t=989s\">16:29</a>) Hot dog or not hot dog?</p><p>(<a href=\"https://www.youtube.com/watch?v=pJNM1z9l5mU&amp;t=1037s\">17:17</a>) Astra ultrafast: speed, pricing, and possibilities</p><p>(<a href=\"https://www.youtube.com/watch?v=pJNM1z9l5mU&amp;t=1130s\">18:50</a>) The Other Pencil: drawing alongside AI</p><p>(<a href=\"https://www.youtube.com/watch?v=pJNM1z9l5mU&amp;t=1185s\">19:45</a>) Little Starship: a 3D world you can change with a prompt</p><p>(<a href=\"https://www.youtube.com/watch?v=pJNM1z9l5mU&amp;t=1284s\">21:24</a>) The $97 AI game—and what it makes possible</p><p>(<a href=\"https://www.youtube.com/watch?v=pJNM1z9l5mU&amp;t=1345s\">22:25</a>) Agents API, computer use, plugins, and plan updates</p><p>(<a href=\"https://www.youtube.com/watch?v=pJNM1z9l5mU&amp;t=1383s\">23:03</a>) What I’d try first</p><p></p><h3>Tools referenced:</h3><p>• ChatGPT: Dots, Spaces, and Sites: <a href=\"https://chatgpt.com/\">https://chatgpt.com/</a></p><p>• Codex: <a href=\"https://openai.com/codex/\">https://openai.com/codex/</a></p><p>• OpenAI API — GPT-6.1 Sol, Decisions API, and Astra ultrafast: <a href=\"https://platform.openai.com/\">https://platform.openai.com/</a></p><p>• Jev: <a href=\"https://typesafe.ai/\">https://typesafe.ai/</a></p><p></p><h3>Other references:</h3><p>• OpenAI DevDay 2026: <a href=\"https://devday.openai.com/\">https://devday.openai.com/</a></p><p></p><h3>Where to find Claire Vo:</h3><p>ChatPRD: <a href=\"https://www.chatprd.ai/\">https://www.chatprd.ai/</a></p><p>Website: <a href=\"https://clairevo.com/\">https://clairevo.com/</a></p><p>LinkedIn: <a href=\"https://www.linkedin.com/in/clairevo/\">https://www.linkedin.com/in/clairevo/</a></p><p>X: <a href=\"https://x.com/clairevo\">https://x.com/clairevo</a></p><p></p><p>Production and marketing by <a href=\"https://penname.co/\">https://penname.co/</a>. For inquiries about sponsoring the podcast, email jordan@penname.co.</p>",
+            "nativeMedia": [
+              {
+                "kind": "video",
+                "uploadId": "9920714e-ef15-4994-8f9d-52d3573594e8",
+                "url": "https://www.lennysnewsletter.com/api/v1/video/upload/9920714e-ef15-4994-8f9d-52d3573594e8/src?type=mp4&override_publication_id=10845",
+                "durationSeconds": 1460,
+                "width": 1280,
+                "height": 720,
+                "posterUrl": "https://substack-video.s3.amazonaws.com/video_upload/post/218186983/9920714e-ef15-4994-8f9d-52d3573594e8/transcoded-00001.png"
+              },
+              {
+                "kind": "audio",
+                "uploadId": "a7d08ea1-ef78-4582-bc6f-3208844c22d6",
+                "url": "https://api.substack.com/api/v1/audio/upload/a7d08ea1-ef78-4582-bc6f-3208844c22d6/src",
+                "durationSeconds": 1460.0098
+              }
+            ]
+          },
+          "postTitle": "OpenAI Dev Day 2026: The releases that actually matter",
+          "postedAt": "2026-09-30T14:45:15.164Z",
+          "media": [
+            {
+              "kind": "audio",
+              "url": "https://api.substack.com/api/v1/audio/upload/a7d08ea1-ef78-4582-bc6f-3208844c22d6/src",
+              "durationSeconds": 1460.0098,
+              "ref": "quote.1",
+              "alt": "",
+              "sourceRole": "original",
+              "acquisition": "substack-public-original"
+            }
+          ]
+        }
+      }
+    ],
+    "policy": {
+      "media": "auto",
+      "selectedMedia": [],
+      "quote": "block",
+      "separator": "auto"
+    },
+    "block": {
+      "kind": "text",
+      "title": "Post by @outer",
+      "markdown": "> [`@clairevo`](<https://www.lennysnewsletter.com/p/openai-dev-day-2026-the-releases>)\n>\n> # OpenAI Dev Day 2026: The releases that actually matter\n>\n> _🎙️ Claire tests OpenAI’s DevDay releases, from Dots, Spaces, and Sites to AI-picked thumbnails and a $97 game, and shares what’s worth trying first_\n>\n> By [Claire Vo](<https://substack.com/@clairevo>)\n>\n> [https://www.youtube.com/watch?v=pJNM1z9l5mU](<https://www.youtube.com/watch?v=pJNM1z9l5mU>)\n>\n> I spent the day at OpenAI’s DevDay in San Francisco, and I have good news and bad news: OpenAI released a lot of stuff.  \n>   \n> In this episode, I break down the announcements worth paying attention to - and show you what happened when I tested some of them early. We’ll meet my Dot, explore why Spaces and Sites could matter for how teams work, and get into the model and API updates I’m most excited about as a developer.  \n>   \n> I use the Decisions API to find podcast thumbnails where nobody looks awkward, build a collaborative sketchpad with Astra ultrafast, and let my kids redesign a 3D world in real time. That last experiment cost about $97. My wallet has thoughts.  \n>   \n> These are my early impressions: what’s promising, what still feels rough, and what I think you should try first.\n>\n> **Listen or watch on [YouTube](<https://youtu.be/pJNM1z9l5mU>), [Spotify](<https://open.spotify.com/episode/6YEf51ENKks86DejRTOi23>), or [Apple Podcasts](<https://podcasts.apple.com/us/podcast/openai-dev-day-2026-the-releases-that-actually-matter/id1809663079?i=1000792403879>)**\n>\n> ### What you’ll learn:\n>\n> 1.  What OpenAI’s Dots can do, how I’ve been using mine, and why I’m waiting to give a full verdict\n>     \n> 2.  Why Spaces might be one of the most underhyped announcements for collaboration between humans and agents\n>     \n> 3.  How Sites with connectors and plugins could help teams share internal tools with the right data permissions\n>     \n> 4.  Where GPT-6.1 Sol fits in my model stack—and why speed and cost matter\n>     \n> 5.  What vision adds to the Decisions API, including my thumbnail-selection and hot dog demos\n>     \n> 6.  What Astra ultrafast makes possible for interactive AI apps, from collaborative drawing to a changing 3D game\n>     \n> 7.  Where the speed feels magical, where the experience still needs work, and what it costs\n>     \n>\n> \\* * *\n>\n> ### In this episode, we cover:\n>\n> ([00:00](<https://www.youtube.com/watch?v=pJNM1z9l5mU>)) OpenAI DevDay recap—and pressing the Codex reset button\n>\n> ([00:58](<https://www.youtube.com/watch?v=pJNM1z9l5mU&t=58s>)) Dots: early impressions and rough edges\n>\n> ([06:57](<https://www.youtube.com/watch?v=pJNM1z9l5mU&t=417s&pp=0gcJCWMAwfN6Pr3D>)) Spaces: working with humans and agents\n>\n> ([10:37](<https://www.youtube.com/watch?v=pJNM1z9l5mU&t=637s>)) Sites, connectors, and sharing internal tools\n>\n> ([13:06](<https://www.youtube.com/watch?v=pJNM1z9l5mU&t=786s>)) Models and platform: GPT-6.1 Sol\n>\n> ([14:36](<https://www.youtube.com/watch?v=pJNM1z9l5mU&t=876s>)) Decisions API: fast decisions with vision\n>\n> ([15:27](<https://www.youtube.com/watch?v=pJNM1z9l5mU&t=927s>)) Finding better podcast thumbnails with AI\n>\n> ([16:29](<https://www.youtube.com/watch?v=pJNM1z9l5mU&t=989s>)) Hot dog or not hot dog?\n>\n> ([17:17](<https://www.youtube.com/watch?v=pJNM1z9l5mU&t=1037s>)) Astra ultrafast: speed, pricing, and possibilities\n>\n> ([18:50](<https://www.youtube.com/watch?v=pJNM1z9l5mU&t=1130s>)) The Other Pencil: drawing alongside AI\n>\n> ([19:45](<https://www.youtube.com/watch?v=pJNM1z9l5mU&t=1185s>)) Little Starship: a 3D world you can change with a prompt\n>\n> ([21:24](<https://www.youtube.com/watch?v=pJNM1z9l5mU&t=1284s>)) The $97 AI game—and what it makes possible\n>\n> ([22:25](<https://www.youtube.com/watch?v=pJNM1z9l5mU&t=1345s>)) Agents API, computer use, plugins, and plan updates\n>\n> ([23:03](<https://www.youtube.com/watch?v=pJNM1z9l5mU&t=1383s>)) What I’d try first\n>\n> ### Tools referenced:\n>\n> • ChatGPT: Dots, Spaces, and Sites: [https://chatgpt.com/](<https://chatgpt.com/>)\n>\n> • Codex: [https://openai.com/codex/](<https://openai.com/codex/>)\n>\n> • OpenAI API — GPT-6.1 Sol, Decisions API, and Astra ultrafast: [https://platform.openai.com/](<https://platform.openai.com/>)\n>\n> • Jev: [https://typesafe.ai/](<https://typesafe.ai/>)\n>\n> ### Other references:\n>\n> • OpenAI DevDay 2026: [https://devday.openai.com/](<https://devday.openai.com/>)\n>\n> ### Where to find Claire Vo:\n>\n> ChatPRD: [https://www.chatprd.ai/](<https://www.chatprd.ai/>)\n>\n> Website: [https://clairevo.com/](<https://clairevo.com/>)\n>\n> LinkedIn: [https://www.linkedin.com/in/clairevo/](<https://www.linkedin.com/in/clairevo/>)\n>\n> X: [https://x.com/clairevo](<https://x.com/clairevo>)\n>\n> Production and marketing by [https://penname.co/](<https://penname.co/>). For inquiries about sponsoring the podcast, email jordan@penname.co.\n>\n> *[audio]*\n\nOuter writing",
+      "canonicalSource": "https://x.com/outer/status/200",
+      "selectedMedia": [],
+      "quoteCoverage": [
+        {
+          "sourceId": "200",
+          "availableDepth": 1,
+          "renderedDepth": 1,
+          "requestedDepth": 2,
+          "maxDepth": 8,
+          "maxReached": false,
+          "truncated": false,
+          "stopped": "end",
+          "mayExpand": false,
+          "dateUncertainty": [
+            "missing_or_incomparable_source_days"
+          ]
+        }
+      ]
+    },
+    "hash": "084c8bba38bb4158c61af6ac84f6b092277ab1b95b7ba73a5ec433c39dd541b8"
+  }
+]

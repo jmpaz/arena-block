@@ -157,6 +157,8 @@ public struct CaptureDraft: Codable, Identifiable, Sendable {
     public var media: MediaPolicy
     public var selectedMedia: [String]?
     public var videoFrames: [String]?
+    /// Video soundtrack policy: auto, mix, or a selected moving video's ref.
+    public var audio: String?
     public var videoFrameThresholdSeconds: Int?
     public var quoteDepth: CaptureQuoteDepth?
     /// Nil decodes older drafts as the shared core's default automatic mode.

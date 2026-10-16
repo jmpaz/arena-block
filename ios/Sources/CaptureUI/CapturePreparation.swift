@@ -79,12 +79,14 @@ final class CapturePreparation {
         let edited = try decode(runtime.edit(planJSON: json(original), editsJSON: json(.object(edits))))
         guard let plan = edited["plan"] else { throw CaptureError.message("Couldn't prepare this capture.") }
         let selected = Set(plan["block"]?["selectedMedia"]?.array.compactMap(\.string) ?? [])
-        guard policy["media"] != .string("selected") || selected == Set(requested) else { throw CaptureError.message("Couldn't prepare the selected media. No block was created.") }
+        let visible = Set(CaptureMediaTree.media(in: plan).compactMap { $0["ref"]?.string })
+        guard policy["media"] != .string("selected") || selected == Set(requested).intersection(visible) else { throw CaptureError.message("Couldn't prepare the selected media. No block was created.") }
         let preview = CapturePreview(kind: "social", url: snapshot.url, plan: plan,
                                      inputRefs: snapshot.sourceRefs, extraInputRefs: snapshot.supplementaryRefs)
         let payload = try decode(runtime.localPayload(planJSON: json(plan), mediaURL: "https://s3.amazonaws.com/arena_images-temp/pending", ingestURL: snapshot.url)).object
         // Edits cannot change geometry; compare the composed block before applying writing overrides.
-        let sameMedia = snapshot.preview?.plan?["block"] == original["block"] && snapshot.preview?.plan?["sources"] == sources
+        let sameAudio = (snapshot.preview?.plan?["policy"]?["audio"]?.string ?? "auto") == (original["policy"]?["audio"]?.string ?? "auto")
+        let sameMedia = sameAudio && snapshot.preview?.plan?["block"] == original["block"] && snapshot.preview?.plan?["sources"] == sources
         let path = sameMedia ? snapshot.reusableRenderPath : nil
         return .init(preview: preview, prepared: .init(payload: payload, update: edited["fields"]?.object ?? [:]), reusableRenderPath: path)
     }

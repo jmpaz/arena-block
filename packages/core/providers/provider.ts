@@ -23,7 +23,7 @@ function assignQuoteRefs(post: ResolvedPost, postIndex: number, cursor: { next: 
   const path = new Set(seen); path.add(post);
   return {
     ...post,
-    media: post.media.map((item, index) => ({ ...item, ref: item.kind === "image" && item.sourceRole !== "preview"
+    media: post.media.map((item, index) => ({ ...item, ref: item.sourceRole !== "preview"
       ? `${postIndex + 1}.${++cursor.next}` : `quote${depth === 1 ? "" : depth}.${index + 1}` })),
     ...(post.quote ? { quote: assignQuoteRefs(post.quote, postIndex, cursor, depth + 1, path) } : {}),
   };

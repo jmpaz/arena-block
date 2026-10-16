@@ -2,9 +2,10 @@ import { createHash } from "node:crypto";
 import { mkdir, readdir, rm, stat, copyFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { createCanvas, loadImage, type Image } from "@napi-rs/canvas";
-import type { BlockPlan, LayoutNode, MediaAsset, MediaKind } from "./types.ts";
+import type { BlockPlan, LayoutNode, MediaAsset, MediaKind, ResolvedPost } from "./types.ts";
 import { parseSource } from "../packages/core/url.ts";
-import { planMedia } from "../packages/core/media-tree.ts";
+import { mediaSources, planMedia } from "../packages/core/media-tree.ts";
+import { blockPlanSchema } from "./types.ts";
 import { runYtDlp, type YtDlpRunner } from "./providers/soundcloud.ts";
 
 const FFMPEG = "ffmpeg";
@@ -398,10 +399,11 @@ async function renderVideo(plan: BlockPlan, directory: string, options: RenderOp
 }
 
 async function renderSoundCloudAudio(plan: BlockPlan, directory: string, options: RenderOptions): Promise<RenderedMedia> {
-  if (plan.sources.length !== 1 || plan.sources[0]!.provider !== "soundcloud" || plan.sources[0]!.soundcloud?.kind !== "track"
-    || !plan.sources[0]!.soundcloud.originalDownloadAvailable) throw new Error("Audio plan does not identify a publicly downloadable SoundCloud track");
-  const source = parseSource(plan.block.canonicalSource);
-  if (source.provider !== "soundcloud" || source.kind !== "track" || source.canonicalUrl !== plan.block.canonicalSource) throw new Error("Audio source is not a canonical public SoundCloud track URL");
+  const owner = selectedAudioSource(plan);
+  if (plan.sources.length !== 1 || owner?.provider !== "soundcloud" || owner.soundcloud?.kind !== "track"
+    || !owner.soundcloud.originalDownloadAvailable) throw new Error("Audio plan does not identify a publicly downloadable SoundCloud track");
+  const source = parseSource(owner.canonicalUrl);
+  if (source.provider !== "soundcloud" || source.kind !== "track" || source.canonicalUrl !== owner.canonicalUrl) throw new Error("Audio source is not a canonical public SoundCloud track URL");
   const assets = selectedAssets(plan);
   if (assets.length !== 1 || assets[0]!.kind !== "audio" || assets[0]!.acquisition !== "soundcloud-original-download" || assets[0]!.url !== source.canonicalUrl) {
     throw new Error("Audio plan must select exactly one original SoundCloud download");
@@ -420,7 +422,7 @@ async function renderSoundCloudAudio(plan: BlockPlan, directory: string, options
     if (!details.isFile() || details.size === 0) throw new Error("yt-dlp produced an empty SoundCloud audio file");
     if (details.size > VIDEO_LIMIT_BYTES) throw new MediaBudgetError("Original SoundCloud audio exceeds the 250 MiB Are.na attachment limit");
     const extension = candidates[0]!.slice("original.".length) as RenderedMedia["extension"];
-    if (extension !== plan.sources[0]!.soundcloud.originalDownloadExtension) {
+    if (extension !== owner.soundcloud.originalDownloadExtension) {
       throw new Error("SoundCloud original download format changed since the plan was prepared");
     }
     const probe = JSON.parse(await run([FFPROBE, "-v", "error", "-show_streams", "-show_format", "-of", "json", path], options.signal)) as {
@@ -444,10 +446,12 @@ async function renderSoundCloudAudio(plan: BlockPlan, directory: string, options
 }
 
 async function renderSubstackAudio(plan: BlockPlan, directory: string, options: RenderOptions): Promise<RenderedMedia> {
-  const assets = selectedAssets(plan), source = plan.sources[0], asset = assets[0];
+  const assets = selectedAssets(plan), source = selectedAudioSource(plan), asset = assets[0];
   if (plan.sources.length !== 1 || assets.length !== 1 || asset?.kind !== "audio" || asset.acquisition !== "substack-public-original"
     || !source?.substackArticle?.nativeMedia?.some(item => item.kind === "audio" && item.url === asset.url
       && item.durationSeconds === asset.durationSeconds)) throw new Error("Original Substack audio is missing consistent complete public source evidence");
+  try { blockPlanSchema.parse(plan); }
+  catch { throw new Error("Original Substack audio is missing consistent complete public source evidence"); }
   const signal = AbortSignal.any([...(options.signal ? [options.signal] : []), AbortSignal.timeout(options.downloadTimeoutMs ?? 60_000)]);
   const staging = join(directory, ".staging", crypto.randomUUID()); await mkdir(staging, { recursive: true });
   const path = join(staging, "original-audio");
@@ -483,6 +487,11 @@ async function renderSubstackAudio(plan: BlockPlan, directory: string, options: 
   } finally { await rm(staging, { recursive: true, force: true }); }
 }
 
+function selectedAudioSource(plan: BlockPlan): ResolvedPost | undefined {
+  const ref = plan.block.selectedMedia[0];
+  return mediaSources(plan.sources).find(node => node.media.some(asset => asset.ref === ref && asset.kind === "audio"))?.source;
+}
+
 export async function renderPlan(plan: BlockPlan, directory: string, options: RenderOptions = {}): Promise<RenderedMedia | undefined> {
   options.signal?.throwIfAborted();
   if (plan.block.kind === "text" || plan.block.kind === "url") return undefined;
@@ -491,7 +500,7 @@ export async function renderPlan(plan: BlockPlan, directory: string, options: Re
   try {
     return await (plan.block.kind === "image" ? renderPlaylistArtwork(plan, directory, { ...options, signal })
       : plan.block.kind === "video" ? renderVideo(plan, directory, { ...options, signal })
-      : plan.block.kind === "audio" ? (plan.sources[0]?.provider === "substack" ? renderSubstackAudio(plan, directory, { ...options, signal }) : renderSoundCloudAudio(plan, directory, { ...options, signal }))
+      : plan.block.kind === "audio" ? (selectedAudioSource(plan)?.provider === "substack" ? renderSubstackAudio(plan, directory, { ...options, signal }) : renderSoundCloudAudio(plan, directory, { ...options, signal }))
         : renderImages(plan, directory, { ...options, signal }));
   } catch (error) {
     controller.abort(error); // Stop other selected downloads after a partial failure.

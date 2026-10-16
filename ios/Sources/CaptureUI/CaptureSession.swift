@@ -505,7 +505,7 @@ public final class CaptureSession {
         draft?.renderPath = nil; draft?.previewSnapshot = nil
         if !preservingChoices {
             draft?.titleOverride = nil; draft?.descriptionOverride = nil
-            draft?.selectedMedia = nil; draft?.videoFrames = nil; draft?.quoteDepth = nil
+            draft?.selectedMedia = nil; draft?.videoFrames = nil; draft?.audio = nil; draft?.quoteDepth = nil
             draft?.pendingMediaChoices = nil
         }
         if !keepingExpansion {
@@ -550,7 +550,7 @@ public final class CaptureSession {
     /// asset identities before positional refs can move during expansion.
     private func retainMediaChoicesForSourceOptions() -> Bool {
         guard let current = draft, current.pendingMediaChoices == nil else { return true }
-        guard current.media == .selected || current.videoFrames?.isEmpty == false else { return true }
+        guard current.media == .selected || current.videoFrames?.isEmpty == false || current.audio.map({ !["auto", "mix"].contains($0) }) == true else { return true }
         guard let oldPreview = preview ?? current.previewSnapshot else {
             problem = "Load the source before changing media options."
             return false
@@ -559,7 +559,7 @@ public final class CaptureSession {
             draft?.pendingMediaChoices = try CaptureMediaChoiceAnchors.capture(
                 preview: oldPreview,
                 selected: current.media == .selected ? current.selectedMedia ?? [] : nil,
-                frames: current.videoFrames)
+                frames: current.videoFrames, audio: current.audio)
             return true
         } catch { problem = error.localizedDescription; return false }
     }
@@ -573,6 +573,7 @@ public final class CaptureSession {
         guard draft?.pendingMediaChoices != nil else { return }
         if draft?.media == .selected { draft?.selectedMedia = policy["selectedMedia"]?.array.compactMap(\.string) ?? [] }
         draft?.videoFrames = policy["videoFrames"]?.array.compactMap(\.string)
+        draft?.audio = policy["audio"]?.string
         draft?.pendingMediaChoices = nil
     }
 
@@ -703,13 +704,22 @@ public final class CaptureSession {
 
     func setMedia(_ media: MediaPolicy) {
         guard !busy, draft?.blockID == nil, [.editing, .preparing, .ready, .failed].contains(draft?.phase ?? .saved) else { return }
-        draft?.media = media; draft?.selectedMedia = nil; draft?.videoFrames = nil; draft?.phase = .editing
+        draft?.media = media; draft?.selectedMedia = nil; draft?.videoFrames = nil; draft?.audio = nil; draft?.phase = .editing
         persistOrReport(); resolve()
     }
 
     var includedMediaRefs: [String] {
         guard let draft, let preview else { return [] }
         return draft.includedMedia(in: preview)
+    }
+
+    func setAudio(_ value: String) {
+        guard !busy, draft?.blockID == nil, let plan = preview?.plan,
+              [.editing, .preparing, .ready, .failed].contains(draft?.phase ?? .saved) else { return }
+        let videos = CaptureMediaTree.videoSoundtrackSources(in: plan).flatMap(\.media).compactMap { $0["ref"]?.string }
+        guard ["auto", "mix"].contains(value) || videos.contains(value) else { return }
+        draft?.audio = value; draft?.phase = .editing
+        persistOrReport(); resolve()
     }
 
     func toggleMedia(_ ref: String) {
@@ -728,6 +738,7 @@ public final class CaptureSession {
         refs.removeAll { $0 == ref }
         if enabled { refs.append(ref) }
         draft?.videoFrames = refs
+        if enabled, draft?.audio == ref { draft?.audio = nil }
         let selectedRefs = includedMediaRefs
         if !selectedRefs.contains(ref) { draft?.selectMedia(selectedRefs + [ref], in: preview) }
         draft?.phase = .editing
@@ -748,6 +759,7 @@ public final class CaptureSession {
         var frames = draft?.videoFrames ?? []
         frames.removeAll { $0 == ref }
         if choice == .frame { frames.append(ref) }
+        if choice != .video, draft?.audio == ref { draft?.audio = nil }
         draft?.selectMedia(selected, in: preview)
         draft?.videoFrames = frames
         draft?.phase = .editing
@@ -1348,7 +1360,7 @@ public final class CaptureSession {
             var next: CaptureDraft
             if input.isEmpty, let previous, !previous.hasDraftContent {
                 next = previous
-                next.input = ""; next.originalLinkOnly = nil; next.redditCapturesJSON = nil; next.substackCapturesJSON = nil; next.media = .auto; next.selectedMedia = nil; next.videoFrames = nil; next.quoteDepth = nil; next.phase = .editing; next.problem = nil
+                next.input = ""; next.originalLinkOnly = nil; next.redditCapturesJSON = nil; next.substackCapturesJSON = nil; next.media = .auto; next.selectedMedia = nil; next.videoFrames = nil; next.audio = nil; next.quoteDepth = nil; next.phase = .editing; next.problem = nil
                 next.selection = DestinationSelection(defaultChannel: defaultChannel)
             } else { next = CaptureDraft(accountID: account.id, defaultChannel: defaultChannel, input: input) }
             next.videoFrameThresholdSeconds = autoFrameThresholdSeconds

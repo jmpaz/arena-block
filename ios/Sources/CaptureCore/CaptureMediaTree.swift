@@ -8,7 +8,7 @@ public struct CaptureMediaSource: Sendable {
         let assets = source["media"]?.array ?? []
         guard quoteDepth > 0 else { return assets }
         return assets.filter { asset in
-            guard asset["kind"]?.string == "image", asset["sourceRole"]?.string != "preview",
+            guard ["image", "video", "audio"].contains(asset["kind"]?.string ?? ""), asset["sourceRole"]?.string != "preview",
                   let ref = asset["ref"]?.string else { return false }
             return ref.hasPrefix("\(rootIndex + 1).") && ref.range(of: #"^\d+\.[1-9]\d*$"#, options: .regularExpression) != nil
         }
@@ -43,5 +43,18 @@ public enum CaptureMediaTree {
     }
     public static func media(in plan: JSONValue) -> [JSONValue] {
         sources(inPlan: plan).flatMap(\.media)
+    }
+    public static func videoSoundtrackSources(in plan: JSONValue) -> [CaptureMediaSource] {
+        let selected = Set((plan["block"]?["selectedMedia"]?.array ?? []).compactMap(\.string))
+        let frames = Set((plan["block"]?["frameMedia"]?.array ?? []).compactMap { $0["ref"]?.string })
+        return sources(inPlan: plan).compactMap { node in
+            let media = node.media.filter { asset in
+                guard let ref = asset["ref"]?.string else { return false }
+                return asset["kind"]?.string == "video" && selected.contains(ref) && !frames.contains(ref)
+            }
+            guard !media.isEmpty else { return nil }
+            var source = node.source.object; source["media"] = .array(media)
+            return .init(source:.object(source),rootIndex:node.rootIndex,quoteDepth:node.quoteDepth)
+        }
     }
 }

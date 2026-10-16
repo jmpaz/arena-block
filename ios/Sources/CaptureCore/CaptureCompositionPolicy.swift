@@ -84,6 +84,7 @@ public struct CaptureMediaAnchor: Codable, Hashable, Sendable {
 public struct CaptureMediaChoiceAnchors: Codable, Sendable {
     public let selected: [CaptureMediaAnchor]?
     public let frames: [CaptureMediaAnchor]?
+    public let soundtrack: CaptureMediaAnchor?
 
     private static func indexes(in sources: JSONValue) throws ->
         (byRef: [String: CaptureMediaAnchor], byAnchor: [CaptureMediaAnchor: String]) {
@@ -121,7 +122,7 @@ public struct CaptureMediaChoiceAnchors: Codable, Sendable {
         return (byRef, byAnchor)
     }
 
-    public static func capture(preview: CapturePreview, selected: [String]?, frames: [String]?) throws -> Self {
+    public static func capture(preview: CapturePreview, selected: [String]?, frames: [String]?, audio: String? = nil) throws -> Self {
         guard let sources = preview.plan?["sources"] else {
             throw CaptureError.message("Load the source before changing media or post options.")
         }
@@ -134,7 +135,8 @@ public struct CaptureMediaChoiceAnchors: Codable, Sendable {
                 return anchor
             }
         }
-        return try .init(selected: anchors(selected), frames: anchors(frames))
+        let audioRef = audio.flatMap { ["auto", "mix"].contains($0) ? nil : $0 }
+        return try .init(selected: anchors(selected), frames: anchors(frames), soundtrack: anchors(audioRef.map { [$0] })?.first)
     }
 
     public func applying(to policy: JSONValue, sources: JSONValue) throws -> JSONValue {
@@ -150,6 +152,7 @@ public struct CaptureMediaChoiceAnchors: Codable, Sendable {
         var object = policy.object
         if let selected { object["selectedMedia"] = .array(try refs(selected).map(JSONValue.string)) }
         if let frames { object["videoFrames"] = .array(try refs(frames).map(JSONValue.string)) }
+        if let soundtrack { object["audio"] = .string(try refs([soundtrack])[0]) }
         return .object(object)
     }
 }
@@ -159,6 +162,7 @@ public extension CaptureDraft {
         var policy: [String: JSONValue] = ["media": .string(media.rawValue)]
         if media == .selected { policy["selectedMedia"] = .array((selectedMedia ?? []).map(JSONValue.string)) }
         if let videoFrames, !videoFrames.isEmpty { policy["videoFrames"] = .array(videoFrames.map(JSONValue.string)) }
+        if let audio { policy["audio"] = .string(audio) }
         if let videoFrameThresholdSeconds { policy["videoFrameThresholdSeconds"] = .number(Double(videoFrameThresholdSeconds)) }
         if let quoteDepth { policy["quoteDepth"] = quoteDepth.jsonValue }
         if let threadExpansion { policy["threadExpansion"] = .string(threadExpansion.rawValue) }
@@ -178,15 +182,28 @@ public extension CaptureDraft {
         let visible = Set(preview.mediaRefs)
         let allRefs = CaptureMediaTree.sources(in: preview.plan?["sources"] ?? .array([]))
             .flatMap(\.media).compactMap { $0["ref"]?.string }
-        let hidden = media == .selected ? (selectedMedia ?? []).filter { !visible.contains($0) } : []
+        var hidden = media == .selected ? (selectedMedia ?? []).filter { !visible.contains($0) } : []
+        if let audio, !["auto", "mix"].contains(audio), !visible.contains(audio), allRefs.contains(audio) { hidden.append(audio) }
         let chosen = Set(refs + hidden)
         media = .selected
         selectedMedia = allRefs.filter { chosen.contains($0) }
+        if let audio, !["auto", "mix"].contains(audio), !chosen.contains(audio) { self.audio = nil }
     }
 
     mutating func toggleMedia(_ ref: String, in preview: CapturePreview) {
         guard preview.mediaRefs.contains(ref) else { return }
+        let kind = preview.media.first { $0["ref"]?.string == ref }?["kind"]?.string
         var selected = Set(includedMedia(in: preview))
+        if kind == "audio", !selected.contains(ref) {
+            media = .selected; selectedMedia = [ref]; videoFrames = nil; audio = nil
+            return
+        }
+        if kind != "audio", !selected.contains(ref) {
+            let audioRefs = Set(CaptureMediaTree.sources(in: preview.plan?["sources"] ?? .array([]))
+                .flatMap(\.media).filter { $0["kind"]?.string == "audio" }.compactMap { $0["ref"]?.string })
+            selected.subtract(audioRefs)
+            selectedMedia?.removeAll { audioRefs.contains($0) }
+        }
         if !selected.insert(ref).inserted { selected.remove(ref) }
         videoFrames?.removeAll { $0 == ref }
         selectMedia(Array(selected), in: preview)

@@ -168,6 +168,15 @@ function selectedMedia(posts: ResolvedPost[], policy: CompositionPolicy): MediaA
   if (policy.media === "audio") return rootMedia.filter((item) => item.kind === "audio");
   if (policy.media === "images") return rootMedia.filter((item) => item.kind === "image");
   const automaticMedia = rootMedia.filter(item => item.sourcePlacement !== "body");
+  const quotedAV = mediaSources(posts, renderedQuoteDepth(policy)).filter(node => node.quoteDepth > 0)
+    .flatMap(node => node.media).some(item => item.kind !== "image");
+  if (quotedAV) {
+    const visuals = automaticMedia.filter(item => item.kind !== "audio");
+    if (visuals.length) return visuals;
+    const audio = automaticMedia.filter(item => item.kind === "audio");
+    if (audio.length > 1) throw new Error("Choose one original audio attachment. Audio files must be captured separately.");
+    return audio;
+  }
   // Native podcast audio is an alternative to its visuals, never an automatic
   // soundtrack for an ordered composition or media extra.
   if (policy.mediaOnlyPosts?.length || posts.length > 1) return automaticMedia.filter(item => item.kind !== "audio");
@@ -398,7 +407,8 @@ export function composePlan(
     chosen = order.map(ref => assets.get(ref)!);
   }
   const explicitFrames = new Set(policy.videoFrames ?? []);
-  if ([...explicitFrames].some(ref => !chosen.some(item => item.ref === ref && item.kind === "video" && item.posterUrl))) {
+  if ([...explicitFrames].some(ref => !allKnown.some(item => item.ref === ref && item.kind === "video" && item.posterUrl
+    && (hiddenQuotes.has(ref) || chosen.some(selected => selected.ref === ref))))) {
     throw new Error("A chosen video frame needs its selected source video and an observed poster; no block was created");
   }
   const frameThreshold = policy.videoFrameThresholdSeconds ?? 600;
@@ -415,7 +425,8 @@ export function composePlan(
     throw new Error("Capture one original audio attachment alone; choose audio or visual media. Audio cannot be composited or converted.");
   }
   const audio = explicitAudio(policy);
-  if (audio && !effective.some((item) => item.kind === "video" && item.ref === audio)) {
+  if (audio && !effective.some((item) => item.kind === "video" && item.ref === audio)
+    && !(hiddenQuotes.has(audio) && allKnown.some(item => item.ref === audio && item.kind === "video"))) {
     throw new Error(`Audio source ${audio} is not a selected video`);
   }
   const carried = new Set(effective.map((item) => item.url));

@@ -4,6 +4,7 @@ import { redditBrowserCaptureSchema, redditCapturesSchema, redditSourceKey, type
 import { parseSource } from "./url.ts";
 import { substackNoteVideo } from "./substack-note-attachments.ts";
 import { substackArticleRecordSchema, substackRelationSchema, substackThreadSchema, type SubstackArticleRecord } from "./substack-article-record.ts";
+import { planMedia } from "./media-tree.ts";
 
 export const SCHEMA_VERSION = 1 as const;
 
@@ -289,7 +290,7 @@ export const blockPlanSchema = z.object({
 }).superRefine((plan, context) => {
   const refs = new Set<string>();
   for (const frame of plan.block.frameMedia ?? []) {
-    const original = plan.sources.flatMap(source => source.media).find(asset => asset.ref === frame.ref);
+    const original = planMedia(plan).find(asset => asset.ref === frame.ref);
     if (refs.has(frame.ref) || !plan.block.selectedMedia.includes(frame.ref) || original?.kind !== "video"
       || original.posterUrl !== frame.url) {
       context.addIssue({ code: "custom", message: "A frame must use the selected video's observed poster", path: ["block", "frameMedia"] });

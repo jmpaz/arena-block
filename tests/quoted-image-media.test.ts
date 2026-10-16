@@ -36,7 +36,7 @@ test("multiple sources have unambiguous quote refs, previews stay previews, and 
  const video={ref:"0.0",kind:"video"as const,url:"https://video.example/original.mp4",posterUrl:"https://images.example/poster.png",durationSeconds:700,alt:"Original video"};
  const mixed=assignMediaRefs(post("100",post("200"),[video]),0),framed=blockPlanSchema.parse(composePlan([mixed],{videoFrameThresholdSeconds:600}));
  expect(framed.block.selectedMedia).toEqual(["1.1","1.2"]);expect(framed.block.frameMedia).toEqual([{ref:"1.1",url:video.posterUrl}]);expect(captureRenderRecipe(framed)!.tiles.map(t=>t.kind)).toEqual(["image","image"]);
- const legacyVideo=assignMediaRefs(post("100",post("200",undefined,[video])),0);expect(legacyVideo.quote!.media[0]!.ref).toBe("quote.1");expect(composePlan([legacyVideo]).block.selectedMedia).toEqual(["1.1"]);
+ const legacyVideo=assignMediaRefs(post("100",post("200",undefined,[video])),0);legacyVideo.quote!.media[0]!.ref="quote.1";expect(composePlan([legacyVideo]).block.selectedMedia).toEqual(["1.1"]);
 });
 
 test("actual .2 queued plan retains its hash and source fields while a fresh resolution includes its quoted original",async()=>{

@@ -21,6 +21,7 @@ function threadSeed(input: Input) {
 export function requiredSubstackResolutionCapabilities(input: Input): string[] {
   const required = new Set<string>();
   if (noteInputs(input).length && renderedQuoteDepth({ quote: input.policy?.quote ?? "block", quoteDepth: input.policy?.quoteDepth }) > 0) required.add("quoted-image-media-v1");
+  if (noteInputs(input).length && renderedQuoteDepth({ quote: input.policy?.quote ?? "block", quoteDepth: input.policy?.quoteDepth }) > 0) required.add("quoted-video-audio-v1");
   if(input.substackCaptures?.length)required.add("substack-browser-records-v1");
   if(needsSubstackPublicV2(input))required.add("substack-public-sources-v2");
   const captured=new Set((input.substackCaptures??[]).flatMap(c=>{try{return[parseSource(c.sourceUrl).id];}catch{return[];}}));

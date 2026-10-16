@@ -1,4 +1,4 @@
-import { mediaSources, planMedia } from "../../packages/core/media-tree.ts";
+import { mediaSources, planMedia, videoSoundtrackSources } from "../../packages/core/media-tree.ts";
 import { renderedQuoteDepth } from "../../packages/core/quote-policy.ts";
 import { normalizeSubstackCapture, substackCapturesSchema, substackSourceKey, type SubstackCapture } from "../../packages/core/substack-record.ts";
 import { configureSubstackTabReading, readActiveSubstackTab, type TabReadingManifest } from "./substack-tab.ts";
@@ -6,7 +6,7 @@ import { containsDraftSource, shouldReplaceAutomaticDraft } from "./draft-retent
 import { resolveWithNative } from "./native-reddit.ts";
 import { normalizeRedditCapture, redditLiveReadUnavailable, redditCapturesSchema, redditSourceKey, REDDIT_CAPTURE_MAX_BYTES, type RedditBrowserCapture } from "../../packages/core/reddit-record.ts";
 import { blockPlanSchema, type BlockPlan, type CompositionPolicy } from "../../packages/core/types.ts";
-import { requiredOrigins, resolveCapture, revisePlan } from "./core.ts";
+import { requiredOrigins, resolveCapture, revisePlan, mediaSelectionPolicy } from "./core.ts";
 import { BrowserOAuth } from "./browser-auth.ts";
 import { BrowserSaver, browserCanPublish, routeBrowserDestinations, type BrowserSaveIntent } from "./browser-save.ts";
 import { ResolutionGuard } from "./resolution-guard.ts";
@@ -327,7 +327,7 @@ function renderMedia(): void {
         resolutionGuard.changed();
         const refs = new Set(plan.policy.videoFrames ?? []);
         if (frame.checked) refs.add(asset.ref); else refs.delete(asset.ref);
-        plan = revisePlan(plan, { policy: { videoFrames: [...refs] }, title: title.value,
+        plan = revisePlan(plan, { policy: { videoFrames: [...refs], ...(frame.checked && plan.policy.audio === asset.ref ? { audio: "auto" } : {}) }, title: title.value,
           markdown: writing.value, description: description.value });
         renderPlanKeepingMediaFocus();
       });
@@ -345,31 +345,27 @@ function renderMedia(): void {
     row.append(thumb, meta, controls);
     list.append(row);
   }
-  const audio = assets.filter(asset => asset.kind === "audio" && plan?.block.selectedMedia.includes(asset.ref));
+  const audio = plan ? videoSoundtrackSources(plan).flatMap(node => node.media.map(asset => ({ asset, node }))) : [];
   const audioChoice = $<HTMLSelectElement>("audio-choice");
   audioChoice.replaceChildren();
   audioChoice.hidden = $("audio-label").hidden = audio.length < 2;
   if (audio.length >= 2) {
-    for (const [value, label] of [["auto", "Auto"], ["mix", "Mix"], ...audio.map(asset => [asset.ref, `Only ${asset.ref}`])]) {
+    for (const [value, label] of [["auto", "Auto"], ["mix", "Mix"], ...audio.map(({ asset, node }) => [asset.ref,
+      `Video ${asset.ref}${node.quoteDepth ? ` · quoted from @${node.source.author.handle.replace(/^@/, "")}` : ""}`])]) {
       const option = document.createElement("option");
       option.value = value!;
       option.textContent = label!;
       audioChoice.append(option);
     }
-    audioChoice.value = plan?.policy.audio ?? "auto";
+    const value = plan?.policy.audio ?? "auto";
+    audioChoice.value = ["auto", "mix"].includes(value) || audio.some(item => item.asset.ref === value) ? value : "auto";
   }
 }
 
 function changeMedia(ref: string, selected: boolean): void {
   if (!plan) return;
   resolutionGuard.changed();
-  const refs = new Set(plan.policy.media === "selected" ? plan.policy.selectedMedia : plan.block.selectedMedia);
-  if (selected) refs.add(ref); else refs.delete(ref);
-  const previousOrder = plan.policy.mediaOrder ?? plan.block.selectedMedia;
-  const mediaOrder = previousOrder.filter(value => refs.has(value));
-  for (const value of refs) if (!mediaOrder.includes(value)) mediaOrder.push(value);
-  const policy: Partial<CompositionPolicy> = { media: "selected", selectedMedia: [...refs],
-    mediaOrder, videoFrames: (plan.policy.videoFrames ?? []).filter(value => refs.has(value)) };
+  const policy = mediaSelectionPolicy(plan, ref, selected);
   plan = revisePlan(plan, { policy, title: title.value, markdown: writing.value, description: description.value });
   renderPlanKeepingMediaFocus();
 }

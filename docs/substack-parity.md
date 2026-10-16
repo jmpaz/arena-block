@@ -17,7 +17,7 @@
 | Publication dates | Retains explicit-offset timestamps and offset-free display labels. Quote dates use source dates; acquisition times remain in source records. |
 | Drafts and saves | Retains source records in browser and native drafts, save snapshots, helper requests and receiver plans. |
 | Public article video and audio | Checks that the upload belongs to the complete public article and its publication. When the source supplies a preview image, video over ten minutes uses that frame. One original audio file can be copied without conversion, up to 250 MiB. |
-| Native Note video | Checks the upload against its Note and author. Quoted video records are retained, but quoted video and audio are not selectable in a composition. |
+| Native Note video | Checks the upload against its Note and author. Videos inside included quotes use the same selection, framing and soundtrack controls as outer videos. |
 | Inline article video | Checks the upload against its article and publication. Unsupported players or captions that cannot be preserved stop capture. |
 | External players | Keeps the observed link and title when available. |
 
@@ -29,15 +29,22 @@ cannot authenticate the claimed observation.
 
 ## Implementation limits
 
+Original images, videos and verified original audio are selectable inside quotes.
+A selected audio file is saved alone without conversion; it cannot be mixed with
+visual media or another standalone audio file. Video soundtracks use Auto, Mix or
+a selected video. Frame choices use the observed poster and carry no audio.
+
 Media follow source order: the outer post, its quoted descendants, then the next
-chosen post. Quoted images have distinct references within the outer post's
-namespace, such as `1.2`. Quote depth controls both writing and quoted images, up
+chosen post. Quoted media have distinct references within the outer post's
+namespace, such as `1.2`. Quote depth controls both writing and quoted media, up
 to eight levels. Hiding a quote keeps explicit media choices for when it is shown
-again. The native and browser pickers identify the quoted image's author.
+again. The native and browser pickers identify the quoted media's author.
 
 Existing queued plans retain their original references and selection. Read the
-source again to include quoted images in an older plan. New quoted-image plans
-require `quoted-image-media-v1` on the receiving helper and daemon.
+source again to include quoted media in an older plan. New quoted-image plans
+require `quoted-image-media-v1`; quoted video/audio selections, frame choices and
+retained soundtrack references require `quoted-video-audio-v1` on the receiving
+helper and daemon. Original source records remain unchanged by these choices.
 
 Article reads use `/api/v1/posts/{slug}`. Note chain discovery uses
 `/api/v1/reader/comment/{id}` and `/replies`, checking ancestors, user IDs,
@@ -53,3 +60,8 @@ duration are checked before rendering or attachment.
 
 Receiver capability names and retained-record limits are listed in
 [Substack captures](substack-notes.md#retained-records-and-compatibility).
+
+The observed native Note attachment contract supports images, video and article
+cards. Standalone original audio is verified through complete public article
+records. External audio and video players remain links; their URLs are not
+promoted to native attachments.

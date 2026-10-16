@@ -6,6 +6,10 @@ import SwiftUI
 import UIKit
 
 public struct CaptureRootView: View {
+    private struct SoundtrackChoice: Identifiable {
+        let id: String
+        let label: String
+    }
     private struct PreviewInvalidationKey: Equatable {
         var draftID: UUID?
         var phase: CapturePhase?
@@ -270,6 +274,15 @@ public struct CaptureRootView: View {
                         if session.sourceRows.count == 1 && session.preview?.media.isEmpty == false && singleImageChoice == nil {
                             CaptureMediaSelection(session: session, locked: locked)
                                 .listRowSeparator(.hidden)
+                        }
+                        if soundtrackChoices.count > 1 {
+                            Picker("Audio", selection: Binding(get: { effectiveSoundtrackChoice }, set: session.setAudio)) {
+                                Text("Auto").tag("auto")
+                                Text("Mix").tag("mix")
+                                ForEach(soundtrackChoices) { choice in Text(choice.label).tag(choice.id) }
+                            }
+                            .accessibilityIdentifier("capture.audio-choice")
+                            .disabled(locked)
                         }
                         if canOfferCompositionPreview {
                             compositionPreviewControls
@@ -726,6 +739,24 @@ public struct CaptureRootView: View {
     private var canOfferCompositionPreview: Bool {
         session.draft?.phase == .ready && !session.busy && session.preview?.kind == "social" &&
             singleImageChoice == nil && !session.includedMediaRefs.isEmpty
+    }
+
+    private var soundtrackChoices: [SoundtrackChoice] {
+        guard let plan = session.preview?.plan else { return [] }
+        let ordered = CaptureMediaTree.media(in: plan).compactMap { $0["ref"]?.string }
+        return CaptureMediaTree.videoSoundtrackSources(in: plan).flatMap { node in
+            node.media.compactMap { asset -> SoundtrackChoice? in
+                guard let ref = asset["ref"]?.string, let position = ordered.firstIndex(of: ref) else { return nil }
+                let handle = node.source["author"]?["handle"]?.string
+                let owner = node.ownershipLabel ?? handle.map { "@" + $0.trimmingCharacters(in: CharacterSet(charactersIn:"@")) }
+                return SoundtrackChoice(id:ref,label:["Video \(position + 1)",owner].compactMap { $0 }.joined(separator:" · "))
+            }
+        }
+    }
+
+    private var effectiveSoundtrackChoice: String {
+        let value = session.draft?.audio ?? "auto"
+        return ["auto","mix"].contains(value) || soundtrackChoices.contains(where: { $0.id == value }) ? value : "auto"
     }
 
     private var previewVideoLimitation: String? {

@@ -17,8 +17,29 @@ import { NativeSoundCloudProvider } from "../../packages/core/providers/soundclo
 import { XProvider } from "../../packages/core/providers/x.ts";
 import { compositionPolicySchema, type BlockPlan, type CompositionPolicy } from "../../packages/core/types.ts";
 import { parseSource } from "../../packages/core/url.ts";
+import { mediaSources, planMedia } from "../../packages/core/media-tree.ts";
 
 export type CaptureInput = { primary: string[]; extras: string[]; policy: Partial<CompositionPolicy>; redditCaptures?: RedditBrowserCapture[]; substackCaptures?: SubstackCapture[] };
+
+/** Original audio is one attachment, separate from visual compositions. */
+export function mediaSelectionPolicy(plan: BlockPlan, ref: string, selected: boolean): Partial<CompositionPolicy> {
+  const available = planMedia(plan), asset = available.find(asset => asset.ref === ref);
+  if (!asset) throw new Error("Selected media is not available in this quote scope");
+  if (selected && asset.kind === "audio") return { media: "selected", selectedMedia: [ref], mediaOrder: [ref], videoFrames: [], audio: "auto" };
+  const refs = new Set(plan.policy.media === "selected" ? plan.policy.selectedMedia : plan.block.selectedMedia);
+  const audio = plan.policy.audio;
+  if (audio && !["auto", "mix"].includes(audio) && !available.some(asset => asset.ref === audio)
+    && mediaSources(plan.sources).some(node => node.quoteDepth > 0 && node.media.some(asset => asset.ref === audio))) refs.add(audio);
+  if (selected) {
+    for (const node of mediaSources(plan.sources)) for (const item of node.media) if (item.kind === "audio") refs.delete(item.ref);
+    refs.add(ref);
+  } else refs.delete(ref);
+  const order = (plan.policy.mediaOrder ?? plan.block.selectedMedia).filter(value => refs.has(value));
+  for (const value of refs) if (!order.includes(value)) order.push(value);
+  return { media: "selected", selectedMedia: [...refs], mediaOrder: order,
+    videoFrames: (plan.policy.videoFrames ?? []).filter(value => refs.has(value)),
+    ...(!selected && audio === ref ? { audio: "auto" } : {}) };
+}
 
 const browserFetch = ((input: RequestInfo | URL, init?: RequestInit) => {
   const headers = new Headers(init?.headers);

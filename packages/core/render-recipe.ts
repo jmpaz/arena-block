@@ -1,5 +1,6 @@
 import type { CompositionPolicy, LayoutNode, MediaAsset, MediaKind } from "./types.ts";
-import { planMedia } from "./media-tree.ts";
+import { mediaSources, planMedia } from "./media-tree.ts";
+import { renderedQuoteDepth } from "./quote-policy.ts";
 
 export type Rect = { x: number; y: number; width: number; height: number };
 export type Size = { width: number; height: number };
@@ -135,7 +136,10 @@ export function captureRenderRecipe(plan: import("./types.ts").BlockPlan, probes
     return { ref: asset.ref, ...probe };
   });
   const duration = Math.max(0, ...videos.map(item => item.duration));
-  const audio = soundtrack(plan.policy, videos);
+  const chosenAudio = explicitAudio(plan.policy);
+  const hiddenAudioChoice = chosenAudio && mediaSources(plan.sources).some(node => node.quoteDepth > renderedQuoteDepth(plan.policy)
+    && node.media.some(asset => asset.kind === "video" && asset.ref === chosenAudio));
+  const audio = soundtrack(hiddenAudioChoice ? { ...plan.policy, audio: "auto" } : plan.policy, videos);
   return {
     kind: plan.block.kind,
     ...geometry.size,
