@@ -211,7 +211,8 @@ private final class FixtureURLProtocol: URLProtocol {
             let value: Any
             if url.path.contains("/channels/"), let id = Int(url.lastPathComponent), let channel = channels.first(where: { $0["id"] as? Int == id }) { value = channel }
             else if url.path.contains("/blocks/") {
-                value = ["id": 900, "type": "Link", "state": "available", "title": "A study in shape", "description": ["markdown": "A small collection of things worth looking at again."]]
+                let description = ProcessInfo.processInfo.environment["CAPTURE_UI_SAVED_MARKDOWN"] ?? "A small collection of things worth looking at again."
+                value = ["id": 900, "type": "Link", "state": "available", "title": "A study in shape", "description": ["markdown": description]]
             } else {
                 let term = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "query" }?.value ?? ""
                 let found = term.isEmpty || term == "*" ? channels : channels.filter { ($0["title"] as? String)?.localizedCaseInsensitiveContains(term) == true }
