@@ -21,6 +21,11 @@ final class ShareViewController: UIViewController {
     }
 
     private func beginInvocationIfNeeded() {
+        #if CAPTURE_STORAGE_AUDIT_BUILD
+        guard children.isEmpty else { return }
+        embed(UIHostingController(rootView: ContentUnavailableView("Storage inspection build", systemImage: "internaldrive", description: Text("Open Capture to read storage. Capture intake is paused for this diagnostic build."))))
+        return
+        #else
         guard let context = extensionContext else { return }
         let nextContextID = ObjectIdentifier(context)
         guard contextID != nextContextID else { return }
@@ -50,6 +55,7 @@ final class ShareViewController: UIViewController {
         } catch {
             embed(UIHostingController(rootView: ContentUnavailableView("Capture could not open", systemImage: "exclamationmark.triangle", description: Text(error.localizedDescription))))
         }
+        #endif
     }
 
     override func viewDidDisappear(_ animated: Bool) {

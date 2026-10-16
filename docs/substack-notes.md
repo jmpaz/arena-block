@@ -7,12 +7,14 @@ access. A refused read, challenge or incomplete body stops capture.
 ```sh
 arena-block plan 'https://substack.com/@writer/note/c-123' --quote-depth full --json
 arena-block plan 'https://publication.substack.com/p/article-slug' --json
-arena-block plan 'https://substack.com/@writer/note/c-123' --thread-expansion on --json
+arena-block plan 'https://substack.com/@writer/note/c-123' -t --json
 ```
 
 A Note becomes **Note by @handle**. Capture preserves the authored paragraphs,
-lists, emphasis and links. A quoted Note appears under its own linked author;
-quote controls set inclusion, depth and dates. Unavailable quotes keep a link to
+lists, emphasis and links. A quoted Note appears under its own author;
+quote controls set inclusion, depth and dates. Use `--quote-author-link source`
+to link each author to the quoted post, or `plain` to leave the names unlinked.
+Omitting this option keeps the existing presentation. Unavailable quotes keep a link to
 the missing text. The block's source field links to the outer Note.
 
 Article cards include the article title and author. A selected passage is labelled
@@ -26,7 +28,8 @@ domain `/p/{slug}` links use this path when the page identifies a Substack artic
 An unidentified custom-domain page remains an ordinary Link. Paid, partial or
 inconsistent articles stop capture.
 
-`--thread-expansion on` follows a verified same-author linear Note chain,
+The CLI reads the selected Note by default. Add `-t` or `--thread-expansion` to
+follow a verified same-author linear Note chain,
 including parents around the selected Note. Other authors are excluded.
 Branches, missing replies, inconsistent identities and incomplete pagination stop
 expansion. List explicit Note links in order to choose a different set of sources.

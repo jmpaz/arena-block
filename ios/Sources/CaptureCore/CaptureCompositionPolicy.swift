@@ -36,6 +36,17 @@ public enum CaptureQuoteDepth: Hashable, Codable, Sendable {
     }
 }
 
+public enum CaptureQuoteAuthorLink: String, Codable, Hashable, Sendable {
+    case source, plain
+
+    public var title: String {
+        switch self {
+        case .source: "Link to quoted post"
+        case .plain: "Name only"
+        }
+    }
+}
+
 public extension CapturePreview {
     var mediaRefs: [String] {
         var seen = Set<String>()
@@ -165,6 +176,7 @@ public extension CaptureDraft {
         if let audio { policy["audio"] = .string(audio) }
         if let videoFrameThresholdSeconds { policy["videoFrameThresholdSeconds"] = .number(Double(videoFrameThresholdSeconds)) }
         if let quoteDepth { policy["quoteDepth"] = quoteDepth.jsonValue }
+        if let quoteAuthorLink { policy["quoteAuthorLink"] = .string(quoteAuthorLink.rawValue) }
         if let threadExpansion { policy["threadExpansion"] = .string(threadExpansion.rawValue) }
         return .object(policy)
     }

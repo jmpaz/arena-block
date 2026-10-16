@@ -330,18 +330,42 @@
         return normalize(value);
       };
       const expandedLinks = body.cloneNode(true);
+      const observedLinks = body.cloneNode(true);
+      function authoredURL(anchor) {
+        const raw = anchor.getAttribute("href");
+        if (!raw || /[\u0000-\u0020<>]/.test(raw))
+          return;
+        try {
+          const address = new URL(raw, canonical);
+          if (!["https:", "http:"].includes(address.protocol) || address.username || address.password || address.port)
+            return;
+          return { address, observed: /^https?:\/\//i.test(raw) ? raw : address.href };
+        } catch {
+          return;
+        }
+      }
       for (const anchor of all(expandedLinks.querySelectorAll("a[href]"))) {
-        const address = safeURL(anchor.getAttribute("href"), canonical);
-        if (!address || anchor.querySelector("img,video,audio"))
+        const checked = authoredURL(anchor);
+        if (!checked || anchor.querySelector("img,video,audio"))
           continue;
-        const destination = new URL(address);
+        const destination = checked.address, address = destination.href;
         const label = (anchor.textContent ?? "").trim();
-        const withoutScheme = address.replace(/^https:\/\//, "");
+        const withoutScheme = address.replace(/^https?:\/\//, "");
         const short = withoutScheme.replace(/^www\./, "").replace(/\/$/, "");
         if ([withoutScheme, withoutScheme.replace(/\/$/, ""), short].includes(label))
           anchor.textContent = destination.href;
       }
-      const bodyTexts = [...new Set([body.textContent ?? "", expandedLinks.textContent ?? ""])];
+      for (const anchor of all(observedLinks.querySelectorAll("a[href]"))) {
+        const checked = authoredURL(anchor);
+        if (!checked || anchor.querySelector("img,video,audio"))
+          continue;
+        const label = (anchor.textContent ?? "").trim();
+        const withoutScheme = checked.observed.replace(/^https?:\/\//i, "");
+        const short = withoutScheme.replace(/^www\./, "").replace(/\/$/, "");
+        if ([withoutScheme, withoutScheme.replace(/\/$/, ""), short].includes(label))
+          anchor.textContent = checked.observed;
+      }
+      const bodyTexts = [...new Set([body.textContent ?? "", expandedLinks.textContent ?? "", observedLinks.textContent ?? ""])];
       if (attachmentEvidence && !bodyTexts.some((text) => comparable(attachmentEvidence.bodyText) === comparable(text)))
         throw new Error("Substack attachment snapshot changed the authored Note body");
       if (!imageOnly && structured && (typeof structured.text !== "string" || !bodyTexts.flatMap((text) => [

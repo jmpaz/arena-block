@@ -6,13 +6,25 @@ import SwiftUI
 import UIKit
 import OSLog
 
+private enum CaptureAppLaunchPolicy {
+    static var storageAuditOnly: Bool {
+        #if CAPTURE_STORAGE_AUDIT_BUILD
+        let forcedAuditBuild = true
+        #else
+        let forcedAuditBuild = false
+        #endif
+        return CaptureLaunchPolicy.storageAuditOnly(environment: ProcessInfo.processInfo.environment,
+                                                   forcedAuditBuild: forcedAuditBuild)
+    }
+}
+
 @main
 @MainActor
 struct CaptureApp: App {
     @UIApplicationDelegateAdaptor(CaptureApplicationDelegate.self) private var applicationDelegate
     private let session: CaptureSession?
     private let startupError: String?
-    private static var storageAuditOnly: Bool { ProcessInfo.processInfo.environment["CAPTURE_STORAGE_AUDIT_ONLY"] == "1" }
+    private static var storageAuditOnly: Bool { CaptureAppLaunchPolicy.storageAuditOnly }
     init() {
         if Self.storageAuditOnly { session = nil; startupError = nil; return }
         do { let created = try CaptureApplicationDelegate.makeSession(); session = created; startupError = nil }
@@ -29,7 +41,7 @@ struct CaptureApp: App {
 
 @MainActor
 final class CaptureApplicationDelegate: NSObject, UIApplicationDelegate {
-    private static var storageAuditOnly: Bool { ProcessInfo.processInfo.environment["CAPTURE_STORAGE_AUDIT_ONLY"] == "1" }
+    private static var storageAuditOnly: Bool { CaptureAppLaunchPolicy.storageAuditOnly }
     static var session: CaptureSession?
     private static var submissionTask = UIBackgroundTaskIdentifier.invalid
     private static var recoveryEarliestBeginDate: Date?
@@ -140,6 +152,9 @@ private struct CaptureStorageAuditView: View {
     private static func sharedContainer(main: URL) -> URL? {
         #if DEBUG && targetEnvironment(simulator)
         if ProcessInfo.processInfo.environment["CAPTURE_STORAGE_AUDIT_FIXTURE"] == "1" {
+            if let value = ProcessInfo.processInfo.environment["CAPTURE_STORAGE_AUDIT_FIXTURE_ID"], let id = UUID(uuidString: value) {
+                return main.appendingPathComponent("storage-audit-fixtures").appendingPathComponent(id.uuidString, isDirectory: true)
+            }
             return main.appendingPathComponent("storage-audit-fixture", isDirectory: true)
         }
         #endif

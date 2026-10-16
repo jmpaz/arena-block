@@ -1,0 +1,83 @@
+{
+  "schema": "arena-block/substack-browser-capture",
+  "version": 1,
+  "sourceUrl": "https://substack.com/@arr87/note/c-353698796",
+  "observedAt": "2026-10-16T06:28:18.512Z",
+  "method": "public-html",
+  "note": {
+    "acquisition": {
+      "method": "public-html",
+      "observedAt": "2026-10-16T06:28:18.305Z"
+    },
+    "url": "https://substack.com/@arr87/note/c-353698796",
+    "author": {
+      "handle": "arr87",
+      "name": "علي القرشي",
+      "profileUrl": "https://substack.com/@arr87"
+    },
+    "body": {
+      "status": "complete",
+      "html": "<p>اترك لقمه العيش وفكو حسابي</p>"
+    },
+    "publishedLabel": "Oct 5, 2026, 7:37 PM",
+    "postedAt": "2026-10-05T19:37:20.000Z",
+    "links": [],
+    "media": [
+      {
+        "kind": "image",
+        "url": "https://substack-post-media.s3.amazonaws.com/public/images/b665f9d4-2b66-4860-9757-8d30e14e5cc6_720x720.jpeg",
+        "alt": ""
+      }
+    ],
+    "quote": {
+      "url": "https://substack.com/@substack/note/c-353690182",
+      "previewHtml": "<p><span class=\"node-substack_mention\"><span style=\"min-width:0\" data-state=\"closed\"><a class=\"mention-LUD0tW\" href=\"https://substack.com/profile/30438759-danny-palumbo\">Danny Palumbo</a></span></span> writes and cooks pasta for a living.</p>",
+      "expanded": {
+        "acquisition": {
+          "method": "public-html",
+          "observedAt": "2026-10-16T06:28:18.512Z"
+        },
+        "url": "https://substack.com/@substack/note/c-353690182",
+        "author": {
+          "handle": "substack",
+          "name": "Substack",
+          "profileUrl": "https://substack.com/@substack"
+        },
+        "body": {
+          "status": "complete",
+          "html": "<p><span class=\"node-substack_mention\"><span style=\"min-width:0\" data-state=\"closed\"><a class=\"mention-LUD0tW\" href=\"https://substack.com/profile/30438759-danny-palumbo\">Danny Palumbo</a></span></span> writes and cooks pasta for a living.</p>"
+        },
+        "publishedLabel": "Oct 5, 2026, 7:25 PM",
+        "postedAt": "2026-10-05T19:25:39.000Z",
+        "links": [],
+        "attachmentEvidence": {
+          "method": "public-api",
+          "observedAt": "2026-10-16T06:28:18.510Z",
+          "commentId": 353690182,
+          "userId": 81309935,
+          "handle": "substack",
+          "bodyText": "@Danny Palumbo writes and cooks pasta for a living.",
+          "attachments": [
+            {
+              "kind": "video",
+              "id": "7b5cc724-a8f2-4be5-b888-695397fd6a90",
+              "userId": 81309935,
+              "commentId": 353690182,
+              "upload": {
+                "id": "0c12776b-e2f4-4187-aaae-230a9d7c08e4",
+                "userId": 81309935,
+                "state": "transcoded",
+                "postId": null,
+                "publicationId": null,
+                "durationSeconds": 72.61422,
+                "width": 1080,
+                "height": 1920,
+                "thumbnailId": 1
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

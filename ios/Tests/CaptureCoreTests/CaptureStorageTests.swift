@@ -4,6 +4,14 @@ import XCTest
 @testable import CaptureUI
 
 final class CaptureStorageTests: XCTestCase {
+    func testForcedAuditBuildCannotEnterCaptureEvenWithoutALaunchFlag() {
+        XCTAssertTrue(CaptureLaunchPolicy.storageAuditOnly(environment: [:], forcedAuditBuild: true))
+        XCTAssertTrue(CaptureLaunchPolicy.storageAuditOnly(environment: ["CAPTURE_STORAGE_AUDIT_ONLY": "0"], forcedAuditBuild: true))
+        XCTAssertTrue(CaptureLaunchPolicy.storageAuditOnly(environment: ["CAPTURE_STORAGE_AUDIT_ONLY": "1"]))
+        XCTAssertFalse(CaptureLaunchPolicy.storageAuditOnly(environment: [:]))
+        XCTAssertFalse(CaptureLaunchPolicy.storageAuditOnly(environment: ["CAPTURE_STORAGE_AUDIT_ONLY": "true"]))
+    }
+
     private func root() throws -> URL {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("capture-storage-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -98,7 +106,7 @@ final class CaptureStorageTests: XCTestCase {
         let root = try root(); defer { try? FileManager.default.removeItem(at: root) }
         let database = root.appendingPathComponent("capture.sqlite"), store = try CaptureStore(url: database)
         let retained = root.appendingPathComponent("renders/pending/video.mp4"); try write(retained, bytes: 1234)
-        try store.save(["mediaPath": retained.path], account: 0, kind: "delivery", id: "fixture")
+        try store.save(["mediaPath": retained.path, "phase": "uncertain", "stage": "reconcile", "transferID": "fixture-transfer"], account: 0, kind: "delivery", id: "fixture")
         let workspace = try NativeMediaWorkspace(container: root, purpose: "render-inputs")
         let file = workspace.directory.appendingPathComponent("partial.mp4"); try write(file)
         let draft = CaptureDraft(accountID: 42, defaultChannel: nil, input: "https://example.test")
@@ -109,6 +117,9 @@ final class CaptureStorageTests: XCTestCase {
         XCTAssertTrue(audit.complete)
         XCTAssertEqual(audit.categoryBytes["render-referenced-by-pending-or-canceled-save"], 1234)
         XCTAssertEqual(audit.recordCounts["delivery"], 1)
+        XCTAssertEqual(audit.recordStateCounts["delivery.phase.uncertain"], 1)
+        XCTAssertEqual(audit.recordStateCounts["delivery.stage.reconcile"], 1)
+        XCTAssertEqual(audit.recordStateCounts["delivery.retained-transfer-reference"], 1)
         XCTAssertFalse(audit.deletionPerformed); XCTAssertFalse(audit.networkOrDeliveryInitialized)
         XCTAssertEqual(try Data(contentsOf: database), before)
         XCTAssertEqual(try Data(contentsOf: URL(fileURLWithPath: database.path + "-wal")), walBefore)
@@ -128,5 +139,64 @@ final class CaptureStorageTests: XCTestCase {
         XCTAssertFalse(audit.files.contains { $0.path.hasSuffix("linked-source.m4a") })
         let exported = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(audit)) as? [String: Any])
         XCTAssertEqual(exported["complete"] as? Bool, false)
+    }
+
+    func testCapacityBlocksPromotionWithoutEvictingProtectedMedia() throws {
+        let root = try root(); defer { try? FileManager.default.removeItem(at: root) }
+        let workspace = try NativeMediaWorkspace(container: root, purpose: "render-inputs", persistentLimit: 256)
+        let protected = root.appendingPathComponent("renders/unfinished/only-copy.mp4")
+        try write(protected, bytes: 220)
+        let output = workspace.directory.appendingPathComponent("new.mp4"); try write(output, bytes: 40)
+        XCTAssertThrowsError(try workspace.promote(.init(fileURL: output, contentType: "video/mp4", byteCount: 40), to: root.appendingPathComponent("renders/new/attempt")))
+        XCTAssertEqual(try Data(contentsOf: protected).count, 220)
+        XCTAssertEqual(try Data(contentsOf: output).count, 40)
+        workspace.discard()
+        XCTAssertTrue(FileManager.default.fileExists(atPath: protected.path))
+    }
+
+    func testCapacityCheckAndPersistentWriteAreOneAdmissionWithoutEviction() throws {
+        let root = try root(); defer { try? FileManager.default.removeItem(at: root) }
+        let first = root.appendingPathComponent("renders/first.mp4")
+        try CaptureStorageCapacity.withSpace(container: root, additionalBytes: 100, limit: 128) { try write(first, bytes: 100) }
+        var secondWriteRan = false
+        XCTAssertThrowsError(try CaptureStorageCapacity.withSpace(container: root, additionalBytes: 40, limit: 128) { secondWriteRan = true })
+        XCTAssertFalse(secondWriteRan)
+        XCTAssertEqual(try Data(contentsOf: first).count, 100)
+    }
+
+    @MainActor func testOverBudgetUnfinishedSaveCanReuseItsOnlyCopyWithoutNewPreparation() async throws {
+        let root = try root(); defer { try? FileManager.default.removeItem(at: root) }
+        let file = root.appendingPathComponent("renders/unfinished/only-copy.mp4"); try write(file, bytes: 1)
+        let handle = try FileHandle(forWritingTo: file); try handle.truncate(atOffset: 350_000_001); try handle.close()
+        let store = try CaptureStore(url: root.appendingPathComponent("capture.sqlite"))
+        var draft = CaptureDraft(accountID: 42, defaultChannel: nil, input: "https://example.test")
+        draft.previewSnapshot = .init(kind: "social", url: draft.input, plan: .object(["block": .object(["selectedMedia": .array([.string("1.1")])])]))
+        let job = DeliveryJob(id: draft.id, draft: draft, prepared: .init(payload: [:], update: [:]), mediaPath: file.path, stage: .rendering)
+        try store.save(job, account: 0, kind: "delivery", id: job.id.uuidString)
+        XCTAssertThrowsError(try NativeMediaWorkspace(container: root, purpose: "render-inputs"))
+        let delivery = try CaptureDelivery(store: store, credentials: CredentialStore(accessGroup: nil), directory: root.appendingPathComponent("delivery"), group: "fixture", identifier: "fixture", ingestBase: nil)
+        try await delivery.preparePending(job.id)
+        let retained = try XCTUnwrap(store.value(DeliveryJob.self, account: 0, kind: "delivery", id: job.id.uuidString))
+        XCTAssertEqual(retained.mediaPath, file.path); XCTAssertEqual(retained.stage, .destinations)
+        XCTAssertEqual(try file.resourceValues(forKeys: [.fileSizeKey]).fileSize, 350_000_001)
+    }
+
+    func testNormalMaximumVideoFitsAlongsideHistoryAndOtherLiveWorkingCopies() throws {
+        let root = try root(); defer { try? FileManager.default.removeItem(at: root) }
+        func sparse(_ url: URL, bytes: UInt64) throws {
+            try write(url, bytes: 1); let handle = try FileHandle(forWritingTo: url)
+            try handle.truncate(atOffset: bytes); try handle.close()
+        }
+        try sparse(root.appendingPathComponent("history-records.sqlite"), bytes: 12_000_000)
+        let other = try NativeMediaWorkspace(container: root, purpose: "render-inputs")
+        defer { other.discard() }
+        try sparse(other.directory.appendingPathComponent("active-source.mp4"), bytes: 400_000_000)
+        let workspace = try NativeMediaWorkspace(container: root, purpose: "render-inputs")
+        defer { workspace.discard() }
+        let output = workspace.directory.appendingPathComponent("finished.mp4"), bytes = 250 * 1024 * 1024
+        try sparse(output, bytes: UInt64(bytes))
+        let retained = try workspace.promote(.init(fileURL: output, contentType: "video/mp4", byteCount: bytes), to: root.appendingPathComponent("renders/new/attempt"))
+        XCTAssertEqual(try retained.fileURL.resourceValues(forKeys: [.fileSizeKey]).fileSize, bytes)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: other.directory.appendingPathComponent("active-source.mp4").path))
     }
 }

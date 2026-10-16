@@ -315,6 +315,14 @@ public struct CaptureRootView: View {
                                 Text(CaptureQuoteDepth.full.title).tag(CaptureQuoteDepth.full)
                             }.pickerStyle(.menu).disabled(locked)
                                 .accessibilityIdentifier("capture.quote-depth")
+                            Picker("Quoted author", selection: Binding(get: { session.draft?.quoteAuthorLink }, set: session.setQuoteAuthorLink)) {
+                                Text("Keep current style").tag(CaptureQuoteAuthorLink?.none)
+                                Text(CaptureQuoteAuthorLink.source.title).tag(CaptureQuoteAuthorLink?.some(.source))
+                                Text(CaptureQuoteAuthorLink.plain.title).tag(CaptureQuoteAuthorLink?.some(.plain))
+                            }.pickerStyle(.menu).disabled(locked)
+                                .accessibilityIdentifier("capture.quote-author-link")
+                            Text("Links open the quoted post. Edited text is kept.")
+                                .font(.footnote).foregroundStyle(.secondary)
                         }
                         if session.preview?.plan?["block"]?["kind"]?.string == "text",
                            let content = session.preview?.plan?["block"]?["markdown"]?.string, !content.isEmpty {

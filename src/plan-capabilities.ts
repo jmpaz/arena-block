@@ -4,6 +4,7 @@ import { mediaSources } from "../packages/core/media-tree.ts";
 /** Collect the receiver capabilities needed before submitting a publication capsule. */
 export function requiredPlanCapabilities(plan: BlockPlan): string[] {
   const required = new Set<string>();
+  if (plan.policy.quoteAuthorLink !== undefined) required.add("quote-author-links-v1");
   const referenced = new Set([...plan.block.selectedMedia, ...plan.policy.selectedMedia, ...(plan.policy.mediaOrder ?? []), ...(plan.policy.videoFrames ?? []), ...(plan.policy.audio ? [plan.policy.audio] : [])]);
   if (mediaSources(plan.sources).some(node => node.quoteDepth > 0 && node.media.some(asset => asset.kind === "image" && referenced.has(asset.ref)))) required.add("quoted-image-media-v1");
   if (mediaSources(plan.sources).some(node => node.quoteDepth > 0 && node.media.some(asset => asset.kind !== "image" && referenced.has(asset.ref)))) required.add("quoted-video-audio-v1");

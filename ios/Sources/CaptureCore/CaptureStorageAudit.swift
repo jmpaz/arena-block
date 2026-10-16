@@ -19,6 +19,7 @@ public enum CaptureStorageAudit {
         public var allocatedSizeUnknownForFiles: Int
         public var categoryBytes: [String: Int64]
         public var recordCounts: [String: Int]
+        public var recordStateCounts: [String: Int]
         public var problems: [String]
         public var complete: Bool
         public var deletionPerformed = false
@@ -28,11 +29,27 @@ public enum CaptureStorageAudit {
     public static func inspect(container: URL, database: URL? = nil) -> Report {
         let fm = FileManager.default
         var problems: [String] = [], references: [String: Set<String>] = [:], counts: [String: Int] = [:]
+        var states: [String: Int] = [:]
+        func databaseMetadata() -> [String: String] {
+            guard let database else { return [:] }
+            var result: [String: String] = [:]
+            for suffix in ["", "-wal"] {
+                if let attributes = try? fm.attributesOfItem(atPath: database.path + suffix) {
+                    let modified = (attributes[.modificationDate] as? Date)?.timeIntervalSinceReferenceDate ?? -1
+                    result[suffix] = "\(attributes[.size] ?? 0):\(modified):\(attributes[.systemFileNumber] ?? 0)"
+                }
+            }
+            return result
+        }
+        let databaseBefore = databaseMetadata()
         if let database {
             var db: OpaquePointer?
             if sqlite3_open_v2(database.path, &db, SQLITE_OPEN_READONLY | SQLITE_OPEN_FULLMUTEX, nil) == SQLITE_OK, let db {
                 defer { sqlite3_close(db) }
                 sqlite3_busy_timeout(db, 3000)
+                let transaction = sqlite3_exec(db, "BEGIN", nil, nil, nil) == SQLITE_OK
+                if !transaction { problems.append("The record reference snapshot could not begin consistently.") }
+                defer { if transaction { sqlite3_exec(db, "ROLLBACK", nil, nil, nil) } }
                 var statement: OpaquePointer?
                 if sqlite3_prepare_v2(db, "SELECT kind,value FROM records", -1, &statement, nil) == SQLITE_OK, let statement {
                     defer { sqlite3_finalize(statement) }
@@ -43,6 +60,18 @@ public enum CaptureStorageAudit {
                         if let bytes = sqlite3_column_blob(statement, 1) {
                             let data = Data(bytes: bytes, count: Int(sqlite3_column_bytes(statement, 1)))
                             if let object = try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed]) {
+                                if let record = object as? [String: Any] {
+                                    let draft = record["draft"] as? [String: Any] ?? record
+                                    if let phase = draft["phase"] as? String, CapturePhase(rawValue: phase) != nil {
+                                        states[kind + ".phase." + phase, default: 0] += 1
+                                    }
+                                    if let stage = record["stage"] as? String, CaptureDeliveryStage(rawValue: stage) != nil {
+                                        states[kind + ".stage." + stage, default: 0] += 1
+                                    }
+                                    if record["transferID"] is String { states[kind + ".retained-transfer-reference", default: 0] += 1 }
+                                    if record["stopRequestedAt"] != nil { states[kind + ".stop-requested", default: 0] += 1 }
+                                    if record["canceledAt"] != nil { states[kind + ".canceled", default: 0] += 1 }
+                                }
                                 func visit(_ value: Any) {
                                     if let text = value as? String {
                                         let url = text.hasPrefix("file://") ? URL(string: text) : (text.hasPrefix("/") ? URL(fileURLWithPath: text) : nil)
@@ -97,11 +126,15 @@ public enum CaptureStorageAudit {
                 } catch { problems.append("Metadata could not be read for an entry.") }
             }
         } else { problems.append("The container could not be enumerated.") }
+        if databaseMetadata() != databaseBefore {
+            problems.append("Database metadata changed during inspection; repeat with capture and transfers inactive before classifying dependencies.")
+        }
         var categories: [String: Int64] = [:]
         for file in files { categories[file.category, default: 0] += file.logicalBytes }
         return .init(createdAt: Date(), files: files.sorted { $0.path < $1.path }, logicalBytes: files.reduce(0) { $0 + $1.logicalBytes },
                      measuredAllocatedBytes: files.reduce(0) { $0 + ($1.allocatedBytes ?? 0) },
                      allocatedSizeUnknownForFiles: files.filter { $0.allocatedBytes == nil }.count,
-                     categoryBytes: categories, recordCounts: counts, problems: problems, complete: problems.isEmpty)
+                     categoryBytes: categories, recordCounts: counts, recordStateCounts: states,
+                     problems: problems, complete: problems.isEmpty)
     }
 }

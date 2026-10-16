@@ -258,6 +258,13 @@ public enum NativeMediaRenderer {
         let types = ["mp3": "audio/mpeg", "m4a": "audio/mp4", "wav": "audio/wav", "flac": "audio/flac", "ogg": "audio/ogg", "opus": "audio/opus", "aac": "audio/aac"]
         let ext = media.fileURL.pathExtension.lowercased()
         guard try originalAudioExtension(media.fileURL) == ext, let contentType = types[ext], let bytes = try media.fileURL.resourceValues(forKeys: [.fileSizeKey]).fileSize, bytes > 0, bytes <= 250 * 1024 * 1024 else { throw CaptureError.message("The original audio has an unsupported type or size.") }
+        let container = directory.deletingLastPathComponent().deletingLastPathComponent()
+        if media.fileURL.deletingLastPathComponent().standardizedFileURL == directory.standardizedFileURL,
+           NativeMediaWorkspace.isOwnedDirectory(directory, container: container) {
+            // Promote the validated working download directly. External source
+            // files continue through the copy below.
+            return NativeRenderedMedia(fileURL: media.fileURL, contentType: contentType, byteCount: bytes)
+        }
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let output = directory.appendingPathComponent(UUID().uuidString).appendingPathExtension(ext)
         try FileManager.default.copyItem(at: media.fileURL, to: output)

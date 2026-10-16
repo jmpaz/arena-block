@@ -1,3 +1,4 @@
+import { requiredCompositionCapabilities, requireRetainedCompositionPolicy } from "../packages/core/composition-capabilities.ts";
 import { requireRetainedSubstackCaptures } from "../packages/core/substack-record.ts";
 import { requiredSubstackResolutionCapabilities, requireSubstackPublicResult } from "../packages/core/substack-input-capabilities.ts";
 import { requireRetainedRedditCaptures } from "../packages/core/reddit-record.ts";
@@ -78,7 +79,7 @@ export async function handle(request: HostRequest, fetcher: typeof fetch = fetch
   switch (request.action) {
     case "ping": return daemon("/v1/version", "GET", undefined, fetcher);
     case "resolve": {
-      const required = requiredSubstackResolutionCapabilities(request.input);
+      const required = [...requiredCompositionCapabilities(request.input), ...requiredSubstackResolutionCapabilities(request.input)];
       if (request.input.redditCaptures?.length || required.length) {
         const serving = buildInfoSchema.parse(await daemon("/v1/version", "GET", undefined, fetcher));
         const missing=required.filter(capability=>!serving.planCapabilities?.includes(capability));
@@ -87,6 +88,7 @@ export async function handle(request: HostRequest, fetcher: typeof fetch = fetch
         if (request.input.redditCaptures?.length && !serving.planCapabilities?.includes("reddit-browser-records-v1")) throw new Error("The daemon cannot receive Reddit browser records. Install a matching receiver; no source read was submitted.");
       }
       const plan = blockPlanSchema.parse(await daemon("/v1/plans", "POST", request.input, fetcher));
+      requireRetainedCompositionPolicy(request.input, plan);
       requireSubstackPublicResult(request.input, plan);
       requireAddressableQuoteMedia(plan);
       requireRetainedRedditCaptures(plan, request.input.redditCaptures ?? []);

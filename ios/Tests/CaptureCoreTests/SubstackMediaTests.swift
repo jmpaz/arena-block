@@ -45,7 +45,26 @@ final class SubstackMediaTests: XCTestCase {
             try NativeMediaRenderer.verifyOriginalDuration(expected:1,actual:staged.duration)
             let output=try NativeMediaRenderer.originalAudio(staged,directory:dir)
             XCTAssertEqual(output.contentType,"audio/wav"); XCTAssertEqual(try Data(contentsOf: output.fileURL),original)
+            XCTAssertNotEqual(output.fileURL, staged.fileURL)
+            XCTAssertEqual(try Data(contentsOf: staged.fileURL), original)
             XCTAssertThrowsError(try NativeMediaRenderer.verifyOriginalDuration(expected:1460,actual:staged.duration))
+        }
+    }
+    func testOwnedAudioWorkingDownloadPromotesWithoutASecondFullSizeCopy() async throws {
+        let original = wav()
+        try await fixture(payload: original) { root, session in
+            let workspace = try NativeMediaWorkspace(container: root, purpose: "render-inputs")
+            defer { workspace.discard() }
+            let staged = try await NativeMediaRenderer.stageOriginalAudio(ref: "1.1", source: URL(string: "https://audio.fixture.invalid/original")!, directory: workspace.directory, session: session)
+            let output = try NativeMediaRenderer.originalAudio(staged, directory: workspace.directory)
+            XCTAssertEqual(output.fileURL, staged.fileURL)
+            let files = try FileManager.default.contentsOfDirectory(at: workspace.directory, includingPropertiesForKeys: nil)
+                .filter { !$0.lastPathComponent.hasPrefix(".") }
+            XCTAssertEqual(files.map { $0.resolvingSymlinksInPath() }, [staged.fileURL.resolvingSymlinksInPath()])
+            let promoted = try workspace.promote(output, to: root.appendingPathComponent("renders/pending/attempt"))
+            workspace.discard()
+            XCTAssertEqual(try Data(contentsOf: promoted.fileURL), original)
+            XCTAssertFalse(FileManager.default.fileExists(atPath: staged.fileURL.path))
         }
     }
     func testDeclaredAndStreamedOverflowCleanPartialFiles() async throws {

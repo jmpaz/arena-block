@@ -1,3 +1,4 @@
+import { requiredCompositionCapabilities, requireRetainedCompositionPolicy } from "../../packages/core/composition-capabilities.ts";
 import { substackCapturesSchema, requireRetainedSubstackCaptures } from "../../packages/core/substack-record.ts";
 import { blockPlanSchema, type PlanInput, type CompositionPolicy } from "../../packages/core/types.ts";
 import { redditCapturesSchema, requireRetainedRedditCaptures } from "../../packages/core/reddit-record.ts";
@@ -7,7 +8,7 @@ type NativeCall = (action: string, fields: Record<string, unknown>) => Promise<a
 export async function resolveWithNative(input: Omit<PlanInput, "redditCaptures" | "substackCaptures" | "policy"> & { redditCaptures?: PlanInput["redditCaptures"]; substackCaptures?: PlanInput["substackCaptures"]; policy?: Partial<CompositionPolicy> }, native: NativeCall) {
   const captures = redditCapturesSchema.parse(input.redditCaptures ?? []);
   const substack = substackCapturesSchema.parse(input.substackCaptures ?? []);
-  const required = requiredSubstackResolutionCapabilities(input);
+  const required = [...requiredCompositionCapabilities(input), ...requiredSubstackResolutionCapabilities(input)];
   if (captures.length || required.length) {
     const serving = await native("ping", {});
     const missing=required.filter(capability=>!serving?.planCapabilities?.includes(capability));
@@ -16,6 +17,7 @@ export async function resolveWithNative(input: Omit<PlanInput, "redditCaptures" 
     if (captures.length && !serving?.planCapabilities?.includes("reddit-browser-records-v1")) throw new Error("Install a matching local helper and receiver before resolving Reddit browser records. The browser preview and exported JSON remain available.");
   }
   const plan = blockPlanSchema.parse(await native("resolve", { input: { ...input, redditCaptures: captures, substackCaptures: substack } }));
+  requireRetainedCompositionPolicy(input, plan);
   requireSubstackPublicResult(input, plan);
   requireRetainedRedditCaptures(plan, captures);
   requireRetainedSubstackCaptures(plan, substack);

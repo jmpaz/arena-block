@@ -21,7 +21,7 @@ function converter(base: string): TurndownService {
     const raw = (node as HTMLElement).getAttribute("href") ?? "";
     try {
       const url = new URL(raw, base);
-      if (url.protocol === "https:" && !url.username && !url.password && !url.port && !/[\u0000-\u0020<>]/.test(raw)) return `[${content}](<${url.href}>)`;
+      if (["https:", "http:"].includes(url.protocol) && !url.username && !url.password && !url.port && !/[\u0000-\u0020<>]/.test(raw)) return `[${content}](<${url.href}>)`;
     } catch { /* Keep the visible label only. */ }
     return content;
   } });

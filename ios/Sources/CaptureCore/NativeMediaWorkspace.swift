@@ -14,8 +14,11 @@ public final class NativeMediaWorkspace {
     public let directory: URL
     private var descriptor: Int32 = -1
     private var discarded = false
+    private let container: URL
+    private let persistentLimit: Int64
 
-    public init(container: URL, purpose: String, now: Date = Date()) throws {
+    public init(container: URL, purpose: String, now: Date = Date(), persistentLimit: Int64 = CaptureStorageCapacity.persistentLimit) throws {
+        self.container = container; self.persistentLimit = persistentLimit
         guard ["render-inputs", "composition-preview"].contains(purpose) else {
             throw CaptureError.message("The temporary media purpose is invalid.")
         }
@@ -23,6 +26,7 @@ public final class NativeMediaWorkspace {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         try Self.rejectSymbolicLink(root)
         Self.prune(container: container, now: now)
+        try CaptureStorageCapacity.requireSpace(container: container, limit: persistentLimit)
         directory = root.appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
         let fd = open(directory.appendingPathComponent(".lease").path, O_CREAT | O_EXCL | O_RDWR | O_NOFOLLOW, 0o600)
@@ -59,12 +63,29 @@ public final class NativeMediaWorkspace {
         try Self.rejectSymbolicLink(media.fileURL)
         try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
         let file = destination.appendingPathComponent(media.fileURL.lastPathComponent)
-        try FileManager.default.moveItem(at: media.fileURL, to: file)
+        let bytes = try media.fileURL.resourceValues(forKeys: [.fileSizeKey]).fileSize
+        guard let bytes, bytes == media.byteCount else { throw CaptureError.message("The prepared media size changed. Existing captures were kept.") }
+        try CaptureStorageCapacity.withSpace(container: container, additionalBytes: Int64(bytes), excluding: directory, limit: persistentLimit) {
+            try FileManager.default.moveItem(at: media.fileURL, to: file)
+        }
         return .init(fileURL: file, contentType: media.contentType, byteCount: media.byteCount)
     }
 
     public static func isTemporaryPath(_ file: URL) -> Bool {
         file.standardizedFileURL.pathComponents.contains(directoryName)
+    }
+
+    static func isOwnedDirectory(_ url: URL, container: URL) -> Bool {
+        guard url.deletingLastPathComponent().standardizedFileURL == container.appendingPathComponent(directoryName).standardizedFileURL,
+              UUID(uuidString: url.lastPathComponent) != nil,
+              let values = try? url.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey]),
+              values.isDirectory == true, values.isSymbolicLink == false,
+              let data = try? Data(contentsOf: url.appendingPathComponent(".owner.json")),
+              let marker = try? JSONDecoder().decode(Marker.self, from: data), marker.version == 1,
+              ["render-inputs", "composition-preview"].contains(marker.purpose),
+              let lease = try? url.appendingPathComponent(".lease").resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey]),
+              lease.isRegularFile == true, lease.isSymbolicLink == false else { return false }
+        return true
     }
 
     private static func isInside(_ file: URL, _ root: URL) -> Bool {
@@ -77,11 +98,11 @@ public final class NativeMediaWorkspace {
         }
     }
 
-    /// Inactive, marked working copies expire after 24 hours or oldest-first
-    /// above 250 MiB. Active leases, unknown entries and legacy folders are
+    /// Inactive, marked working copies expire after an hour or oldest-first
+    /// above 10 MB. Active leases, unknown entries and legacy folders are
     /// always preserved. This does not sweep renders, originals or history.
-    @discardableResult public static func prune(container: URL, now: Date = Date(), maximumAge: TimeInterval = 24 * 60 * 60,
-                                                maximumBytes: Int64 = 250 * 1024 * 1024) -> Int64 {
+    @discardableResult public static func prune(container: URL, now: Date = Date(), maximumAge: TimeInterval = 60 * 60,
+                                                maximumBytes: Int64 = 10_000_000) -> Int64 {
         let root = container.appendingPathComponent(directoryName, isDirectory: true)
         guard (try? root.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink) == false,
               let directories = try? FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil) else { return 0 }

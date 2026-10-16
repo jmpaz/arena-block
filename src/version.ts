@@ -17,7 +17,7 @@ export function buildInfo(): z.infer<typeof buildInfoSchema> {
   const packaged = new URL("../build-info.json", import.meta.url);
   if (existsSync(packaged)) return buildInfoSchema.parse({
     ...JSON.parse(readFileSync(packaged, "utf8")),
-    planCapabilities: ["atproto-post-records-v1", "delve-posts-v1", "bluesky-thread-coverage-v1", "forum-magnum-posts-v1", "expanded-source-count-32-v1", "reddit-browser-records-v1", "reddit-public-page-records-v1", "substack-browser-records-v1", "substack-public-sources-v2", "substack-native-media-v1", "substack-note-attachments-v1", "quoted-image-media-v1", "quoted-video-audio-v1", "substack-note-podcast-audio-v1"],
+    planCapabilities: ["atproto-post-records-v1", "delve-posts-v1", "bluesky-thread-coverage-v1", "forum-magnum-posts-v1", "expanded-source-count-32-v1", "reddit-browser-records-v1", "reddit-public-page-records-v1", "substack-browser-records-v1", "substack-public-sources-v2", "substack-native-media-v1", "substack-note-attachments-v1", "quoted-image-media-v1", "quoted-video-audio-v1", "substack-note-podcast-audio-v1", "quote-author-links-v1"],
     packagePath: fileURLToPath(new URL("../../..", import.meta.url)).replace(/\/$/, ""),
   });
   const cwd = fileURLToPath(new URL("..", import.meta.url));
@@ -35,6 +35,6 @@ export function buildInfo(): z.infer<typeof buildInfoSchema> {
     platform: `${process.platform}-${process.arch}`,
     schemaVersion: 1,
     packagePath: null,
-    planCapabilities: ["atproto-post-records-v1", "delve-posts-v1", "bluesky-thread-coverage-v1", "forum-magnum-posts-v1", "expanded-source-count-32-v1", "reddit-browser-records-v1", "reddit-public-page-records-v1", "substack-browser-records-v1", "substack-public-sources-v2", "substack-native-media-v1", "substack-note-attachments-v1", "quoted-image-media-v1", "quoted-video-audio-v1", "substack-note-podcast-audio-v1"],
+    planCapabilities: ["atproto-post-records-v1", "delve-posts-v1", "bluesky-thread-coverage-v1", "forum-magnum-posts-v1", "expanded-source-count-32-v1", "reddit-browser-records-v1", "reddit-public-page-records-v1", "substack-browser-records-v1", "substack-public-sources-v2", "substack-native-media-v1", "substack-note-attachments-v1", "quoted-image-media-v1", "quoted-video-audio-v1", "substack-note-podcast-audio-v1", "quote-author-links-v1"],
   };
 }

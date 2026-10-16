@@ -89,7 +89,8 @@ function quoteHeader(post: ResolvedPost, root: ResolvedPost, policy: Composition
   // A quote is an independently authored source, even when the quoting
   // account also wrote it. Keep both identities visible at the boundary.
   const author = `\`${authorTag(post)}\``;
-  const credit = post.provider === "substack" ? `[${author}](<${post.canonicalUrl}>)` : author;
+  const linked = policy.quoteAuthorLink === "source" || policy.quoteAuthorLink === undefined && post.provider === "substack";
+  const credit = linked ? `[${author}](<${post.canonicalUrl}>)` : author;
   const lead = [credit, date ? `(${date})` : ""].filter(Boolean).join(" ");
   return [lead, post.quoteSnapshot ? "*[embedded source snapshot; standalone quote unavailable]*" : ""].filter(Boolean).join(" · ");
 }

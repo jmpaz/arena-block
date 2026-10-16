@@ -203,16 +203,34 @@ export async function readSubstackPage(expectedUrl?: string, environment?: {
     // that presentation with the observed destination, without treating custom
     // authored link labels as URLs or changing the retained HTML.
     const expandedLinks = body.cloneNode(true) as Element;
+    const observedLinks = body.cloneNode(true) as Element;
+    function authoredURL(anchor: Element): {address: URL; observed: string} | undefined {
+      const raw = anchor.getAttribute("href");
+      if (!raw || /[\u0000-\u0020<>]/.test(raw)) return undefined;
+      try {
+        const address = new URL(raw, canonical);
+        if (!["https:", "http:"].includes(address.protocol) || address.username || address.password || address.port) return undefined;
+        return {address, observed: /^https?:\/\//i.test(raw) ? raw : address.href};
+      } catch { return undefined; }
+    }
     for (const anchor of all(expandedLinks.querySelectorAll("a[href]"))) {
-      const address = safeURL(anchor.getAttribute("href"), canonical);
-      if (!address || anchor.querySelector("img,video,audio")) continue;
-      const destination = new URL(address);
+      const checked = authoredURL(anchor);
+      if (!checked || anchor.querySelector("img,video,audio")) continue;
+      const destination = checked.address, address = destination.href;
       const label = (anchor.textContent ?? "").trim();
-      const withoutScheme = address.replace(/^https:\/\//, "");
+      const withoutScheme = address.replace(/^https?:\/\//, "");
       const short = withoutScheme.replace(/^www\./, "").replace(/\/$/, "");
       if ([withoutScheme, withoutScheme.replace(/\/$/, ""), short].includes(label)) anchor.textContent = destination.href;
     }
-    const bodyTexts = [...new Set([body.textContent ?? "", expandedLinks.textContent ?? ""])];
+    for (const anchor of all(observedLinks.querySelectorAll("a[href]"))) {
+      const checked = authoredURL(anchor);
+      if (!checked || anchor.querySelector("img,video,audio")) continue;
+      const label = (anchor.textContent ?? "").trim();
+      const withoutScheme = checked.observed.replace(/^https?:\/\//i, "");
+      const short = withoutScheme.replace(/^www\./, "").replace(/\/$/, "");
+      if ([withoutScheme, withoutScheme.replace(/\/$/, ""), short].includes(label)) anchor.textContent = checked.observed;
+    }
+    const bodyTexts = [...new Set([body.textContent ?? "", expandedLinks.textContent ?? "", observedLinks.textContent ?? ""])];
     if (attachmentEvidence && !bodyTexts.some(text=>comparable(attachmentEvidence.bodyText)===comparable(text))) throw new Error("Substack attachment snapshot changed the authored Note body");
     if (!imageOnly && structured && (typeof structured.text !== "string" || !bodyTexts.flatMap(text=>[comparable(text), comparable(text+embeddedURLs.join("")),
       ...(linkedPreviews.length ? [comparable(text+linkedPreviews.map(item=>item.url).join(""))] : [])]).includes(comparable(structured.text)))) unavailable("structured_text_mismatch");

@@ -776,6 +776,15 @@ public final class CaptureSession {
         // Apply the preference when creating a draft; retain existing draft choices.
     }
 
+    func setQuoteAuthorLink(_ style: CaptureQuoteAuthorLink?) {
+        guard !busy, draft?.blockID == nil, preview?.hasQuotes == true,
+              [.editing, .preparing, .ready, .failed].contains(draft?.phase ?? .saved) else { return }
+        draft?.quoteAuthorLink = style; draft?.phase = .editing
+        // Presentation uses the retained source tree; it does not reacquire quotes
+        // or alter edited writing, source identity, media choices or save history.
+        persistOrReport(); resolve(retainedSources: preview?.plan?["sources"])
+    }
+
     func setQuoteDepth(_ depth: CaptureQuoteDepth) {
         guard !busy, draft?.blockID == nil, preview?.hasQuotes == true,
               [.editing, .preparing, .ready, .failed].contains(draft?.phase ?? .saved) else { return }
@@ -789,7 +798,7 @@ public final class CaptureSession {
         persistOrReport(); resolve()
     }
 
-    func resolve() {
+    func resolve(retainedSources: JSONValue? = nil) {
         guard !sharePresentationClosed else { return }
         resolution?.cancel()
         let ticket = UUID(); generation = ticket
@@ -890,12 +899,17 @@ public final class CaptureSession {
                     var acquisition = draft.compositionPolicy.object
                     acquisition["quoteDepth"] = expandedQuotes ? .string("full") : .number(2)
                     let sourceCache = expandedQuotes ? expandedSources : resolvedSources
-                    let posts = try await sourceCache.value(identity: identity) { [self] in
-                        let response = try JSONDecoder().decode(JSONValue.self, from: Data(try await core().resolve(draft: draft,
-                            refs: urls.map(\.absoluteString), extraRefs: extraURLs.map(\.absoluteString),
-                            policyJSON: json(.object(acquisition))).utf8))
-                        guard let sources = response["plan"]?["sources"] else { throw CaptureError.message("The source could not be read.") }
-                        return try json(sources)
+                    let posts: String
+                    if let retainedSources {
+                        posts = try json(retainedSources)
+                    } else {
+                        posts = try await sourceCache.value(identity: identity) { [self] in
+                            let response = try JSONDecoder().decode(JSONValue.self, from: Data(try await core().resolve(draft: draft,
+                                refs: urls.map(\.absoluteString), extraRefs: extraURLs.map(\.absoluteString),
+                                policyJSON: json(.object(acquisition))).utf8))
+                            guard let sources = response["plan"]?["sources"] else { throw CaptureError.message("The source could not be read.") }
+                            return try json(sources)
+                        }
                     }
                     try Task.checkCancellation()
                     guard ticket == generation else { return }
@@ -1363,7 +1377,7 @@ public final class CaptureSession {
             var next: CaptureDraft
             if input.isEmpty, let previous, !previous.hasDraftContent {
                 next = previous
-                next.input = ""; next.originalLinkOnly = nil; next.redditCapturesJSON = nil; next.substackCapturesJSON = nil; next.media = .auto; next.selectedMedia = nil; next.videoFrames = nil; next.audio = nil; next.quoteDepth = nil; next.phase = .editing; next.problem = nil
+                next.input = ""; next.originalLinkOnly = nil; next.redditCapturesJSON = nil; next.substackCapturesJSON = nil; next.media = .auto; next.selectedMedia = nil; next.videoFrames = nil; next.audio = nil; next.quoteDepth = nil; next.quoteAuthorLink = nil; next.phase = .editing; next.problem = nil
                 next.selection = DestinationSelection(defaultChannel: defaultChannel)
             } else { next = CaptureDraft(accountID: account.id, defaultChannel: defaultChannel, input: input) }
             next.videoFrameThresholdSeconds = autoFrameThresholdSeconds

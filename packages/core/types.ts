@@ -247,6 +247,8 @@ export const compositionPolicySchema = z.object({
   quote: z.enum(["block", "sequence", "omit"]).default("block"),
   quoteDepth: quoteDepthSchema.optional(),
   quoteDates: z.enum(["auto", "source", "none"]).optional(),
+  // Undefined preserves each existing plan’s legacy quote credit presentation.
+  quoteAuthorLink: z.enum(["source", "plain"]).optional(),
   separator: z.enum(["auto", "always", "never"]).default("auto"),
 });
 export type CompositionPolicy = z.infer<typeof compositionPolicySchema>;
