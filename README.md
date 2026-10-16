@@ -64,7 +64,7 @@ For x.com articles, the composer places the article Markdown in the block and us
 
 Reddit post titles become block titles. Body Markdown and gallery captions become text content or media descriptions. Cross-posts retain the quoting post and expose the original attachments. Reddit-hosted video uses HLS for audio. Comment capture uses the selected comment and its parent title. It excludes surrounding replies and parent attachments.
 
-Ordinary Reddit links use the shared HTTP provider in CLI and iOS. Safari Share supplies the URL. HTTP 401, 403 and 429 stop the read. After HTTP 503, the provider can check Arctic Shift for an older snapshot; that snapshot may omit edits or be unavailable. Complete capture requires the post's authored text and conditional media/parent data. See [Reddit source access](docs/reddit-source-access.md).
+Ordinary Reddit links use the shared HTTP provider in CLI and iOS. Safari Share supplies the URL. HTTP failures, including 401, 403, 429 and 503, stop the read; archived content is not substituted for an unavailable live source. Complete capture requires the post's authored text and conditional media/parent data. See [Reddit source access](docs/reddit-source-access.md).
 
 Existing API, browser and public-page records remain readable in drafts, plans and receivers. Validation checks the supplied identities, bounds and media. It cannot establish current source availability or authenticate the observation time. The `reddit-browser-records-v1` and `reddit-public-page-records-v1` capabilities preserve those records.
 

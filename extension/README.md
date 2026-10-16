@@ -94,7 +94,7 @@ programs.arenaBlockExtension = {
 };
 ```
 
-The named profile lists the thirteen source API patterns in [permission-policy.ts](permission-policy.ts). It contains no unrestricted HTTPS pattern. Setup requests a configured Mastodon instance only when it appears in the current capture. An unlisted instance requires a package rebuild or the local helper; Chrome cannot grant an origin absent from the manifest. Substack public URLs and generic link captures do not add site grants. Redirects and media delivery may involve other hosts; this list describes browser source preflight, not universal browser acquisition.
+The named profile lists the twelve source API patterns in [permission-policy.ts](permission-policy.ts). It contains no unrestricted HTTPS pattern. Setup requests a configured Mastodon instance only when it appears in the current capture. An unlisted instance requires a package rebuild or the local helper; Chrome cannot grant an origin absent from the manifest. Substack public URLs and generic link captures do not add site grants. Redirects and media delivery may involve other hosts; this list describes browser source preflight, not universal browser acquisition.
 
 The default `legacy` profile preserves the existing optional HTTPS declaration for compatible updates. Its setup action still requests only named source sites and selected Mastodon instances. For direct builds, use `ARENA_BLOCK_PERMISSION_PROFILE=named-sources` and `ARENA_BLOCK_MASTODON_ORIGINS='["https://mastodon.social"]'`. Nix builds the same permission profile on macOS and Linux and records it in `release.json`; Chrome handles consent. Changing the profile still requires separate manifest review. The updater does not grant permissions or modify Chrome's stored registration.
 

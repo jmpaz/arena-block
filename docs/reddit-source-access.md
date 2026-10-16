@@ -14,10 +14,10 @@ An ordinary post read uses the post listing; it does not require the comments tr
 A selected comment includes its own writing and the parent post title. It excludes
 the surrounding discussion and parent attachments.
 
-HTTP 401, 403 and 429 stop the direct read. HTTP 503 can trigger a bounded Arctic
-Shift lookup for an older snapshot. An archive may omit later edits or have no
-record. The current plan does not separately mark a successful 503 fallback as an
-archive observation, so it cannot establish that the captured text is current.
+HTTP failures, including 401, 403, 429 and 503, stop the direct read. Capture does
+not automatically substitute archived post text, comments or parent titles when
+the live source is unavailable. An archive may omit later edits or removal state
+and cannot establish the current content of a Reddit link.
 
 ## Unavailable sources
 

@@ -76,19 +76,17 @@ function bodyImages(post: { selftext: string; media_metadata?: z.infer<typeof re
   }
   return { media, issues };
 }
-function postFromData(value: unknown, depth = 0, archivedAfterStatus?: number): ResolvedPost {
+function postFromData(value: unknown, depth = 0): ResolvedPost {
   if (depth > 4) throw new Error("Reddit cross-post nesting is too deep");
   const post = parsePostData(value);
   if (post.removed_by_category || ["[removed]", "[deleted]"].includes(post.selftext)) {
     const marker = post.removed_by_category ?? post.selftext;
-    throw new Error(archivedAfterStatus === undefined
-      ? `Reddit's live response marks this post ${marker}; no block was created`
-      : `Reddit's live read returned HTTP ${archivedAfterStatus}; its archived snapshot marks this post ${marker}. Current content cannot be verified; no block was created`);
+    throw new Error(`Reddit's live response marks this post ${marker}; no block was created`);
   }
   const canonicalUrl = new URL(post.permalink, "https://www.reddit.com").href;
   const source = parseSource(canonicalUrl);
   if (source.provider !== "reddit" || source.id !== post.id) throw new Error("Reddit returned a mismatched permalink");
-  const quote = post.crosspost_parent_list?.[0] ? postFromData(post.crosspost_parent_list[0], depth + 1, archivedAfterStatus) : undefined;
+  const quote = post.crosspost_parent_list?.[0] ? postFromData(post.crosspost_parent_list[0], depth + 1) : undefined;
   if (post.crosspost_parent && (!quote || post.crosspost_parent !== `t3_${quote.id}`)) {
     throw new Error("Reddit cross-post source is missing or disagrees with its parent identity; full capture cannot be verified");
   }
@@ -171,13 +169,7 @@ export class RedditProvider implements SocialProvider {
     if ([401, 403, 429].includes(direct.status)) {
       throw new Error(`Reddit's live metadata read returned HTTP ${direct.status}; current content cannot be verified. No archive or block creation was attempted.`);
     }
-    if (direct.status !== 503) throw new Error(`Reddit's live metadata read returned HTTP ${direct.status} without usable content; current content cannot be verified`);
-    const kind = fullname.startsWith("t1_") ? "comments" : "posts";
-    const response = await this.fetcher(`https://arctic-shift.photon-reddit.com/api/${kind}/ids?ids=${fullname.slice(3)}`, options);
-    if (!response.ok) throw new Error(`Reddit archive returned ${response.status}`);
-    const value = z.object({ data: z.array(z.unknown()) }).parse(await response.json()).data[0];
-    if (!value) throw new Error(`Reddit ${kind} entry is not available in the archive yet`);
-    return value;
+    throw new Error(`Reddit's live metadata read returned HTTP ${direct.status} without usable content; current content cannot be verified`);
   }
   private async resolveComment(source: Extract<ParsedSource, { provider: "reddit" }>, signal: AbortSignal): Promise<ResolvedPost> {
     const comment = redditCommentSchema.parse(await this.lookup(`t1_${source.commentId}`, signal));
@@ -206,7 +198,6 @@ export class RedditProvider implements SocialProvider {
     if (source.commentId) return this.resolveComment(source, requestSignal);
     const direct = await this.fetcher(`https://www.reddit.com/comments/${source.id}.json?raw_json=1`, options);
     let value: unknown;
-    let archivedAfterStatus: number | undefined;
     if (direct.ok && direct.headers.get("content-type")?.includes("application/json")) {
       const listing = z.array(z.object({ data: z.object({ children: z.array(z.object({ data: z.unknown() })) }) })).parse(await direct.json());
       value = listing[0]?.data.children[0]?.data;
@@ -214,14 +205,9 @@ export class RedditProvider implements SocialProvider {
       if ([401, 403, 429].includes(direct.status)) {
         throw new Error(`Reddit's live post read returned HTTP ${direct.status}; current content cannot be verified. No archive or block creation was attempted.`);
       }
-      if (direct.status !== 503) throw new Error(`Reddit's live post read returned HTTP ${direct.status} without a usable post; current content cannot be verified`);
-      const archived = await this.fetcher(`https://arctic-shift.photon-reddit.com/api/posts/ids?ids=${source.id}`, options);
-      if (!archived.ok) throw new Error(`Reddit archive returned ${archived.status}`);
-      value = z.object({ data: z.array(z.unknown()) }).parse(await archived.json()).data[0];
-      archivedAfterStatus = direct.status;
-      if (!value) throw new Error("Reddit post is not available in the archive yet");
+      throw new Error(`Reddit's live post read returned HTTP ${direct.status} without a usable post; current content cannot be verified`);
     }
-    const post = postFromData(value, 0, archivedAfterStatus);
+    const post = postFromData(value);
     if (post.id !== source.id) throw new Error("Reddit returned a different post");
     return post;
   }

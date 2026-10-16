@@ -100,7 +100,7 @@ test("a true request result cannot claim success without readback; failures stay
   f.api.request = () => { throw new Error("no gesture"); };
   await f.access.requestFromClick();
   expect(f.access.state?.phase).toBe("unknown");
-  expect(f.access.state?.unknown.length).toBe(15);
+  expect(f.access.state?.unknown.length).toBe(14);
   expect(f.status.textContent).toContain("Could not verify");
 });
 

@@ -4,7 +4,6 @@ export const CAPTURE_ORIGINS = [
   "https://public.api.bsky.app/*",
   "https://api.delve.town/*",
   "https://www.reddit.com/*",
-  "https://arctic-shift.photon-reddit.com/*",
   "https://www.lesswrong.com/*",
   "https://www.alignmentforum.org/*",
   "https://forum.effectivealtruism.org/*",
