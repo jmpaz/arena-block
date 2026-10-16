@@ -497,7 +497,9 @@ public final class CaptureSession {
     func setInput(_ text: String, keepingExpansion: Bool = false, keepingRoles: Bool = false,
                   preservingChoices: Bool = false) {
         guard !busy, draft?.blockID == nil, [.editing, .preparing, .ready, .failed].contains(draft?.phase ?? .saved) else { return }
-        let text = CaptureInput.canonicalSourceText(text)
+        // Paste/share intake can be cleaned as a whole. Keep in-progress row
+        // edits intact so typing a query does not move its text into the path.
+        let text = preservingChoices ? text : CaptureInput.canonicalSourceText(text)
         let startingEmpty = draft?.hasDraftContent == false
         cleanedSourceURL = nil
         draft?.renderPath = nil; draft?.previewSnapshot = nil

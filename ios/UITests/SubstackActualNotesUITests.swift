@@ -1,6 +1,21 @@
 import XCTest
 
 final class SubstackActualNotesUITests: XCTestCase {
+    func testTypingANoteSharingQueryKeepsTheSourceIdentity() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchEnvironment = ["CAPTURE_UI_FIXTURE":"empty", "CAPTURE_UI_STORE_ID":UUID().uuidString,
+            "CAPTURE_UI_LIVE_SOURCE":"0", "CAPTURE_UI_CLIPBOARD":"", "CAPTURE_UI_CLIPBOARD_URL":""]
+        app.launch()
+        let source = app.textFields["capture.source.1"]
+        XCTAssertTrue(source.waitForExistence(timeout:10))
+        source.tap()
+        let tracked = "https://substack.com/@norvidstudies/note/c-362104813?r=1ir8aw"
+        source.typeText(tracked)
+        XCTAssertEqual(source.value as? String, tracked)
+        app.terminate()
+    }
+
     func testActualPublicImageAndQuotedNotesThroughFreshShare() throws {
         guard ProcessInfo.processInfo.environment["CAPTURE_LIVE_SUBSTACK_IMAGE_NOTE"] == "1" else {
             throw XCTSkip("Opt-in public Substack source/preview check; no save.")
