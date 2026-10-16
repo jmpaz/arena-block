@@ -7,6 +7,7 @@ import { z } from "zod";
 import { blockPlanSchema, planInputSchema } from "../packages/core/types.ts";
 import { loadUserConfig } from "../src/config.ts";
 import { requiredPlanCapabilities } from "../src/plan-capabilities.ts";
+import { requireAddressableQuoteImages } from "../packages/core/media-tree.ts";
 import { prepareSaveIntent } from "../src/save-intent.ts";
 import { buildInfoSchema } from "../src/version.ts";
 
@@ -87,6 +88,7 @@ export async function handle(request: HostRequest, fetcher: typeof fetch = fetch
       }
       const plan = blockPlanSchema.parse(await daemon("/v1/plans", "POST", request.input, fetcher));
       requireSubstackPublicResult(request.input, plan);
+      requireAddressableQuoteImages(plan);
       requireRetainedRedditCaptures(plan, request.input.redditCaptures ?? []);
       requireRetainedSubstackCaptures(plan, request.input.substackCaptures ?? []);
       return plan;

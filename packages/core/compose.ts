@@ -12,6 +12,7 @@ import { atprotoMarkdown } from "./providers/atproto-post.ts";
 import { availableQuoteNodes, quoteDateLabel, renderedQuoteDepth } from "./quote-policy.ts";
 import { soundCloudPlaylistText } from "./soundcloud.ts";
 import { isInstagramReel, parseSource } from "./url.ts";
+import { mediaSources, selectableMedia } from "./media-tree.ts";
 
 function handle(post: ResolvedPost): string {
   return post.author.handle.replace(/^@/, "");
@@ -155,7 +156,8 @@ function renderSequence(posts: ResolvedPost[], policy: CompositionPolicy, frameR
 }
 
 function selectedMedia(posts: ResolvedPost[], policy: CompositionPolicy): MediaAsset[] {
-  const rootMedia = posts.flatMap((post) => post.media);
+  const rootMedia = selectableMedia(posts, renderedQuoteDepth(policy));
+  const quotedImages = mediaSources(posts, renderedQuoteDepth(policy)).filter(node => node.quoteDepth > 0).flatMap(node => node.media);
   if (policy.media === "none") return [];
   if (policy.media === "selected") {
     const requested = new Set(policy.selectedMedia);
@@ -173,7 +175,7 @@ function selectedMedia(posts: ResolvedPost[], policy: CompositionPolicy): MediaA
   const video = automaticMedia.find((item) => item.kind === "video");
   const images = automaticMedia.filter((item) => item.kind === "image");
   const publicAudio = posts[0]!.provider === "substack" ? automaticMedia.find(item => item.kind === "audio" && item.acquisition === "substack-public-original") : undefined;
-  return video ? [video] : images.length ? images : publicAudio ? [publicAudio] : [];
+  return video ? [video, ...quotedImages] : images.length ? images : publicAudio ? [publicAudio] : [];
 }
 
 const RETAINED_ARRANGEMENTS = 32;
@@ -380,15 +382,20 @@ export function composePlan(
     throw new Error("One or more media-only post indexes do not exist");
   }
   let chosen = selectedMedia(posts, policy);
-  if (policy.media === "selected" && chosen.length !== policy.selectedMedia.length) {
-    throw new Error("One or more selected media references do not exist on root posts");
+  const allKnown = selectableMedia(posts);
+  const knownRefs = new Set(allKnown.map(item => item.ref));
+  const visibleRefs = new Set(selectableMedia(posts, renderedQuoteDepth(policy)).map(item => item.ref));
+  const hiddenQuotes = new Set(allKnown.filter(item => !visibleRefs.has(item.ref)).map(item => item.ref));
+  if (policy.media === "selected" && (new Set(policy.selectedMedia).size !== policy.selectedMedia.length || policy.selectedMedia.some(ref => !knownRefs.has(ref)))) {
+    throw new Error("One or more selected media references do not exist in the available source assets");
   }
   if (policy.mediaOrder !== undefined) {
     const assets = new Map(chosen.map(item => [item.ref, item]));
-    if (policy.mediaOrder.length !== chosen.length || new Set(policy.mediaOrder).size !== chosen.length || policy.mediaOrder.some(ref => !assets.has(ref))) {
+    const order = policy.mediaOrder.filter(ref => !hiddenQuotes.has(ref));
+    if (order.length !== chosen.length || new Set(policy.mediaOrder).size !== policy.mediaOrder.length || order.some(ref => !assets.has(ref))) {
       throw new Error("Media order must name every selected media reference exactly once");
     }
-    chosen = policy.mediaOrder.map(ref => assets.get(ref)!);
+    chosen = order.map(ref => assets.get(ref)!);
   }
   const explicitFrames = new Set(policy.videoFrames ?? []);
   if ([...explicitFrames].some(ref => !chosen.some(item => item.ref === ref && item.kind === "video" && item.posterUrl))) {
@@ -446,7 +453,8 @@ export function composePlan(
       ...(audioOnly && first.soundcloud?.kind === "track" && first.soundcloud.artworkUrl ? { artworkUrl: first.soundcloud.artworkUrl } : {}),
       selectedMedia: chosen.map((item) => item.ref),
       ...(frameMedia.length ? { frameMedia } : {}),
-      ...(chosen.length && !soloVideo && !audioOnly ? { layout: layoutFor(renderPosts, effective, policy.mediaOrder !== undefined) } : {}),
+      ...(chosen.length && !soloVideo && !audioOnly ? { layout: layoutFor(renderPosts, effective,
+        policy.mediaOrder !== undefined || mediaSources(posts, renderedQuoteDepth(policy)).some(node => node.quoteDepth > 0 && node.media.some(asset => chosen.some(item => item.ref === asset.ref)))) } : {}),
       ...(quoteCoverage.length ? { quoteCoverage } : {}),
     },
   };

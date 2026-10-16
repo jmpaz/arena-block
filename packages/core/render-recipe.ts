@@ -1,4 +1,5 @@
 import type { CompositionPolicy, LayoutNode, MediaAsset, MediaKind } from "./types.ts";
+import { planMedia } from "./media-tree.ts";
 
 export type Rect = { x: number; y: number; width: number; height: number };
 export type Size = { width: number; height: number };
@@ -114,7 +115,7 @@ function soundtrack(policy: CompositionPolicy, videos: Array<Probe & { ref: stri
 
 export function captureRenderRecipe(plan: import("./types.ts").BlockPlan, probes: Record<string, Probe> = {}) {
   const frames = new Map((plan.block.frameMedia ?? []).map(item => [item.ref, item.url]));
-  const assets = new Map(plan.sources.flatMap(post => post.media).map(asset => [asset.ref,
+  const assets = new Map(planMedia(plan).map(asset => [asset.ref,
     frames.has(asset.ref) ? { ...asset, kind: "image" as const, url: frames.get(asset.ref)! } : asset]));
   const selected = plan.block.selectedMedia.map(ref => assets.get(ref)).filter((asset): asset is MediaAsset => Boolean(asset));
   if (plan.block.kind === "text" || plan.block.kind === "image" || plan.block.kind === "url") return null;

@@ -10,14 +10,14 @@
 | Rich text | Preserves authored HTML in the source record and converts it to Markdown. Relative links resolve against their containing source. |
 | Shortened URL labels | Verifies host/path abbreviations against the observed HTTPS link target when comparing complete source text. Custom authored labels remain literal. |
 | Original images | Uses shared media selection, ordering and rendering. |
-| Images inside quoted Notes | Retains originals with their quoted source. Current composition selects the explicit source posts' media; it does not automatically compose quoted images. |
+| Images inside quoted Notes | Fresh captures include original images from the included quote levels. Each image keeps its quoted source and author. Preview images remain previews. |
 | Image-only Notes | Verifies empty authored text and the original images against the public Note record. Camera placeholders stay out of the saved text. |
 | External link cards | Retains the observed title, URL and labelled preview separately from authored prose and quoted Notes. The public record must agree with the visible card. HTTP links remain links; Capture does not fetch their destination. |
 | Multiple sources | Preserves explicit source order and deduplicates Note aliases by ID. Media extras use the common composer. |
 | Publication dates | Retains explicit-offset timestamps and offset-free display labels. Quote dates use source dates; acquisition times remain in source records. |
 | Drafts and saves | Retains source records in browser and native drafts, save snapshots, helper requests and receiver plans. |
 | Public article video and audio | Checks that the upload belongs to the complete public article and its publication. When the source supplies a preview image, video over ten minutes uses that frame. One original audio file can be copied without conversion, up to 250 MiB. |
-| Native Note video | Checks the upload against its Note and author, including videos inside quotes. |
+| Native Note video | Checks the upload against its Note and author. Quoted video records are retained, but quoted video and audio are not selectable in a composition. |
 | Inline article video | Checks the upload against its article and publication. Unsupported players or captions that cannot be preserved stop capture. |
 | External players | Keeps the observed link and title when available. |
 
@@ -28,6 +28,16 @@ quoted Note. Imported records are checked for consistent supplied data; validati
 cannot authenticate the claimed observation.
 
 ## Implementation limits
+
+Media follow source order: the outer post, its quoted descendants, then the next
+chosen post. Quoted images have distinct references within the outer post's
+namespace, such as `1.2`. Quote depth controls both writing and quoted images, up
+to eight levels. Hiding a quote keeps explicit media choices for when it is shown
+again. The native and browser pickers identify the quoted image's author.
+
+Existing queued plans retain their original references and selection. Read the
+source again to include quoted images in an older plan. New quoted-image plans
+require `quoted-image-media-v1` on the receiving helper and daemon.
 
 Article reads use `/api/v1/posts/{slug}`. Note chain discovery uses
 `/api/v1/reader/comment/{id}` and `/replies`, checking ancestors, user IDs,

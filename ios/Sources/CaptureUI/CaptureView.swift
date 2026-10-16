@@ -655,8 +655,9 @@ public struct CaptureRootView: View {
             if session.sourceRows.count > 1,
                let sources = session.preview?.plan?["sources"]?.array,
                sources.indices.contains(index),
-               sources[index]["media"]?.array.isEmpty == false {
-                Text("Media from this post")
+               session.preview?.sourceReviews.indices.contains(index) == true,
+               session.preview?.sourceReviews[index].availableMediaCount ?? 0 > 0 {
+                Text("Media")
                     .font(.footnote).foregroundStyle(.secondary)
                 CaptureMediaSelection(session: session, locked: locked, sourceIndex: index)
             }
@@ -731,7 +732,7 @@ public struct CaptureRootView: View {
         guard let plan = session.preview?.plan else { return nil }
         let selected = Set(session.includedMediaRefs)
         let frames = Set((plan["block"]?["frameMedia"]?.array ?? []).compactMap { $0["ref"]?.string })
-        let hasFullVideo = (plan["sources"]?.array ?? []).flatMap { $0["media"]?.array ?? [] }.contains { asset in
+        let hasFullVideo = CaptureMediaTree.media(in: plan).contains { asset in
             guard let ref = asset["ref"]?.string else { return false }
             return selected.contains(ref) && asset["kind"]?.string == "video" && !frames.contains(ref)
         }

@@ -4,6 +4,7 @@ import { dirname, join } from "node:path";
 import { createCanvas, loadImage, type Image } from "@napi-rs/canvas";
 import type { BlockPlan, LayoutNode, MediaAsset, MediaKind } from "./types.ts";
 import { parseSource } from "../packages/core/url.ts";
+import { planMedia } from "../packages/core/media-tree.ts";
 import { runYtDlp, type YtDlpRunner } from "./providers/soundcloud.ts";
 
 const FFMPEG = "ffmpeg";
@@ -56,7 +57,7 @@ export { tileRects, even, canvasSize } from "../packages/core/render-recipe.ts";
 
 function assetMap(plan: BlockPlan): Map<string, MediaAsset> {
   const frames = new Map((plan.block.frameMedia ?? []).map(item => [item.ref, item.url]));
-  return new Map(plan.sources.flatMap((post) => post.media).map((item) => [item.ref,
+  return new Map(planMedia(plan).map((item) => [item.ref,
     frames.has(item.ref) ? { ...item, kind: "image" as const, url: frames.get(item.ref)! } : item]));
 }
 
@@ -304,10 +305,13 @@ async function renderImages(plan: BlockPlan, directory: string, options: RenderO
     return writeContentAddressed(directory, "jpg", await canvas.encode("jpeg", 92));
   }
   if (!plan.block.layout) throw new Error("Image plan has no layout");
-  const { size, rects } = tileRects(plan.block.layout, assets, IMAGE_LONG_EDGE, IMAGE_MIN_TILE);
   const images = new Map<string, Image>();
   await Promise.all(selected.map(async (item) => images.set(item.ref, await loadImage(await fetchBytes(item.url, options)))));
   options.signal?.throwIfAborted();
+  // Match native preparation: source metadata can omit image dimensions, so
+  // compute tile geometry from the decoded originals before drawing covers.
+  for (const [ref, image] of images) assets.set(ref, { ...assets.get(ref)!, width: image.width, height: image.height });
+  const { size, rects } = tileRects(plan.block.layout, assets, IMAGE_LONG_EDGE, IMAGE_MIN_TILE);
   const canvas = createCanvas(size.width, size.height);
   const context = canvas.getContext("2d");
   for (const [ref, rect] of rects) {

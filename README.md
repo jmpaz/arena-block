@@ -90,6 +90,8 @@ Use `--media auto|none|images|video|audio|all`, or explicit media references, ac
 
 The title identifies the first author. A speaker change adds that author's label. `--separator auto|always|never` controls dividers between contributions. Quote depth, dates and inclusion follow the composition policy. Each quoted post retains its own author and source information.
 
+Fresh captures can compose original images from included quotes through the same media controls. Quoted images follow their outer post's media and retain their own source and author. Quoted video and audio remain in the source record. A plan that selects quoted images requires `quoted-image-media-v1` on the receiver; older queued plans keep their existing selection.
+
 For Bluesky and Delvetown, thread expansion follows the returned author and reply relationships. For x.com, import an observed author chain or enter exact post links. The client accepts up to 32 posts from an observed expanded thread and up to 20 explicit links. Before submitting a plan with more than 20 posts, it checks the receiver for `expanded-source-count-32-v1`. If a provider omits replies or branches, the result describes the scope it returned.
 
 For local image previews:

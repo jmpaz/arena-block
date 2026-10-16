@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { planMedia } from "../packages/core/media-tree.ts";
 import { snapshotDefaultChannel } from "./provenance-schema.ts";
 import { copyFile, open } from "node:fs/promises";
 import { join } from "node:path";
@@ -99,7 +100,7 @@ function displayPlan(plan: BlockPlan): string {
     const role = source.selection?.role ?? (plan.policy.mediaOnlyPosts?.includes(index + 1) ? "extra" : "primary");
     const origin = source.selection?.origin === "expanded" ? " · expanded" : "";
     const chosen = plan.block.selectedMedia.filter(ref => ref.startsWith(`${index + 1}.`)).length;
-    return `  ${index + 1}. ${role}${origin} · @${source.author.handle.replace(/^@/, "")} · ${chosen}/${source.media.length} media · ${source.canonicalUrl}`;
+    return `  ${index + 1}. ${role}${origin} · @${source.author.handle.replace(/^@/, "")} · ${chosen}/${planMedia(plan).filter(asset => asset.ref.startsWith(`${index + 1}.`)).length} media · ${source.canonicalUrl}`;
   });
   return [
     `${plan.block.title} · ${plan.block.kind} · ${plan.hash.slice(0, 12)}`,

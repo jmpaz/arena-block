@@ -45,6 +45,7 @@ final class RuntimeTests: XCTestCase {
                 XCTAssertEqual((parent["quote"] as? [String: Any])?["id"] as? String, "346876542")
                 XCTAssertEqual((post["media"] as? [Any])?.count, 1)
                 XCTAssertEqual((parent["media"] as? [Any])?.count, 1)
+                XCTAssertEqual(block["selectedMedia"] as? [String],["1.1","1.2"])
             } else { XCTAssertNil(post["quote"]) }
         }
     }

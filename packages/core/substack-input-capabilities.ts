@@ -3,6 +3,7 @@ import { planHash } from "./compose.ts";
 import type { BlockPlan, CompositionPolicy } from "./types.ts";
 import type { SubstackCapture } from "./substack-record.ts";
 import { explicitSelections } from "./source-selection.ts";
+import { renderedQuoteDepth } from "./quote-policy.ts";
 type Input = { refs: string[]; extraRefs?: string[]; policy?: Partial<CompositionPolicy>; substackCaptures?: SubstackCapture[] };
 function selections(input: Input) {
   const selected=explicitSelections(input.refs,input.extraRefs??[]);
@@ -19,6 +20,7 @@ function threadSeed(input: Input) {
 }
 export function requiredSubstackResolutionCapabilities(input: Input): string[] {
   const required = new Set<string>();
+  if (noteInputs(input).length && renderedQuoteDepth({ quote: input.policy?.quote ?? "block", quoteDepth: input.policy?.quoteDepth }) > 0) required.add("quoted-image-media-v1");
   if(input.substackCaptures?.length)required.add("substack-browser-records-v1");
   if(needsSubstackPublicV2(input))required.add("substack-public-sources-v2");
   const captured=new Set((input.substackCaptures??[]).flatMap(c=>{try{return[parseSource(c.sourceUrl).id];}catch{return[];}}));

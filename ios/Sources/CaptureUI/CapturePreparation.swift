@@ -65,7 +65,7 @@ final class CapturePreparation {
     func compose(_ snapshot: CaptureSubmissionSnapshot, sources: JSONValue) throws -> CapturePreparedSource {
         let policy = try snapshot.pendingMediaChoices?.applying(to: snapshot.policy, sources: sources) ?? snapshot.policy
         let requested = policy["selectedMedia"]?.array.compactMap(\.string) ?? []
-        let available = Set(sources.array.flatMap { $0["media"]?.array ?? [] }.compactMap { $0["ref"]?.string })
+        let available = Set(CaptureMediaTree.sources(in: sources).flatMap(\.media).compactMap { $0["ref"]?.string })
         guard Set(requested).isSubset(of: available) else { throw CaptureError.message("Some selected media is unavailable. No block was created. Try again.") }
         let effectivePolicy = try CaptureSourcePolicy.composing(policy, sources: sources)
         let composed = try decode(runtime.compose(postsJSON: json(sources), policyJSON: json(effectivePolicy)))
@@ -99,7 +99,7 @@ final class CapturePreparation {
             if completed { for asset in media { try? FileManager.default.removeItem(at: asset.fileURL) } }
             else { try? FileManager.default.removeItem(at: directory) }
         }
-        for asset in plan["sources"]?.array.flatMap({ $0["media"]?.array ?? [] }) ?? [] {
+        for asset in CaptureMediaTree.media(in: plan) {
             guard let ref = asset["ref"]?.string, selected.contains(ref), let originalKind = asset["kind"]?.string,
                   let originalAddress = asset["url"]?.string else { continue }
             let frame = plan["block"]?["frameMedia"]?.array.first { $0["ref"]?.string == ref }
@@ -142,7 +142,7 @@ final class CapturePreparation {
     func previewComposition(plan: JSONValue, draftID: UUID) async throws -> URL {
         let selected = Set(plan["block"]?["selectedMedia"]?.array.compactMap(\.string) ?? [])
         guard !selected.isEmpty else { throw CaptureError.message("Select media to preview.") }
-        let assets = (plan["sources"]?.array ?? []).flatMap { $0["media"]?.array ?? [] }
+        let assets = CaptureMediaTree.media(in: plan)
             .filter { selected.contains($0["ref"]?.string ?? "") }
         guard assets.count == selected.count else { throw CaptureError.message("The selected media is not ready for preview.") }
         let frames = plan["block"]?["frameMedia"]?.array ?? []

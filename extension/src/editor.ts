@@ -1,3 +1,5 @@
+import { mediaSources, planMedia } from "../../packages/core/media-tree.ts";
+import { renderedQuoteDepth } from "../../packages/core/quote-policy.ts";
 import { normalizeSubstackCapture, substackCapturesSchema, substackSourceKey, type SubstackCapture } from "../../packages/core/substack-record.ts";
 import { configureSubstackTabReading, readActiveSubstackTab, type TabReadingManifest } from "./substack-tab.ts";
 import { containsDraftSource, shouldReplaceAutomaticDraft } from "./draft-retention.ts";
@@ -248,7 +250,7 @@ function renderMedia(): void {
   const section = $("media-section");
   const list = $<HTMLOListElement>("media-list");
   list.replaceChildren();
-  const assets = plan?.sources.flatMap(source => source.media) ?? [];
+  const assets = plan ? planMedia(plan) : [];
   section.hidden = assets.length === 0;
   const singleImage = assets.length === 1 && assets[0]!.kind === "image" ? assets[0] : undefined;
   const singleSelected = Boolean(singleImage && plan?.block.selectedMedia.includes(singleImage.ref));
@@ -297,7 +299,8 @@ function renderMedia(): void {
     const meta = document.createElement("div");
     meta.className = "media-meta";
     const name = document.createElement("strong");
-    name.textContent = `${asset.kind[0]!.toUpperCase()}${asset.kind.slice(1)} · ${asset.ref}`;
+    const owner = mediaSources(plan!.sources, renderedQuoteDepth(plan!.policy)).find(node => node.media.some(item => item.ref === asset.ref));
+    name.textContent = `${asset.kind[0]!.toUpperCase()}${asset.kind.slice(1)} · ${asset.ref}${owner?.quoteDepth ? ` · quoted from @${owner.source.author.handle.replace(/^@/, "")}` : ""}`;
     const link = document.createElement("a");
     link.href = asset.url;
     link.target = "_blank";
@@ -360,7 +363,7 @@ function renderMedia(): void {
 function changeMedia(ref: string, selected: boolean): void {
   if (!plan) return;
   resolutionGuard.changed();
-  const refs = new Set(plan.block.selectedMedia);
+  const refs = new Set(plan.policy.media === "selected" ? plan.policy.selectedMedia : plan.block.selectedMedia);
   if (selected) refs.add(ref); else refs.delete(ref);
   const previousOrder = plan.policy.mediaOrder ?? plan.block.selectedMedia;
   const mediaOrder = previousOrder.filter(value => refs.has(value));
@@ -448,7 +451,7 @@ function renderCapturePreview(): void {
   catch { /* Incomplete sources remain in Edit sources. */ }
   $("preview-source").hidden = !needsProviderPreview || current || destinationsFrozen();
   const image = $<HTMLImageElement>("capture-preview-image");
-  const selected = current ? plan!.sources.flatMap(source => source.media).find(asset =>
+  const selected = current ? planMedia(plan!).find(asset =>
     plan!.block.selectedMedia.includes(asset.ref) && (asset.kind === "image" || asset.posterUrl)) : undefined;
   image.hidden = !selected;
   if (selected) image.src = selected.kind === "image" ? selected.url : selected.posterUrl!;
@@ -466,7 +469,7 @@ function renderPickerPreview(): void {
   $("picker-preview-title").textContent = current && plan?.block.title ? plan.block.title : source;
   $("picker-preview-source").textContent = current ? source : ref;
   const image = $<HTMLImageElement>("picker-preview-image");
-  const selected = current ? plan!.sources.flatMap(item => item.media).find(item =>
+  const selected = current ? planMedia(plan!).find(item =>
     plan!.block.selectedMedia.includes(item.ref) && (item.kind === "image" || item.posterUrl)) : undefined;
   image.hidden = !selected;
   if (selected) image.src = selected.kind === "image" ? selected.url : selected.posterUrl!;

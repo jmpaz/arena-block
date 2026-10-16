@@ -29,9 +29,7 @@ test("actual containing Note verifies shortened inline URL labels and retains bo
   expect(source.quote?.quote?.id).toBe(quoteId);expect(source.quote?.quote?.text.trim()).toBe(quoteText);
   expect(source.media.map(m=>m.url)).toEqual(["https://substack-post-media.s3.amazonaws.com/public/images/68a64432-2acb-43f4-bfa8-ed1f39bcef11_2560x1593.jpeg"]);
   expect(source.quote?.media.map(m=>m.url)).toEqual(["https://substack-post-media.s3.amazonaws.com/public/images/f0e3bd4a-3606-42e8-a300-be503eb4dae7_2560x1738.jpeg"]);
-  // Existing composition selects the explicit post's media. The quoted image
-  // remains in its own source node rather than being attributed to the root.
-  expect(plan.block.selectedMedia).toHaveLength(1);expect(plan.block.quoteCoverage?.[0]).toMatchObject({availableDepth:2,renderedDepth:2,stopped:"end"});
+  expect(plan.block.selectedMedia).toEqual(["1.1", "1.2"]);expect(plan.block.quoteCoverage?.[0]).toMatchObject({availableDepth:2,renderedDepth:2,stopped:"end"});
  }
  const limitedCalls:string[]=[];
  const bounded=(async(input:RequestInfo|URL,init?:RequestInit)=>{limitedCalls.push(String(input));return fetcher(input,init);})as typeof fetch;

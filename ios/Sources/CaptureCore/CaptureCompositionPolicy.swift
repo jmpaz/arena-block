@@ -90,13 +90,19 @@ public struct CaptureMediaChoiceAnchors: Codable, Sendable {
         var byRef: [String: CaptureMediaAnchor] = [:]
         var byAnchor: [CaptureMediaAnchor: String] = [:]
         var occurrences: [String: Int] = [:]
-        for source in sources.array {
-            let media = source["media"]?.array ?? []
+        for node in CaptureMediaTree.sources(in: sources) {
+            let source = node.source
+            let media = node.media
             guard media.isEmpty || source["canonicalUrl"]?.string != nil else {
                 throw CaptureError.message("Couldn't identify the source for the selected media. No block was created.")
             }
             let sourceURL = source["canonicalUrl"]?.string ?? ""
-            let identity = URL(string: sourceURL).map(CaptureInput.canonicalSourceIdentity) ?? sourceURL
+            var identity = URL(string: sourceURL).map(CaptureInput.canonicalSourceIdentity) ?? sourceURL
+            if node.quoteDepth > 0 {
+                let rootURL = sources.array[node.rootIndex]["canonicalUrl"]?.string ?? ""
+                let rootIdentity = URL(string: rootURL).map(CaptureInput.canonicalSourceIdentity) ?? rootURL
+                identity = "\(rootIdentity)\u{1F}quoted:\(identity)"
+            }
             for asset in media {
                 guard let ref = asset["ref"]?.string, let url = asset["url"]?.string,
                       let kind = asset["kind"]?.string else {
@@ -169,8 +175,13 @@ public extension CaptureDraft {
     }
 
     mutating func selectMedia(_ refs: [String], in preview: CapturePreview) {
+        let visible = Set(preview.mediaRefs)
+        let allRefs = CaptureMediaTree.sources(in: preview.plan?["sources"] ?? .array([]))
+            .flatMap(\.media).compactMap { $0["ref"]?.string }
+        let hidden = media == .selected ? (selectedMedia ?? []).filter { !visible.contains($0) } : []
+        let chosen = Set(refs + hidden)
         media = .selected
-        selectedMedia = preview.orderedMediaRefs(refs)
+        selectedMedia = allRefs.filter { chosen.contains($0) }
     }
 
     mutating func toggleMedia(_ ref: String, in preview: CapturePreview) {

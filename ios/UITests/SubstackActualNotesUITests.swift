@@ -80,7 +80,25 @@ final class SubstackActualNotesUITests: XCTestCase {
             }
             let expansion = app.buttons["capture.text.expansion"]
             if expansion.exists && expansion.isHittable { expansion.tap() }
-            if id != "346876542" {
+            if id == "348712218" {
+                let quoteImage = app.buttons["capture.media.asset.1.2"]
+                for _ in 0..<8 where !quoteImage.isHittable { app.swipeUp() }
+                XCTAssertTrue(quoteImage.waitForExistence(timeout:20))
+                XCTAssertTrue(quoteImage.label.contains("Quoted from @joodaloop"))
+                XCTAssertTrue((quoteImage.value as? String ?? "").contains("Included"))
+                quoteImage.tap()
+                let excluded = XCTNSPredicateExpectation(predicate:NSPredicate(format:"value CONTAINS %@","Excluded"),object:quoteImage)
+                XCTAssertEqual(XCTWaiter.wait(for:[excluded],timeout:20),.completed)
+                quoteImage.tap()
+                let included = XCTNSPredicateExpectation(predicate:NSPredicate(format:"value CONTAINS %@","Included"),object:quoteImage)
+                XCTAssertEqual(XCTWaiter.wait(for:[included],timeout:20),.completed)
+                let compose = app.buttons["capture.composition-preview.start"]
+                for _ in 0..<8 where !compose.isHittable { app.swipeUp() }
+                XCTAssertTrue(compose.waitForExistence(timeout:20)); compose.tap()
+                let mosaic = app.descendants(matching:.any)["capture.composition-preview.image"].firstMatch
+                for _ in 0..<8 where !mosaic.isHittable { app.swipeUp() }
+                XCTAssertTrue(mosaic.waitForExistence(timeout:30)); XCTAssertGreaterThan(mosaic.frame.height,100)
+            } else if id != "346876542" {
                 let media = app.descendants(matching:.any)["capture.block-media"].firstMatch
                 for _ in 0..<8 where !media.isHittable { app.swipeUp() }
                 XCTAssertTrue(media.waitForExistence(timeout:20))

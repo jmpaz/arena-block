@@ -11,11 +11,16 @@ import { createService } from "../src/service.ts";
 import { ArenaBlockStore } from "../src/store.ts";
 import { blockPlanSchema, type BlockPlan, type PublishRequest } from "../src/types.ts";
 import { MockApi } from "./fixtures/remote-api.ts";
+import { assignMediaRefs } from "../packages/core/providers/provider.ts";
 
 const policy = { inboxChannel: "901", mode: "full" as const, credentialProfile: "shared", expectedAccountId: 47 };
 const config = userConfigSchema.parse({ remoteInbox: { channel: "901", mode: "always" }, provenance: { remoteSnapshot: "full" },
   credentialProfiles: { shared: { arenaTokenEnv: "ARENA_WRITE_ACCESS_TOKEN", expectedAccountId: 47 } } });
 async function fixture(name: string): Promise<BlockPlan> {
+  if (name === "substack-quoted-images") {
+    const legacy = await Bun.file(new URL("./fixtures/substack-legacy-containing-note-plan.json", import.meta.url)).json();
+    return blockPlanSchema.parse(composePlan(legacy.sources.map(assignMediaRefs), legacy.policy));
+  }
   return blockPlanSchema.parse(await Bun.file(new URL(`./fixtures/${name}.json`, import.meta.url)).json());
 }
 function submission(plan: BlockPlan): PublishRequest {
@@ -78,7 +83,7 @@ test("unavailable quote descendants respect depth while their source identity is
   expect(parent.quote!.embeddedRecord.uri).toBe(missing);
 });
 
-test.each(["delve-client-thread-plan", "delve-client-image-plan", "delve-client-quote-images-plan", "legacy-client-bluesky-plan"])("%s publishes and replays through the existing mock-only provenance path", async name => {
+test.each(["delve-client-thread-plan", "delve-client-image-plan", "delve-client-quote-images-plan", "legacy-client-bluesky-plan", "substack-quoted-images"])("%s publishes and replays through the existing mock-only provenance path", async name => {
   const directory = await mkdtemp(join(tmpdir(), "delve-receiver-publish-"));
   const store = new ArenaBlockStore(join(directory, "state.sqlite"));
   const api = new MockApi();
@@ -143,7 +148,7 @@ test("capabilities and Delve save endpoints retain bearer and MCP authorization"
     }
     const headers = { authorization: "Bearer fixture-engine-token" };
     const response = await service.handler(new Request("https://fixture.invalid/v1/version", { headers }));
-    expect((await response.json()).planCapabilities).toEqual(["atproto-post-records-v1", "delve-posts-v1", "bluesky-thread-coverage-v1", "forum-magnum-posts-v1", "expanded-source-count-32-v1", "reddit-browser-records-v1", "reddit-public-page-records-v1", "substack-browser-records-v1", "substack-public-sources-v2", "substack-native-media-v1", "substack-note-attachments-v1"]);
+    expect((await response.json()).planCapabilities).toEqual(["atproto-post-records-v1", "delve-posts-v1", "bluesky-thread-coverage-v1", "forum-magnum-posts-v1", "expanded-source-count-32-v1", "reddit-browser-records-v1", "reddit-public-page-records-v1", "substack-browser-records-v1", "substack-public-sources-v2", "substack-native-media-v1", "substack-note-attachments-v1", "quoted-image-media-v1"]);
     const denied = await service.handler(new Request("https://fixture.invalid/v1/mcp-saves", { method: "POST", headers, body: JSON.stringify(input) }));
     expect(denied.status).toBe(403);
     await denied.text();

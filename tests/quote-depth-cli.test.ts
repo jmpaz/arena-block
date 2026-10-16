@@ -24,7 +24,7 @@ test("CLI exposes default two, bounded full, literal/editable dates and zero wit
   expect(zero.code).toBe(0); expect(JSON.parse(zero.out).block.markdown).toBe("Exact source 100.\n\n*[image]*");
   const none = invoke(source, "--quote-dates", "none");
   expect(none.code).toBe(0); expect(JSON.parse(none.out).block.markdown).not.toContain("(Mar 18, 2026)");
-  const extra = invoke(source, "--extra", "https://x.com/author97/status/97", "--media-order", "2.1,1.1", "--quote-depth", "full");
+  const extra = invoke(source, "--extra", "https://x.com/author97/status/97", "--media", "2.1,1.1", "--media-order", "2.1,1.1", "--quote-depth", "full");
   expect(extra.code).toBe(0); expect(JSON.parse(extra.out).block.selectedMedia).toEqual(["2.1", "1.1"]);
 });
 

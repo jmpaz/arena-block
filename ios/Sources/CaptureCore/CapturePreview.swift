@@ -16,7 +16,7 @@ public struct CapturePreview: Codable, Sendable {
     }
     public var title: String { plan?["block"]?["title"]?.string ?? metadataTitle ?? URL(string: url)?.host ?? url }
     public var text: String { plan?["block"]?["markdown"]?.string ?? "The original link will be saved to Are.na." }
-    public var media: [JSONValue] { plan?["sources"]?.array.flatMap { $0["media"]?.array ?? [] } ?? [] }
+    public var media: [JSONValue] { plan.map(CaptureMediaTree.media) ?? [] }
     public var selectedMedia: [String] { plan?["block"]?["selectedMedia"]?.array.compactMap(\.string) ?? [] }
 
     public static func originalLink(_ url: URL) -> CapturePreview {
@@ -50,9 +50,9 @@ public struct CaptureSourceReview: Sendable {
 public extension CapturePreview {
     var sourceReviews: [CaptureSourceReview] {
         let selected = Set(selectedMedia)
-        return (plan?["sources"]?.array ?? []).compactMap { source in
+        return (plan?["sources"]?.array ?? []).enumerated().compactMap { index, source in
             guard let url = source["canonicalUrl"]?.string else { return nil }
-            let media = Set((source["media"]?.array ?? []).compactMap { $0["ref"]?.string })
+            let media = Set(plan.map { CaptureMediaTree.sources(inPlan: $0).filter { $0.rootIndex == index }.flatMap(\.media).compactMap { $0["ref"]?.string } } ?? [])
             return CaptureSourceReview(url: url,
                 role: source["selection"]?["role"]?.string == "extra" ? "extra" : "primary",
                 origin: source["selection"]?["origin"]?.string == "expanded" ? "expanded" : "explicit",
