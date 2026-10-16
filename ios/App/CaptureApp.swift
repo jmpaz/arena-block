@@ -12,13 +12,16 @@ struct CaptureApp: App {
     @UIApplicationDelegateAdaptor(CaptureApplicationDelegate.self) private var applicationDelegate
     private let session: CaptureSession?
     private let startupError: String?
+    private static var storageAuditOnly: Bool { ProcessInfo.processInfo.environment["CAPTURE_STORAGE_AUDIT_ONLY"] == "1" }
     init() {
+        if Self.storageAuditOnly { session = nil; startupError = nil; return }
         do { let created = try CaptureApplicationDelegate.makeSession(); session = created; startupError = nil }
         catch { session = nil; startupError = error.localizedDescription }
     }
     var body: some Scene {
         WindowGroup {
-            if let session { CaptureRootView(session: session) }
+            if Self.storageAuditOnly { CaptureStorageAuditView() }
+            else if let session { CaptureRootView(session: session) }
             else { ContentUnavailableView("Capture could not open", systemImage: "exclamationmark.triangle", description: Text(startupError ?? "Try opening the app again.")) }
         }
     }
@@ -26,6 +29,7 @@ struct CaptureApp: App {
 
 @MainActor
 final class CaptureApplicationDelegate: NSObject, UIApplicationDelegate {
+    private static var storageAuditOnly: Bool { ProcessInfo.processInfo.environment["CAPTURE_STORAGE_AUDIT_ONLY"] == "1" }
     static var session: CaptureSession?
     private static var submissionTask = UIBackgroundTaskIdentifier.invalid
     private static var recoveryEarliestBeginDate: Date?
@@ -47,6 +51,7 @@ final class CaptureApplicationDelegate: NSObject, UIApplicationDelegate {
     }
 
     static func makeSession() throws -> CaptureSession {
+        guard !storageAuditOnly else { throw CaptureError.message("Read-only storage inspection is active.") }
         if let session { return session }
         let created = try CaptureSession()
         created.scheduleRecovery = { scheduleRecovery() }
@@ -63,6 +68,7 @@ final class CaptureApplicationDelegate: NSObject, UIApplicationDelegate {
     }
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        guard !Self.storageAuditOnly else { return true }
         BGTaskScheduler.shared.register(forTaskWithIdentifier: Self.recoveryIdentifier, using: nil) { task in
             let work = Task { @MainActor in
                 Self.recoveryEarliestBeginDate = nil
@@ -124,6 +130,45 @@ final class CaptureApplicationDelegate: NSObject, UIApplicationDelegate {
                 completionHandler()
             }
         }
+    }
+}
+
+/// Internal diagnostic launch path. It deliberately bypasses CaptureSession and
+/// background recovery so inspecting storage cannot resume queued saves.
+private struct CaptureStorageAuditView: View {
+    @State private var status = "Reading storage"
+    private static func sharedContainer(main: URL) -> URL? {
+        #if DEBUG && targetEnvironment(simulator)
+        if ProcessInfo.processInfo.environment["CAPTURE_STORAGE_AUDIT_FIXTURE"] == "1" {
+            return main.appendingPathComponent("storage-audit-fixture", isDirectory: true)
+        }
+        #endif
+        guard let group = Bundle.main.object(forInfoDictionaryKey: "CaptureAppGroup") as? String else { return nil }
+        return FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: group)
+    }
+    var body: some View {
+        ScrollView { Text(status).font(.body.monospaced()).padding().textSelection(.enabled) }
+            .task {
+                let main = URL(fileURLWithPath: NSHomeDirectory(), isDirectory: true)
+                guard let shared = Self.sharedContainer(main: main) else {
+                    status = "The shared container is unavailable."; return
+                }
+                let reports = await Task.detached {
+                    ["main": CaptureStorageAudit.inspect(container: main),
+                     "shared": CaptureStorageAudit.inspect(container: shared, database: shared.appendingPathComponent("capture.sqlite"))]
+                }.value
+                do {
+                    let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]; encoder.dateEncodingStrategy = .iso8601
+                    let directory = main.appendingPathComponent("Documents/CaptureStorageAudit")
+                    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+                    let file = directory.appendingPathComponent(UUID().uuidString + ".json")
+                    try encoder.encode(reports).write(to: file, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+                    status = reports.keys.sorted().map { key in
+                        let report = reports[key]!
+                        return "\(key): \(report.logicalBytes) logical bytes\n" + report.categoryBytes.keys.sorted().map { "\($0): \(report.categoryBytes[$0]!)" }.joined(separator: "\n") + "\nProblems: \(report.problems.count)"
+                    }.joined(separator: "\n\n") + "\n\nNo cleanup or saves performed.\nReport: " + file.lastPathComponent
+                } catch { status = "The read-only report could not be exported: " + error.localizedDescription }
+            }
     }
 }
 

@@ -222,6 +222,9 @@ public final class CaptureSession {
         }
         self.defaults = defaults
         self.container = container
+        // Only explicitly owned temporary working copies are eligible. Legacy
+        // renders, previews and every durable capture remain outside this sweep.
+        NativeMediaWorkspace.prune(container: container)
         credentials = CredentialStore(accessGroup: bundle.object(forInfoDictionaryKey: "CaptureKeychainGroup") as? String)
         clientID = bundle.object(forInfoDictionaryKey: "ArenaOAuthClientID") as? String ?? ""
         callbackScheme = bundle.object(forInfoDictionaryKey: "CaptureCallbackScheme") as? String ?? "arena-capture"
@@ -1333,7 +1336,7 @@ public final class CaptureSession {
         try await CapturePreparation(runtime: core(), container: container).render(plan: plan, draftID: draftID)
     }
 
-    func previewComposition(plan: JSONValue, draftID: UUID) async throws -> URL {
+    func previewComposition(plan: JSONValue, draftID: UUID) async throws -> NativeMediaPreview {
         try await CapturePreparation(runtime: core(), container: container).previewComposition(plan: plan, draftID: draftID)
     }
 

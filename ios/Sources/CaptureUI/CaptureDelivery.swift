@@ -210,6 +210,7 @@ final class CaptureDelivery {
     }
 
     func persistSubmission(draft: CaptureDraft, prepared: PreparedCapture, media: URL?, contentType: String?) throws -> UUID {
+        guard media.map({ !NativeMediaWorkspace.isTemporaryPath($0) }) ?? true else { throw CaptureError.message("The media is still being prepared.") }
         var snapshot = draft
         guard snapshot.deliveryState?.canceledAt == nil else { throw CaptureError.message("This save was canceled. Start a new capture.") }
         snapshot.phase = .queued; snapshot.updatedAt = Date(); snapshot.problem = nil
@@ -427,6 +428,7 @@ final class CaptureDelivery {
                 if let renderSource { media = try await renderSource(plan, id) }
                 else { media = try await preparation().render(plan: plan, draftID: id) }
                 guard let media else { throw CaptureError.message("The selected media could not be prepared. No block was created.") }
+                guard !NativeMediaWorkspace.isTemporaryPath(media.fileURL) else { throw CaptureError.message("The media is still being prepared.") }
                 do {
                     try Task.checkCancellation()
                     job.mediaPath = media.fileURL.path; job.mediaType = media.contentType

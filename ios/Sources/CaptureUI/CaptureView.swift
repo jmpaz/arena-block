@@ -40,7 +40,8 @@ public struct CaptureRootView: View {
     @State private var offeredClipboard = -1
     @State private var historyPath: [UUID] = []
     @State private var savedNotice: CaptureDraft?
-    @State private var compositionPreviewURL: URL?
+    @State private var compositionPreview: NativeMediaPreview?
+    private var compositionPreviewURL: URL? { compositionPreview?.fileURL }
     @State private var compositionPreviewProblem: String?
     @State private var compositionPreviewIsLoading = false
     @State private var compositionPreviewTask: Task<Void, Never>?
@@ -806,10 +807,8 @@ public struct CaptureRootView: View {
     @MainActor private func resetCompositionPreview() {
         compositionPreviewTask?.cancel(); compositionPreviewTask = nil
         compositionPreviewTicket = UUID()
-        if let compositionPreviewURL {
-            try? FileManager.default.removeItem(at: compositionPreviewURL.deletingLastPathComponent())
-        }
-        compositionPreviewURL = nil
+        compositionPreview?.discard()
+        compositionPreview = nil
         compositionPreviewProblem = nil
         compositionPreviewIsLoading = false
     }
@@ -822,14 +821,14 @@ public struct CaptureRootView: View {
         compositionPreviewIsLoading = true
         compositionPreviewTask = Task {
             do {
-                let url = try await session.previewComposition(plan: plan, draftID: draft.id)
+                let prepared = try await session.previewComposition(plan: plan, draftID: draft.id)
                 try Task.checkCancellation()
                 guard compositionPreviewTicket == ticket, session.draft?.id == draft.id,
                       session.draft?.phase == .ready, session.preview?.plan == plan else {
-                    try? FileManager.default.removeItem(at: url.deletingLastPathComponent())
+                    prepared.discard()
                     return
                 }
-                compositionPreviewURL = url
+                compositionPreview = prepared
                 compositionPreviewIsLoading = false
                 compositionPreviewTask = nil
             } catch is CancellationError {

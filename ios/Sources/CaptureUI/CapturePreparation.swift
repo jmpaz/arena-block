@@ -94,13 +94,11 @@ final class CapturePreparation {
     func render(plan: JSONValue, draftID: UUID) async throws -> NativeRenderedMedia? {
         let selected = Set(plan["block"]?["selectedMedia"]?.array.compactMap(\.string) ?? [])
         guard !selected.isEmpty else { return nil }
-        let directory = container.appendingPathComponent("renders").appendingPathComponent(draftID.uuidString).appendingPathComponent(UUID().uuidString)
+        let workspace = try NativeMediaWorkspace(container: container, purpose: "render-inputs")
+        defer { workspace.discard() }
+        let directory = workspace.directory
+        let retainedDirectory = container.appendingPathComponent("renders").appendingPathComponent(draftID.uuidString).appendingPathComponent(UUID().uuidString)
         var media: [NativeStagedMedia] = [], probes: [String: JSONValue] = [:]
-        var completed = false
-        defer {
-            if completed { for asset in media { try? FileManager.default.removeItem(at: asset.fileURL) } }
-            else { try? FileManager.default.removeItem(at: directory) }
-        }
         for asset in CaptureMediaTree.media(in: plan) {
             guard let ref = asset["ref"]?.string, selected.contains(ref), let originalKind = asset["kind"]?.string,
                   let originalAddress = asset["url"]?.string else { continue }
@@ -130,18 +128,18 @@ final class CapturePreparation {
         if plan["block"]?["kind"]?.string == "audio" {
             guard media.count == 1, let audio = media.first else { throw CaptureError.message("Capture one original audio attachment alone.") }
             let result = try NativeMediaRenderer.originalAudio(audio, directory: directory)
-            try Task.checkCancellation(); completed = true
-            return result
+            try Task.checkCancellation()
+            return try workspace.promote(result, to: retainedDirectory)
         }
         let recipe = try decode(runtime.renderRecipe(planJSON: json(plan), probesJSON: json(.object(probes))))
         let result = try await NativeMediaRenderer.render(recipe: NativeMediaRecipe(json: recipe), media: media, directory: directory)
-        try Task.checkCancellation(); completed = true
-        return result
+        try Task.checkCancellation()
+        return try workspace.promote(result, to: retainedDirectory)
     }
 
     /// Optional, image-only preview of the current selected composition. It is
     /// never stored on the draft or reused by the durable Save path.
-    func previewComposition(plan: JSONValue, draftID: UUID) async throws -> URL {
+    func previewComposition(plan: JSONValue, draftID: UUID) async throws -> NativeMediaPreview {
         let selected = Set(plan["block"]?["selectedMedia"]?.array.compactMap(\.string) ?? [])
         guard !selected.isEmpty else { throw CaptureError.message("Select media to preview.") }
         let assets = CaptureMediaTree.media(in: plan)
@@ -159,13 +157,13 @@ final class CapturePreparation {
            (1...5_000).contains(delay) { try await Task.sleep(for: .milliseconds(delay)) }
         #endif
 
-        let directory = container.appendingPathComponent("composition-previews")
-            .appendingPathComponent(draftID.uuidString).appendingPathComponent(UUID().uuidString)
+        let workspace = try NativeMediaWorkspace(container: container, purpose: "composition-preview")
+        let directory = workspace.directory
         var stagedFiles: [URL] = []
         var completed = false
         defer {
             if completed { for file in stagedFiles { try? FileManager.default.removeItem(at: file) } }
-            else { try? FileManager.default.removeItem(at: directory) }
+            else { workspace.discard() }
         }
         var media: [NativeStagedMedia] = [], probes: [String: JSONValue] = [:]
         for asset in assets {
@@ -232,7 +230,7 @@ final class CapturePreparation {
         let rendered = try await NativeMediaRenderer.render(recipe: layout, media: media, directory: directory)
         try Task.checkCancellation()
         completed = true
-        return rendered.fileURL
+        return NativeMediaPreview(fileURL: rendered.fileURL, workspace: workspace)
     }
 
     private func decode(_ value: String) throws -> JSONValue { try JSONDecoder().decode(JSONValue.self, from: Data(value.utf8)) }
