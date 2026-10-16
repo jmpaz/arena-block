@@ -138,7 +138,7 @@ test("the serialized browser/Safari function works without imported closures and
 });
 test("activeTab acquisition never requests a grant and binds the exact returned source", async () => {
   const value = await capture(); const calls: string[] = [];
-  const browser: SubstackTabAPI = { permissions: { contains: async () => false }, tabs: { query: async () => [{ id: 4, url: source }] },
+  const browser: SubstackTabAPI = { runtime: { getManifest: () => ({ optional_permissions: ["scripting"] }) }, permissions: { contains: async () => false }, tabs: { query: async () => [{ id: 4, url: source }] },
     scripting: { executeScript: async input => { calls.push(input.world); return [{ result: value }]; } } };
   await expect(readActiveSubstackTab(browser)).rejects.toThrow("No permission was requested"); expect(calls).toEqual([]);
   browser.permissions.contains = async () => true;

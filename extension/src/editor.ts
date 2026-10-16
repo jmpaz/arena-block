@@ -1,5 +1,5 @@
 import { normalizeSubstackCapture, substackCapturesSchema, substackSourceKey, type SubstackCapture } from "../../packages/core/substack-record.ts";
-import { readActiveSubstackTab } from "./substack-tab.ts";
+import { configureSubstackTabReading, readActiveSubstackTab, type TabReadingManifest } from "./substack-tab.ts";
 import { containsDraftSource, shouldReplaceAutomaticDraft } from "./draft-retention.ts";
 import { resolveWithNative } from "./native-reddit.ts";
 import { normalizeRedditCapture, redditLiveReadUnavailable, redditCapturesSchema, redditSourceKey, REDDIT_CAPTURE_MAX_BYTES, type RedditBrowserCapture } from "../../packages/core/reddit-record.ts";
@@ -16,16 +16,19 @@ type BrowserAPI = {
     contains(value: { origins?: string[]; permissions?: string[] }): Promise<boolean> };
   storage: { local: { get(key: string): Promise<Record<string, unknown>>; set(value: Record<string, unknown>): Promise<void>; remove(key: string): Promise<void> };
     onChanged: { addListener(listener: (changes: Record<string, { newValue?: unknown }>, area: string) => void): void } };
-  runtime: { sendNativeMessage(host: string, message: unknown): Promise<unknown>; sendMessage(message: unknown): Promise<unknown>; getURL(path: string): string };
+  runtime: { sendNativeMessage(host: string, message: unknown): Promise<unknown>; sendMessage(message: unknown): Promise<unknown>; getURL(path: string): string; getManifest(): TabReadingManifest };
   tabs: { query(query: { active: boolean; currentWindow: boolean }): Promise<Array<{ id?: number; url?: string }>> };
   scripting?: { executeScript(value: { target: { tabId: number }; world: "MAIN" | "ISOLATED"; func: (...args: any[]) => any; args: string[] }): Promise<Array<{ result?: unknown }>> };
   identity: { getRedirectURL(): string; launchWebAuthFlow(options: { url: string; interactive: boolean }): Promise<string | undefined> };
 };
 const browser = ((globalThis as any).browser ?? (globalThis as any).chrome) as BrowserAPI;
+const manifest = browser.runtime.getManifest();
 const key = "arena-block-editor-draft-v1";
 const earlierKey = "arena-block-earlier-saves-v1";
 const channelCacheKey = "arena-block-channel-index-v1";
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
+const substackTabReading = configureSubstackTabReading(manifest, $<HTMLButtonElement>("read-substack"), $("substack-tab-availability"));
+$("read-substack").setAttribute("aria-describedby", "substack-tab-availability");
 const primary = $<HTMLTextAreaElement>("primary");
 const extras = $<HTMLTextAreaElement>("extras");
 const mediaPolicy = $<HTMLSelectElement>("media-policy");
@@ -117,9 +120,10 @@ function syncDestinationLock(): void {
   const frozen = destinationsFrozen();
   for (const id of ["choose-channel", "clear-channels", "add-channel", "default-channel", "default-mode",
     "primary", "extras", "media-policy", "thread-policy", "quote-policy", "quote-depth", "quote-dates",
-    "separator-policy", "read-substack", "import-reddit", "reddit-file", "title", "writing", "description", "resolve-local", "add-current",
+    "separator-policy", "import-reddit", "reddit-file", "title", "writing", "description", "resolve-local", "add-current",
     "single-media-toggle", "audio-choice"])
     $(id).toggleAttribute("disabled", frozen);
+  configureSubstackTabReading(manifest, $<HTMLButtonElement>("read-substack"), $("substack-tab-availability"), frozen || resolveInFlight);
   resolveButton.disabled = frozen || resolveInFlight;
   $<HTMLButtonElement>("preview-source").disabled = frozen || resolveInFlight;
   if (frozen) $("preview-source").hidden = true;
@@ -1020,7 +1024,7 @@ async function resolve(): Promise<void> {
   const ticket = resolutionGuard.begin();
   try {
     // A user-invoked preview of the matching active Note can use already granted activeTab/scripting.
-    for (const ref of [...refs, ...extraRefs]) {
+    if (substackTabReading) for (const ref of [...refs, ...extraRefs]) {
       try {
         const id = substackSourceKey(ref);
         if (substackCaptures.some(c => substackSourceKey(c.sourceUrl) === id)) continue;
@@ -1101,7 +1105,7 @@ async function acceptSubstackCapture(value: unknown) {
   await resolve();
 }
 $("read-substack").addEventListener("click", () => {
-  if (destinationsFrozen() || resolveInFlight) return;
+  if (!substackTabReading || destinationsFrozen() || resolveInFlight) return;
   const signature = inputSignature();
   void readActiveSubstackTab(browser).then(capture => {
     if (signature !== inputSignature()) throw new Error("The draft changed while reading Substack. Read the tab again.");

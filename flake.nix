@@ -71,18 +71,20 @@
           '';
           meta.mainProgram = "arena-block";
         };
-        browserExtension = pkgs.stdenvNoCC.mkDerivation {
+        browserExtension = pkgs.stdenvNoCC.mkDerivation (finalAttrs: {
           pname = "arena-block-browser-extension";
           version = metadata.version;
           src = source;
+          ARENA_BLOCK_SUBSTACK_TAB_READING = "true";
           passthru.withChromePublicKey = chromePublicKey:
             browserExtension.overrideAttrs (_: {
               ARENA_BLOCK_CHROME_PUBLIC_KEY = chromePublicKey;
             });
-          passthru.withBrowserConfig = { chromePublicKey, oauthClientId ? "" }:
+          passthru.withBrowserConfig = { chromePublicKey, oauthClientId ? "", substackTabReading ? true }:
             browserExtension.overrideAttrs (_: {
               ARENA_BLOCK_CHROME_PUBLIC_KEY = chromePublicKey;
               ARENA_BLOCK_OAUTH_CLIENT_ID = oauthClientId;
+              ARENA_BLOCK_SUBSTACK_TAB_READING = pkgs.lib.boolToString substackTabReading;
             });
           nativeBuildInputs = [ pkgs.bun pkgs.zip ];
           buildPhase = ''
@@ -100,6 +102,7 @@
               version = metadata.version;
               revision = self.rev or (self.dirtyRev or null);
               sourceId = builtins.hashString "sha256" (toString source);
+              features.substackTabReading = finalAttrs.ARENA_BLOCK_SUBSTACK_TAB_READING == "true";
             })} "$target/chrome/release.json"
             cp "$target/chrome/release.json" "$target/firefox/release.json"
             find "$target/chrome" "$target/firefox" -type f -exec touch -t 198001010000.00 {} +
@@ -107,7 +110,7 @@
             (cd "$target/firefox" && find . -type f -print | LC_ALL=C sort | zip -q -X "$target/firefox-unsigned.zip" -@)
             runHook postInstall
           '';
-        };
+        });
         extensionManager = pkgs.writeShellScriptBin "arena-block-extension-manage" ''
           exec ${pkgs.python3}/bin/python3 ${./scripts/extension-deploy.py} "$@"
         '';

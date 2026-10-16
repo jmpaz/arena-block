@@ -63,11 +63,17 @@ in {
       default = "";
       description = "Existing public OAuth client ID embedded in browser builds; never a client secret or access token.";
     };
+    substackTabReading = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = "Declare optional scripting for Substack tab reading. Disabling this retains public URL acquisition and marks tab reading unavailable; it does not request or grant permissions.";
+    };
     package = lib.mkOption {
       type = lib.types.package;
       default = self.packages.${system}.browser-extension.withBrowserConfig {
           chromePublicKey = if cfg.chromePublicKey == null then "" else cfg.chromePublicKey;
           oauthClientId = cfg.oauthClientId;
+          substackTabReading = cfg.substackTabReading;
         };
       description = "Unpacked Chrome and Firefox extension bundles.";
     };
