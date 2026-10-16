@@ -191,9 +191,23 @@ export async function readSubstackPage(expectedUrl?: string, environment?: {
     const mentions=all(body.querySelectorAll('[class*="node-substack_mention"]')).map(e=>e.textContent??"").filter(Boolean);
     const cardURLs=attachmentEvidence?.attachments.filter((a:any)=>a.kind==="article").map((a:any)=>a.url)??[];
     const comparable=(value:string)=>{for(const mention of mentions)value=value.split(`@${mention}`).join(mention);for(const address of cardURLs)value=value.split(address).join("");return normalize(value);};
-    if (attachmentEvidence && comparable(attachmentEvidence.bodyText)!==comparable(body.textContent??"")) throw new Error("Substack attachment snapshot changed the authored Note body");
-    if (!imageOnly && structured && (typeof structured.text !== "string" || ![comparable(body.textContent??""), comparable((body.textContent??"")+embeddedURLs.join("")),
-      ...(linkedPreviews.length ? [comparable((body.textContent??"")+linkedPreviews.map(item=>item.url).join(""))] : [])].includes(comparable(structured.text)))) unavailable("structured_text_mismatch");
+    // Public Note HTML shortens URL-only anchors to a host/path label. Compare
+    // that presentation with the observed destination, without treating custom
+    // authored link labels as URLs or changing the retained HTML.
+    const expandedLinks = body.cloneNode(true) as Element;
+    for (const anchor of all(expandedLinks.querySelectorAll("a[href]"))) {
+      const address = safeURL(anchor.getAttribute("href"), canonical);
+      if (!address || anchor.querySelector("img,video,audio")) continue;
+      const destination = new URL(address);
+      const label = (anchor.textContent ?? "").trim();
+      const withoutScheme = address.replace(/^https:\/\//, "");
+      const short = withoutScheme.replace(/^www\./, "").replace(/\/$/, "");
+      if ([withoutScheme, withoutScheme.replace(/\/$/, ""), short].includes(label)) anchor.textContent = destination.href;
+    }
+    const bodyTexts = [...new Set([body.textContent ?? "", expandedLinks.textContent ?? ""])];
+    if (attachmentEvidence && !bodyTexts.some(text=>comparable(attachmentEvidence.bodyText)===comparable(text))) throw new Error("Substack attachment snapshot changed the authored Note body");
+    if (!imageOnly && structured && (typeof structured.text !== "string" || !bodyTexts.flatMap(text=>[comparable(text), comparable(text+embeddedURLs.join("")),
+      ...(linkedPreviews.length ? [comparable(text+linkedPreviews.map(item=>item.url).join(""))] : [])]).includes(comparable(structured.text)))) unavailable("structured_text_mismatch");
     if (bytes(body.innerHTML) > 500_000) throw new Error("Substack Note body exceeds its bound");
     const links: any[] = [...linkedPreviews], media: any[] = [];
     const bodyCopy = body.cloneNode(true) as Element;

@@ -8,7 +8,9 @@
 | Article cards | Includes the title, independent author and preview or selected excerpt. |
 | Reply expansion | With `threadExpansion: on`, follows a verified same-author linear chain. Other authors, branches and incomplete reply sets are excluded or stop expansion. |
 | Rich text | Preserves authored HTML in the source record and converts it to Markdown. Relative links resolve against their containing source. |
+| Shortened URL labels | Verifies host/path abbreviations against the observed HTTPS link target when comparing complete source text. Custom authored labels remain literal. |
 | Original images | Uses shared media selection, ordering and rendering. |
+| Images inside quoted Notes | Retains originals with their quoted source. Current composition selects the explicit source posts' media; it does not automatically compose quoted images. |
 | Image-only Notes | Verifies empty authored text and the original images against the public Note record. Camera placeholders stay out of the saved text. |
 | External link cards | Retains the observed title, URL and labelled preview separately from authored prose and quoted Notes. The public record must agree with the visible card. HTTP links remain links; Capture does not fetch their destination. |
 | Multiple sources | Preserves explicit source order and deduplicates Note aliases by ID. Media extras use the common composer. |

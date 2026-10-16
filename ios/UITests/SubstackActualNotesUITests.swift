@@ -1,6 +1,31 @@
 import XCTest
 
 final class SubstackActualNotesUITests: XCTestCase {
+    func testSavedHistoryRendersQuoteAndCardMarkdownWithoutChangingSavedText() {
+        continueAfterFailure = false
+        let markdown = "> [`@joodaloop`](<https://substack.com/@joodaloop/note/c-346876542>)\n>\n> i think i’m going to start posting personal websites that i admire, as an act of reverence for the medium\n\nok, starting with the first one i remember that blew my mind because of the sheer intensity of care for the details\n\nstill online at\n\n*Preview of [Simon Collison | Colly | The Celebrated Miscellany](<http://colly.com/v4>):*\n\n> This is the celebrated journal of Simon Collison (aka Colly); web designer, developer, author and speaker, Nottingham, UK.\n\n*[image]*"
+        let app = XCUIApplication()
+        app.launchEnvironment = ["CAPTURE_UI_FIXTURE":"saved", "CAPTURE_UI_STORE_ID":UUID().uuidString,
+            "CAPTURE_UI_SAVED_MARKDOWN":markdown, "CAPTURE_UI_LIVE_SOURCE":"0", "CAPTURE_UI_CLIPBOARD":"", "CAPTURE_UI_CLIPBOARD_URL":""]
+        app.launch()
+        app.tabBars.buttons["History"].tap()
+        let row = app.buttons.matching(NSPredicate(format:"identifier BEGINSWITH %@ AND label CONTAINS %@", "history.capture.", "A study in shape")).firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout:10)); row.tap()
+        let body = app.descendants(matching:.any)["block.description.content"].firstMatch
+        XCTAssertTrue(body.waitForExistence(timeout:10))
+        let expand = app.buttons["block.description.expansion"]
+        for _ in 0..<6 where !expand.isHittable { app.swipeUp() }
+        XCTAssertTrue(expand.isHittable); expand.tap()
+        let root = app.staticTexts.matching(NSPredicate(format:"label CONTAINS %@", "ok, starting with the first one")).firstMatch
+        XCTAssertTrue(root.exists)
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format:"label CONTAINS %@", "Preview of Simon Collison")).firstMatch.exists)
+        XCTAssertFalse(app.staticTexts.matching(NSPredicate(format:"label CONTAINS %@", "[`")).firstMatch.exists)
+        XCTAssertFalse(app.staticTexts.matching(NSPredicate(format:"label BEGINSWITH %@", "> ")).firstMatch.exists)
+        XCTAssertFalse(app.staticTexts.matching(NSPredicate(format:"label CONTAINS %@", "*[image]*")).firstMatch.exists)
+        let screenshot = XCTAttachment(screenshot:app.screenshot()); screenshot.name="history-saved-note-markdown-rendered"; screenshot.lifetime = .keepAlways; add(screenshot)
+        app.terminate()
+    }
+
     func testTypingANoteSharingQueryKeepsTheSourceIdentity() {
         continueAfterFailure = false
         let app = XCUIApplication()
@@ -21,7 +46,7 @@ final class SubstackActualNotesUITests: XCTestCase {
             throw XCTSkip("Opt-in public Substack source/preview check; no save.")
         }
         continueAfterFailure = false
-        for (actor, id) in [("norvidstudies", "362104813"), ("joodaloop", "346876542"), ("joodaloop", "347044458")] {
+        for (actor, id) in [("norvidstudies", "362104813"), ("joodaloop", "346876542"), ("joodaloop", "347044458"), ("joodaloop", "348712218")] {
             let canonical = "https://substack.com/@\(actor)/note/c-\(id)"
             let app = XCUIApplication()
             app.launchEnvironment = ["CAPTURE_UI_FIXTURE":"empty", "CAPTURE_UI_STORE_ID":UUID().uuidString,
@@ -46,6 +71,12 @@ final class SubstackActualNotesUITests: XCTestCase {
                 XCTAssertTrue(value.contains("as an act of reverence for the medium"))
                 let writing = XCTAttachment(screenshot:app.screenshot())
                 writing.name = "substack-actual-quote-attribution"; writing.lifetime = .keepAlways; add(writing)
+            }
+            if id == "348712218" {
+                let value = app.textFields["capture.description"].value as? String ?? ""
+                XCTAssertTrue(value.contains("DENSITY!!!")); XCTAssertTrue(value.contains("lucy-ives.com"))
+                XCTAssertTrue(value.contains("ok, starting with the first one"))
+                XCTAssertTrue(value.contains("as an act of reverence for the medium"))
             }
             let expansion = app.buttons["capture.text.expansion"]
             if expansion.exists && expansion.isHittable { expansion.tap() }

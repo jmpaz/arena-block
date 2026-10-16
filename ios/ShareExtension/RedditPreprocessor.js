@@ -321,13 +321,26 @@
           value = value.split(address).join("");
         return normalize(value);
       };
-      if (attachmentEvidence && comparable(attachmentEvidence.bodyText) !== comparable(body.textContent ?? ""))
+      const expandedLinks = body.cloneNode(true);
+      for (const anchor of all(expandedLinks.querySelectorAll("a[href]"))) {
+        const address = safeURL(anchor.getAttribute("href"), canonical);
+        if (!address || anchor.querySelector("img,video,audio"))
+          continue;
+        const destination = new URL(address);
+        const label = (anchor.textContent ?? "").trim();
+        const withoutScheme = address.replace(/^https:\/\//, "");
+        const short = withoutScheme.replace(/^www\./, "").replace(/\/$/, "");
+        if ([withoutScheme, withoutScheme.replace(/\/$/, ""), short].includes(label))
+          anchor.textContent = destination.href;
+      }
+      const bodyTexts = [...new Set([body.textContent ?? "", expandedLinks.textContent ?? ""])];
+      if (attachmentEvidence && !bodyTexts.some((text) => comparable(attachmentEvidence.bodyText) === comparable(text)))
         throw new Error("Substack attachment snapshot changed the authored Note body");
-      if (!imageOnly && structured && (typeof structured.text !== "string" || ![
-        comparable(body.textContent ?? ""),
-        comparable((body.textContent ?? "") + embeddedURLs.join("")),
-        ...linkedPreviews.length ? [comparable((body.textContent ?? "") + linkedPreviews.map((item) => item.url).join(""))] : []
-      ].includes(comparable(structured.text))))
+      if (!imageOnly && structured && (typeof structured.text !== "string" || !bodyTexts.flatMap((text) => [
+        comparable(text),
+        comparable(text + embeddedURLs.join("")),
+        ...linkedPreviews.length ? [comparable(text + linkedPreviews.map((item) => item.url).join(""))] : []
+      ]).includes(comparable(structured.text))))
         unavailable("structured_text_mismatch");
       if (bytes(body.innerHTML) > 500000)
         throw new Error("Substack Note body exceeds its bound");

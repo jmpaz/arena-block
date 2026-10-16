@@ -22,7 +22,7 @@ final class RuntimeTests: XCTestCase {
         XCTAssertEqual(image["url"] as? String, "https://substack-post-media.s3.amazonaws.com/public/images/9fc436fc-78b9-407e-9a44-70f18500a27d_1448x1086.png")
         XCTAssertEqual(image["width"] as? Int, 1448)
         XCTAssertEqual(image["height"] as? Int, 1086)
-        for id in ["346876542", "347044458"] {
+        for id in ["346876542", "347044458", "348712218"] {
             let url = "https://substack.com/@joodaloop/note/c-\(id)"
             let output = try await runtime.resolve(refs: [url + "?r=1ir8aw&utm_medium=ios&utm_source=notes-share-"], policyJSON: #"{"threadExpansion":"off"}"#)
             let result = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(output.utf8)) as? [String: Any])
@@ -37,6 +37,14 @@ final class RuntimeTests: XCTestCase {
                 let quote = try XCTUnwrap(post["quote"] as? [String: Any])
                 XCTAssertEqual(quote["id"] as? String, "346876542")
                 XCTAssertTrue((quote["text"] as? String ?? "").contains("as an act of reverence for the medium"))
+            } else if id == "348712218" {
+                XCTAssertTrue((post["text"] as? String ?? "").contains("DENSITY!!!"))
+                XCTAssertTrue((post["text"] as? String ?? "").contains("https://www.lucy-ives.com/"))
+                let parent = try XCTUnwrap(post["quote"] as? [String: Any])
+                XCTAssertEqual(parent["id"] as? String, "347044458")
+                XCTAssertEqual((parent["quote"] as? [String: Any])?["id"] as? String, "346876542")
+                XCTAssertEqual((post["media"] as? [Any])?.count, 1)
+                XCTAssertEqual((parent["media"] as? [Any])?.count, 1)
             } else { XCTAssertNil(post["quote"]) }
         }
     }

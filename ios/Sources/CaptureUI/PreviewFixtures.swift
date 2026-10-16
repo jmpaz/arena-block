@@ -138,6 +138,11 @@ struct PreviewFixtures {
         saved.id = UUID(); saved.phase = .saved; saved.blockID = 900
         saved.deliveryState = CaptureDeliveryState(operationID: saved.id, stage: .done, confirmedChannelIDs: [101], contentVerified: true)
         saved.savedBlock = .object(["id": .number(900), "type": .string("Link"), "state": .string("available"), "title": .string("A study in shape"), "content": .object(["markdown": .string("")]), "description": .object(["markdown": .string("A small collection of things worth looking at again.")]), "image": .object(["large": .object(["url": .string(imageURL.absoluteString)])])])
+        if let markdown = ProcessInfo.processInfo.environment["CAPTURE_UI_SAVED_MARKDOWN"], !markdown.isEmpty {
+            var block = saved.savedBlock?.object ?? [:]
+            block["description"] = .object(["markdown": .string(markdown)])
+            saved.savedBlock = .object(block)
+        }
         history = saved
         switch mode {
         case "empty", "slow-resolution": sample = CaptureDraft(accountID: account.id, defaultChannel: channels[0])

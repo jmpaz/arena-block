@@ -1081,6 +1081,7 @@ struct CaptureMediaView: View {
 
 struct CaptureTextView: View {
     let text: String
+    var accessibilityPrefix = "capture.text"
     @State private var expanded = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
@@ -1110,7 +1111,7 @@ struct CaptureTextView: View {
                         }.fixedSize(horizontal: false, vertical: true)
                     }
                 }
-            }.accessibilityIdentifier("capture.text.content")
+            }.accessibilityIdentifier("\(accessibilityPrefix).content")
             if canExpand {
                 Button {
                     if reduceMotion { expanded.toggle() }
@@ -1124,7 +1125,7 @@ struct CaptureTextView: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(CaptureExpansionButtonStyle())
-                .accessibilityIdentifier("capture.text.expansion")
+                .accessibilityIdentifier("\(accessibilityPrefix).expansion")
             }
         }
     }
@@ -1148,8 +1149,8 @@ struct BlockContentView: View {
                 CaptureMediaView(url: url, isVideo: block["attachment"]?["content_type"]?.string?.hasPrefix("video/") == true)
             }
             if showTitle, let title = block["title"]?.string, !title.isEmpty { Text(title).font(.headline).textSelection(.enabled) }
-            if let content = BlockDisplay.text(block, "content"), !content.isEmpty { Text(content).textSelection(.enabled) }
-            if let description = BlockDisplay.text(block, "description"), !description.isEmpty { Text(description).textSelection(.enabled) }
+            if let content = BlockDisplay.text(block, "content"), !content.isEmpty { CaptureTextView(text: content, accessibilityPrefix: "block.content") }
+            if let description = BlockDisplay.text(block, "description"), !description.isEmpty { CaptureTextView(text: description, accessibilityPrefix: "block.description") }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

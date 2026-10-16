@@ -3,6 +3,17 @@ import XCTest
 @testable import CaptureUI
 
 final class CaptureMarkdownPreviewTests: XCTestCase {
+    func testSavedNoteDescriptionRendersNestedQuotesLinksAndMediaLabelsWithoutRawMarkdown() {
+        let source = "> [`@joodaloop`](<https://substack.com/@joodaloop/note/c-346876542>)\n>\n> i think i’m going to start posting personal websites\n\nRoot authored text.\n\n*Preview of [Simon Collison](<http://colly.com/v4>):*\n\n> This is the celebrated journal.\n\n*[image]*"
+        let blocks = CaptureMarkdownPreview.blocks(source)
+        let visible = String(CaptureMarkdownPreview.render(source).characters)
+        XCTAssertTrue(visible.contains("@joodaloop"))
+        XCTAssertTrue(visible.contains("Preview of Simon Collison:"))
+        XCTAssertTrue(visible.contains("Root authored text."))
+        XCTAssertFalse(visible.contains("[`")); XCTAssertFalse(visible.contains("> ")); XCTAssertFalse(visible.contains("*[image]*"))
+        XCTAssertEqual(blocks.flatMap { $0.text.runs.compactMap(\.link) }, [URL(string:"https://substack.com/@joodaloop/note/c-346876542")!, URL(string:"http://colly.com/v4")!])
+        XCTAssertEqual(blocks.first?.quoteDepth, 1)
+    }
     func testReplyLinkShowsLabelAndKeepsSourceTarget() {
         let source = URL(string: "https://www.lesswrong.com/posts/TJjk5TRywhgrnhzn6/?commentId=hLcibt3RxuQXGhRK3")!
         let markdown = "*[Reply to comment hLcibt3RxuQXGhRK3](<\(source.absoluteString)>)*\n\nAuthored comment text"

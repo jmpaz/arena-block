@@ -369,7 +369,7 @@ struct CaptureDetailView: View {
                 if let shown = block ?? current.savedBlock { BlockContentView(block: shown) }
                 else {
                     Text(HistoryRow.title(current)).font(.headline)
-                    if let description = current.descriptionOverride, !description.isEmpty { Text(description) }
+                    if let description = current.descriptionOverride, !description.isEmpty { CaptureTextView(text: description, accessibilityPrefix: "history.description") }
                     if loading { ProgressView("Loading block…") }
                 }
                 if let problem { Text(problem).font(.callout).foregroundStyle(.secondary) }
