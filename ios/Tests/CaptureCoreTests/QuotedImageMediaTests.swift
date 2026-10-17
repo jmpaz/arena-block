@@ -22,7 +22,7 @@ final class QuotedImageMediaTests: XCTestCase {
         let sources = JSONValue.array([source(100,prefix:1)])
         let visible = try preview(sources)
         XCTAssertEqual(visible.mediaRefs,["1.1","1.2"])
-        XCTAssertEqual(visible.selectedMedia,["1.1","1.2"])
+        XCTAssertEqual(visible.selectedMedia,["1.1"])
         let owners = CaptureMediaTree.sources(inPlan:try XCTUnwrap(visible.plan))
         XCTAssertEqual(owners.map(\.ownershipLabel),[nil,"Quoted from @parent"])
         XCTAssertEqual(owners.last?.source["canonicalUrl"]?.string,"https://x.com/parent/status/300")
@@ -33,7 +33,19 @@ final class QuotedImageMediaTests: XCTestCase {
         XCTAssertEqual(restored.selectedMedia,["1.2"])
         let recipe = try CaptureRuntime().renderRecipe(planJSON:String(decoding:try JSONEncoder().encode(visible.plan!),as:UTF8.self))
         let parsed = try JSONDecoder().decode(JSONValue.self,from:Data(recipe.utf8))
-        XCTAssertEqual(parsed["tiles"]?.array.compactMap{$0["ref"]?.string},["1.1","1.2"])
+        XCTAssertEqual(parsed["tiles"]?.array.compactMap{$0["ref"]?.string},["1.1"])
+    }
+    @MainActor func testFreshDraftOptsIntoQuotedMediaAndRetainsItsExplicitChoice() throws {
+        let sources = JSONValue.array([source(100,prefix:1)])
+        let automatic = try preview(sources)
+        var draft = CaptureDraft(accountID:1,defaultChannel:nil,input:"https://x.com/root/status/100")
+        XCTAssertEqual(draft.includedMedia(in:automatic),["1.1"])
+        draft.toggleMedia("1.2",in:automatic)
+        let restored = try JSONDecoder().decode(CaptureDraft.self,from:JSONEncoder().encode(draft))
+        XCTAssertEqual(restored.media,.selected)
+        XCTAssertEqual(restored.selectedMedia,["1.1","1.2"])
+        let included = try preview(sources,selected:restored.selectedMedia)
+        XCTAssertEqual(restored.includedMedia(in:included),["1.1","1.2"])
     }
     @MainActor func testQuoteChoicesStayWithTheirRootWhenTheSameQuotedImageAppearsTwice() throws {
         let before = try preview(.array([source(100,prefix:1),source(200,prefix:2)]))

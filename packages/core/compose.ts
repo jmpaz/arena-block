@@ -166,7 +166,6 @@ function renderSequence(posts: ResolvedPost[], policy: CompositionPolicy, frameR
 
 function selectedMedia(posts: ResolvedPost[], policy: CompositionPolicy): MediaAsset[] {
   const rootMedia = selectableMedia(posts, renderedQuoteDepth(policy));
-  const quotedImages = mediaSources(posts, renderedQuoteDepth(policy)).filter(node => node.quoteDepth > 0).flatMap(node => node.media);
   if (policy.media === "none") return [];
   if (policy.media === "selected") {
     const requested = new Set(policy.selectedMedia);
@@ -176,12 +175,18 @@ function selectedMedia(posts: ResolvedPost[], policy: CompositionPolicy): MediaA
   if (policy.media === "video") return rootMedia.filter((item) => item.kind === "video");
   if (policy.media === "audio") return rootMedia.filter((item) => item.kind === "audio");
   if (policy.media === "images") return rootMedia.filter((item) => item.kind === "image");
-  const automaticMedia = rootMedia.filter(item => item.sourcePlacement !== "body");
+  // Auto keeps root-post media. Retain quoted assets only when an existing
+  // order, frame or soundtrack choice names them explicitly.
+  const audioRef = explicitAudio(policy);
+  const explicitRefs = new Set([...(policy.mediaOrder ?? []), ...(policy.videoFrames ?? []), ...(audioRef ? [audioRef] : [])]);
+  const nodes = mediaSources(posts, renderedQuoteDepth(policy));
+  const quotedMedia = nodes.filter(node => node.quoteDepth > 0)
+    .flatMap(node => node.media).filter(item => explicitRefs.has(item.ref));
+  const automaticMedia = nodes.flatMap(node => node.quoteDepth ? node.media.filter(item => explicitRefs.has(item.ref)) : node.media)
+    .filter(item => item.sourcePlacement !== "body");
   if(automaticMedia.length>1&&automaticMedia.every(asset=>asset.kind==="audio")&&automaticMedia.some(asset=>asset.sourceAttribution))
     throw new Error("Choose one original audio attachment. Audio files must be captured separately.");
-  const quotedAV = mediaSources(posts, renderedQuoteDepth(policy)).filter(node => node.quoteDepth > 0)
-    .flatMap(node => node.media).some(item => item.kind !== "image");
-  if (quotedAV) {
+  if (quotedMedia.some(item => item.kind !== "image")) {
     const visuals = automaticMedia.filter(item => item.kind !== "audio");
     if (visuals.length) return visuals;
     const audio = automaticMedia.filter(item => item.kind === "audio");
@@ -195,7 +200,7 @@ function selectedMedia(posts: ResolvedPost[], policy: CompositionPolicy): MediaA
   const video = automaticMedia.find((item) => item.kind === "video");
   const images = automaticMedia.filter((item) => item.kind === "image");
   const publicAudio = posts[0]!.provider === "substack" ? automaticMedia.find(item => item.kind === "audio" && item.acquisition === "substack-public-original") : undefined;
-  return video ? [video, ...quotedImages] : images.length ? images : publicAudio ? [publicAudio] : [];
+  return video ? [video, ...quotedMedia] : images.length ? images : publicAudio ? [publicAudio] : [];
 }
 
 const RETAINED_ARRANGEMENTS = 32;

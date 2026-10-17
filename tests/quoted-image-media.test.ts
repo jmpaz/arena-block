@@ -35,14 +35,15 @@ test("multiple sources have unambiguous quote refs, previews stay previews, and 
  const plan=composePlan([a,b],{media:"all",quoteDepth:1});expect(plan.block.selectedMedia).toEqual(["1.1","1.2","2.1","2.2"]);expect(planMedia(plan).some(a=>a.sourceRole==="preview")).toBe(false);
  const video={ref:"0.0",kind:"video"as const,url:"https://video.example/original.mp4",posterUrl:"https://images.example/poster.png",durationSeconds:700,alt:"Original video"};
  const mixed=assignMediaRefs(post("100",post("200"),[video]),0),framed=blockPlanSchema.parse(composePlan([mixed],{videoFrameThresholdSeconds:600}));
- expect(framed.block.selectedMedia).toEqual(["1.1","1.2"]);expect(framed.block.frameMedia).toEqual([{ref:"1.1",url:video.posterUrl}]);expect(captureRenderRecipe(framed)!.tiles.map(t=>t.kind)).toEqual(["image","image"]);
+ expect(framed.block.selectedMedia).toEqual(["1.1"]);expect(framed.block.frameMedia).toEqual([{ref:"1.1",url:video.posterUrl}]);expect(captureRenderRecipe(framed)!.tiles.map(t=>t.kind)).toEqual(["image"]);
  const legacyVideo=assignMediaRefs(post("100",post("200",undefined,[video])),0);legacyVideo.quote!.media[0]!.ref="quote.1";expect(composePlan([legacyVideo]).block.selectedMedia).toEqual(["1.1"]);
 });
 
-test("actual .2 queued plan retains its hash and source fields while a fresh resolution includes its quoted original",async()=>{
+test("actual .2 queued plan retains its hash and source fields while only explicit inclusion adds its quoted original",async()=>{
  const old=await Bun.file(new URL('./fixtures/substack-legacy-containing-note-plan.json',import.meta.url)).json();
  expect(composePlan(old.sources,old.policy)).toEqual(old);expect(requiredPlanCapabilities(old)).not.toContain("quoted-image-media-v1");
- const fresh=composePlan(old.sources.map(assignMediaRefs),old.policy);expect(fresh.block.selectedMedia).toEqual(["1.1","1.2"]);expect(fresh.block.markdown).toBe(old.block.markdown);expect(fresh.sources[0]!.quote!.author).toEqual(old.sources[0].quote.author);
+ const fresh=composePlan(old.sources.map(assignMediaRefs),old.policy);expect(fresh.block.selectedMedia).toEqual(["1.1"]);expect(fresh.block.markdown).toBe(old.block.markdown);expect(fresh.sources[0]!.quote!.author).toEqual(old.sources[0].quote.author);
+ expect(composePlan(fresh.sources,{...old.policy,media:"all"}).block.selectedMedia).toEqual(["1.1","1.2"]);
  expect(()=>requireAddressableQuoteImages(old)).toThrow("matching receiver");expect(()=>requireAddressableQuoteImages(fresh)).not.toThrow();
  const stopped={...post("100")};stopped.quote=stopped;expect(()=>assignMediaRefs(stopped,0)).toThrow("repeats a source");
 });
@@ -79,7 +80,7 @@ test("CLI image rendering matches the native recipe when quoted originals have n
  const shapes=[[400,200,"red"],[200,200,"blue"]]as const;
  const bytes=await Promise.all(shapes.map(async([w,h,color])=>{const c=createCanvas(w,h);c.getContext("2d").fillStyle=color;c.getContext("2d").fillRect(0,0,w,h);return c.encode("png");}));
  const nodes=mediaSources([root]);nodes.forEach((node,index)=>node.media[0]!.url=`data:image/png;base64,${bytes[index]!.toString("base64")}`);
- const plan=composePlan([root]),dir=await mkdtemp(join(tmpdir(),"quoted-render-"));
+ const plan=composePlan([root],{media:"all"}),dir=await mkdtemp(join(tmpdir(),"quoted-render-"));
  try{
   const output=await renderPlan(plan,dir);
   const decoded=await loadImage(await Bun.file(output!.path).arrayBuffer());

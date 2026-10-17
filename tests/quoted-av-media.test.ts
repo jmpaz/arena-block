@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { composePlan } from "../packages/core/compose.ts";
+import { composePlan, planHash } from "../packages/core/compose.ts";
 import { assignMediaRefs } from "../packages/core/providers/provider.ts";
 import { mediaSources, requireAddressableQuoteMedia } from "../packages/core/media-tree.ts";
 import { captureRenderRecipe } from "../packages/core/render-recipe.ts";
@@ -15,7 +15,7 @@ const probes = { "1.2": { width: 640, height: 480, duration: 5, fps: 30, audio: 
 
 test("quoted videos use distinct owning-source refs, source order, frame choices and an audio-preserving recipe", () => {
   const root = tree();
-  const plan = blockPlanSchema.parse(composePlan([root], { quoteDepth: "full", audio: "mix" }));
+  const plan = blockPlanSchema.parse(composePlan([root], { media: "all", quoteDepth: "full", audio: "mix" }));
   expect(plan.block.selectedMedia).toEqual(["1.1", "1.2", "1.3"]);
   expect(plan.block.kind).toBe("video");
   expect(mediaSources(plan.sources).map(node => [node.source.id, node.media.map(asset => asset.ref)])).toEqual([["100", ["1.1"]], ["200", ["1.2"]], ["300", ["1.3"]]]);
@@ -50,7 +50,7 @@ test("quote depth hides videos, frame and soundtrack choices without losing expl
 
 test("old receiver rejects quoted video selections and hidden frame or soundtrack preferences before any save", async () => {
   const root = tree();
-  for (const policy of [{}, { quoteDepth: 0, videoFrames: ["1.2"] }, { quoteDepth: 0, audio: "1.2" }]) {
+  for (const policy of [{ media: "all" as const }, { quoteDepth: 0, videoFrames: ["1.2"] }, { quoteDepth: 0, audio: "1.2" }]) {
     const plan = composePlan([root], policy), requests: string[] = [];
     const client = new ArenaBlockClient("https://receiver.invalid", "fixture", (async (input: RequestInfo | URL, init?: RequestInit) => {
       requests.push(`${init?.method ?? "GET"} ${new URL(String(input)).pathname}`);
@@ -64,11 +64,16 @@ test("old receiver rejects quoted video selections and hidden frame or soundtrac
 test("frozen legacy audiovisual and v1 quoted-image queues retain their exact fields and hashes", async () => {
   const old = await Bun.file(new URL("./fixtures/quoted-av-legacy-plans.json", import.meta.url)).json();
   old.push(await Bun.file(new URL("./fixtures/quoted-image-v1-queued-plan.json", import.meta.url)).json());
-  for (const plan of old) expect(composePlan(plan.sources, plan.policy)).toEqual(plan);
+  for (const plan of old) {
+    expect(blockPlanSchema.parse(plan)).toEqual(plan);
+    const { hash, ...content } = plan;
+    expect(planHash(content)).toBe(hash);
+  }
   const stale = old[0];
   expect(() => requireAddressableQuoteMedia(stale)).toThrow("matching receiver");
   const fresh = composePlan(stale.sources.map(assignMediaRefs), stale.policy);
-  expect(fresh.block.selectedMedia).toEqual(["1.1"]);
+  expect(fresh.block.selectedMedia).toEqual([]);
+  expect(composePlan(fresh.sources, { media: "all" }).block.selectedMedia).toEqual(["1.1"]);
   expect(fresh.sources[0]!.quote!.media[0]!.ref).toBe("1.1");
   expect(blockPlanSchema.parse(fresh)).toEqual(fresh);
 });
@@ -107,9 +112,10 @@ test("a quoted verified public audio file follows its own source and passes thro
     await expect(renderPlan(forged, dir, { fetcher })).rejects.toThrow("consistent complete public source evidence");
     expect(calls).toHaveLength(1);
     expect(await readdir(join(dir, ".staging"))).toEqual([]);
-    expect(composePlan([root]).block.kind).toBe("audio");
+    expect(composePlan([root]).block.kind).toBe("text");
     const doubled = assignMediaRefs(post("100", [], { ...owner, quote: { ...owner, id: "article:999", canonicalUrl: "https://audio.example/p/other" } }), 0);
-    expect(() => composePlan([doubled])).toThrow("Choose one original audio attachment");
+    expect(composePlan([doubled]).block.kind).toBe("text");
+    expect(() => composePlan([doubled], { media: "audio" })).toThrow("one original audio");
   } finally { await rm(dir, { recursive: true, force: true }); }
 });
 
@@ -117,14 +123,14 @@ test("actual Substack quote fixtures retain separate authors, native video evide
   for (const name of ["substack-quoted-video-public-plan", "substack-quoted-mixed-public-plan"]) {
     const plan = await Bun.file(new URL(`./fixtures/${name}.json`, import.meta.url)).json();
     expect(blockPlanSchema.parse(plan)).toEqual(plan);
-    expect(composePlan(plan.sources, plan.policy)).toEqual(plan);
+    expect(composePlan(plan.sources, plan.policy).block.selectedMedia).toEqual(plan.sources[0].media.map((asset: MediaAsset) => asset.ref));
     const root = plan.sources[0], child = root.quote;
     expect(root.author.handle).not.toBe(child.author.handle);
     expect(child.author.handle).toBe("substack");
     expect(child.media[0]).toMatchObject({ kind: "video", sourceRole: "original", acquisition: "substack-public-original" });
     expect(plan.block.markdown).toContain("[`@substack`]");
     expect(composePlan(plan.sources, { ...plan.policy, quoteDepth: 0 }).block.selectedMedia).toEqual(root.media.map((asset: MediaAsset) => asset.ref));
-    const frame = blockPlanSchema.parse(composePlan(plan.sources, { ...plan.policy, videoFrameThresholdSeconds: 60 }));
+    const frame = blockPlanSchema.parse(composePlan(plan.sources, { ...plan.policy, media: "all", videoFrameThresholdSeconds: 60 }));
     expect(frame.block.kind).toBe("link");
     expect(frame.block.frameMedia).toEqual([{ ref: child.media[0].ref, url: child.media[0].posterUrl }]);
     expect(frame.sources[0]!.quote!.media[0]!.kind).toBe("video");
@@ -136,9 +142,9 @@ test("actual Substack quote fixtures retain separate authors, native video evide
 test("soundtrack controls expose selected moving videos with their quote owners and exclude frames", async () => {
   const { videoSoundtrackSources } = await import("../packages/core/media-tree.ts");
   const root = tree();
-  const choices = videoSoundtrackSources(composePlan([root]));
+  const choices = videoSoundtrackSources(composePlan([root], { media: "all" }));
   expect(choices.map(node => [node.source.author.handle, node.media[0]!.ref])).toEqual([["author200", "1.2"], ["author300", "1.3"]]);
-  expect(videoSoundtrackSources(composePlan([root], { videoFrames: ["1.2"] })).flatMap(node => node.media).map(asset => asset.ref)).toEqual(["1.3"]);
+  expect(videoSoundtrackSources(composePlan([root], { media: "all", videoFrames: ["1.2"] })).flatMap(node => node.media).map(asset => asset.ref)).toEqual(["1.3"]);
   expect(videoSoundtrackSources(composePlan([root], { quoteDepth: 0 }))).toEqual([]);
 });
 
