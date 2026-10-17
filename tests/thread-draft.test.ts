@@ -11,3 +11,56 @@ test('retry preserves user files and writes complete independent owned bundles',
 test('invalid selection and cancellation never leave a half-written bundle',async()=>{const dir=await mkdtemp(join(tmpdir(),'arena-thread-'));dirs.push(dir);await expect(writeThreadDraft(fixture(),dir,{scope:'chain',media:'all',selectedIds:['missing']})).rejects.toThrow('not captured');const c=new AbortController();c.abort();await expect(writeThreadDraft(fixture(),dir,{scope:'chain',media:'all'},c.signal)).rejects.toThrow();expect(await readdir(dir)).toEqual([]);});
 test('slow source cancellation aborts acquisition and can be retried without credentials or writes',async()=>{const c=new AbortController();const pending=captureThread('https://x.com/main/status/1',{signal:c.signal,fetch:((_:any,init:any)=>new Promise((_,reject)=>{init.signal.addEventListener('abort',()=>reject(init.signal.reason),{once:true});}))as typeof fetch});c.abort();await expect(pending).rejects.toThrow();const calls:any[]=[];const capture=await captureThread('https://x.com/main/status/1',{fetch:(async(url:any,init:any)=>{calls.push({url,redirect:init.redirect,credentials:init.credentials});return Response.json({tweet:{id:'1',author:{screen_name:'main'},text:'Recovered'}});})as typeof fetch});expect(capture.posts[0]?.text).toBe('Recovered');expect(calls).toEqual([{url:'https://api.fxtwitter.com/main/status/1',redirect:'error',credentials:'omit'}]);expect(capture.coverage.complete).toBe(false);});
 test('selecting a quoted post by itself keeps its text visible without the omitted quoting post',async()=>{const dir=await mkdtemp(join(tmpdir(),'arena-thread-'));dirs.push(dir);const result=await writeThreadDraft(fixture(),dir,{scope:'chain',media:'all',selectedIds:['2']});expect(result.manifest.selection.selectedIds).toEqual(['2']);const markdown=await Bun.file(join(result.directory,'thread.md')).text(),html=await Bun.file(join(result.directory,'thread.html')).text();expect(markdown).toContain('quote');expect(markdown).toContain('Original post');expect(html).toContain('quote');expect(html).toContain('<article>');expect(result.manifest.omittedPostIds).toEqual(['1','3']);});
+
+test.each(['reply', 'ancestor'] as const)('reply-only drafts distinguish excluded and unacquired parents through %s edges', async kind => {
+  const dir = await mkdtemp(join(tmpdir(), 'arena-thread-'));
+  dirs.push(dir);
+  const post = (id: string, text: string) => ({
+    id, url: `https://x.com/person/status/${id}`, author: { handle: 'person' },
+    text, segments: [{ text }], media: [], status: 'available' as const,
+  });
+  const parentEdge = (parent: string, child: string) => kind === 'reply'
+    ? { from: parent, to: child, kind } : { from: child, to: parent, kind };
+  const original: ThreadCapture = {
+    ...fixture(),
+    posts: [
+      { ...fixture().posts[0]!, text: 'omitted announcement prose', segments: [{ text: 'omitted announcement prose' }] },
+      post('question', 'selected question'), post('answer', 'selected answer'),
+      post('sibling', 'unrelated reply prose'), post('orphan', 'selected orphan'),
+    ],
+    edges: [parentEdge('1', 'question'), parentEdge('question', 'answer'), parentEdge('1', 'sibling'), parentEdge('missing', 'orphan')],
+  };
+  const before = JSON.stringify(original);
+  const result = await writeThreadDraft(original, dir, { scope: 'tree', media: 'all', selectedIds: ['question', 'answer', 'orphan'] });
+  const markdown = await Bun.file(join(result.directory, 'thread.md')).text();
+  const html = await Bun.file(join(result.directory, 'thread.html')).text();
+  expect(markdown).toContain('Reply to [@main](<https://x.com/main/status/1>) (intentionally excluded from this draft)');
+  expect(html).toContain('<a href="https://x.com/main/status/1" rel="noreferrer noopener">@main</a> (intentionally excluded from this draft)');
+  for (const output of [markdown, html]) {
+    expect(output).toContain('selected question');
+    expect(output).toContain('selected answer');
+    expect(output).not.toContain('omitted announcement prose');
+    expect(output).not.toContain('unrelated reply prose');
+    expect(output).not.toContain('https://example.test/image.jpg');
+    expect(output.match(/Reply parent unavailable/g)).toHaveLength(1);
+  }
+  expect(result.manifest.selection.selectedIds).toEqual(['question', 'answer', 'orphan']);
+  expect(result.manifest.omittedPostIds).toEqual(['1', 'sibling']);
+  expect(await Bun.file(join(result.directory, 'manifest.json')).json()).toEqual(result.manifest);
+  expect(await Bun.file(join(result.directory, 'capture.json')).json()).toEqual(original);
+  expect(JSON.stringify(original)).toBe(before);
+});
+
+test('an omitted unavailable parent keeps its acquisition status in the rendered draft', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'arena-thread-'));
+  dirs.push(dir);
+  const original = fixture();
+  original.posts[0]!.status = 'unavailable';
+  original.edges = [{ from: '1', to: '3', kind: 'reply' }];
+  const result = await writeThreadDraft(original, dir, { scope: 'tree', media: 'none', selectedIds: ['3'] });
+  for (const filename of ['thread.md', 'thread.html']) {
+    const output = await Bun.file(join(result.directory, filename)).text();
+    expect(output).toContain('Reply parent unavailable');
+    expect(output).not.toContain('intentionally excluded');
+  }
+});

@@ -24,6 +24,7 @@ export interface ThreadCapture {
   posts: ThreadPost[]; edges: ThreadEdge[]; coverage: ThreadCoverage;
   originals: { url: string; payload: unknown }[];
 }
+type ThreadRenderOptions = { excludedPosts?: Pick<ThreadPost, "id" | "url" | "author">[] };
 export interface ThreadCaptureOptions {
   fetch?: typeof fetch; signal?: AbortSignal; maxPosts?: number; depth?: number; parentHeight?: number;
   xManifest?: string[]; blueskyScope?: "chain" | "tree"; selectedAuthors?: string[]; maxRequests?: number; descriptions?: Record<string, ThreadDescription>;
@@ -269,14 +270,23 @@ function displayPosts(capture: ThreadCapture): ThreadPost[] {
   const quoteIds = new Set(capture.edges.filter(e => e.kind === "quote").map(e => e.to));
   return capture.posts.filter(p => !quoteIds.has(p.id) || p.url === capture.sourceUrl || capture.edges.some(e => e.kind !== "quote" && e.to === p.id)).sort((a,b) => { const timeA = Date.parse(a.postedAt ?? ""), timeB = Date.parse(b.postedAt ?? ""); return Number.isFinite(timeA) && Number.isFinite(timeB) ? timeA - timeB : 0; });
 }
-export function renderThreadMarkdown(capture: ThreadCapture): string {
+function replyRelation(capture: ThreadCapture, post: ThreadPost, options: ThreadRenderOptions, formatLink: (label: string, url: string) => string): string | undefined {
+  const reply = capture.edges.find(e => e.to === post.id && e.kind === "reply") ?? capture.edges.find(e => e.from === post.id && e.kind === "ancestor");
+  if (!reply) return undefined;
+  const parentId = reply.kind === "reply" ? reply.from : reply.to;
+  const parent = capture.posts.find(p => p.id === parentId);
+  if (parent) return `Reply to ${formatLink(`@${parent.author.handle}`, parent.url)}`;
+  const excluded = options.excludedPosts?.find(p => p.id === parentId);
+  return excluded ? `Reply to ${formatLink(`@${excluded.author.handle}`, excluded.url)} (intentionally excluded from this draft)` : "Reply parent unavailable";
+}
+export function renderThreadMarkdown(capture: ThreadCapture, options: ThreadRenderOptions = {}): string {
   const lines = ["# Thread capture", "", `Source: ${link(capture.sourceUrl, capture.sourceUrl)}`, `Captured: ${md(capture.capturedAt)}`, "", ...threadCoverageReport(capture).split("\n").map(line => `- ${md(line)}`), ""];
   const renderPost = (post: ThreadPost, visited: Set<string>, quoted: boolean): string[] => {
     if (visited.has(post.id)) return [link("Repeated quote — original post", post.url)];
     const path = new Set(visited).add(post.id);
       const body = [`${quoted ? "**" : "### "}${md(post.author.name || post.author.handle)}${quoted ? "**" : ""} \`@${post.author.handle.replace(/[`\\]/g, "")}\``, "", `${link("Original post", post.url)} · ${md(post.postedAt || "Date unavailable")}`, ""];
-    const reply = capture.edges.find(e => e.to === post.id && e.kind === "reply") ?? capture.edges.find(e => e.from === post.id && e.kind === "ancestor");
-    if (reply && !quoted) { const parent = capture.posts.find(p => p.id === (reply.kind === "reply" ? reply.from : reply.to)); body.push(parent ? `Reply to ${link(`@${parent.author.handle}`, parent.url)}` : "Reply parent unavailable", ""); }
+    const relation = !quoted && replyRelation(capture, post, options, link);
+    if (relation) body.push(relation, "");
     for (const e of capture.edges.filter(e => e.from === post.id && e.kind === "quote")) {
       const quote = capture.posts.find(p => p.id === e.to);
       body.push(...(quote ? renderPost(quote, path, true) : ["Quoted post unavailable"]).flatMap(line => line.split("\n").map(part => `> ${part}`)), "");
@@ -295,7 +305,7 @@ export function renderThreadMarkdown(capture: ThreadCapture): string {
   for (const post of displayPosts(capture)) lines.push(...renderPost(post, new Set(), false), "", "---", "");
   return lines.join("\n") + "\n";
 }
-export function renderThreadHtml(capture: ThreadCapture, options: { inlineImages?: Record<string, string> } = {}): string {
+export function renderThreadHtml(capture: ThreadCapture, options: ThreadRenderOptions & { inlineImages?: Record<string, string> } = {}): string {
   if (options.inlineImages) for (const image of Object.values(options.inlineImages)) if (!/^data:image\/(?:jpeg|png);base64,[A-Za-z0-9+/]+={0,2}$/.test(image)) throw new Error("Inline thread images must be base64 JPEG or PNG data URLs");
   const imageSource = (url: string) => options.inlineImages ? options.inlineImages[url] : safeUrl(url);
   const anchor = (label: string, url: string) => safeUrl(url) ? `<a href="${html(safeUrl(url)!)}" rel="noreferrer noopener">${html(label)}</a>` : html(label);
@@ -305,9 +315,8 @@ export function renderThreadHtml(capture: ThreadCapture, options: { inlineImages
     const quotes = capture.edges.filter(e => e.from === p.id && e.kind === "quote").map(e => {
       const quote = capture.posts.find(p => p.id === e.to); return `<blockquote>${quote ? renderPost(quote, path, true) : "Quoted post unavailable"}</blockquote>`;
     }).join("");
-    const reply = capture.edges.find(e => e.to === p.id && e.kind === "reply") ?? capture.edges.find(e => e.from === p.id && e.kind === "ancestor");
-    const parent = reply && capture.posts.find(p => p.id === (reply.kind === "reply" ? reply.from : reply.to));
-    const relation = reply && !quoted ? `<p class="relation">${parent ? `Reply to ${anchor(`@${parent.author.handle}`, parent.url)}` : "Reply parent unavailable"}</p>` : "";
+    const reply = !quoted && replyRelation(capture, p, options, anchor);
+    const relation = reply ? `<p class="relation">${reply}</p>` : "";
     return `<${quoted ? "section" : "article"}><h2>${html(p.author.name || p.author.handle)} <small>@${html(p.author.handle)}</small></h2><p>${anchor("Original post", p.url)} · ${html(p.postedAt || "Date unavailable")}</p>${relation}${quotes}<div class="text">${p.status === "available" ? p.segments.map(s => s.url ? anchor(s.text, s.url) : formattedHtml(s.text)).join("") : html(`[${p.status} — original content unavailable]`)}</div>${p.external ? `<aside><p>Embedded link: ${anchor(p.external.title || p.external.url, p.external.url)}</p><p>${html(p.external.description)}</p></aside>` : ""}${p.article ? `<div class="text article">${formattedHtml(p.article)}</div>` : ""}${p.media.map((m, n) => `<figure>${m.kind === "image" && imageSource(m.url) ? `<img src="${html(imageSource(m.url)!)}" alt="${html(m.alt || `Image ${n + 1}; no source alt text`)}" loading="lazy" referrerpolicy="no-referrer">` : anchor(`${m.kind === "image" ? "Image" : "Video"} ${n + 1}`, m.url)}<figcaption>${anchor(`Original ${m.kind} ${n + 1}`, m.url)}<p>Source alt text: ${html(m.alt || "Not supplied")}</p><p>${m.description ? `Visual description (${html(m.description.basis)}): ${html(m.description.text)}${m.description.evidence ? ` — Evidence: ${html(m.description.evidence)}` : ""}` : "Visual description: Pending image review; no visual claims made."}</p></figcaption></figure>`).join("")}</${quoted ? "section" : "article"}>`;
   };
   const posts = displayPosts(capture).map(p => renderPost(p, new Set(), false)).join("\n");

@@ -39,6 +39,8 @@ export async function writeThreadDraft(capture: ThreadCapture, directory: string
     },
   };
   const selectedMedia = view.posts.flatMap(post => post.media.map(media => ({ postId: post.id, url: media.url, kind: media.kind })));
+  const excludedPosts = capture.posts.filter(post => !ids.has(post.id) && post.status === "available")
+    .map(({ id, url, author }) => ({ id, url, author }));
   const manifest = {
     version: 1,
     source: capture.sourceUrl,
@@ -59,8 +61,8 @@ export async function writeThreadDraft(capture: ThreadCapture, directory: string
     const files = {
       "capture.json": JSON.stringify(capture, null, 2),
       "manifest.json": JSON.stringify(manifest, null, 2),
-      "thread.md": renderThreadMarkdown(view),
-      "thread.html": renderThreadHtml(view),
+      "thread.md": renderThreadMarkdown(view, { excludedPosts }),
+      "thread.html": renderThreadHtml(view, { excludedPosts }),
       "coverage.txt": threadCoverageReport(capture),
     };
     for (const [name, data] of Object.entries(files)) {
