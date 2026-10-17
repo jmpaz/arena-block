@@ -106,6 +106,7 @@ describe("Mastodon resolution", () => {
     const boosted = await resolver({ ...status, reblog: original }).resolve.resolve([source]);
     expect(boosted[0]!.canonicalUrl).toBe(original.url);
     expect(boosted[0]!.author.handle).toBe("bob@origin.example");
+    expect(composePlan(boosted).block.selectedMedia).toEqual(["1.1"]);
     const quoteContent = '<p class="quote-inline">RE: <a href="https://origin.example/@bob/456">original</a></p><p>My response.</p>';
     const quoted = await resolver({ ...status, content: quoteContent, quote: { state: "accepted", quoted_status: original } }).resolve.resolve([source]);
     expect(quoted[0]!.quote!.media[0]!.ref).toBe("1.1");
@@ -113,7 +114,8 @@ describe("Mastodon resolution", () => {
     expect(plan.block.markdown).toContain("> Quoted text.");
     expect(plan.block.markdown).not.toContain("RE:");
     expect(plan.block.markdown).toContain("My response.");
-    expect(plan.block.selectedMedia).toEqual(["1.1"]);
+    expect(plan.block.selectedMedia).toEqual([]);
+    expect(composePlan(quoted, { media: "images" }).block.selectedMedia).toEqual(["1.1"]);
     expect(composePlan(quoted, { quote: "omit" }).block.markdown).not.toContain("Quoted text.");
     for (const state of ["pending", "revoked", "unauthorized", "future-state"]) {
       const posts = await resolver({ ...status, quote: { state, quoted_status: original } }).resolve.resolve([source]);
