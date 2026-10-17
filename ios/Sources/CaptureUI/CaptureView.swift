@@ -150,22 +150,24 @@ public struct CaptureRootView: View {
                 if phase == .background { session.releaseStoreForSuspension() }
             }
         }
-        .task {
-            #if DEBUG
-            session.logLockState("sceneTask")
-            #endif
-            guard let ticket = session.foregroundWorkTicket else { return }
-            if scenePhase == .active && !isExtension {
-                do { try session.prepareForegroundDelivery() } catch { session.problem = error.localizedDescription }
-            }
-            await session.resumeForegroundDelivery(ifAdmitted: ticket)
-            guard session.allowsForegroundWork(ticket) else { return }
-            refreshContinuationOffer()
-            if session.draft?.phase == .editing && session.draft?.input.isEmpty == false { session.resolve() }
-            acknowledgeSave()
-            offerClipboard()
-        }
+        .task { await resumeForegroundOnAppearance() }
         .onDisappear { resetCompositionPreview() }
+    }
+
+    @MainActor private func resumeForegroundOnAppearance() async {
+        #if DEBUG
+        session.logLockState("sceneTask")
+        #endif
+        guard let ticket = session.foregroundWorkTicket else { return }
+        if scenePhase == .active && !isExtension {
+            do { try session.prepareForegroundDelivery() } catch { session.problem = error.localizedDescription }
+        }
+        await session.resumeForegroundDelivery(ifAdmitted: ticket)
+        guard session.allowsForegroundWork(ticket) else { return }
+        refreshContinuationOffer()
+        if session.draft?.phase == .editing && session.draft?.input.isEmpty == false { session.resolve() }
+        acknowledgeSave()
+        offerClipboard()
     }
 
     private var fixtureColorScheme: ColorScheme? {

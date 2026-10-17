@@ -22,30 +22,42 @@ private enum CaptureAppLaunchPolicy {
 @MainActor
 struct CaptureApp: App {
     @UIApplicationDelegateAdaptor(CaptureApplicationDelegate.self) private var applicationDelegate
-    private static var storageAuditOnly: Bool { CaptureAppLaunchPolicy.storageAuditOnly }
     var body: some Scene {
         WindowGroup {
-            Group {
-            if Self.storageAuditOnly { CaptureStorageAuditView() }
-            else if applicationDelegate.launchGate.isolatedReport {
-                CaptureStorageReportView(owner: applicationDelegate)
-            } else if let session = applicationDelegate.visibleSession {
-                CaptureRootView(session: session, storageReport: { applicationDelegate.requestStorageReport() })
-                    .sheet(isPresented: Binding(get: { applicationDelegate.launchGate.destination == .report }, set: { _ in })) {
-                        CaptureStorageReportView(owner: applicationDelegate).interactiveDismissDisabled()
+            CaptureApplicationView(owner: applicationDelegate)
+        }
+    }
+}
+
+private struct CaptureApplicationView: View {
+    @ObservedObject var owner: CaptureApplicationDelegate
+    var body: some View {
+        Group {
+            if CaptureAppLaunchPolicy.storageAuditOnly { CaptureStorageAuditView() }
+            else if owner.launchGate.isolatedReport {
+                CaptureStorageReportView(owner: owner)
+            } else if let session = owner.visibleSession {
+                CaptureRootView(session: session, storageReport: { owner.requestStorageReport() })
+                    .sheet(isPresented: Binding(get: { owner.launchGate.destination == .report }, set: { _ in })) {
+                        CaptureStorageReportView(owner: owner).interactiveDismissDisabled()
                     }
-            }
-            else if let problem = applicationDelegate.startupError {
+            } else if let problem = owner.startupError {
                 ContentUnavailableView("Capture could not open", systemImage: "exclamationmark.triangle", description: Text(problem))
             } else { ProgressView("Opening Capture") }
-            }
-            .onOpenURL { url in applicationDelegate.receive(url) }
         }
+        .onOpenURL { url in owner.receive(url) }
     }
 }
 
 @MainActor
 final class CaptureApplicationDelegate: NSObject, UIApplicationDelegate, ObservableObject {
+    private static func trace(_ value: String) {
+        #if DEBUG && targetEnvironment(simulator)
+        if ProcessInfo.processInfo.environment["CAPTURE_UI_FIXTURE"] != nil {
+            Logger(subsystem: "org.arenacapture", category: "launch-qualification").notice("\(value, privacy: .public)")
+        }
+        #endif
+    }
     private static var storageAuditOnly: Bool { CaptureAppLaunchPolicy.storageAuditOnly }
     private static weak var current: CaptureApplicationDelegate?
     private static var earlyLaunchGate = CaptureStorageLaunchGate()
@@ -69,20 +81,29 @@ final class CaptureApplicationDelegate: NSObject, UIApplicationDelegate, Observa
     }
 
     func receive(_ url: URL) {
+        Self.trace("receive report=\(CaptureLaunchPolicy.storageReportURL(url, scheme: Self.callbackScheme)) normal=\(launchGate.normalWorkAdmitted)")
         if CaptureLaunchPolicy.storageReportURL(url, scheme: Self.callbackScheme) { requestStorageReport() }
     }
 
     func application(_ application: UIApplication, configurationForConnecting connectingSceneSession: UISceneSession,
                      options: UIScene.ConnectionOptions) -> UISceneConfiguration {
+        Self.trace("configuration urls=\(options.urlContexts.count)")
+        let configuration = UISceneConfiguration(name: nil, sessionRole: connectingSceneSession.role)
+        configuration.delegateClass = CaptureSceneDelegate.self
+        return configuration
+    }
+
+    static func connectScene(options: UIScene.ConnectionOptions) {
+        trace("willConnect urls=\(options.urlContexts.count)")
+        guard let owner = current, !storageAuditOnly else { return }
         let diagnostic = options.urlContexts.contains { CaptureLaunchPolicy.storageReportURL($0.url, scheme: Self.callbackScheme) }
-        if diagnostic { requestStorageReport() }
-        launchGate.connectScene(reportRequested: diagnostic)
-        if launchGate.destination == .capture { openCapture() }
-        // Keep SwiftUI's scene configuration and delegate intact.
-        return connectingSceneSession.configuration
+        if diagnostic { owner.requestStorageReport() }
+        owner.launchGate.connectScene(reportRequested: diagnostic)
+        if owner.launchGate.destination == .capture { owner.openCapture() }
     }
 
     func requestStorageReport() {
+        Self.trace("requestReport normal=\(launchGate.normalWorkAdmitted)")
         Self.session?.holdForegroundForStorageReport()
         launchGate.requestReport()
     }
@@ -114,6 +135,7 @@ final class CaptureApplicationDelegate: NSObject, UIApplicationDelegate, Observa
     }
 
     static func makeSession(background: Bool = false) throws -> CaptureSession {
+        trace("makeSession background=\(background)")
         guard !storageAuditOnly else { throw CaptureError.message("Read-only storage inspection is active.") }
         let admitted: Bool
         if let current { admitted = current.launchGate.admitNormalWork(background: background) }
@@ -126,12 +148,12 @@ final class CaptureApplicationDelegate: NSObject, UIApplicationDelegate, Observa
         created.scheduleRecovery = { scheduleRecovery() }
         created.beginSubmission = { beginSubmission() }
         if #available(iOS 26.0, *) {
-            let coordinator = CaptureContinuedCoordinator(session: created)
+            let coordinator = continuedCoordinator ?? CaptureContinuedCoordinator()
             continuedCoordinator = coordinator
+            coordinator.attach(created)
             created.startContinuedProcessing = { [weak coordinator] id in coordinator?.start(id) }
             created.cancelContinuedProcessing = { [weak coordinator] id in coordinator?.cancel(id) }
             created.deliveryDidChange = { [weak coordinator] in coordinator?.refresh() }
-            coordinator.registerPersisted()
         }
         session = created
         current?.visibleSession = created
@@ -139,7 +161,14 @@ final class CaptureApplicationDelegate: NSObject, UIApplicationDelegate, Observa
     }
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        Self.trace("didFinish state=\(application.applicationState.rawValue) url=\(launchOptions?[.url] != nil)")
         guard !Self.storageAuditOnly else { return true }
+        if let url = launchOptions?[.url] as? URL { receive(url) }
+        if #available(iOS 26.0, *) {
+            let coordinator = Self.continuedCoordinator ?? CaptureContinuedCoordinator()
+            Self.continuedCoordinator = coordinator
+            coordinator.registerPendingRequests()
+        }
         BGTaskScheduler.shared.register(forTaskWithIdentifier: Self.recoveryIdentifier, using: nil) { task in
             let work = Task { @MainActor in
                 guard Self.current?.launchGate.isolatedReport != true else {
@@ -157,10 +186,14 @@ final class CaptureApplicationDelegate: NSObject, UIApplicationDelegate, Observa
             }
             task.expirationHandler = { work.cancel() }
         }
-        // Background-only launches have no scene connection. They still need
-        // the existing recovery and per-receipt continued-task registrations.
-        if application.applicationState == .background { _ = try? Self.makeSession(background: true) }
+        // A foreground URL launch can still report .background here. Admit a
+        // session from classified scene options or an actual background callback.
         return true
+    }
+
+    static func sessionForContinuedTask() throws -> CaptureSession {
+        if current?.launchGate.destination == .report { current?.storageReportInterference += 1 }
+        return try makeSession(background: true)
     }
 
     func applicationDidBecomeActive(_ application: UIApplication) {
@@ -224,6 +257,15 @@ final class CaptureApplicationDelegate: NSObject, UIApplicationDelegate, Observa
     }
 }
 
+/// A restored scene also receives connection options here. Scene configuration is
+/// requested only when UIKit creates a session, so it cannot own launch admission.
+@MainActor
+final class CaptureSceneDelegate: NSObject, UIWindowSceneDelegate {
+    func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
+        CaptureApplicationDelegate.connectScene(options: connectionOptions)
+    }
+}
+
 /// Internal diagnostic launch path. It deliberately bypasses CaptureSession and
 /// background recovery so inspecting storage cannot resume queued saves.
 private struct CaptureStorageAuditView: View {
@@ -279,7 +321,24 @@ private final class CaptureContinuedCoordinator {
     private var displayed: [UUID: CaptureContinuedProgress] = [:]
     private let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Capture", category: "continued-save")
 
-    init(session: CaptureSession) { self.session = session }
+    func attach(_ session: CaptureSession) {
+        self.session = session
+        registerPersisted()
+    }
+
+    func registerPendingRequests() {
+        // System request metadata is enough to restore launch handlers. Reading
+        // Capture's database here would admit a session before scene URL delivery.
+        BGTaskScheduler.shared.getPendingTaskRequests { [weak self] requests in
+            Task { @MainActor in
+                let bundle = Bundle.main.bundleIdentifier ?? "capture"
+                for request in requests {
+                    guard let identity = CaptureContinuedTaskIdentity(identifier: request.identifier, bundleIdentifier: bundle) else { continue }
+                    _ = self?.register(identity.operationID, receipt: identity.receiptID, retainedIdentifier: request.identifier)
+                }
+            }
+        }
+    }
 
     private func identifier(_ id: UUID, receipt: UUID) -> String {
         (Bundle.main.bundleIdentifier ?? "capture") + ".save." + id.uuidString + (receipt == id ? "" : "." + receipt.uuidString)
@@ -291,13 +350,17 @@ private final class CaptureContinuedCoordinator {
         }
     }
 
-    private func register(_ id: UUID, receipt: UUID) -> Bool {
-        let name = identifier(id, receipt: receipt)
+    private func register(_ id: UUID, receipt: UUID, retainedIdentifier: String? = nil) -> Bool {
+        let name = retainedIdentifier ?? identifier(id, receipt: receipt)
         guard !registered.contains(name) else { return true }
         let accepted = BGTaskScheduler.shared.register(forTaskWithIdentifier: name, using: .main) { [weak self] raw in
             MainActor.assumeIsolated {
                 guard let continued = raw as? BGContinuedProcessingTask else { raw.setTaskCompleted(success: false); return }
-                self?.handle(continued, id: id, receipt: receipt)
+                guard let self else { raw.setTaskCompleted(success: false); return }
+                do {
+                    if self.session == nil { _ = try CaptureApplicationDelegate.sessionForContinuedTask() }
+                    self.handle(continued, id: id, receipt: receipt)
+                } catch { raw.setTaskCompleted(success: false) }
             }
         }
         if accepted { registered.insert(name) }

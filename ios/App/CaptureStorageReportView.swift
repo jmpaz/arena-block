@@ -24,6 +24,22 @@ struct CaptureStorageReportView: View {
 
     private var normalAlreadyActive: Bool { owner.launchGate.normalWorkAdmitted }
 
+    private func sharedContainer(main: URL) -> URL? {
+        #if DEBUG && targetEnvironment(simulator)
+        if ProcessInfo.processInfo.environment["CAPTURE_UI_FIXTURE"] != nil,
+           let name = ProcessInfo.processInfo.environment["CAPTURE_UI_STORE_ID"], let id = UUID(uuidString: name) {
+            // An unsigned fixture has no App Group container. Collection may
+            // create its empty synthetic root, but never initializes a store.
+            let root = main.appendingPathComponent("Library/Application Support/CaptureUIFixtures")
+                .appendingPathComponent(id.uuidString, isDirectory: true)
+            try? FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+            return root
+        }
+        #endif
+        guard let group = Bundle.main.object(forInfoDictionaryKey: "CaptureAppGroup") as? String else { return nil }
+        return FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: group)
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -70,11 +86,13 @@ struct CaptureStorageReportView: View {
                 Section {
                     Button("Open Capture") { openCapture = true }
                         .disabled(worker != nil)
+                        .accessibilityIdentifier("storage-report.open")
                 }
             }
             .navigationTitle("Storage report")
             .confirmationDialog("Open Capture?", isPresented: $openCapture, titleVisibility: .visible) {
                 Button("Open Capture") { cancel(); owner.openCapture(resumeForeground: true) }
+                    .accessibilityIdentifier("storage-report.confirm-open")
             } message: { Text("Opening Capture can resume existing saves.") }
             .fileExporter(isPresented: $exporting, document: document, contentType: .json,
                           defaultFilename: "Capture-storage-report") { result in
@@ -94,15 +112,21 @@ struct CaptureStorageReportView: View {
         guard normalAlreadyActive || owner.storageReportInterference == 0 else {
             status = "A background save interrupted collection. Open Capture to continue the save."; return
         }
-        guard let group = Bundle.main.object(forInfoDictionaryKey: "CaptureAppGroup") as? String,
-              let shared = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: group) else {
+        let main = URL(fileURLWithPath: NSHomeDirectory(), isDirectory: true)
+        guard let shared = sharedContainer(main: main) else {
             status = "Could not read shared storage. Try opening Capture again."; return
         }
-        let main = URL(fileURLWithPath: NSHomeDirectory(), isDirectory: true)
         let active = normalAlreadyActive, token = UUID()
         generation = token; report = nil; document = nil; status = nil
+        #if DEBUG && targetEnvironment(simulator)
+        let fixtureDelay = ProcessInfo.processInfo.environment["CAPTURE_UI_FIXTURE"] == nil ? 0
+            : min(5_000, max(0, Int(ProcessInfo.processInfo.environment["CAPTURE_UI_STORAGE_REPORT_DELAY_MS"] ?? "0") ?? 0))
+        #endif
         let task = Task.detached(priority: .utility) {
-            try CaptureStorageExport.collect(main: main, shared: shared, normalCaptureAlreadyActive: active)
+            #if DEBUG && targetEnvironment(simulator)
+            if fixtureDelay > 0 { try await Task.sleep(for: .milliseconds(fixtureDelay)) }
+            #endif
+            return try CaptureStorageExport.collect(main: main, shared: shared, normalCaptureAlreadyActive: active)
         }
         worker = task
         Task { @MainActor in
@@ -115,7 +139,8 @@ struct CaptureStorageReportView: View {
                 status = value.problems.isEmpty ? "Report ready. Background transfers are outside this report." : "Report ready with incomplete results. Review its reported limits."
             } catch {
                 guard generation == token else { return }
-                status = "Collection stopped or reached a limit. Try creating another report."
+                // cancel() already records the cancellation or interruption reason.
+                if !task.isCancelled { status = "Collection stopped or reached a limit. Try creating another report." }
             }
             if generation == token { worker = nil }
         }
