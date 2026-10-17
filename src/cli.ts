@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 import { planMedia } from "../packages/core/media-tree.ts";
+import { selectedPostMediaPolicy } from "./cli-media.ts";
 import { snapshotDefaultChannel } from "./provenance-schema.ts";
 import { copyFile, open } from "node:fs/promises";
 import { join } from "node:path";
@@ -149,7 +150,7 @@ async function localPlan(values: string[], options: Options): Promise<{ plan: Bl
   if (refs.length > 20) throw new Error("At most 20 source posts are supported");
   const composition = policy(options, refs.length);
   const resolved = await resolver.resolveComposition(inputs.refs, extras, composition);
-  const plan = composePlan(resolved.posts, resolved.policy);
+  const plan = composePlan(resolved.posts, selectedPostMediaPolicy(resolved.posts, resolved.policy));
   return { plan, destinations: inputs.destinations };
 }
 
@@ -165,7 +166,7 @@ function addCompositionOptions(command: Command, extras = true): Command {
   return command
     .option("--substack-capture <path>", "read a retained Substack source record; repeatable", (value, values: string[]) => [...values, value], [])
     .option("--reddit-capture <path>", "read a retained Reddit source record; repeatable", (value, values: string[]) => [...values, value], [])
-    .option("--media <mode>", "auto (root media), none, all, images, video, audio, indexes (1+4), or refs (1.1,1.4)", "auto")
+    .option("--media <mode>", "auto, none, all, images, video, audio, indexes (1+4) or refs (1.1,1.4); all/types exclude quote-only media", "auto")
     .option("--frame <refs>", "use source poster frames for video refs, such as 1.1,2.1")
     .option("--video-frame-threshold <seconds>", "use source posters above this duration; 1-600 seconds, default 600")
     .addOption(new Option("-t, --thread-expansion", "include available x.com, Bluesky, Delvetown or Substack chains, or Forum Magnum replies").default(false, "off"))

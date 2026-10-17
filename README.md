@@ -60,7 +60,9 @@ Enter primary links in reading order. `--extra` adds supplementary media while t
 
 New CLI compositions read the supplied posts. Add `-t` to request a supported thread or author chain. The iOS editor enables thread import for new supported single-source captures and retains your choice. Expansion depends on the provider's returned relationships and available replies. See [CLI thread options](docs/cli-thread-options.md).
 
-Fresh **Auto** captures select root-post media. Include quoted media through **All** or individual selections. Quote text, depth and dates have separate controls. Saved explicit selections remain effective. Images form a JPEG mosaic; videos form an MP4 mosaic. Poster frames and soundtracks can be selected before rendering. An available original SoundCloud or Substack audio file can be saved alone without conversion.
+Fresh **Auto** captures leave quoted media unselected. In the CLI, `--media all` includes every attachment from all selected posts, including expanded thread members and explicit media extras. Type selectors use the same scope. Media belonging only to quotes requires an explicit choice such as `--media 1.2`. Quote text stays included. See [CLI media choices](docs/cli-media-options.md). Saved plans keep their frozen choices.
+
+Images form a JPEG mosaic; videos form an MP4 mosaic. Poster frames and soundtracks can be selected before rendering. An available original SoundCloud or Substack audio file can be saved alone without conversion.
 
 Use `--quote-author-link source` to link quoted authors to their posts, or `plain` for unlinked names. Omission preserves the platform's existing presentation. The [quote options](docs/cli-quote-options.md) and [client controls](docs/quoted-author-links.md) describe compatibility and saved-plan behavior.
 
