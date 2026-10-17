@@ -27,9 +27,9 @@ const articleSchema = z.object({
 });
 const escape = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 function url(value: unknown): string {
-  if (typeof value !== "string") throw new Error("X article resource has no URL");
+  if (typeof value !== "string") throw new Error("x.com article resource has no URL");
   const parsed = new URL(value);
-  if (!["https:", "http:"].includes(parsed.protocol) || parsed.username || parsed.password) throw new Error("Invalid X article resource URL");
+  if (!["https:", "http:"].includes(parsed.protocol) || parsed.username || parsed.password) throw new Error("Invalid x.com article resource URL");
   return escape(value);
 }
 const converter = new TurndownService({ headingStyle: "atx", bulletListMarker: "-", codeBlockStyle: "fenced" });
@@ -78,7 +78,7 @@ export function articleMarkdown(value: unknown): string {
           html += `<pre data-article-markdown="true">${escape(item.data.markdown)}</pre>`;
           continue;
         }
-        if (item?.type !== "MEDIA" || !Array.isArray(item.data.mediaItems)) throw new Error("Unsupported X article embed");
+        if (item?.type !== "MEDIA" || !Array.isArray(item.data.mediaItems)) throw new Error("Unsupported x.com article embed");
         for (const raw of item.data.mediaItems) {
           const id = z.object({ mediaId: z.string() }).parse(raw).mediaId;
           const resource = media.get(id);

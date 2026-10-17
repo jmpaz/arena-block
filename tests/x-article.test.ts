@@ -63,7 +63,7 @@ test("leaves bare URLs bare and retains inline media in reading order", () => {
 test("rejects previews, missing media, and unsafe links instead of silently losing content", () => {
   expect(() => articleMarkdown({ title: "Preview", preview_text: "Incomplete" })).toThrow();
   expect(() => articleMarkdown(article([block(" ", "atomic", { entityRanges: [{ key: 1, offset: 0, length: 1 }] })]))).toThrow();
-  expect(() => articleMarkdown(article([block("link", "unstyled", { entityRanges: [{ key: 0, offset: 0, length: 4 }] })], { "0": { type: "LINK", data: { url: "javascript:alert(1)" } } }))).toThrow();
+  expect(() => articleMarkdown(article([block("link", "unstyled", { entityRanges: [{ key: 0, offset: 0, length: 4 }] })], { "0": { type: "LINK", data: { url: "javascript:alert(1)" } } }))).toThrow("Invalid x.com article resource URL");
 });
 
 test("preserves video links, captions, raw Swift code, dividers and embedded tweets", () => {

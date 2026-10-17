@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Capture a reviewed public X composition with fake channel browsing, no save."""
+"""Capture a reviewed public x.com composition with fake channel browsing, no save."""
 import argparse
 import base64
 import json
@@ -83,10 +83,10 @@ def main():
                     try:
                         wait_for(lambda: page.evaluate("document.querySelector('#composition-fields')?.hidden === false"), 45)
                     except RuntimeError as error:
-                        raise RuntimeError("Public X preview did not resolve: " +
+                        raise RuntimeError("Public x.com preview did not resolve: " +
                             str(page.evaluate("document.querySelector('#status').textContent"))) from error
                     if page.evaluate("document.querySelector('#source-count').textContent") != "4 sources":
-                        raise RuntimeError("Public X preview lost thread sources")
+                        raise RuntimeError("Public x.com preview lost thread sources")
                     wait_for(lambda: page.evaluate("document.querySelector('#capture-preview-image').naturalWidth>0"), 10)
                     page.command("Emulation.setDeviceMetricsOverride", {"width": 380, "height": 520,
                         "deviceScaleFactor": 1, "mobile": False})

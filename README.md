@@ -36,7 +36,7 @@ Reading pages preserve source scale when they fit the configured canvas. Wallpap
 
 | Provider | Supported input and limits |
 |---|---|
-| X | Post permalinks, complete public article responses and available author threads through FxTwitter |
+| x.com | Post permalinks, complete public article responses and available author threads through FxTwitter |
 | Bluesky, [Delvetown](https://delve.town) | Post links or collection-specific `at://` URIs through public AppViews and records |
 | Mastodon | Public HTTPS post permalinks through the instance's status API; boosts resolve to the original post |
 | Reddit | Direct public post/comment JSON where available; denied requests stop capture |
@@ -64,7 +64,7 @@ Fresh **Auto** captures select root-post media. Include quoted media through **A
 
 Use `--quote-author-link source` to link quoted authors to their posts, or `plain` for unlinked names. Omission preserves the platform's existing presentation. The [quote options](docs/cli-quote-options.md) and [client controls](docs/quoted-author-links.md) describe compatibility and saved-plan behavior.
 
-Source URLs, authors, dates and original records remain available in the plan. Acquisition notes stay in source records. They are excluded from published writing. AT Protocol links and mentions use verified facet ranges; X article prose goes into block text, with its accompanying post text in the description. Missing or incomplete required source data returns an error.
+Source URLs, authors, dates and original records remain available in the plan. Acquisition notes stay in source records. They are excluded from published writing. AT Protocol links and mentions use verified facet ranges; x.com article prose goes into block text, with its accompanying post text in the description. Missing or incomplete required source data returns an error.
 
 ## Saving and recovery
 

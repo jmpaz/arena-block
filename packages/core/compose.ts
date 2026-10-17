@@ -131,7 +131,7 @@ function renderSequence(posts: ResolvedPost[], policy: CompositionPolicy, frameR
       && sourceAuthor(post) === sourceAuthor(previous) && post.replyTo?.id === previous.id;
     const hasCarriedReplyAddress = sameAuthorReply && !post.quote
       && post.replyAddressPrefix && post.text.startsWith(post.replyAddressPrefix);
-    // Only omit X's reply-address run for a verified adjacent same-author
+    // Only omit x.com's reply-address run for a verified adjacent same-author
     // thread reply. Quote bodies, roots, mixed speakers and inline mentions
     // remain literal source text.
     const body = renderPost(hasCarriedReplyAddress ? { ...post, text: post.text.slice(post.replyAddressPrefix!.length) } : post,
