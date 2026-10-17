@@ -10,4 +10,6 @@ Optional connection metadata uses a configured private default destination. The 
 
 A repeated UUID must use the original input. If a later attempt supplies changed content, the client requires a new UUID. During recovery, the daemon checks the block and channel scan before creating or updating another remote result.
 
+If an older daemon reports an inactive, authenticated save as `not_saved` without a receipt, creation attempt or error, the CLI checks the retained destinations with read-only requests. A confirmed channel HTTP 401, 403 or 404 appears as a separate diagnosis. Correct an unavailable destination in a new save after inspecting the original status; retrying the old UUID keeps its original destination.
+
 The legacy `remoteInbox` option is accepted when reading older configuration. New configuration uses `defaultChannel`. The example files contain channel placeholders and environment variable references. Supply account-specific settings through private configuration.

@@ -15,6 +15,7 @@ import { credentialProfile } from "./config.ts";
 type Fetcher = (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => ReturnType<typeof fetch>;
 
 export class PublicationError extends Error {
+  destinationUnavailable?: boolean;
   constructor(message: string, readonly receipt?: PublicationReceipt, readonly attempt?: CreationAttempt, readonly saveStatus?: SaveStatus,
     readonly userInterrupted = false) { super(message); }
 }
@@ -322,9 +323,9 @@ export class ArenaBlockClient {
     return status;
   }
 
-  async retainedIntent(id: string) {
+  async retainedIntent(id: string, signal?: AbortSignal) {
     z.uuid().parse(id);
-    const intent = retainedIntentSchema.parse(await this.request(`/v1/saves/${id}/intent`));
+    const intent = retainedIntentSchema.parse(await this.request(`/v1/saves/${id}/intent`, undefined, signal));
     if (intent.snapshot.saveId !== id) throw new Error("Retained intent does not match its save UUID");
     return intent;
   }
