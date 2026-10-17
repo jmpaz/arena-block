@@ -63,7 +63,7 @@ extension QuotedAVMediaTests {
             let frozen = try fixture(name), runtime = try CaptureRuntime()
             let input = try XCTUnwrap(frozen["sources"])
             let encoded = String(decoding:try JSONEncoder().encode(input),as:UTF8.self)
-            let output = try runtime.compose(postsJSON:encoded,policyJSON:#"{"videoFrameThresholdSeconds":60,"threadExpansion":"off"}"#)
+            let output = try runtime.compose(postsJSON:encoded,policyJSON:#"{"media":"all","videoFrameThresholdSeconds":60,"threadExpansion":"off"}"#)
             let plan = try XCTUnwrap(JSONDecoder().decode(JSONValue.self,from:Data(output.utf8))["plan"])
             XCTAssertEqual(plan["block"]?["kind"]?.string,"link")
             let owners = CaptureMediaTree.sources(inPlan:plan)
