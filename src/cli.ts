@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { planMedia } from "../packages/core/media-tree.ts";
 import { selectedPostMediaPolicy } from "./cli-media.ts";
+import { diagnoseSaveDestinations } from "./save-diagnostics.ts";
 import { snapshotDefaultChannel } from "./provenance-schema.ts";
 import { copyFile, open } from "node:fs/promises";
 import { join } from "node:path";
@@ -423,7 +424,11 @@ program.command("mcp").description("Run the private MCP server over stdio")
   });
 
 program.command("save-status").description("Read a retained save by UUID").argument("<save-id>")
-  .action(async (id: string) => console.log(JSON.stringify(await client().saveStatus(id), null, 2)));
+  .action(async (id: string) => {
+    const daemon = client(), status = await daemon.saveStatus(id);
+    const diagnosis = await diagnoseSaveDestinations(daemon, status);
+    console.log(JSON.stringify({ ...status, ...(diagnosis ? { diagnosis } : {}) }, null, 2));
+  });
 program.command("cancel-save").description("Stop active work and retain completed saves").argument("<save-id>")
   .action(async (id: string) => console.log(JSON.stringify(await client().cancelSave(id), null, 2)));
 addReceiptOptions(program.command("retry-save").description("Retry a retained save with its original UUID and plan").argument("<save-id>"))
@@ -539,7 +544,7 @@ program.command("serve").description("Run the HTTP service").action(async () => 
 
 function saveRecovery(error: PublicationError): string | undefined {
   const status = error.saveStatus;
-  if (!status || status.failure?.code === "retained_recovery") return undefined;
+  if (!status || error.destinationUnavailable || status.failure?.code === "retained_recovery") return undefined;
   if (status.failure?.retryable === false) {
     if (status.phase === "not_saved" && !status.active && !status.receipt && !status.attempt
       && status.failure.code === "media_budget" && status.failure.message.startsWith("Mosaic selection is too dense"))
@@ -597,6 +602,10 @@ function threadExpansionArguments(args: string[]): string[] {
 configureCliHelp(program);
 
 Promise.resolve().then(() => program.parseAsync(threadExpansionArguments(process.argv.slice(2)), { from: "user" })).catch(async (error) => {
+  if (error instanceof PublicationError && error.saveStatus && !error.userInterrupted) {
+    const diagnosis = await diagnoseSaveDestinations(client(), error.saveStatus);
+    if (diagnosis) { error.message = diagnosis.message; error.destinationUnavailable = true; }
+  }
   if (error instanceof PublicationError && error.userInterrupted) {
     console.error(error.message);
     const receipt = error.receipt ?? error.saveStatus?.receipt;
