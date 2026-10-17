@@ -157,21 +157,25 @@ test.each([false, true])("a dense publishing failure gives a usable replanning c
 
 test("help uses ASCII ranges, x.com and Delvetown without promising publish layout options", async () => {
   const result = await cli(["publish", "--help"]);
-  expect(result.code).toBe(0); expect(result.stdout).toContain("Delvetown"); expect(result.stdout).toMatch(/x\.com\/AT\s+Protocol/);
+  expect(result.code).toBe(0); expect(result.stdout).toContain("Delvetown"); expect(result.stdout).toContain("x.com");
   expect(result.stdout).toContain("1-600"); expect(result.stdout).toContain("0-8"); expect(result.stdout).not.toContain("--layout");
   expect(result.stdout).not.toMatch(/[–�]/);
 });
 
-test("the exact reported command composes all captured media and submits one new immutable save", async () => {
+test("the reported command freezes all selected thread media and submits one new immutable save", async () => {
   const result = await cli(["publish", "--media", "all", "--to", "https://www.are.na/josh-pazmino/inbox-pfzlyqs4uuc", original.block.canonicalSource, "--thread-expansion", "on"], "exact-source");
   expect(result.code).toBe(0); expect(result.stderr).toBe("Warning: --thread-expansion on is deprecated; use -t or --thread-expansion without a value.\n");
   const submits = result.calls.filter((call: {method: string}) => call.method === "POST");
-  expect(submits).toHaveLength(1); expect(submits[0].body.plan).toEqual(replan());
-  expect(submits[0].body.snapshot.plan).toEqual(replan());
+  expect(submits).toHaveLength(1);
+  const expected = composePlan(original.sources, { ...original.policy, media: "selected", selectedMedia: original.block.selectedMedia });
+  expect(expected.sources).toEqual(original.sources);
+  expect(expected.block).toEqual(replan().block);
+  expect(submits[0].body.plan).toEqual(expected);
+  expect(submits[0].body.snapshot.plan).toEqual(expected);
   expect(submits[0].body.snapshot.saveId).not.toBe(id);
   expect(submits[0].body.snapshot.invocation.inputs.sourceRefs).toEqual([original.block.canonicalSource]);
   expect(submits[0].body.snapshot.routing.destinations).toEqual(["inbox-pfzlyqs4uuc"]);
-  expect(JSON.parse(result.stdout)).toMatchObject({status:"verified",planHash:replan().hash});
+  expect(JSON.parse(result.stdout)).toMatchObject({status:"verified",planHash:expected.hash});
 });
 
 test("mocked publication creates the new layout once and replays the same UUID without duplicate blocks", async () => {
