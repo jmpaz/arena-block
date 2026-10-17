@@ -70,8 +70,10 @@ A changed response requires review before fixture updates. Compare the source te
 
 ## Recorded observations and remaining checks
 
-The October 16, 2026 live check read c-360337718 and c-357819575 in two public HTML requests. Both returned 200 and passed the semantic comparison. Response hashes and results are retained in [`live-observation-20261016.json`](../tests/fixtures/substack-contracts/live-observation-20261016.json). Other source cases require separate live reads to establish their current availability.
+The October 17, 2026 live check passed all 11 selected catalog cases through 24 public requests. Complete projected writing, authors, quote order, media and attachment fields matched the contracts. Response hashes and results are retained in [`live-observation-20261017.json`](../tests/fixtures/substack-contracts/live-observation-20261017.json). The [October 16 density/grid observation](../tests/fixtures/substack-contracts/live-observation-20261016.json) remains available separately.
 
 The saved Lucy Ives example, [block 51476348](https://www.are.na/block/51476348), contains the outer prose and both nested quotations. Inspecting that result establishes saved writing; native preview rendering requires its own receiving check.
+
+The October 17 simulator [fresh-share fixture](../ios/UITests/SubstackActualNotesUITests.swift) read four public Notes, checked their titles and nested writing, and rendered the Lucy Ives/Colly image composition after explicitly selecting the quoted image. This exercises the app's Share presentation; it does not establish host-app Share behavior on a phone.
 
 Fixture checks cover the selected Note text and attachment records. Verify physical Share behavior, playback, media quality, native Frame composition and audio export separately. A standalone native audio-upload Note remains unverified. Upstream edits, source availability and changed page structures can require further investigation.

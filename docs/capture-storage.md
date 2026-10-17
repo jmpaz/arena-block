@@ -8,7 +8,7 @@ In Settings, choose **Export storage report**, then **Create report**. After col
 
 The collector reads file metadata and record references within time, size and count limits. It hashes paths and record IDs for comparison, keeping authored text and credentials out of the export. Large media files are measured through metadata. The report identifies incomplete scans and changes during collection.
 
-Opening the report pauses new automatic foreground checks until you confirm **Open Capture**. The session retains this hold across collection, cancellation, Files export and app activation. Work queued before report entry uses an invalidated admission ticket. Existing save passes may continue through the queue, and iOS and the Share extension may continue transfers. Background transfer dependencies are outside this report, so it cannot determine which files are safe to remove. Runtime checks for cold launch, URL delivery and return to Capture remain pending.
+Opening the report pauses new automatic foreground checks until you confirm **Open Capture**. The session retains this hold across collection, cancellation, Files export and app activation. Work queued before report entry uses an invalidated admission ticket. Existing save passes may continue through the queue, and iOS and the Share extension may continue transfers. Background transfer dependencies are outside this report, so it cannot determine which files are safe to remove.
 
 ## Temporary media
 

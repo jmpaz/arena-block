@@ -1,0 +1,302 @@
+{
+  "schema": "arena-block/substack-live-contracts",
+  "version": 1,
+  "observedAt": "2026-10-17T22:49:34.630Z",
+  "readOnly": true,
+  "catalogSHA256": "16677b8a917f88bcb9358cfc573e289b0cb27e02fc49db232408a8ce9a2a5742",
+  "fullReportSHA256": "a286354641fbe63a3303d00b61cb2f18f47546dcdc90417eecfca8d6d553301e",
+  "requests": [
+    {
+      "url": "https://substack.com/@norvidstudies/note/c-360829302",
+      "observedAt": "2026-10-17T22:49:11.495Z",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 109039,
+      "sha256": "c3708e06e284e99d9b70584ac73bafccbae4535c4d7f9e9b40b64016c53e8447"
+    },
+    {
+      "url": "https://substack.com/@lamblog/note/c-359890078",
+      "observedAt": "2026-10-17T22:49:12.498Z",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 116895,
+      "sha256": "7d62143f36a6546cd5b5419918388bf7e57a270fce2b5fe4c3efcfc73f0b55dc"
+    },
+    {
+      "url": "https://substack.com/@norvidstudies/note/c-362104813",
+      "observedAt": "2026-10-17T22:49:13.501Z",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 91708,
+      "sha256": "774a03d328ebd17e77fc41a43d3acfee95c04801030d125baddcd1e3fc350ec5"
+    },
+    {
+      "url": "https://substack.com/api/v1/reader/comment/362104813",
+      "observedAt": "2026-10-17T22:49:14.511Z",
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "bytes": 2848,
+      "sha256": "f1d71fb8bc14d0fec6ce1859bc7909967971d92c68665c81b81917323a977ae0"
+    },
+    {
+      "url": "https://substack.com/@joodaloop/note/c-347044458",
+      "observedAt": "2026-10-17T22:49:15.514Z",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 104862,
+      "sha256": "f910b87df37543e248bf7dc1c7ef71c78357ccc8c1acddeae66125c55734b6ce"
+    },
+    {
+      "url": "https://substack.com/api/v1/reader/comment/347044458",
+      "observedAt": "2026-10-17T22:49:16.516Z",
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "bytes": 7391,
+      "sha256": "1a272395e2ff801c15551f930216ba3e11388a85c9213053b9831e106c552b08"
+    },
+    {
+      "url": "https://substack.com/@joodaloop/note/c-346876542",
+      "observedAt": "2026-10-17T22:49:17.517Z",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 89110,
+      "sha256": "a2cf0d7d1f4d28fe78c389633179dcc323caf915df752298cfa75efe13c18891"
+    },
+    {
+      "url": "https://substack.com/@joodaloop/note/c-348712218",
+      "observedAt": "2026-10-17T22:49:18.519Z",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 106680,
+      "sha256": "52175e6897d4b3c69cf440eabbf0f275a8172248162e53c29fe60c1c4549daaa"
+    },
+    {
+      "url": "https://substack.com/@joodaloop/note/c-360337718",
+      "observedAt": "2026-10-17T22:49:19.522Z",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 110697,
+      "sha256": "260623792ba72d8afbfda1de87fe2c2789ce0e04221c77422bf3061f1fe659cf"
+    },
+    {
+      "url": "https://substack.com/@joodaloop/note/c-357819575",
+      "observedAt": "2026-10-17T22:49:20.526Z",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 95987,
+      "sha256": "95834f6ecc34126d30cb117ed5373b96fdc4d07fe28da96978c922ed2da182ef"
+    },
+    {
+      "url": "https://substack.com/@substack/note/c-359359118",
+      "observedAt": "2026-10-17T22:49:21.527Z",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 92731,
+      "sha256": "170378be214d4959d53f9e12ba2f65956a951f4baaccb8b6bbfb9ab35a5d47ca"
+    },
+    {
+      "url": "https://substack.com/api/v1/reader/comment/359359118",
+      "observedAt": "2026-10-17T22:49:22.530Z",
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "bytes": 4221,
+      "sha256": "051fba061a1199141aa1397e50b40e798cb1fa346f2417221ab4a3d2e26febac"
+    },
+    {
+      "url": "https://substack.com/@oatmilkallison/note/c-337896966",
+      "observedAt": "2026-10-17T22:49:23.532Z",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 120340,
+      "sha256": "fe7ff4d18866b6d5d30c01c0c23e1b5e719a51f3b66803491790b5bb7dbab508"
+    },
+    {
+      "url": "https://substack.com/api/v1/reader/comment/337896966",
+      "observedAt": "2026-10-17T22:49:24.535Z",
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "bytes": 28340,
+      "sha256": "d660c1ee27d68932afcd8ea8c9f6d0b6dc826760aec04b2d50254e84c89ca6f5"
+    },
+    {
+      "url": "https://substack.com/@evadmartain/note/c-311363713",
+      "observedAt": "2026-10-17T22:49:25.536Z",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 126044,
+      "sha256": "935b52e5e9f60d3fe0bff5726959a5577bf52f19c568023a1f57c61d3f8398d7"
+    },
+    {
+      "url": "https://substack.com/api/v1/reader/comment/311363713",
+      "observedAt": "2026-10-17T22:49:26.537Z",
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "bytes": 35885,
+      "sha256": "a8a5c42261e4c8447c479b505536a22bf447e9f01e6efdce7061f5ab1cce6bb7"
+    },
+    {
+      "url": "https://on.substack.com/api/v1/posts/transcription",
+      "observedAt": "2026-10-17T22:49:27.539Z",
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "bytes": 34077,
+      "sha256": "8a68d7761f706f41adf724272df7c7e23d86e36300b41631d52f65d4e2ffc324"
+    },
+    {
+      "url": "https://on.substack.com/api/v1/video/upload/ab191d8b-b513-4b5e-be9a-cf0a26445db5",
+      "observedAt": "2026-10-17T22:49:28.542Z",
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "bytes": 903,
+      "sha256": "1f3ae83650e371c2e789a6a02148b29fd4308e06de32a04b0a595b4ddf93733b"
+    },
+    {
+      "url": "https://substack.com/@laurelpantin/note/c-345777657",
+      "observedAt": "2026-10-17T22:49:29.544Z",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 100628,
+      "sha256": "43812051d2354a4b12a49463b0faed6fae788f047f3dc56a20e8979753cadddc"
+    },
+    {
+      "url": "https://substack.com/@substack/note/c-345770676",
+      "observedAt": "2026-10-17T22:49:30.547Z",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 92832,
+      "sha256": "8e6835636a55b6d10890fd70db4cc24d3b6bb3d7c972696734fd99b23b3ec985"
+    },
+    {
+      "url": "https://substack.com/api/v1/reader/comment/345770676",
+      "observedAt": "2026-10-17T22:49:31.550Z",
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "bytes": 4276,
+      "sha256": "7b30c8031a3ee0bf7d0ad964d776af338f47377845951e0f006a1f18e129f055"
+    },
+    {
+      "url": "https://substack.com/@arr87/note/c-353698796",
+      "observedAt": "2026-10-17T22:49:32.553Z",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 104234,
+      "sha256": "c9e489917afcd48d61257958d06eb01f5608ed7fe0618619bc0e834bf473fd98"
+    },
+    {
+      "url": "https://substack.com/@substack/note/c-353690182",
+      "observedAt": "2026-10-17T22:49:33.556Z",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 92309,
+      "sha256": "7769c5962bf1eedc43280dd6b2d1a0ee1a20fa07e1e583df7d933d3d74f2de1f"
+    },
+    {
+      "url": "https://substack.com/api/v1/reader/comment/353690182",
+      "observedAt": "2026-10-17T22:49:34.557Z",
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "bytes": 4109,
+      "sha256": "78c6d9aa17b7cb485f5c0fc7be9be8ad7c3f1c44cf76cb0448c4379581c393a4"
+    }
+  ],
+  "results": [
+    {
+      "id": "360829302",
+      "url": "https://substack.com/@norvidstudies/note/c-360829302",
+      "status": "pass",
+      "sourceNodes": 2,
+      "planSHA256": "758c231c104831c70f1ef7031b8058cbabf58a8ff441b45647206dd86df899fa",
+      "comparedProjectionSHA256": "43dbab5949c8cd3e659d2b0c58ceb57a3992a4f4a12bc7997a936aaaefe615a4"
+    },
+    {
+      "id": "362104813",
+      "url": "https://substack.com/@norvidstudies/note/c-362104813",
+      "status": "pass",
+      "sourceNodes": 1,
+      "planSHA256": "cf8da75fad4c233879076ace809a3194b170bfbd0be9774581fe53c37c7148fc",
+      "comparedProjectionSHA256": "e136073dd747969d901309010c376cef8b08d90d5d504c8bbe6addce0a7b8596"
+    },
+    {
+      "id": "347044458",
+      "url": "https://substack.com/@joodaloop/note/c-347044458",
+      "status": "pass",
+      "sourceNodes": 2,
+      "planSHA256": "d70258fceb7ab012d5a5f541e854790c87b112fca11816ecc7ff89eb0da2d60b",
+      "comparedProjectionSHA256": "62fab371cdb0c0ab23261bba05474df4c2651f29d6bd87ff15d350522baece90"
+    },
+    {
+      "id": "348712218",
+      "url": "https://substack.com/@joodaloop/note/c-348712218",
+      "status": "pass",
+      "sourceNodes": 3,
+      "planSHA256": "a91df1ce8e1f15e36b59fba8dac3f6ab55528bd3dab1f5279c5e143312e55755",
+      "comparedProjectionSHA256": "d75799c4a8337666327c4b795f4109497a81bbfee1e705e0cf20a6535e3e7030"
+    },
+    {
+      "id": "360337718",
+      "url": "https://substack.com/@joodaloop/note/c-360337718",
+      "status": "pass",
+      "sourceNodes": 2,
+      "planSHA256": "ef674a08887415ff108e0d67e2b944337c6de67c6a0a535f874aceab65898975",
+      "comparedProjectionSHA256": "68ad06e4ce6dc8774862f168afe062dc6eab3b412251e2ba8fa5558d0ec39b7c"
+    },
+    {
+      "id": "346876542",
+      "url": "https://substack.com/@joodaloop/note/c-346876542",
+      "status": "pass",
+      "sourceNodes": 1,
+      "planSHA256": "818eee700c256268595244767c72787eb0abfa10c82cd67f8c95d1f5a71ed545",
+      "comparedProjectionSHA256": "e5231b23206854b986938f7050b3956c321c99a7564a31e48e40e4b922727359"
+    },
+    {
+      "id": "359359118",
+      "url": "https://substack.com/@substack/note/c-359359118",
+      "status": "pass",
+      "sourceNodes": 1,
+      "planSHA256": "929c1654d8890c408ea22540280eceb79b40d7bfdfd5a0cf515a815b76c00872",
+      "comparedProjectionSHA256": "66b1993173d3b94aa90b81e93b54226f8c455420eac457c7fdda77ca169aaae6"
+    },
+    {
+      "id": "337896966",
+      "url": "https://substack.com/@oatmilkallison/note/c-337896966",
+      "status": "pass",
+      "sourceNodes": 1,
+      "planSHA256": "dfeefc9fd6891cbd68a46895a29b4e83a6a760c4762cb4d8b65d4f0d30b3048c",
+      "comparedProjectionSHA256": "66e9013bb9387b81405a6c17443a6619be4cd1dcb23e0159e0e7b061fc651639"
+    },
+    {
+      "id": "311363713",
+      "url": "https://substack.com/@evadmartain/note/c-311363713",
+      "status": "pass",
+      "sourceNodes": 1,
+      "planSHA256": "9632d88739289d453adedcdfc05b095aa43459a6052a8ce393b1195652a1b74f",
+      "comparedProjectionSHA256": "ada585a5192bda55171fb9e080c9004b9b19f7bf1a63fd5a769b715fd84bf7bd"
+    },
+    {
+      "id": "345777657",
+      "url": "https://substack.com/@laurelpantin/note/c-345777657",
+      "status": "pass",
+      "sourceNodes": 2,
+      "planSHA256": "464a2ae5ea924d174f24f87fbd74c8bd74c69195624a5728c5a3c5f99196e128",
+      "comparedProjectionSHA256": "5eea7ee5b46a029d95e3971b1a833eeb9bc4168384ad3faf24357ad74b12581c"
+    },
+    {
+      "id": "353698796",
+      "url": "https://substack.com/@arr87/note/c-353698796",
+      "status": "pass",
+      "sourceNodes": 2,
+      "planSHA256": "3a8cddf30965d533f68163b8af715be10dc92241198d6f6f1a668a8b0bedbce7",
+      "comparedProjectionSHA256": "758543184b4965e0fa067f90f9ca9ebf63bab4849add4cc73c6374301facca9b"
+    }
+  ],
+  "unrun": [],
+  "mediaDownloads": 0,
+  "saveRequests": 0,
+  "limits": {
+    "maxRequests": 48,
+    "minimumIntervalMs": 1000,
+    "responseBytes": 2097152,
+    "totalBytes": 33554432
+  },
+  "scope": "Selected source contracts and Markdown order. Does not verify playback, physical Share or complete platform parity."
+}

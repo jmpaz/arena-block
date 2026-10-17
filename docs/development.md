@@ -52,3 +52,7 @@ The picker screenshot fixture accepts `--browser`, `--extension`, `--screenshot`
 ## Native source tests
 
 For optional native live-source checks, set `CAPTURE_LIVE_SOURCE_CHECK=1` and provide a JSON path through `CAPTURE_LIVE_SOURCE_FIXTURE`. The JSON contains `chainURI`, `rootText`, `seedText`, `quotedAuthor`, `quoteCardURL`, `cardText`, `cardTarget`, `singleImageURL` and `twoImageURL`. The tests check content, thread, media and picker behavior against those selected sources.
+
+`CAPTURE_LIVE_SUBSTACK_IMAGE_NOTE=1` enables public Note reads in the Swift suite and Substack UI tests. `CAPTURE_LIVE_SUBSTACK_PODCAST_AUDIO=1` enables original podcast-audio staging and its byte/hash check in the Swift suite. Neither check submits a save. UI flags belong in the test runner's environment.
+
+`StorageReportUITests` exercises cold URLs, collection cancellation, Files export and return to a retained capture. Unsigned simulator fixtures use an isolated synthetic store. Verify signed App Group access and OS-driven background callbacks separately on a device.
