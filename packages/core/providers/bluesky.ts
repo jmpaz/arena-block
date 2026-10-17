@@ -1,7 +1,7 @@
 import type {} from "@atcute/bluesky";
 import { Client, ok, simpleFetchHandler } from "@atcute/client";
 import type { ResourceUri } from "@atcute/lexicons";
-import type { MediaAsset, ResolvedPost } from "../types.ts";
+import { resolvedPostSchema, type MediaAsset, type ResolvedPost } from "../types.ts";
 import type { ParsedSource } from "../url.ts";
 import type { SocialProvider } from "./provider.ts";
 
@@ -86,7 +86,8 @@ function postFromView(post: Json, fallback: Extract<ParsedSource, { provider: "b
   const withFacets = Array.isArray(facets) && facets.length > 0;
   const cid = string(post.cid), did = string(author?.did);
   if (withFacets && (!cid || !did || uri !== `at://${did}/app.bsky.feed.post/${id}`)) throw new Error("Bluesky facet source is missing its record identity");
-  return {
+  // Normalize derived fields before a plan is hashed; keep the raw record below.
+  return resolvedPostSchema.parse({
     provider: "bluesky",
     id,
     canonicalUrl: `https://bsky.app/profile/${handle}/post/${id}`,
@@ -101,7 +102,7 @@ function postFromView(post: Json, fallback: Extract<ParsedSource, { provider: "b
       uri, cid: cid!, authorDid: did!, record, ...(record.reply ? { reply: record.reply as NonNullable<ResolvedPost["atproto"]>["reply"] } : {}),
     } } : {}),
     ...(quoteRecord ? { quote: postFromView(quoteRecord, fallback) } : {}),
-  };
+  });
 }
 
 type ThreadNode = { post: Json; parent?: unknown; replies?: unknown[] };
