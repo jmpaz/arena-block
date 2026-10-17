@@ -282,7 +282,7 @@ function replyRelation(capture: ThreadCapture, post: ThreadPost, options: Thread
 export function renderThreadMarkdown(capture: ThreadCapture, options: ThreadRenderOptions = {}): string {
   const lines = ["# Thread capture", "", `Source: ${link(capture.sourceUrl, capture.sourceUrl)}`, `Captured: ${md(capture.capturedAt)}`, "", ...threadCoverageReport(capture).split("\n").map(line => `- ${md(line)}`), ""];
   const renderPost = (post: ThreadPost, visited: Set<string>, quoted: boolean): string[] => {
-    if (visited.has(post.id)) return [link("Repeated quote — original post", post.url)];
+    if (visited.has(post.id)) return [link("Repeated quote: original post", post.url)];
     const path = new Set(visited).add(post.id);
       const body = [`${quoted ? "**" : "### "}${md(post.author.name || post.author.handle)}${quoted ? "**" : ""} \`@${post.author.handle.replace(/[`\\]/g, "")}\``, "", `${link("Original post", post.url)} · ${md(post.postedAt || "Date unavailable")}`, ""];
     const relation = !quoted && replyRelation(capture, post, options, link);
@@ -291,14 +291,14 @@ export function renderThreadMarkdown(capture: ThreadCapture, options: ThreadRend
       const quote = capture.posts.find(p => p.id === e.to);
       body.push(...(quote ? renderPost(quote, path, true) : ["Quoted post unavailable"]).flatMap(line => line.split("\n").map(part => `> ${part}`)), "");
     }
-    body.push(post.status === "available" ? post.segments.map(segment => segment.url ? link(segment.text, segment.url) : safeMarkdown(segment.text)).join("") : md(`[${post.status} — original content unavailable]`));
+    body.push(post.status === "available" ? post.segments.map(segment => segment.url ? link(segment.text, segment.url) : safeMarkdown(segment.text)).join("") : md(`[${post.status}: original content unavailable]`));
     if (post.external) body.push("", `Embedded link: ${link(post.external.title || post.external.url, post.external.url)}`, md(post.external.description));
     if (post.article) body.push("", safeMarkdown(post.article));
     for (const [n, m] of post.media.entries()) {
       body.push("", link(`${m.kind === "image" ? "Image" : "Video"} ${n + 1}`, m.url));
       if (m.kind === "image" && safeUrl(m.url)) body.push(`![${md(`Image ${n + 1}; ${m.alt || "no source alt text"}`)}](<${safeUrl(m.url)!}>)`);
       body.push(`Source alt text: ${m.alt ? md(m.alt) : "Not supplied"}`, "");
-      body.push(m.description ? `Visual description (${m.description.basis === "pixels" ? "reviewed pixels" : "source alt text"}): ${md(m.description.text)}${m.description.evidence ? ` — Evidence: ${md(m.description.evidence)}` : ""}` : "Visual description: Pending image review; no visual claims made.");
+      body.push(m.description ? `Visual description (${m.description.basis === "pixels" ? "reviewed pixels" : "source alt text"}): ${md(m.description.text)}${m.description.evidence ? ` Evidence: ${md(m.description.evidence)}` : ""}` : "Visual description: Image review pending.");
     }
     return body;
   };
@@ -310,14 +310,14 @@ export function renderThreadHtml(capture: ThreadCapture, options: ThreadRenderOp
   const imageSource = (url: string) => options.inlineImages ? options.inlineImages[url] : safeUrl(url);
   const anchor = (label: string, url: string) => safeUrl(url) ? `<a href="${html(safeUrl(url)!)}" rel="noreferrer noopener">${html(label)}</a>` : html(label);
   const renderPost = (p: ThreadPost, visited: Set<string>, quoted: boolean): string => {
-    if (visited.has(p.id)) return `<p>${anchor("Repeated quote — original post", p.url)}</p>`;
+    if (visited.has(p.id)) return `<p>${anchor("Repeated quote: original post", p.url)}</p>`;
     const path = new Set(visited).add(p.id);
     const quotes = capture.edges.filter(e => e.from === p.id && e.kind === "quote").map(e => {
       const quote = capture.posts.find(p => p.id === e.to); return `<blockquote>${quote ? renderPost(quote, path, true) : "Quoted post unavailable"}</blockquote>`;
     }).join("");
     const reply = !quoted && replyRelation(capture, p, options, anchor);
     const relation = reply ? `<p class="relation">${reply}</p>` : "";
-    return `<${quoted ? "section" : "article"}><h2>${html(p.author.name || p.author.handle)} <small>@${html(p.author.handle)}</small></h2><p>${anchor("Original post", p.url)} · ${html(p.postedAt || "Date unavailable")}</p>${relation}${quotes}<div class="text">${p.status === "available" ? p.segments.map(s => s.url ? anchor(s.text, s.url) : formattedHtml(s.text)).join("") : html(`[${p.status} — original content unavailable]`)}</div>${p.external ? `<aside><p>Embedded link: ${anchor(p.external.title || p.external.url, p.external.url)}</p><p>${html(p.external.description)}</p></aside>` : ""}${p.article ? `<div class="text article">${formattedHtml(p.article)}</div>` : ""}${p.media.map((m, n) => `<figure>${m.kind === "image" && imageSource(m.url) ? `<img src="${html(imageSource(m.url)!)}" alt="${html(m.alt || `Image ${n + 1}; no source alt text`)}" loading="lazy" referrerpolicy="no-referrer">` : anchor(`${m.kind === "image" ? "Image" : "Video"} ${n + 1}`, m.url)}<figcaption>${anchor(`Original ${m.kind} ${n + 1}`, m.url)}<p>Source alt text: ${html(m.alt || "Not supplied")}</p><p>${m.description ? `Visual description (${html(m.description.basis)}): ${html(m.description.text)}${m.description.evidence ? ` — Evidence: ${html(m.description.evidence)}` : ""}` : "Visual description: Pending image review; no visual claims made."}</p></figcaption></figure>`).join("")}</${quoted ? "section" : "article"}>`;
+    return `<${quoted ? "section" : "article"}><h2>${html(p.author.name || p.author.handle)} <small>@${html(p.author.handle)}</small></h2><p>${anchor("Original post", p.url)} · ${html(p.postedAt || "Date unavailable")}</p>${relation}${quotes}<div class="text">${p.status === "available" ? p.segments.map(s => s.url ? anchor(s.text, s.url) : formattedHtml(s.text)).join("") : html(`[${p.status}: original content unavailable]`)}</div>${p.external ? `<aside><p>Embedded link: ${anchor(p.external.title || p.external.url, p.external.url)}</p><p>${html(p.external.description)}</p></aside>` : ""}${p.article ? `<div class="text article">${formattedHtml(p.article)}</div>` : ""}${p.media.map((m, n) => `<figure>${m.kind === "image" && imageSource(m.url) ? `<img src="${html(imageSource(m.url)!)}" alt="${html(m.alt || `Image ${n + 1}; no source alt text`)}" loading="lazy" referrerpolicy="no-referrer">` : anchor(`${m.kind === "image" ? "Image" : "Video"} ${n + 1}`, m.url)}<figcaption>${anchor(`Original ${m.kind} ${n + 1}`, m.url)}<p>Source alt text: ${html(m.alt || "Not supplied")}</p><p>${m.description ? `Visual description (${html(m.description.basis)}): ${html(m.description.text)}${m.description.evidence ? ` Evidence: ${html(m.description.evidence)}` : ""}` : "Visual description: Image review pending."}</p></figcaption></figure>`).join("")}</${quoted ? "section" : "article"}>`;
   };
   const posts = displayPosts(capture).map(p => renderPost(p, new Set(), false)).join("\n");
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${options.inlineImages ? 'data:' : 'https: http:'}; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"><title>Thread capture</title><style>body{font:17px/1.6 system-ui,sans-serif;max-width:820px;margin:auto;padding:32px;color:#252521;background:#faf9f6}article{border-top:1px solid #ccc;margin-top:32px;padding-top:20px}h2{font-size:22px}small,.relation,figcaption{color:#555;font-size:14px}.text,pre{white-space:pre-wrap;overflow-wrap:anywhere}img{max-width:100%;height:auto}figure{margin:24px 0}a{color:#174f79}pre{font-family:inherit}blockquote{margin:20px 0;padding:4px 16px;border-left:3px solid #a7b5b7;background:#f0f1ed}blockquote h2{font-size:18px}</style></head><body><h1>Thread capture</h1><p>${anchor(capture.sourceUrl, capture.sourceUrl)} · ${html(capture.capturedAt)}</p><pre>${html(threadCoverageReport(capture))}</pre>${posts}</body></html>`;

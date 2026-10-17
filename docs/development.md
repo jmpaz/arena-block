@@ -11,7 +11,7 @@
 | `ios/Sources/CaptureRuntime` | Call the TypeScript core through JavaScriptCore |
 | `ios/Sources/CaptureUI` | Render native capture and channel selection |
 | `nix` and `flake.nix` | Build reusable packages and optional Home Manager modules |
-| `tests/fixtures` | Replay fictional source/account responses |
+| `tests/fixtures` | Replay source snapshots and fictional account responses |
 
 ## Local checks
 
@@ -37,7 +37,7 @@ The iOS catalog supplies an opaque 1024px light image, a transparent dark foregr
 
 ## Fixture development
 
-The checked-in source snapshots use fictional writing and author identities. Their reply/quote graphs, media geometry and rich-text offsets support the existing regressions. Retained-plan fixtures use their own immutable hashes. When changing fixture input, calculate a new fixture plan deliberately and keep the expected hash fixed during the test.
+Source fixtures include fictional cases and retained public posts. The public Substack examples include response hashes and observation details. Their reply/quote graphs, media geometry and rich-text offsets support regression checks. Retained-plan fixtures use their own immutable hashes. When changing fixture input, calculate a new fixture plan deliberately and keep the expected hash fixed during the test.
 
 AT Protocol records include normalized facets plus retained raw record fields. Test UTF-8 boundaries, protocol namespaces, quote identities and capability rejection before submission. Browser fetch adapters omit credentials when reading public provider data.
 

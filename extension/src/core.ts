@@ -66,7 +66,7 @@ function resolver(fetcher: typeof fetch = browserFetch, captures: RedditBrowserC
 }
 
 export async function resolveCapture(input: CaptureInput, signal?: AbortSignal, fetcher: typeof fetch = browserFetch): Promise<BlockPlan> {
-  if (!input.primary.length || input.primary.length + input.extras.length > 20) throw new Error("Choose 1–20 sources");
+  if (!input.primary.length || input.primary.length + input.extras.length > 20) throw new Error("Choose 1 to 20 sources");
   const captures = bindRedditCaptures([...input.primary, ...input.extras], input.redditCaptures ?? []);
   const substack = bindSubstackCaptures([...input.primary, ...input.extras], input.substackCaptures ?? []);
   const policy = compositionPolicySchema.parse(input.policy);

@@ -1,9 +1,19 @@
 {
   "format": "capture-storage-export-contract-v1",
-  "status": "source candidate; not installed or physically qualified",
+  "status": "Runtime receiving pending",
   "flow": {
-    "normalApp": ["Settings → Export storage report", "Read the existing-save activity notice", "Create report", "Save report to Files and choose the destination"],
-    "isolatedEntry": ["After separate build/install approval, use an idle foreground window", "Open <configured CaptureCallbackScheme>://storage-report when Capture has no existing process", "Verify the screen says this entry has not started Capture's save session", "Tap Create report, then Save report to Files"],
+    "normalApp": [
+      "Open Settings and choose Export storage report",
+      "Review existing-save activity",
+      "Create report",
+      "Save report to Files and choose the destination"
+    ],
+    "isolatedEntry": [
+      "Use an approved build and an idle foreground window",
+      "Open <configured CaptureCallbackScheme>://storage-report when Capture has no existing process",
+      "Check the report screen and existing-save activity",
+      "Choose Create report, then Save report to Files"
+    ],
     "defaultSourceLink": "arena-capture://storage-report",
     "existingProcess": "The report is presented over the existing Capture view without destroying previews. Settings uses a direct in-process action, not a self-openURL round trip. Existing normal saves/lifecycle continue; the collector does not pause or retry them.",
     "backgroundEventWinsBeforeRoute": "Ordinary background/explicit save-intent ownership remains valid. A subsequent report is labeled normal Capture already active; no false isolated-entry claim.",
@@ -38,7 +48,7 @@
     "unknown": "All unprojected source/legacy fields, symlinks, external/unresolved references, OS transfers and extension/system dependencies remain unknown/preserve. Missing observed references never imply deletion eligibility.",
     "dependencyClosureComplete": false
   },
-  "remainingApproval": "Review exact frozen source and authorize a later normal build/install plus a separate idle user-triggered export/receiving window. No device operation, signed deployment, Are.na write, main merge or push is authorized by this source increment.",
+  "remainingApproval": "A device build, installation and an idle user-triggered export window require separate approval.",
   "remainingReceiving": [
     "Actual cold URL scene routing and ordinary foreground/background/Shortcuts entry on the same normal binary",
     "Actual Settings sheet keeps the existing preview workspace alive",

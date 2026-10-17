@@ -110,7 +110,7 @@ final class CaptureApplicationDelegate: NSObject, UIApplicationDelegate, Observa
         if let current { admitted = current.launchGate.admitNormalWork(background: background) }
         else { admitted = earlyLaunchGate.admitNormalWork(background: background) }
         guard admitted else {
-            throw CaptureError.message("Storage report entry is active. Open Capture explicitly to continue existing saves.")
+            throw CaptureError.message("A storage report is open. Choose Open Capture to continue existing saves.")
         }
         if let session { return session }
         let created = try CaptureSession()

@@ -10,7 +10,7 @@ bun test tests/substack-live-contract.test.ts
 
 The same suite sends the fixtures through the shared resolver used by the helper, the serialized Safari/browser page reader, and the checked-in native JavaScript bundle. Run `bun run build:ios-core` after changing shared source code before testing the bundled resolver. These checks do not open the app or submit a save.
 
-## Real cases
+## Source fixtures
 
 | Root Note | Checked content and distinctions |
 | --- | --- |
@@ -26,7 +26,7 @@ The same suite sends the fixtures through the shared resolver used by the helper
 | `@laurelpantin` c-345777657 | Retained complete outer Note and separate quoted c-345770676 video, with original upload d51e3d24-74e7-46ac-8392-c666fdc163c1. |
 | `@arr87` c-353698796 | Retained Arabic prose and original image, plus separate quoted c-353690182 video upload 0c12776b-e2f4-4187-aaae-230a9d7c08e4. |
 
-Every case runs with its full URL, a tracking-query variant and the bare `substack.com/note/c-ID` alias. The alias fixture tests URL identity and cleanup; the redirect safety tests remain in `tests/substack-receiving.test.ts`. The HTTP and Lucy Ives cases also check shortened inline URL labels against full destinations.
+The suite selects all media explicitly to check attachment coverage. Fresh Auto captures select root media. Each case runs with its full URL, a tracking-query variant and the bare `substack.com/note/c-ID` alias. The alias fixture tests URL identity and cleanup; the redirect safety tests remain in `tests/substack-receiving.test.ts`. The HTTP and Lucy Ives cases also check shortened inline URL labels against full destinations.
 
 The fixtures in `tests/fixtures/substack-contracts` contain 20 selected HTML/JSON responses. HTML keeps the selected permalink unit, its quote preview, media/player nodes and matching JSON-LD. It removes unrelated bootstrap scripts and styles. Embedded player elements remain as evidence; the tests do not load their URLs. Existing API field projections retain the fields read by the source reader.
 
@@ -42,7 +42,7 @@ Print the URL list and request estimate without making requests:
 bun scripts/check-substack-contracts.ts
 ```
 
-Read only the latest reported failure and its quoted Note:
+Check the density/grid Note and its quoted Note:
 
 ```sh
 bun scripts/check-substack-contracts.ts --live --case 360337718 --max-requests 4 --output /tmp/substack-contract-live.json
@@ -68,10 +68,10 @@ The JSON report records each requested URL, status, observation time, response s
 
 A changed response requires review before fixture updates. Compare the source text, identities and roles with the original observation. Do not replace expected values simply to restore a passing check.
 
-## Recorded checks and boundaries
+## Recorded observations and remaining checks
 
-On October 16, 2026, the approved live run read c-360337718 and c-357819575 in two public HTML requests. Both returned 200, and the complete semantic comparison passed. It downloaded no media. The first sandboxed attempt could not connect and was recorded separately as a network failure. The successful first receipt contains response hashes and compared source fields; it predates complete-plan retention in the command. `tests/fixtures/substack-contracts/live-observation-20261016.json` retains its response hashes and result. The integration evidence directory retains the complete receipts. The other cases were not reread during this test increment.
+The October 16, 2026 live check read c-360337718 and c-357819575 in two public HTML requests. Both returned 200 and passed the semantic comparison. Response hashes and results are retained in [`live-observation-20261016.json`](../tests/fixtures/substack-contracts/live-observation-20261016.json). Other source cases require separate live reads to establish their current availability.
 
-Existing block [51476348](https://www.are.na/block/51476348) is a receiving witness for c-348712218, capture `57E00C7D-1A60-41CC-B749-C2C3378AEC2F`. The integration owner read its retained Lucy Ives prose and both nested quotations. This test suite does not replay that save. A saved block does not establish physical preview rendering or current source availability.
+The saved Lucy Ives example, [block 51476348](https://www.are.na/block/51476348), contains the outer prose and both nested quotations. Inspecting that result establishes saved writing; native preview rendering requires its own receiving check.
 
-These tests check selected public Note text and attachment contracts. They do not cover every upstream shape. They do not prove physical share-sheet behavior, speaker playback, binary media quality, native Frame composition, byte-preserving audio export, public article acquisition beyond the attached podcast evidence, or a standalone native audio-upload Note. Those checks use their separate renderer and native tests. Source edits, deletion, privacy changes, network conditions and upstream page changes can still require investigation.
+Fixture checks cover the selected Note text and attachment records. Verify physical Share behavior, playback, media quality, native Frame composition and audio export separately. A standalone native audio-upload Note remains unverified. Upstream edits, source availability and changed page structures can require further investigation.

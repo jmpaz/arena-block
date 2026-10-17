@@ -695,7 +695,7 @@ async function save(): Promise<void> {
 async function saveSourceIntent(destinations: string[]): Promise<void> {
   if (saveInFlight) return;
   const refs = lines(primary.value), extraRefs = lines(extras.value);
-  if (!refs.length || refs.length + extraRefs.length > 20) { message("Add 1–20 links.", true); return; }
+  if (!refs.length || refs.length + extraRefs.length > 20) { message("Add 1 to 20 links.", true); return; }
   const signature = inputSignature();
   const routeMatch = JSON.stringify(pending?.destinations) === JSON.stringify(destinations);
   if (pending && (pending.method !== "job" || pending.inputSignature !== signature || !routeMatch)) {
@@ -1030,7 +1030,7 @@ function chosenPolicy(): Partial<CompositionPolicy> {
 
 async function resolveLocal(): Promise<void> {
   const refs = lines(primary.value), extraRefs = lines(extras.value);
-  if (!refs.length || refs.length + extraRefs.length > 20) { message("Add 1–20 links.", true); return; }
+  if (!refs.length || refs.length + extraRefs.length > 20) { message("Add 1 to 20 links.", true); return; }
   message("Resolving with local helper…");
   const ticket = resolutionGuard.begin(), signature = inputSignature();
   try {
@@ -1050,7 +1050,7 @@ async function resolve(): Promise<void> {
   if (resolveInFlight || destinationsFrozen()) return;
   const refs = lines(primary.value);
   const extraRefs = lines(extras.value);
-  if (!refs.length || refs.length + extraRefs.length > 20) { message("Add 1–20 links.", true); return; }
+  if (!refs.length || refs.length + extraRefs.length > 20) { message("Add 1 to 20 links.", true); return; }
   resolveInFlight = true;
   syncDestinationLock();
   try { if (requiredOrigins([...refs, ...extraRefs], redditCaptures, substackCaptures).length) message("Resolving sources…"); }

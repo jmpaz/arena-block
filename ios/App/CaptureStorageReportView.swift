@@ -10,7 +10,7 @@ private struct StorageReportDocument: FileDocument {
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper { FileWrapper(regularFileWithContents: data) }
 }
 
-/// Explicit, local observation. Leaving this screen never re-enters normal Capture.
+/// Collects storage metadata for an explicit export to Files.
 struct CaptureStorageReportView: View {
     @ObservedObject var owner: CaptureApplicationDelegate
     @Environment(\.scenePhase) private var scenePhase
@@ -28,14 +28,14 @@ struct CaptureStorageReportView: View {
         NavigationStack {
             Form {
                 Section {
-                    Text("Create a local report of storage sizes and known capture references. It won’t delete files, upload a report, or retry saves.")
+                    Text("Review file sizes and saved capture references, then save the report to Files.")
                     if normalAlreadyActive {
-                        Text("Capture was already running. Existing saves may continue while you create this report. The report will record that limit.")
+                        Text("Capture is already running. Existing saves may continue during collection.")
                             .foregroundStyle(.orange)
                     } else {
-                        Text("This entry has not started Capture’s save session. Transfers already owned by iOS or the share extension may still continue.")
+                        Text("iOS and the Share extension may continue existing transfers.")
                     }
-                    Text("Unknown dependencies stay protected. This report cannot identify files that are safe to delete.")
+                    Text("The report is incomplete and cannot determine which files are safe to remove.")
                 }
                 Section {
                     if worker == nil {
@@ -49,21 +49,21 @@ struct CaptureStorageReportView: View {
                     }
                     if let status { Text(status).textSelection(.enabled) }
                     if let report {
-                        LabeledContent("Files observed", value: String(report.files.count))
-                        LabeledContent("Capture records observed", value: String(report.records.count))
-                        LabeledContent("Observed metadata", value: report.stable ? "Unchanged during reading" : "Incomplete or changed")
-                        Text("Background transfer and system dependencies were not queried.")
+                        LabeledContent("Files", value: String(report.files.count))
+                        LabeledContent("Capture records", value: String(report.records.count))
+                        LabeledContent("Storage changes", value: report.stable ? "Unchanged during reading" : "Incomplete or changed")
+                        Text("Background transfers are outside this report.")
                         Button("Save report to Files") { prepareExport() }
                             .disabled(worker != nil)
                             .accessibilityIdentifier("storage-report.export")
                     }
-                } footer: { Text("Collection stops at its limits. Cancellation keeps your captures and original media. Nothing is sent automatically.") }
+                } footer: { Text("Collection has size and time limits. Your captures and media stay in place.") }
                 if owner.storageReportInterference > 0 {
                     Section {
                         if normalAlreadyActive {
-                            Text("Background save activity was observed. Existing handling continues; dependency coverage is incomplete.")
+                            Text("Existing saves are running. The report may change during collection.")
                         } else {
-                            Text("Background save activity needs Capture. The report is incomplete. Open Capture when you want its ordinary save handling to continue.")
+                            Text("A background save needs attention. Open Capture to continue it.")
                         }
                     }
                 }
@@ -75,12 +75,12 @@ struct CaptureStorageReportView: View {
             .navigationTitle("Storage report")
             .confirmationDialog("Open Capture?", isPresented: $openCapture, titleVisibility: .visible) {
                 Button("Open Capture") { cancel(); owner.openCapture() }
-            } message: { Text("Opening Capture can resume existing saves. Creating or canceling a report does not open it automatically.") }
+            } message: { Text("Opening Capture can resume existing saves.") }
             .fileExporter(isPresented: $exporting, document: document, contentType: .json,
                           defaultFilename: "Capture-storage-report") { result in
                 switch result {
-                case .success: status = "Report exported. Captures and media were kept."
-                case .failure: status = "The report was not exported. Captures and media were kept."
+                case .success: status = "Report saved to Files."
+                case .failure: status = "Could not save the report. Try exporting it again."
                 }
             }
             .onChange(of: scenePhase) { _, value in if value == .background { cancel() } }
@@ -92,11 +92,11 @@ struct CaptureStorageReportView: View {
     private func create() {
         guard worker == nil else { return }
         guard normalAlreadyActive || owner.storageReportInterference == 0 else {
-            status = "Background activity interrupted report entry. Open Capture explicitly to handle it."; return
+            status = "A background save interrupted collection. Open Capture to continue the save."; return
         }
         guard let group = Bundle.main.object(forInfoDictionaryKey: "CaptureAppGroup") as? String,
               let shared = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: group) else {
-            status = "The shared storage is unavailable. Nothing was changed."; return
+            status = "Could not read shared storage. Try opening Capture again."; return
         }
         let main = URL(fileURLWithPath: NSHomeDirectory(), isDirectory: true)
         let active = normalAlreadyActive, token = UUID()
@@ -112,10 +112,10 @@ struct CaptureStorageReportView: View {
                 guard !task.isCancelled else { worker = nil; return }
                 value.interrupted = owner.storageReportInterference > 0
                 report = value
-                status = value.problems.isEmpty ? "Report ready. Dependency coverage remains incomplete." : "Report ready with incomplete coverage. All data was preserved."
+                status = value.problems.isEmpty ? "Report ready. Background transfers are outside this report." : "Report ready with incomplete results. Review its reported limits."
             } catch {
                 guard generation == token else { return }
-                status = "Collection stopped or reached a limit. Captures and media were kept."
+                status = "Collection stopped or reached a limit. Try creating another report."
             }
             if generation == token { worker = nil }
         }
@@ -126,13 +126,13 @@ struct CaptureStorageReportView: View {
         value.interrupted = value.interrupted || owner.storageReportInterference > 0
         if value.interrupted { value.stable = false }
         do { document = StorageReportDocument(try CaptureStorageExport.encoded(value)); exporting = true }
-        catch { status = "The report exceeded its export limit. Captures and media were kept." }
+        catch { status = "The report exceeds the export size limit." }
     }
 
     private func cancel(interrupted: Bool = false) {
         guard worker != nil || interrupted else { return }
         worker?.cancel()
         if interrupted { report?.interrupted = true; report?.stable = false }
-        status = interrupted ? "Report interrupted by background activity. Nothing was retried." : "Report canceled. Captures and media were kept."
+        status = interrupted ? "A background save interrupted collection." : "Report canceled."
     }
 }

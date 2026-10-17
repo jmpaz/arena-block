@@ -10,7 +10,7 @@
 | Rich text | Preserves authored HTML in the source record and converts it to Markdown. Relative links resolve against their containing source. |
 | Shortened URL labels | Verifies host/path abbreviations against the observed HTTPS link target when comparing complete source text. Custom authored labels remain literal. |
 | Original images | Uses shared media selection, ordering and rendering. |
-| Images inside quoted Notes | Fresh captures include original images from the included quote levels. Each image keeps its quoted source and author. Preview images remain previews. |
+| Images inside quoted Notes | Select quoted images explicitly. Each image keeps its quoted source and author. Preview images remain previews. |
 | Image-only Notes | Verifies empty authored text and the original images against the public Note record. Camera placeholders stay out of the saved text. |
 | External link cards | Retains the observed title, URL and labelled preview separately from authored prose and quoted Notes. The public record must agree with the visible card. HTTP links remain links; Capture does not fetch their destination. |
 | Multiple sources | Preserves explicit source order and deduplicates Note aliases by ID. Media extras use the common composer. |
@@ -65,8 +65,7 @@ Receiver capability names and retained-record limits are listed in
 The observed native Note attachment contract supports images, video and article
 cards. A podcast article card can expose original audio. Capture retains the
 article's identity, byline, audio metadata and a digest of its verified public
-body; it does not include the article's full prose in the Note. Hydration is
-bounded to eight distinct articles and sixty seconds per Note tree. Old queued
+body; it does not include the article's full prose in the Note. Capture checks up to eight distinct articles within sixty seconds per Note tree. Old queued
 card-only captures retain their existing selection. New podcast-card records
 require `substack-note-podcast-audio-v1` on the helper and receiver.
 

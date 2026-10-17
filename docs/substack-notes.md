@@ -44,7 +44,7 @@ that cannot be preserved stop capture. See [support and limits](substack-parity.
 ## Retained records and compatibility
 
 Drafts and save snapshots retain the source HTML, authors, publication labels,
-observation times, media details and acquisition method. Capture time and acquisition method stay in the source record. Imported records
+observation times, media details and acquisition method. Imported records
 are checked for consistent identities and supported media; validation cannot
 confirm when or how someone collected them. `--substack-capture` opens an existing
 record.
