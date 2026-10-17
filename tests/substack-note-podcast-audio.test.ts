@@ -88,10 +88,14 @@ test("older queued card-only Note remains byte-for-byte equivalent and makes no 
 test("podcast audio follows its Note's quote depth and source order without becoming article prose",async()=>{
   const {post}=await resolve();
   const outer:ResolvedPost={provider:"x",id:"123",canonicalUrl:"https://x.com/outer/status/123",author:{handle:"outer"},text:"Outer writing",media:[],quote:post};
-  const root=assignMediaRefs(outer,0),plan=blockPlanSchema.parse(composePlan([root]));
-  expect(plan.block.kind).toBe("audio");expect(plan.block.markdown).toContain("@evadmartain");expect(plan.block.markdown).toContain("Hamish McKenzie");
-  expect(composePlan([root],{quoteDepth:0}).block.selectedMedia).toEqual([]);
-  expect(composePlan([root],{quoteDepth:1}).block.selectedMedia).toEqual(["1.1"]);
+  const root=assignMediaRefs(outer,0),automatic=blockPlanSchema.parse(composePlan([root]));
+  expect(automatic.block.kind).toBe("text");expect(automatic.block.selectedMedia).toEqual([]);
+  expect(automatic.block.markdown).toContain("@evadmartain");expect(automatic.block.markdown).toContain("Hamish McKenzie");
+  const plan=blockPlanSchema.parse(composePlan([root],{media:"audio"}));
+  expect(plan.block.kind).toBe("audio");expect(plan.block.selectedMedia).toEqual(["1.1"]);
+  expect(composePlan([root],{quoteDepth:0,media:"audio"}).block.selectedMedia).toEqual([]);
+  expect(composePlan([root],{quoteDepth:1}).block.selectedMedia).toEqual([]);
+  expect(composePlan([root],{quoteDepth:1,media:"audio"}).block.selectedMedia).toEqual(["1.1"]);
   expect(requiredPlanCapabilities(plan)).toContain("quoted-video-audio-v1");
 });
 
