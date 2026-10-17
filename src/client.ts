@@ -1,3 +1,4 @@
+import { requiredCompositionCapabilities, requireRetainedCompositionPolicy } from "../packages/core/composition-capabilities.ts";
 import { requiredPlanCapabilities } from "./plan-capabilities.ts";
 import type { BlockPlan, CompositionPolicy, PublicationReceipt, CreationAttempt, PublicationState, PublishRequest } from "./types.ts";
 import { blockPlanSchema, publicationReceiptSchema, creationAttemptSchema, publicationStateSchema } from "./types.ts";
@@ -117,7 +118,16 @@ export class ArenaBlockClient {
   }
 
   async plan(refs: string[], policy?: Partial<CompositionPolicy>, signal?: AbortSignal): Promise<BlockPlan> {
-    return blockPlanSchema.parse(await this.request("/v1/plans", { refs, policy }, signal));
+    const input = { refs, policy };
+    const required = requiredCompositionCapabilities(input);
+    if (required.length) {
+      const serving = buildInfoSchema.parse(await this.request("/v1/version", undefined, signal));
+      if (required.some(capability => !serving.planCapabilities?.includes(capability)))
+        throw new PublicationError("Update the receiver before choosing a quoted-author style. No source read or save was submitted.");
+    }
+    const plan = blockPlanSchema.parse(await this.request("/v1/plans", input, signal));
+    requireRetainedCompositionPolicy(input, plan);
+    return plan;
   }
 
   async webPlan(url: string, title?: string, description?: string, signal?: AbortSignal): Promise<BlockPlan> {

@@ -1,0 +1,40 @@
+{
+  "schema": "arena-block/substack-live-contracts",
+  "version": 1,
+  "observedAt": "2026-10-16T13:38:51.786Z",
+  "readOnly": true,
+  "requests": [
+    {
+      "url": "https://substack.com/@joodaloop/note/c-360337718",
+      "observedAt": "2026-10-16T13:38:50.613Z",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 132393,
+      "sha256": "7cfe9cb9512513d6720b191a1e010d0c18e816c614e6962bc3a98e252d045950"
+    },
+    {
+      "url": "https://substack.com/@joodaloop/note/c-357819575",
+      "observedAt": "2026-10-16T13:38:51.616Z",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 103530,
+      "sha256": "d616e1614b0d59e0c437624dbd7d7aa9b505c5989840ef9313c924d4fd915fc0"
+    }
+  ],
+  "results": [
+    {
+      "id": "360337718",
+      "url": "https://substack.com/@joodaloop/note/c-360337718",
+      "status": "pass",
+      "comparedProjectionSHA256": "68ad06e4ce6dc8774862f168afe062dc6eab3b412251e2ba8fa5558d0ec39b7c"
+    }
+  ],
+  "mediaDownloads": 0,
+  "saveRequests": 0,
+  "limits": {
+    "approvedNotePages": 2,
+    "maxRequests": 4,
+    "minimumIntervalMs": 1000
+  },
+  "scope": "Actual public URL reads, complete comparison with pinned source text/quote/media fields; no physical native rendering or receiving save tested. Initial sandbox attempt could not connect and is separate from this successful source observation. Full composed plan was not retained by this first runner version."
+}

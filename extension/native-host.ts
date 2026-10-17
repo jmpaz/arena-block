@@ -1,9 +1,14 @@
+import { requiredCompositionCapabilities, requireRetainedCompositionPolicy } from "../packages/core/composition-capabilities.ts";
+import { requireRetainedSubstackCaptures } from "../packages/core/substack-record.ts";
+import { requiredSubstackResolutionCapabilities, requireSubstackPublicResult } from "../packages/core/substack-input-capabilities.ts";
+import { requireRetainedRedditCaptures } from "../packages/core/reddit-record.ts";
 /** Optional native messaging transport. The bearer token stays in this process. */
 import { readSync, writeSync } from "node:fs";
 import { z } from "zod";
 import { blockPlanSchema, planInputSchema } from "../packages/core/types.ts";
 import { loadUserConfig } from "../src/config.ts";
 import { requiredPlanCapabilities } from "../src/plan-capabilities.ts";
+import { requireAddressableQuoteMedia } from "../packages/core/media-tree.ts";
 import { prepareSaveIntent } from "../src/save-intent.ts";
 import { buildInfoSchema } from "../src/version.ts";
 
@@ -31,8 +36,15 @@ function readBytes(length: number): Buffer | undefined {
   return output;
 }
 
-function reply(value: unknown): void {
+export const NATIVE_REPLY_MAX_BYTES = 1024 * 1024;
+export function nativeReplyBody(value: { id?: unknown; [key: string]: unknown }): Buffer {
   const body = Buffer.from(JSON.stringify(value), "utf8");
+  if (body.length <= NATIVE_REPLY_MAX_BYTES) return body;
+  return Buffer.from(JSON.stringify({ id: typeof value.id === "string" ? value.id.slice(0, 100) : undefined,
+    ok: false, error: "The local helper response exceeds the browser's 1 MiB limit. Keep this draft and use browser preview/export, or open the record in the CLI or native Capture." }), "utf8");
+}
+function reply(value: { id?: unknown; [key: string]: unknown }): void {
+  const body = nativeReplyBody(value);
   const header = Buffer.alloc(4);
   header.writeUInt32LE(body.length);
   writeSync(1, header);
@@ -66,7 +78,23 @@ async function daemon(path: string, method = "GET", body?: unknown, fetcher: typ
 export async function handle(request: HostRequest, fetcher: typeof fetch = fetch): Promise<unknown> {
   switch (request.action) {
     case "ping": return daemon("/v1/version", "GET", undefined, fetcher);
-    case "resolve": return daemon("/v1/plans", "POST", request.input, fetcher);
+    case "resolve": {
+      const required = [...requiredCompositionCapabilities(request.input), ...requiredSubstackResolutionCapabilities(request.input)];
+      if (request.input.redditCaptures?.length || required.length) {
+        const serving = buildInfoSchema.parse(await daemon("/v1/version", "GET", undefined, fetcher));
+        const missing=required.filter(capability=>!serving.planCapabilities?.includes(capability));
+        if(missing.length)throw new Error("Update the local helper and receiver to read this source.", { cause: { missingCapabilities: missing } });
+        if (request.input.redditCaptures?.some(c => c.schema === "arena-block/reddit-public-page-capture") && !serving.planCapabilities?.includes("reddit-public-page-records-v1")) throw new Error("The daemon cannot retain Reddit public page records. No source read was submitted.");
+        if (request.input.redditCaptures?.length && !serving.planCapabilities?.includes("reddit-browser-records-v1")) throw new Error("The daemon cannot receive Reddit browser records. Install a matching receiver; no source read was submitted.");
+      }
+      const plan = blockPlanSchema.parse(await daemon("/v1/plans", "POST", request.input, fetcher));
+      requireRetainedCompositionPolicy(request.input, plan);
+      requireSubstackPublicResult(request.input, plan);
+      requireAddressableQuoteMedia(plan);
+      requireRetainedRedditCaptures(plan, request.input.redditCaptures ?? []);
+      requireRetainedSubstackCaptures(plan, request.input.substackCaptures ?? []);
+      return plan;
+    }
     case "channels": return daemon(`/v1/channels?page=${request.page}`, "GET", undefined, fetcher);
     case "channelSearch": return daemon(`/v1/channel-search?scope=${request.scope}&query=${encodeURIComponent(request.query)}&page=${request.page}`, "GET", undefined, fetcher);
     case "status": return daemon(`/v1/saves/${request.saveId}`, "GET", undefined, fetcher);
@@ -77,7 +105,7 @@ export async function handle(request: HostRequest, fetcher: typeof fetch = fetch
       if (required.length) {
         const serving = buildInfoSchema.parse(await daemon("/v1/version", "GET", undefined, fetcher));
         const missing = required.filter(capability => !serving.planCapabilities?.includes(capability));
-        if (missing.length) throw new Error(`Daemon does not support this source plan (${missing.join(", ")}). Local resolve, plan and render are available; install a matching daemon before publishing. No save was submitted.`);
+        if (missing.length) throw new Error("Update the local helper and receiver to save this capture.", { cause: { missingCapabilities: missing } });
       }
       const config = await loadUserConfig();
       const intent = prepareSaveIntent(request.plan, config, { origin: "cli", operation: "publish",

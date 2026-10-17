@@ -16,10 +16,7 @@ function markdownLabel(value: string): string {
 export function soundCloudTrackText(metadata: Extract<SoundCloudMetadata, { kind: "track" }>, description: string): string {
   const lines = [metadata.artists.length ? `Artist${metadata.artists.length === 1 ? "" : "s"}: ${metadata.artists.join(", ")}` : "",
     metadata.durationSeconds === undefined ? "" : `Duration: ${duration(metadata.durationSeconds)}`,
-    description,
-    !metadata.originalDownloadAvailable ? "Original audio download is unavailable through the public SoundCloud download route; source link retained."
-      : metadata.originalDownloadExtension && !["mp3", "m4a", "wav", "flac", "ogg", "opus", "aac"].includes(metadata.originalDownloadExtension)
-        ? `Original audio is downloadable as .${metadata.originalDownloadExtension}, which this capture cannot attach without conversion; source link retained.` : ""];
+    description];
   return lines.filter(Boolean).join("\n\n");
 }
 

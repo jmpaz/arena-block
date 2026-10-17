@@ -81,6 +81,10 @@ public enum NativeMediaRenderer {
     }
 
     public static func stage(ref: String, kind: String, source: URL, directory: URL, audioSource: URL? = nil, session: URLSession = NativeMediaRenderer.mediaSession) async throws -> NativeStagedMedia {
+        if kind == "audio" {
+            guard audioSource == nil else { throw CaptureError.message("Capture one original audio attachment alone.") }
+            return try await stageOriginalAudio(ref: ref, source: source, directory: directory, session: session)
+        }
         if let audioSource {
             let video = try await stage(ref: ref, kind: kind, source: source, directory: directory, session: session)
             defer { try? FileManager.default.removeItem(at: video.fileURL) }
@@ -107,6 +111,38 @@ public enum NativeMediaRenderer {
         try FileManager.default.moveItem(at: download, to: file)
         do { return try await inspect(ref: ref, kind: kind, file: file) }
         catch { try? FileManager.default.removeItem(at: file); throw error }
+    }
+
+    public static func stageOriginalAudio(ref: String, source: URL, directory: URL, session: URLSession = NativeMediaRenderer.mediaSession,
+                                          maximumBytes: Int = 250 * 1024 * 1024) async throws -> NativeStagedMedia {
+        guard source.scheme == "https", source.user == nil, source.password == nil else { throw CaptureError.message("This audio does not have a secure download address.") }
+        let limit = min(250 * 1024 * 1024, max(1, maximumBytes))
+        let (bytes, response) = try await session.bytes(from: source)
+        defer { bytes.task.cancel() }
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else { throw CaptureError.message("The original audio could not be downloaded.") }
+        guard response.expectedContentLength <= limit else { throw CaptureError.message("The original audio exceeds the attachment size limit.") }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        var file = directory.appendingPathComponent(UUID().uuidString).appendingPathExtension("audio")
+        _ = FileManager.default.createFile(atPath: file.path, contents: nil)
+        let handle = try FileHandle(forWritingTo: file)
+        defer { try? handle.close() }
+        do {
+            var count = 0, buffer = Data(); buffer.reserveCapacity(64 * 1024)
+            for try await byte in bytes {
+                count += 1
+                guard count <= limit else { throw CaptureError.message("The original audio exceeds the attachment size limit.") }
+                buffer.append(byte)
+                if buffer.count == 64 * 1024 { try Task.checkCancellation(); try handle.write(contentsOf: buffer); buffer.removeAll(keepingCapacity: true) }
+            }
+            try Task.checkCancellation()
+            guard count > 0 else { throw CaptureError.message("The original audio was empty.") }
+            if !buffer.isEmpty { try handle.write(contentsOf: buffer) }
+            try handle.synchronize(); try handle.close()
+            let ext = try originalAudioExtension(file)
+            let typed = file.deletingPathExtension().appendingPathExtension(ext)
+            try FileManager.default.moveItem(at: file, to: typed); file = typed
+            return try await inspect(ref: ref, kind: "audio", file: file)
+        } catch { try? FileManager.default.removeItem(at: file); throw error }
     }
 
     private static func mux(ref: String, video: URL, audioSource: URL, directory: URL, session: URLSession) async throws -> NativeStagedMedia {
@@ -181,6 +217,13 @@ public enum NativeMediaRenderer {
             return NativeStagedMedia(ref: ref, kind: kind, fileURL: file, width: rotated ? height.doubleValue : width.doubleValue, height: rotated ? width.doubleValue : height.doubleValue, duration: 0, fps: 0, hasAudio: false)
         }
         let asset = AVURLAsset(url: file)
+        if kind == "audio" {
+            let audio = try await asset.loadTracks(withMediaType: .audio)
+            let video = try await asset.loadTracks(withMediaType: .video)
+            let duration = try await asset.load(.duration).seconds
+            guard !audio.isEmpty, video.isEmpty, duration.isFinite, duration > 0 else { throw CaptureError.message("This original attachment is not valid audio-only media.") }
+            return NativeStagedMedia(ref: ref, kind: kind, fileURL: file, width: 0, height: 0, duration: duration, fps: 0, hasAudio: true)
+        }
         guard let track = try await asset.loadTracks(withMediaType: .video).first else { throw CaptureError.message("This source does not contain a playable video.") }
         let size = try await track.load(.naturalSize)
         let transform = try await track.load(.preferredTransform)
@@ -207,6 +250,46 @@ public enum NativeMediaRenderer {
             guard bytes > 0, bytes <= recipe.maximumBytes else { throw CaptureError.message("The media exceeds Are.na's upload limit. Choose fewer items.") }
             return NativeRenderedMedia(fileURL: file, contentType: recipe.kind == "video" ? "video/mp4" : "image/jpeg", byteCount: bytes)
         } catch { try? FileManager.default.removeItem(at: file); throw error }
+    }
+
+    public static func originalAudio(_ media: NativeStagedMedia, directory: URL) throws -> NativeRenderedMedia {
+        try Task.checkCancellation()
+        guard media.kind == "audio", media.hasAudio, media.duration > 0 else { throw CaptureError.message("The original audio is not ready.") }
+        let types = ["mp3": "audio/mpeg", "m4a": "audio/mp4", "wav": "audio/wav", "flac": "audio/flac", "ogg": "audio/ogg", "opus": "audio/opus", "aac": "audio/aac"]
+        let ext = media.fileURL.pathExtension.lowercased()
+        guard try originalAudioExtension(media.fileURL) == ext, let contentType = types[ext], let bytes = try media.fileURL.resourceValues(forKeys: [.fileSizeKey]).fileSize, bytes > 0, bytes <= 250 * 1024 * 1024 else { throw CaptureError.message("The original audio has an unsupported type or size.") }
+        let container = directory.deletingLastPathComponent().deletingLastPathComponent()
+        if media.fileURL.deletingLastPathComponent().standardizedFileURL == directory.standardizedFileURL,
+           NativeMediaWorkspace.isOwnedDirectory(directory, container: container) {
+            // Promote the validated working download directly. External source
+            // files continue through the copy below.
+            return NativeRenderedMedia(fileURL: media.fileURL, contentType: contentType, byteCount: bytes)
+        }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let output = directory.appendingPathComponent(UUID().uuidString).appendingPathExtension(ext)
+        try FileManager.default.copyItem(at: media.fileURL, to: output)
+        do { try Task.checkCancellation() } catch { try? FileManager.default.removeItem(at: output); throw error }
+        return NativeRenderedMedia(fileURL: output, contentType: contentType, byteCount: bytes)
+    }
+
+    public static func verifyOriginalDuration(expected: Double, actual: Double) throws {
+        guard expected.isFinite, expected > 0, actual.isFinite, abs(actual - expected) <= max(1, expected * 0.02) else { throw CaptureError.message("The original media duration disagrees with its complete public source. No preview was saved.") }
+    }
+
+    // The public delivery URL may have a misleading or absent extension. Identify
+    // its original container from bounded bytes; AVFoundation then validates the
+    // actual audio tracks and duration. No encoding or conversion is performed.
+    private static func originalAudioExtension(_ file: URL) throws -> String {
+        let handle = try FileHandle(forReadingFrom: file); defer { try? handle.close() }
+        let bytes = [UInt8](try handle.read(upToCount: 64) ?? Data())
+        func marker(_ text: String, at offset: Int = 0) -> Bool { let value = Array(text.utf8); return bytes.count >= offset + value.count && Array(bytes[offset..<(offset + value.count)]) == value }
+        if marker("RIFF"), marker("WAVE", at: 8) { return "wav" }
+        if marker("fLaC") { return "flac" }
+        if marker("OggS") { return "ogg" }
+        if marker("ftyp", at: 4) { return "m4a" }
+        if bytes.count >= 2, bytes[0] == 0xff, bytes[1] & 0xf6 == 0xf0 { return "aac" }
+        if marker("ID3") || (bytes.count >= 2 && bytes[0] == 0xff && bytes[1] & 0xe0 == 0xe0) { return "mp3" }
+        throw CaptureError.message("This original audio format is not supported without conversion.")
     }
 
     private static func decodedImage(_ file: URL, maximumDimension: Int) throws -> CGImage {

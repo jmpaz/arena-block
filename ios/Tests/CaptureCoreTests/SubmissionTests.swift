@@ -207,13 +207,14 @@ final class SubmissionTests: XCTestCase {
             let read = try XCTUnwrap(delivery.reserveTransfer(accepted, transferID: "placement-read"))
             XCTAssertEqual(read.stage, .connections)
             let stopped = try XCTUnwrap(delivery.accept(try self.members([101, 102]), id: id, transferID: "placement-read"))
-            XCTAssertEqual(stopped.stage, .attention)
+            XCTAssertEqual(stopped.stage, .done)
             XCTAssertEqual(stopped.connected, Set([101, 102]))
             XCTAssertEqual(stopped.state.stopRequested, true)
             XCTAssertEqual(stopped.draft.blockID, 900)
             XCTAssertNil(try delivery.reserveTransfer(accepted, transferID: "late-connect"))
             let reopened = try CaptureStore(url: root.appendingPathComponent("capture.sqlite"))
-            XCTAssertEqual(try reopened.value(DeliveryJob.self, account: 0, kind: "delivery", id: id.uuidString)?.connected, Set([101, 102]))
+            XCTAssertNil(try reopened.value(DeliveryJob.self, account: 0, kind: "delivery", id: id.uuidString))
+            XCTAssertEqual(try reopened.value(CaptureDraft.self, account: source.accountID, kind: "draft", id: id.uuidString)?.deliveryState?.confirmedChannelIDs, Set([101, 102]))
         }
     }
 
@@ -259,12 +260,13 @@ final class SubmissionTests: XCTestCase {
             let lookup = try XCTUnwrap(delivery.reserveTransfer(unknown, transferID: "find-create"))
             XCTAssertEqual(try delivery.request(lookup, token: "fixture").request.httpMethod, "GET")
             let found: JSONValue = .object(["data": .array([.object([
-                "id": .number(900), "metadata": .object(["arena_capture_id": .string(id.uuidString)])
+                "id": .number(900), "metadata": .object(["arena_capture_id": .string(id.uuidString)]),
+                "created_at": .string(ISO8601DateFormatter().string(from: lookup.createdAt)), "user": .object(["id": .number(Double(source.accountID))])
             ])]), "meta": .object(["has_more_pages": .bool(false)])])
             let known = try XCTUnwrap(delivery.accept(.init(status: 200, body: try JSONEncoder().encode(found), error: nil, retryAfter: nil), id: id, transferID: "find-create"))
             XCTAssertEqual(known.id, id)
             XCTAssertEqual(known.draft.blockID, 900)
-            XCTAssertEqual(known.stage, .connections)
+            XCTAssertEqual(known.stage, .read)
             XCTAssertFalse(known.contentVerified == true)
             XCTAssertEqual(try delivery.request(known, token: "fixture").request.httpMethod, "GET")
             XCTAssertNil(try delivery.reserveTransfer(job, transferID: "duplicate-create"))
@@ -714,6 +716,93 @@ final class SubmissionTests: XCTestCase {
     }
 
     @MainActor
+    func testReadOnlyRecoveryFindsOlderDefaultPlacementWithoutMutation() async throws {
+        for foundPage in [4, 20] {
+            try await withDelivery { delivery, store, _ in
+                var source = self.draft(); source.input = "https://example.com/older-inbox"
+                source.provenanceChannelID = 101
+                let id = try delivery.persistQueuedSubmission(draft: source)
+                try await delivery.preparePending(id)
+                var job = try XCTUnwrap(store.value(DeliveryJob.self, account: 0, kind: "delivery", id: id.uuidString))
+                job.draft.blockID = 900; job.contentVerified = true
+                job.stopRequestedAt = Date(); job.readOnlyReconciliation = true
+                job.stage = .connections
+                delivery.consume(try self.members([101]), job: &job)
+                XCTAssertEqual(job.stage, .provenanceContents)
+                for page in 1..<foundPage {
+                    XCTAssertEqual(job.page, page)
+                    XCTAssertEqual(try delivery.request(job, token: "fixture").request.httpMethod, "GET")
+                    let response = JSONValue.object([
+                        "data": .array([]),
+                        "meta": .object(["has_more_pages": .bool(true), "next_page": .number(Double(page + 1))])
+                    ])
+                    delivery.consume(.init(status: 200, body: try JSONEncoder().encode(response), error: nil, retryAfter: nil), job: &job)
+                    XCTAssertEqual(job.stage, .provenanceContents)
+                }
+                XCTAssertEqual(job.page, foundPage)
+                XCTAssertEqual(try delivery.request(job, token: "fixture").request.httpMethod, "GET")
+                delivery.consume(try self.provenanceContents(), job: &job)
+                XCTAssertEqual(job.stage, .provenanceRead)
+                XCTAssertEqual(job.provenanceConnectionID, 500)
+                XCTAssertEqual(try delivery.request(job, token: "fixture").request.httpMethod, "GET")
+                let metadata = try XCTUnwrap(job.provenance).metadata
+                delivery.consume(try self.connection(metadata: metadata), job: &job)
+                XCTAssertEqual(job.stage, .done)
+                XCTAssertEqual(job.draft.blockID, 900)
+                XCTAssertEqual(job.id, id)
+                XCTAssertTrue(job.writesAreFenced)
+            }
+        }
+    }
+
+    @MainActor
+    func testOlderDefaultPlacementLookupIsBoundedAndRejectsPaginationJumps() async throws {
+        try await withDelivery { delivery, store, _ in
+            var source = self.draft(); source.input = "https://example.com/missing-receipt"
+            source.provenanceChannelID = 101
+            let id = try delivery.persistQueuedSubmission(draft: source)
+            try await delivery.preparePending(id)
+            var job = try XCTUnwrap(store.value(DeliveryJob.self, account: 0, kind: "delivery", id: id.uuidString))
+            job.draft.blockID = 900; job.contentVerified = true
+            job.stopRequestedAt = Date(); job.readOnlyReconciliation = true
+            job.stage = .provenanceContents
+            for page in 1...20 {
+                XCTAssertEqual(job.page, page)
+                XCTAssertEqual(try delivery.request(job, token: "fixture").request.httpMethod, "GET")
+                let response = JSONValue.object([
+                    "data": .array([]),
+                    "meta": .object(["has_more_pages": .bool(true), "next_page": .number(Double(page + 1))])
+                ])
+                delivery.consume(.init(status: 200, body: try JSONEncoder().encode(response), error: nil, retryAfter: nil), job: &job)
+                XCTAssertEqual(job.stage, page == 20 ? .attention : .provenanceContents)
+            }
+            XCTAssertEqual(job.page, 20)
+            XCTAssertTrue(job.writesAreFenced)
+            XCTAssertNil(job.provenanceConnectionID)
+            job.stage = .provenanceContents; job.page = 21
+            XCTAssertThrowsError(try delivery.request(job, token: "fixture"))
+            job.page = 1
+            let jump = JSONValue.object([
+                "data": .array([]),
+                "meta": .object(["has_more_pages": .bool(true), "next_page": .number(1000)])
+            ])
+            delivery.consume(.init(status: 200, body: try JSONEncoder().encode(jump), error: nil, retryAfter: nil), job: &job)
+            XCTAssertEqual(job.stage, .attention)
+            XCTAssertEqual(job.page, 1)
+            XCTAssertNil(job.provenanceConnectionID)
+            job.stage = .provenanceContents
+            let oversized = JSONValue.object([
+                "data": .array(Array(repeating: .object(["id": .number(901)]), count: 101)),
+                "meta": .object(["has_more_pages": .bool(true), "next_page": .number(2)])
+            ])
+            delivery.consume(.init(status: 200, body: try JSONEncoder().encode(oversized), error: nil, retryAfter: nil), job: &job)
+            XCTAssertEqual(job.stage, .attention)
+            XCTAssertEqual(job.page, 1)
+            XCTAssertNil(job.provenanceConnectionID)
+        }
+    }
+
+    @MainActor
     func testExistingDefaultOriginalMetadataIsUntouchedUntilFinalLatestEventPatch() async throws {
         try await withDelivery { delivery, store, _ in
             var source = self.draft(); source.input = "https://example.com/article"
@@ -838,7 +927,7 @@ final class SubmissionTests: XCTestCase {
             var job = try XCTUnwrap(store.value(DeliveryJob.self, account: 0, kind: "delivery", id: id.uuidString))
             XCTAssertEqual(job.preparationFailureStage, .reading)
             XCTAssertEqual(job.state.title, "Couldn’t read source")
-            XCTAssertEqual(CaptureSourceAccess.message(job.problem ?? ""), "Couldn’t load this Reddit content.")
+            XCTAssertEqual(CaptureSourceAccess.message(job.problem ?? ""), "Reddit didn’t allow Capture to read this link. Full content could not be acquired.")
             XCTAssertTrue(job.problem?.contains("HTTP 403") == true)
             XCTAssertTrue(job.permitsEditing)
             XCTAssertNil(job.draft.blockID); XCTAssertNil(job.transferID)
@@ -889,7 +978,8 @@ final class SubmissionTests: XCTestCase {
             XCTAssertNil(roundtrip.preparationFailureStage)
             XCTAssertEqual(roundtrip.title, "Save interrupted")
             XCTAssertFalse(CaptureSourceAccess.redditDenied("Are.na returned HTTP 403"))
-            XCTAssertFalse(CaptureSourceAccess.redditDenied("Reddit's live metadata read returned HTTP 429; try later"))
+            XCTAssertTrue(CaptureSourceAccess.redditDenied("Reddit's live metadata read returned HTTP 429; try later"))
+            XCTAssertTrue(CaptureSourceAccess.redditDenied("Reddit's live share-link read returned HTTP 403; current content cannot be verified."))
         }
     }
 

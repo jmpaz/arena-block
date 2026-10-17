@@ -8,6 +8,8 @@ const X_HOSTS = new Set([
 ]);
 
 export type ParsedSource =
+  | { provider: "substack"; id: string; canonicalUrl: string }
+  | { provider: "substack"; kind: "article"; id: string; canonicalUrl: string; slug: string; publicationHost: boolean }
   | { provider: "arena"; id: string; canonicalUrl: string }
   | { provider: "forum_magnum"; site: "lesswrong" | "alignment_forum" | "ea_forum"; id: string; canonicalUrl: string; commentId?: string }
   | { provider: "reddit"; id: string; canonicalUrl: string; short?: boolean; commentId?: string }
@@ -33,6 +35,12 @@ export function parseSource(value: string): ParsedSource {
   const url = new URL(value);
   const host = url.hostname.toLowerCase().replace(/^www\./, "");
   const parts = url.pathname.split("/").filter(Boolean);
+  if (host === "substack.com" && /\/note\//.test(url.pathname)) {
+    if (url.protocol !== "https:" || url.username || url.password || url.port) throw new Error("Substack Notes require HTTPS without credentials or custom ports");
+    const match = /^\/(?:(@[a-zA-Z0-9_]+|profile\/[1-9]\d*(?:-[a-zA-Z0-9_-]+)?)\/)?note\/c-([1-9]\d*)\/?$/.exec(url.pathname);
+    if (!match) throw new Error(`Expected a Substack Note permalink: ${value}`);
+    return { provider: "substack", id: match[2]!, canonicalUrl: `https://substack.com/${match[1] ? `${match[1]}/` : ""}note/c-${match[2]}` };
+  }
   const forumSites: Record<string, { site: "lesswrong" | "alignment_forum" | "ea_forum"; origin: string }> = {
     "lesswrong.com": { site: "lesswrong", origin: "https://www.lesswrong.com" },
     "greaterwrong.com": { site: "lesswrong", origin: "https://www.lesswrong.com" },
@@ -158,6 +166,15 @@ export function parseSource(value: string): ParsedSource {
     if (url.protocol !== "https:" || url.username || url.password) throw new Error("Mastodon post URLs must use HTTPS without credentials");
     return { provider: "mastodon", server: url.origin, id: mastodonId, canonicalUrl: `${url.origin}${url.pathname.replace(/\/$/, "")}` };
   }
+  // Custom publication domains cannot be identified from their hostname alone.
+  // The provider verifies the public article contract; unrelated /p/ pages stay Links.
+  const article = /^\/p\/([a-zA-Z0-9][a-zA-Z0-9_-]*)\/?$/.exec(url.pathname);
+  if (article && url.protocol === "https:" && !url.username && !url.password && !url.port
+    && host.includes(".") && !/^(?:\d[\d.]*|localhost)$/.test(host) && !/\.(?:local|localhost|internal|test|invalid)$/.test(host)) {
+    const publicationHost = host.endsWith(".substack.com");
+    const canonicalUrl = publicationHost ? `${url.origin}/p/${article[1]}` : url.href;
+    return { provider: "substack", kind: "article", id: `article:${canonicalUrl}`, canonicalUrl, slug: article[1]!, publicationHost };
+  }
   throw new Error(`Unsupported social post URL: ${value}`);
 }
 
@@ -200,4 +217,12 @@ export function normalizeArenaDestinations(values: string[]): string[] {
 function validDelveActor(value: string): boolean {
   return /^did:plc:[a-z2-7]{24}$/.test(value) || /^did:web:[a-zA-Z0-9.:%_-]+$/.test(value)
     || /^(?=.{1,253}$)(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z][a-zA-Z0-9-]*$/.test(value);
+}
+
+/** Read the Instagram post type from its permalink. */
+export function isInstagramReel(value: string): boolean {
+  try {
+    const source = parseSource(value);
+    return source.provider === "instagram" && new URL(source.canonicalUrl).pathname.startsWith("/reel/");
+  } catch { return false; }
 }

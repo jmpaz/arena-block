@@ -152,37 +152,44 @@ struct DraftsView: View {
     var addPlacements: (CaptureDraft) -> Void
     @State private var removedIDs: [UUID] = []
     @State private var clearConfirmation = false
-    @State private var captures: [CaptureDraft] = []
+    @State private var captures: [CaptureHistorySummary] = []
+    @State private var activeCaptures: [CaptureHistorySummary] = []
+    @State private var activeLimit = 100
+    @State private var hasMoreActive = false
     @State private var limit = 100
     @State private var hasMore = false
     @State private var problem: String?
     @State private var query = ""
 
-    private var visible: [CaptureDraft] {
-        captures.filter { draft in
-            query.isEmpty || HistoryRow.title(draft).localizedStandardContains(query) || draft.input.localizedStandardContains(query)
-                || draft.selection.channels.contains { $0.label.localizedStandardContains(query) }
-        }
+    private func matches(_ draft: CaptureHistorySummary) -> Bool {
+        query.isEmpty || draft.title.localizedStandardContains(query) || draft.input.localizedStandardContains(query)
+            || draft.selection.channels.contains { $0.label.localizedStandardContains(query) }
     }
+
+    private var visible: [CaptureHistorySummary] { captures.filter(matches) }
+    private var visibleActive: [CaptureHistorySummary] { activeCaptures.filter(matches) }
 
     var body: some View {
         List {
             if let problem {
                 ContentUnavailableView("History couldn’t load", systemImage: "exclamationmark.triangle", description: Text(problem))
                 Button("Try again") { reload() }
-            } else if captures.isEmpty {
+            } else if captures.isEmpty && activeCaptures.isEmpty {
                 ContentUnavailableView("No captures yet", systemImage: "clock")
-            } else if visible.isEmpty { ContentUnavailableView.search(text: query) }
+            } else if visible.isEmpty && visibleActive.isEmpty { ContentUnavailableView.search(text: query) }
             else {
-                ForEach(visible) { draft in
-                    NavigationLink(value: draft.id) { HistoryRow(draft: draft) }
-                        .accessibilityIdentifier("history.capture.\(draft.id)")
-                        .swipeActions {
-                            if session.canDeleteDraft(draft) {
-                                Button("Delete", role: .destructive) { _ = delete([draft.id]) }
-                            }
-                        }
+                if !visibleActive.isEmpty || hasMoreActive {
+                    Section {
+                        captureRows(visibleActive)
+                        if hasMoreActive { Button("Load more active captures") { activeLimit += 100; reload() } }
+                    } header: { Text("Active captures") } footer: {
+                        Text("Swipe to cancel a save. Confirmed blocks and channels stay on Are.na.")
+                    }
                 }
+                let drafts = visible.filter { $0.isDraftCapture }
+                let saved = visible.filter { !$0.isDraftCapture }
+                if !drafts.isEmpty { Section("Drafts") { captureRows(drafts) } }
+                if !saved.isEmpty { Section("Saved and canceled captures") { captureRows(saved) } }
             }
             if hasMore {
                 Button(query.isEmpty ? "Load older captures" : "Search older captures") { limit += 100; reload() }
@@ -202,7 +209,7 @@ struct DraftsView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     Button("Clear drafts", role: .destructive) { clearConfirmation = true }
-                        .disabled(!captures.contains(where: { session.canDeleteDraft($0) }))
+                        .disabled(!captures.contains(where: { $0.isUnsubmittedDraft && session.canDeleteDraft($0) }))
                     NavigationLink("Deleted captures") { DeletedDraftsView(session: session) }
                 } label: { Image(systemName: "ellipsis.circle") }
                     .accessibilityLabel("History actions")
@@ -233,6 +240,22 @@ struct DraftsView: View {
         .onChange(of: session.account?.id) { reload() }
     }
 
+    private func captureRows(_ values: [CaptureHistorySummary]) -> some View {
+        ForEach(values) { draft in
+            NavigationLink(value: draft.id) { HistoryRow(summary: draft) }
+                .accessibilityIdentifier("history.capture.\(draft.id)")
+                .accessibilityValue(draft.isActiveCapture ? "Active capture, \(HistoryRow.status(draft))" : HistoryRow.status(draft))
+                .swipeActions {
+                    if session.canCancelCapture(draft) {
+                        Button("Cancel", role: .destructive) { if session.cancelCapture(draft.id) { reload() } }
+                            .accessibilityIdentifier("history.cancel.\(draft.id)")
+                    } else if session.canDeleteDraft(draft) {
+                        Button("Delete", role: .destructive) { _ = delete([draft.id]) }
+                    }
+                }
+        }
+    }
+
     private func delete(_ ids: [UUID]) -> Bool {
         do {
             removedIDs = try session.deleteDrafts(ids)
@@ -243,7 +266,10 @@ struct DraftsView: View {
 
     private func reload() {
         do {
-            let loaded = try session.savedDrafts(limit: limit + 1)
+            let active = try session.historySummaries(activeOnly: true, limit: activeLimit + 1)
+            hasMoreActive = active.count > activeLimit
+            activeCaptures = Array(active.prefix(activeLimit))
+            let loaded = try session.historySummaries(activeOnly: false, limit: limit + 1)
             hasMore = loaded.count > limit
             captures = Array(loaded.prefix(limit)); problem = nil
         }
@@ -252,17 +278,29 @@ struct DraftsView: View {
 }
 
 struct HistoryRow: View {
-    let draft: CaptureDraft
+    let summary: CaptureHistorySummary
+    init(summary: CaptureHistorySummary) { self.summary = summary }
+    init(draft: CaptureDraft) { summary = CaptureHistorySummary(draft: draft) }
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     static func title(_ draft: CaptureDraft) -> String {
-        draft.savedBlock?["title"]?.string ?? draft.titleOverride ?? draft.previewSnapshot?.title ?? URL(string: draft.input)?.host ?? draft.input
+        CaptureHistorySummary(draft: draft).title
     }
     static func status(_ draft: CaptureDraft) -> String {
+        status(CaptureHistorySummary(draft: draft))
+    }
+    static func status(_ draft: CaptureHistorySummary) -> String {
+        if draft.isCanceled { return "Canceled" }
+        // A retained Stop fence does not override a subsequently confirmed receipt.
+        if draft.phase == .saved, draft.deliveryState?.stage == .done { return "Saved" }
         if draft.deliveryState?.operationID == draft.id, draft.deliveryState?.stopRequested == true {
-            if draft.deliveryState?.stage != .attention { return "Stopping" }
+            if draft.deliveryState?.stage != .attention { return draft.deliveryState?.title ?? "Checking save" }
+            if let reason = draft.deliveryState?.interruption?.reason, reason != .userPause { return "Save interrupted" }
             return draft.phase == .uncertain ? "Save unconfirmed" : "Save paused"
         }
-        if draft.problem != nil && [.queued, .checking].contains(draft.phase) { return "Save interrupted" }
+        if draft.deliveryState?.stage == .attention { return draft.phase == .uncertain ? "Save unconfirmed" : "Save interrupted" }
+        if let retry = draft.deliveryState?.notBefore, retry > Date() { return "Waiting to retry" }
+        if draft.hasProblem && [.queued, .creating, .checking].contains(draft.phase) { return "Save interrupted" }
+        if let state = draft.deliveryState, [.queued, .creating, .checking].contains(draft.phase) { return state.title }
         return switch draft.phase {
         case .saved: "Saved"
         case .queued: "Waiting to save"
@@ -275,29 +313,29 @@ struct HistoryRow: View {
     var body: some View {
         HStack(spacing: 14) {
             VStack(alignment: .leading, spacing: 5) {
-                Text(Self.title(draft)).lineLimit(2)
-                if let first = draft.selection.channels.first {
-                    Text(first.label + (draft.selection.channels.count > 1 ? " + \(draft.selection.channels.count - 1)" : ""))
+                Text(summary.title).lineLimit(2)
+                if let first = summary.selection.channels.first {
+                    Text(first.label + (summary.selection.channels.count > 1 ? " + \(summary.selection.channels.count - 1)" : ""))
                         .font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 }
                 Group {
                     if dynamicTypeSize.isAccessibilitySize {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(Self.status(draft))
-                            Text(draft.updatedAt, format: .dateTime.month(.abbreviated).day().hour().minute())
+                            Text(Self.status(summary))
+                            Text(summary.updatedAt, format: .dateTime.month(.abbreviated).day().hour().minute())
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                     } else {
                         HStack(spacing: 8) {
-                            Text(Self.status(draft))
-                            Text(draft.updatedAt, format: .dateTime.month(.abbreviated).day().hour().minute())
+                            Text(Self.status(summary))
+                            Text(summary.updatedAt, format: .dateTime.month(.abbreviated).day().hour().minute())
                         }
                     }
                 }.font(.caption).foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             if !dynamicTypeSize.isAccessibilitySize,
-               let block = draft.savedBlock, let url = BlockDisplay.imageURL(block) {
+               let url = summary.imageURL {
                 AsyncImage(url: url) { image in image.resizable().scaledToFill() } placeholder: {
                     Rectangle().fill(Color(uiColor: .secondarySystemBackground))
                 }.frame(width: 56, height: 56).clipped().accessibilityHidden(true)
@@ -322,7 +360,7 @@ struct CaptureDetailView: View {
     var body: some View {
         List {
             Section {
-                if current.deliveryState != nil, current.phase != .saved {
+                if current.isCanceled || (current.deliveryState != nil && current.phase != .saved) {
                     CaptureStatusView(draft: current, showTitle: false)
                 } else {
                     Label(HistoryRow.status(current), systemImage: current.phase == .saved ? "checkmark.circle" : "clock")
@@ -331,12 +369,12 @@ struct CaptureDetailView: View {
                 if let shown = block ?? current.savedBlock { BlockContentView(block: shown) }
                 else {
                     Text(HistoryRow.title(current)).font(.headline)
-                    if let description = current.descriptionOverride, !description.isEmpty { Text(description) }
+                    if let description = current.descriptionOverride, !description.isEmpty { CaptureTextView(text: description, accessibilityPrefix: "history.description") }
                     if loading { ProgressView("Loading block…") }
                 }
                 if let problem { Text(problem).font(.callout).foregroundStyle(.secondary) }
             }
-            if current.deliveryState == nil || current.phase == .saved {
+            if !current.isCanceled && (current.deliveryState == nil || current.phase == .saved) {
                 Section("Channels") {
                     ForEach(current.selection.channels) { channel in Link(destination: channel.url) { ChannelIdentity(channel: channel) } }
                 }
@@ -346,16 +384,23 @@ struct CaptureDetailView: View {
                 if let url = URL(string: current.input) { Link("Original source", destination: url) }
                 Text(current.updatedAt, format: .dateTime.day().month().year().hour().minute()).foregroundStyle(.secondary)
             }
-            if current.canAddPlacements {
+            if !current.isCanceled, current.canAddPlacements {
                 Section {
                     Button("Add to channels") { addPlacements(current) }
                         .disabled(session.busy).accessibilityIdentifier("history.add-placements")
                 }
             }
-            if current.phase != .saved {
+            if !current.isCanceled, current.phase != .saved {
                 Section {
                     Button(current.deliveryState?.stopRequested == true ? "Review paused save" : (current.blockID != nil || current.phase == .uncertain ? "Review save" : "Resume capture")) { resume(current) }
                         .disabled(session.busy)
+                }
+            }
+            if session.canCancelCapture(CaptureHistorySummary(draft: current)) {
+                Section {
+                    Button("Cancel save", role: .destructive) {
+                        if session.cancelCapture(current.id) { latest = session.historyDraft(current.id) }
+                    }.accessibilityIdentifier("history.cancel-save")
                 }
             }
         }
@@ -369,14 +414,10 @@ struct CaptureDetailView: View {
             }
         }
         .task(id: draft.id) {
-            while !Task.isCancelled {
-                do {
-                    latest = try session.store.value(CaptureDraft.self, account: draft.accountID, kind: "draft", id: draft.id.uuidString)
-                    guard [.queued, .creating, .checking].contains(current.phase) else { return }
-                    try await Task.sleep(for: .seconds(2))
-                } catch { return }
-            }
+            latest = session.historyDraft(draft.id)
         }
+        .onChange(of: session.deliveryRevision) { latest = session.historyDraft(draft.id) }
+        .onChange(of: session.transferRevision) { latest = session.historyDraft(draft.id) }
         .task(id: current.blockID) {
             guard let id = current.blockID, let api = session.api else { return }
             loading = true

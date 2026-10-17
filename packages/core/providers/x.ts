@@ -295,7 +295,7 @@ export class XProvider implements SocialProvider {
         if (!embedded || !reference.authorKnown || (typeof embedded.text !== "string" && !object(embedded.article) && !object(embedded.media))) {
           parent.quoteBoundary = { ...boundary, status }; stopped = status; break;
         }
-        // Retain observed embedded source bytes, while explicitly distinguishing failed standalone hydration.
+        // Keep the embedded quote and record the failed read of its own URL.
         tweet = embedded; snapshot = { basis: "embedded", hydration: status }; incomplete = status;
       }
       const quoted = postFromTweet(tweet, next);

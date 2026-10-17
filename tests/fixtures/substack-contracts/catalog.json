@@ -1,0 +1,783 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "360829302",
+      "title": "Authored commentary + complete Lam quote; YouTube stays linked",
+      "url": "https://substack.com/@norvidstudies/note/c-360829302",
+      "variants": [
+        "https://substack.com/@norvidstudies/note/c-360829302?r=1ir8aw&utm_medium=ios&utm_source=notes-share-",
+        "https://substack.com/note/c-360829302"
+      ],
+      "fixtureMode": "public-responses",
+      "maxRequests": 2,
+      "expected": {
+        "canonicalSource": "https://substack.com/@norvidstudies/note/c-360829302",
+        "kind": "text",
+        "selectedMedia": [],
+        "nodes": [
+          {
+            "id": "360829302",
+            "url": "https://substack.com/@norvidstudies/note/c-360829302",
+            "author": {
+              "handle": "norvidstudies",
+              "name": "norvid_studies"
+            },
+            "bodyText": "most video/audio content is relatively hidden and inaccessible, in the sense that almost no one will view or listen to some given 1 hour block of video/audio (not enough time in the day). so there’s a lot of value in just condensing the main and best points, from any sufficiently dense block, and reposting it, basically “liveblogging this good podcast episode I listened to”. but I hardly ever see this in the wild, and also don’t do it that much myself. anyway here’s a good example",
+            "bodySHA256": "41afbfbd90c1420dbf5d4b8bd757e0010edede5fcf8d8f2ebe1146964a456299",
+            "text": "most video/audio content is relatively hidden and inaccessible, in the sense that almost no one will view or listen to some given 1 hour block of video/audio (not enough time in the day). so there’s a lot of value in just condensing the main and best points, from any sufficiently dense block, and reposting it, basically “liveblogging this good podcast episode I listened to”. but I hardly ever see this in the wild, and also don’t do it that much myself. anyway here’s a good example",
+            "links": [],
+            "media": [],
+            "attachments": []
+          },
+          {
+            "id": "359890078",
+            "url": "https://substack.com/@lamblog/note/c-359890078",
+            "author": {
+              "handle": "lamblog",
+              "name": "Lam"
+            },
+            "bodyText": "Interesting debate with Hanson and Krueger on AI Doom. I generally found Hanson’s (anti-doom) arguments more compelling. The basic case for AI doom is probably still underrated among most people (how many have really thought about what happens when machines are smarter than people?), but the more I hear specific arguments for it being a large threat (or especially for it being a threat soon), the worse they seem. Many involve empirical claims and predictions which are not well supported by evidence, for example (following are not meant to be conjunctive or universal to all such arguments):That AI will soon revolutionize much of the economy soon in a trend-changing way, despite the fact that, for example, superforecasters, economists, and prediction markets all expect US GDP growth in ~2% range for the next decade, in line with official long-run estimates.That there are many scary technologies such as advanced bioweapons just around the corner which will heavily favor offense, far more so than prior technologies -- despite no consensus that this is true, and several opposing theories such as the \"Wrench Hypothesis\". (and additionally that the key bottleneck to these is AI capabilities progress)That we would see a sudden, large leaps in intelligence and thus that a single system could achieve an unprecedented level of autarky and become more powerful than the rest of the world quickly without the rest of the world being able to do much about it. note this is not a feature of all doom stories, but it is of most of the prominent ones, and leads to dubious claim that alignment will become a \"all or nothing\"/\"critical act\" problem, versus a more normal engineering/liability problem where we require a certain level of reliability and can respond to increased rates of risks as they emerge.that our current methods of aligning and instilling human values into ai, which seem to be working well, will catastrophically fail to generalize in a way we can't adapt to, despite large commercial and political pressures to apply and extend these methodsthat human institutions cannot handle more intelligent entities, despite a history of them evolving to be able to re-invent themselves to handle (imperfectly, but all things considered passably) smarter people, corporations, governments, etc.When I try to read the “basic cases“ for AI doom they all seem to be proving too much or to be too vague to apply to the real world (ex. analogies from evolution, or discussion of orthogonality and instrumental convergence).In general AI existential risk seems to me like like the kind of thing some people should be thinking about, but not something that should be, e.g, be used as a justification for any particularly costly or unprecedented policies. There has been a lot of gloating by the doomer side about how the world has unfolded just as they have predicted, by for example pointing to some current harms -- but these current harms are still very small, and while perhaps increasing in absolute terms are not obviously increasing relative to benefits. And the path from current harms to doom still requires a variety of still-unobserved dramatic steps like those mentioned above.In my view, the basic picture today is that we are observing AI systems increasing in capability diffusing throughout the economy, bringing large benefits, with very minor harm. We can see some new types of harms emerging, and we can and should be watching things closely and address them with targeted research and policy, but not much else is warranted by what we know now. One risk that is very clear (and precedented) and excessive concern among the public and policymakers leading to destructive policies that foreclose human potential.",
+            "bodySHA256": "748accf48b379548a1c9966675d613661fa659e3131d1e04d7a326766bcfd9eb",
+            "text": "Interesting debate with Hanson and Krueger on AI Doom. I generally found Hanson’s (anti-doom) arguments more compelling. The basic case for AI doom is probably still underrated among most people (how many have really thought about what happens when machines are smarter than people?), but the more I hear specific arguments for it being a large threat (or especially for it being a threat soon), the worse they seem. Many involve empirical claims and predictions which are not well supported by evidence, for example (following are not meant to be conjunctive or universal to all such arguments):\n\n-   That AI will soon revolutionize much of the economy soon in a trend-changing way, despite the fact that, for example, superforecasters, economists, and prediction markets all expect US GDP growth in ~2% range for the next decade, in line with official long-run estimates.\n    \n-   That there are many scary technologies such as advanced bioweapons just around the corner which will heavily favor offense, far more so than prior technologies -- despite no consensus that this is true, and several opposing theories such as the \"Wrench Hypothesis\". (and additionally that the key bottleneck to these is AI capabilities progress)\n    \n-   That we would see a sudden, large leaps in intelligence and thus that a single system could achieve an unprecedented level of autarky and become more powerful than the rest of the world quickly without the rest of the world being able to do much about it. note this is not a feature of all doom stories, but it is of most of the prominent ones, and leads to dubious claim that alignment will become a \"all or nothing\"/\"critical act\" problem, versus a more normal engineering/liability problem where we require a certain level of reliability and can respond to increased rates of risks as they emerge.\n    \n-   that our current methods of aligning and instilling human values into ai, which seem to be working well, will catastrophically fail to generalize in a way we can't adapt to, despite large commercial and political pressures to apply and extend these methods\n    \n-   that human institutions cannot handle more intelligent entities, despite a history of them evolving to be able to re-invent themselves to handle (imperfectly, but all things considered passably) smarter people, corporations, governments, etc.\n    \n\nWhen I try to read the “basic cases“ for AI doom they all seem to be proving too much or to be too vague to apply to the real world (ex. analogies from evolution, or discussion of orthogonality and instrumental convergence).\n\nIn general AI existential risk seems to me like like the kind of thing some people should be thinking about, but not something that should be, e.g, be used as a justification for any particularly costly or unprecedented policies. There has been a lot of gloating by the doomer side about how the world has unfolded just as they have predicted, by for example pointing to some current harms -- but these current harms are still very small, and while perhaps increasing in absolute terms are not obviously increasing relative to benefits. And the path from current harms to doom still requires a variety of still-unobserved dramatic steps like those mentioned above.\n\nIn my view, the basic picture today is that we are observing AI systems increasing in capability diffusing throughout the economy, bringing large benefits, with _very_ minor harm. We can see some new types of harms emerging, and we can and should be watching things closely and address them with targeted research and policy, but not much else is warranted by what we know now. One risk that _is_ very clear (and precedented) and excessive concern among the public and policymakers leading to destructive policies that foreclose human potential.\n\n<https://www.youtube.com/watch?v=1u5qMZvd6ps>",
+            "links": [
+              {
+                "kind": "video",
+                "role": "linked",
+                "url": "https://www.youtube.com/watch?v=1u5qMZvd6ps"
+              }
+            ],
+            "media": [],
+            "attachments": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "362104813",
+      "title": "Image-only Note: empty prose + exact original image",
+      "url": "https://substack.com/@norvidstudies/note/c-362104813",
+      "variants": [
+        "https://substack.com/@norvidstudies/note/c-362104813?r=1ir8aw&utm_medium=ios&utm_source=notes-share-",
+        "https://substack.com/note/c-362104813"
+      ],
+      "fixtureMode": "public-responses",
+      "maxRequests": 2,
+      "expected": {
+        "canonicalSource": "https://substack.com/@norvidstudies/note/c-362104813",
+        "kind": "link",
+        "selectedMedia": [
+          "1.1"
+        ],
+        "nodes": [
+          {
+            "id": "362104813",
+            "url": "https://substack.com/@norvidstudies/note/c-362104813",
+            "author": {
+              "handle": "norvidstudies",
+              "name": "norvid_studies"
+            },
+            "bodyText": "",
+            "bodySHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "text": "",
+            "links": [],
+            "media": [
+              {
+                "alt": "",
+                "height": 1086,
+                "kind": "image",
+                "ref": "1.1",
+                "sourceRole": "original",
+                "url": "https://substack-post-media.s3.amazonaws.com/public/images/9fc436fc-78b9-407e-9a44-70f18500a27d_1448x1086.png",
+                "width": 1448
+              }
+            ],
+            "attachments": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "347044458",
+      "title": "Authored full URL in detached link preview + quoted plain Note + original image",
+      "url": "https://substack.com/@joodaloop/note/c-347044458",
+      "variants": [
+        "https://substack.com/@joodaloop/note/c-347044458?r=1ir8aw&utm_medium=ios&utm_source=notes-share-",
+        "https://substack.com/note/c-347044458"
+      ],
+      "fixtureMode": "public-responses",
+      "maxRequests": 3,
+      "expected": {
+        "canonicalSource": "https://substack.com/@joodaloop/note/c-347044458",
+        "kind": "link",
+        "selectedMedia": [
+          "1.1"
+        ],
+        "nodes": [
+          {
+            "id": "347044458",
+            "url": "https://substack.com/@joodaloop/note/c-347044458",
+            "author": {
+              "handle": "joodaloop",
+              "name": "Judah"
+            },
+            "bodyText": "ok, starting with the first one i remember that blew my mind because of the sheer intensity of care for the detailsstill online at",
+            "bodySHA256": "cf52a33011ce5bfea76cdadf4c0a2f2d43f120af140dadd5f016e88a112fd1dc",
+            "text": "ok, starting with the first one i remember that blew my mind because of the sheer intensity of care for the details\n\nstill online at\n\n*Preview of [Simon Collison | Colly | The Celebrated Miscellany](<http://colly.com/v4>):*\n\n> This is the celebrated journal of Simon Collison (aka Colly); web designer, developer, author and speaker, Nottingham, UK.",
+            "links": [
+              {
+                "kind": "link",
+                "previewText": "This is the celebrated journal of Simon Collison (aka Colly); web designer, developer, author and speaker, Nottingham, UK.",
+                "role": "preview",
+                "title": "Simon Collison | Colly | The Celebrated Miscellany",
+                "url": "http://colly.com/v4"
+              }
+            ],
+            "media": [
+              {
+                "alt": "",
+                "kind": "image",
+                "ref": "1.1",
+                "sourceRole": "original",
+                "url": "https://substack-post-media.s3.amazonaws.com/public/images/f0e3bd4a-3606-42e8-a300-be503eb4dae7_2560x1738.jpeg"
+              }
+            ],
+            "attachments": []
+          },
+          {
+            "id": "346876542",
+            "url": "https://substack.com/@joodaloop/note/c-346876542",
+            "author": {
+              "handle": "joodaloop",
+              "name": "Judah"
+            },
+            "bodyText": "i think i’m going to start posting personal websites that i admire, as an act of reverence for the medium",
+            "bodySHA256": "a750a0c450db5538d583e9f4edf9ce5d463b53aa1d5fc8da521f0a99f5408d16",
+            "text": "i think i’m going to start posting personal websites that i admire, as an act of reverence for the medium",
+            "links": [],
+            "media": [],
+            "attachments": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "348712218",
+      "title": "Lucy Ives authored URL + two full nested Joodaloop quotations + ordered images",
+      "url": "https://substack.com/@joodaloop/note/c-348712218",
+      "variants": [
+        "https://substack.com/@joodaloop/note/c-348712218?r=1ir8aw&utm_medium=ios&utm_source=notes-share-",
+        "https://substack.com/note/c-348712218"
+      ],
+      "fixtureMode": "public-responses",
+      "maxRequests": 4,
+      "expected": {
+        "canonicalSource": "https://substack.com/@joodaloop/note/c-348712218",
+        "kind": "link",
+        "selectedMedia": [
+          "1.1",
+          "1.2"
+        ],
+        "nodes": [
+          {
+            "id": "348712218",
+            "url": "https://substack.com/@joodaloop/note/c-348712218",
+            "author": {
+              "handle": "joodaloop",
+              "name": "Judah"
+            },
+            "bodyText": "second up, the site i’m most intimidated by in terms of breadth of content and quality of executionDENSITY!!!lucy-ives.com",
+            "bodySHA256": "0d9f9fe6c11ae34a6fbd8bdce6117b2c14ea354c48a6034fc39d336e54e64320",
+            "text": "second up, the site i’m most intimidated by in terms of breadth of content and quality of execution\n\nDENSITY!!!\n\n[lucy-ives.com](<https://www.lucy-ives.com/>)",
+            "links": [],
+            "media": [
+              {
+                "alt": "",
+                "kind": "image",
+                "ref": "1.1",
+                "sourceRole": "original",
+                "url": "https://substack-post-media.s3.amazonaws.com/public/images/68a64432-2acb-43f4-bfa8-ed1f39bcef11_2560x1593.jpeg"
+              }
+            ],
+            "attachments": []
+          },
+          {
+            "id": "347044458",
+            "url": "https://substack.com/@joodaloop/note/c-347044458",
+            "author": {
+              "handle": "joodaloop",
+              "name": "Judah"
+            },
+            "bodyText": "ok, starting with the first one i remember that blew my mind because of the sheer intensity of care for the detailsstill online at",
+            "bodySHA256": "cf52a33011ce5bfea76cdadf4c0a2f2d43f120af140dadd5f016e88a112fd1dc",
+            "text": "ok, starting with the first one i remember that blew my mind because of the sheer intensity of care for the details\n\nstill online at\n\n*Preview of [Simon Collison | Colly | The Celebrated Miscellany](<http://colly.com/v4>):*\n\n> This is the celebrated journal of Simon Collison (aka Colly); web designer, developer, author and speaker, Nottingham, UK.",
+            "links": [
+              {
+                "kind": "link",
+                "previewText": "This is the celebrated journal of Simon Collison (aka Colly); web designer, developer, author and speaker, Nottingham, UK.",
+                "role": "preview",
+                "title": "Simon Collison | Colly | The Celebrated Miscellany",
+                "url": "http://colly.com/v4"
+              }
+            ],
+            "media": [
+              {
+                "alt": "",
+                "kind": "image",
+                "ref": "1.2",
+                "sourceRole": "original",
+                "url": "https://substack-post-media.s3.amazonaws.com/public/images/f0e3bd4a-3606-42e8-a300-be503eb4dae7_2560x1738.jpeg"
+              }
+            ],
+            "attachments": []
+          },
+          {
+            "id": "346876542",
+            "url": "https://substack.com/@joodaloop/note/c-346876542",
+            "author": {
+              "handle": "joodaloop",
+              "name": "Judah"
+            },
+            "bodyText": "i think i’m going to start posting personal websites that i admire, as an act of reverence for the medium",
+            "bodySHA256": "a750a0c450db5538d583e9f4edf9ce5d463b53aa1d5fc8da521f0a99f5408d16",
+            "text": "i think i’m going to start posting personal websites that i admire, as an act of reverence for the medium",
+            "links": [],
+            "media": [],
+            "attachments": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "360337718",
+      "title": "Authored HTTP Nico link with shortened DOM label + quoted density Note + originals",
+      "url": "https://substack.com/@joodaloop/note/c-360337718",
+      "variants": [
+        "https://substack.com/@joodaloop/note/c-360337718?r=1ir8aw&utm_medium=ios&utm_source=notes-share-",
+        "https://substack.com/note/c-360337718"
+      ],
+      "fixtureMode": "public-responses",
+      "maxRequests": 2,
+      "expected": {
+        "canonicalSource": "https://substack.com/@joodaloop/note/c-360337718",
+        "kind": "link",
+        "selectedMedia": [
+          "1.1",
+          "1.2",
+          "1.3",
+          "1.4",
+          "1.5"
+        ],
+        "nodes": [
+          {
+            "id": "360337718",
+            "url": "https://substack.com/@joodaloop/note/c-360337718",
+            "author": {
+              "handle": "joodaloop",
+              "name": "Judah"
+            },
+            "bodyText": "keeping the density theme going, my all time favourite grid design from nicochilla.comand a themed grid at that!",
+            "bodySHA256": "5cbcda56cb2b1bcc196f781ccba684c25d086cd71a3408df0947f31357e63229",
+            "text": "keeping the density theme going, my all time favourite grid design from [nicochilla.com](<http://nicochilla.com/>)\n\nand a themed grid at that!",
+            "links": [],
+            "media": [
+              {
+                "alt": "",
+                "kind": "image",
+                "ref": "1.1",
+                "sourceRole": "original",
+                "url": "https://substack-post-media.s3.amazonaws.com/public/images/210cccc3-51d5-41b7-8c8c-93d7fe6f1c5f_2560x1582.jpeg"
+              },
+              {
+                "alt": "",
+                "kind": "image",
+                "ref": "1.2",
+                "sourceRole": "original",
+                "url": "https://substack-post-media.s3.amazonaws.com/public/images/9ab15eaa-228f-4f96-8003-5703a47ac7ff_2560x1582.jpeg"
+              },
+              {
+                "alt": "",
+                "kind": "image",
+                "ref": "1.3",
+                "sourceRole": "original",
+                "url": "https://substack-post-media.s3.amazonaws.com/public/images/7a79535b-7552-4d49-8a1a-76ee974f36d9_2560x1582.jpeg"
+              },
+              {
+                "alt": "",
+                "kind": "image",
+                "ref": "1.4",
+                "sourceRole": "original",
+                "url": "https://substack-post-media.s3.amazonaws.com/public/images/3cc17aa7-18f8-4ef2-bca2-c07d38678c64_2560x1582.jpeg"
+              }
+            ],
+            "attachments": []
+          },
+          {
+            "id": "357819575",
+            "url": "https://substack.com/@joodaloop/note/c-357819575",
+            "author": {
+              "handle": "joodaloop",
+              "name": "Judah"
+            },
+            "bodyText": "speaking of density, i believe Alexander Obenauer’s site is the best example of a dense website that’s both:deserving (he has lots of writing)done well (note the careful use of typography and spacing)note that this is the previous version, the current one is less dense but no less pretty alexanderobenauer.com/v2",
+            "bodySHA256": "b19a6a84cabb295ecce40e95dffde2cf4b9266bc1e8240de442d81b2400b5db9",
+            "text": "speaking of density, i believe Alexander Obenauer’s site is the best example of a dense website that’s both:\n\n1.  deserving (he has lots of writing)\n    \n2.  done well (note the careful use of typography and spacing)\n    \n\nnote that this is the previous version, the current one is less dense but no less pretty\n\n[alexanderobenauer.com/v2](<https://alexanderobenauer.com/v2/>)",
+            "links": [],
+            "media": [
+              {
+                "alt": "",
+                "kind": "image",
+                "ref": "1.5",
+                "sourceRole": "original",
+                "url": "https://substack-post-media.s3.amazonaws.com/public/images/f19db82c-7882-4589-b335-ca5bad1ffd63_1400x866.jpeg"
+              }
+            ],
+            "attachments": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "346876542",
+      "title": "Plain complete Note with no quote or media",
+      "url": "https://substack.com/@joodaloop/note/c-346876542",
+      "variants": [
+        "https://substack.com/@joodaloop/note/c-346876542?r=1ir8aw&utm_medium=ios&utm_source=notes-share-",
+        "https://substack.com/note/c-346876542"
+      ],
+      "fixtureMode": "public-responses",
+      "maxRequests": 1,
+      "expected": {
+        "canonicalSource": "https://substack.com/@joodaloop/note/c-346876542",
+        "kind": "text",
+        "selectedMedia": [],
+        "nodes": [
+          {
+            "id": "346876542",
+            "url": "https://substack.com/@joodaloop/note/c-346876542",
+            "author": {
+              "handle": "joodaloop",
+              "name": "Judah"
+            },
+            "bodyText": "i think i’m going to start posting personal websites that i admire, as an act of reverence for the medium",
+            "bodySHA256": "a750a0c450db5538d583e9f4edf9ce5d463b53aa1d5fc8da521f0a99f5408d16",
+            "text": "i think i’m going to start posting personal websites that i admire, as an act of reverence for the medium",
+            "links": [],
+            "media": [],
+            "attachments": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "359359118",
+      "title": "Native original video: attachment identity, not SSR poster",
+      "url": "https://substack.com/@substack/note/c-359359118",
+      "variants": [
+        "https://substack.com/@substack/note/c-359359118?r=1ir8aw&utm_medium=ios&utm_source=notes-share-",
+        "https://substack.com/note/c-359359118"
+      ],
+      "fixtureMode": "public-responses",
+      "maxRequests": 2,
+      "expected": {
+        "canonicalSource": "https://substack.com/@substack/note/c-359359118",
+        "kind": "video",
+        "selectedMedia": [
+          "1.1"
+        ],
+        "nodes": [
+          {
+            "id": "359359118",
+            "url": "https://substack.com/@substack/note/c-359359118",
+            "author": {
+              "handle": "substack",
+              "name": "Substack"
+            },
+            "bodyText": "Rob Stephenson photographs, writes about, and records every neighborhood in New York City for a living",
+            "bodySHA256": "a773476e2459e8c2440af10def3e27719f709843c4282d5e7c79d43b890e6839",
+            "text": "[Rob Stephenson](<https://substack.com/profile/29432745-rob-stephenson>) photographs, writes about, and records every neighborhood in New York City for a living",
+            "links": [],
+            "media": [
+              {
+                "acquisition": "substack-public-original",
+                "alt": "",
+                "durationSeconds": 69.69463,
+                "height": 1920,
+                "kind": "video",
+                "posterUrl": "https://substack-video.s3.amazonaws.com/video_upload/user/81309935/9681d26c-5e44-4f6e-bd53-679694ab6da6/transcoded-00001.png",
+                "ref": "1.1",
+                "sourceRole": "original",
+                "url": "https://substack.com/api/v1/video/upload/9681d26c-5e44-4f6e-bd53-679694ab6da6/src?type=mp4",
+                "width": 1080
+              }
+            ],
+            "attachments": [
+              {
+                "commentId": 359359118,
+                "id": "199db938-2d40-49ca-bdc3-7b6fe4ac5534",
+                "kind": "video",
+                "upload": {
+                  "durationSeconds": 69.69463,
+                  "height": 1920,
+                  "id": "9681d26c-5e44-4f6e-bd53-679694ab6da6",
+                  "postId": null,
+                  "publicationId": null,
+                  "state": "transcoded",
+                  "thumbnailId": 1,
+                  "userId": 81309935,
+                  "width": 1080
+                },
+                "userId": 81309935
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "337896966",
+      "title": "Selected article excerpt: independent author and bounded selection, not full article",
+      "url": "https://substack.com/@oatmilkallison/note/c-337896966",
+      "variants": [
+        "https://substack.com/@oatmilkallison/note/c-337896966?r=1ir8aw&utm_medium=ios&utm_source=notes-share-",
+        "https://substack.com/note/c-337896966"
+      ],
+      "fixtureMode": "public-responses",
+      "maxRequests": 2,
+      "expected": {
+        "canonicalSource": "https://substack.com/@oatmilkallison/note/c-337896966",
+        "kind": "text",
+        "selectedMedia": [],
+        "nodes": [
+          {
+            "id": "337896966",
+            "url": "https://substack.com/@oatmilkallison/note/c-337896966",
+            "author": {
+              "handle": "oatmilkallison",
+              "name": "Oatmilk Allison"
+            },
+            "bodyText": "Obsessed with this sentiment on friendship",
+            "bodySHA256": "b651db0c3f75cb97cba4cfa02947a775378ac3f8e57b3af2311f88169fd5b21f",
+            "text": "Obsessed with this sentiment on friendship\n\n*Excerpt from [Nice People Make Bad Friends](<https://sofset.substack.com/p/nice-people-make-bad-friends>), by SOFSET:*\n\n> If I buy you a $5 coffee, I am not asking you to Venmo me. You’ll get the next one. Or you won’t. Maybe I’ll buy ten coffees and thirty years from now you’ll be helping me move the Hamptons house into an offshore holding company before my ex-husband realizes what’s happening. Who cares?",
+            "links": [],
+            "media": [],
+            "attachments": [
+              {
+                "authors": [
+                  {
+                    "handle": "sofset",
+                    "id": 285175677,
+                    "name": "SOFSET"
+                  }
+                ],
+                "id": "2acdfb41-797d-41d2-a427-3919d9aa32b7",
+                "kind": "article",
+                "postId": 211480016,
+                "previewText": "On $5 Venmo requests, 3 a.m. cockroach emergencies, social climbing, and why real friendship requires inconvenience.",
+                "publicationId": 9745090,
+                "selection": {
+                  "endOffset": 10,
+                  "endParagraph": 33,
+                  "id": "27cef561-adbd-4a8e-8771-57811564d610",
+                  "isAutoSelection": false,
+                  "postId": 211480016,
+                  "startOffset": 0,
+                  "startParagraph": 32,
+                  "text": "If I buy you a $5 coffee, I am not asking you to Venmo me. You’ll get the next one. Or you won’t. Maybe I’ll buy ten coffees and thirty years from now you’ll be helping me move the Hamptons house into an offshore holding company before my ex-husband realizes what’s happening. Who cares?"
+                },
+                "title": "Nice People Make Bad Friends",
+                "url": "https://sofset.substack.com/p/nice-people-make-bad-friends"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "311363713",
+      "title": "Podcast article player in Note: original audio and independent Hamish byline",
+      "url": "https://substack.com/@evadmartain/note/c-311363713",
+      "variants": [
+        "https://substack.com/@evadmartain/note/c-311363713?r=1ir8aw&utm_medium=ios&utm_source=notes-share-",
+        "https://substack.com/note/c-311363713"
+      ],
+      "fixtureMode": "public-responses",
+      "maxRequests": 4,
+      "expected": {
+        "canonicalSource": "https://substack.com/@evadmartain/note/c-311363713",
+        "kind": "audio",
+        "selectedMedia": [
+          "1.1"
+        ],
+        "nodes": [
+          {
+            "id": "311363713",
+            "url": "https://substack.com/@evadmartain/note/c-311363713",
+            "author": {
+              "handle": "evadmartain",
+              "name": "Eva D'Martain"
+            },
+            "bodyText": "AUDIO GRAM",
+            "bodySHA256": "db644350b5ffc14f717d6dfbcaf3a447b84f76238cdf5b90e92baccd75e168e7",
+            "text": "AUDIO GRAM\n\n*Preview of [Introducing new audio transcription tools for Substack](<https://on.substack.com/p/transcription>), by Hamish McKenzie:*\n\n> Cutting-edge AI tools let you automatically generate transcripts and create social sharing assets",
+            "links": [],
+            "media": [
+              {
+                "acquisition": "substack-public-original",
+                "alt": "",
+                "durationSeconds": 241.42368,
+                "kind": "audio",
+                "ref": "1.1",
+                "sourceAttribution": {
+                  "attachmentId": "006e0046-914d-4324-96ca-11ba9501ca1c",
+                  "authors": [
+                    "Hamish McKenzie"
+                  ],
+                  "kind": "substack-podcast",
+                  "title": "Introducing new audio transcription tools for Substack",
+                  "url": "https://on.substack.com/p/transcription"
+                },
+                "sourceRole": "original",
+                "url": "https://api.substack.com/api/v1/audio/upload/a6e8b591-be53-465a-9d43-1615c6594f26/src"
+              }
+            ],
+            "attachments": [
+              {
+                "authors": [
+                  {
+                    "handle": "hamish",
+                    "id": 3567,
+                    "name": "Hamish McKenzie"
+                  }
+                ],
+                "id": "006e0046-914d-4324-96ca-11ba9501ca1c",
+                "kind": "article",
+                "podcast": {
+                  "article": {
+                    "audience": "everyone",
+                    "audio": {
+                      "durationSeconds": 241.42368,
+                      "kind": "audio",
+                      "uploadId": "a6e8b591-be53-465a-9d43-1615c6594f26",
+                      "url": "https://api.substack.com/api/v1/audio/upload/a6e8b591-be53-465a-9d43-1615c6594f26/src"
+                    },
+                    "authors": [
+                      {
+                        "handle": "hamish",
+                        "id": 3567,
+                        "name": "Hamish McKenzie",
+                        "profileUrl": "https://substack.com/@hamish"
+                      }
+                    ],
+                    "bodyEvidence": {
+                      "bytes": 23925,
+                      "sha256": "7d2253302fe279568d22fc9aa9e400e2c4021748e55a00396b6fbc1123678c19",
+                      "status": "complete"
+                    },
+                    "id": 136544895,
+                    "method": "public-api",
+                    "publicationId": 1,
+                    "title": "Introducing new audio transcription tools for Substack",
+                    "url": "https://on.substack.com/p/transcription",
+                    "version": 1
+                  },
+                  "durationSeconds": 241.42368,
+                  "postId": 136544895,
+                  "publicationId": 1,
+                  "uploadId": "a6e8b591-be53-465a-9d43-1615c6594f26",
+                  "userId": 34072171
+                },
+                "postId": 136544895,
+                "previewText": "Cutting-edge AI tools let you automatically generate transcripts and create social sharing assets",
+                "publicationId": 1,
+                "title": "Introducing new audio transcription tools for Substack",
+                "url": "https://on.substack.com/p/transcription"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "345777657",
+      "title": "Laurel authored Note + separate quoted Substack native video",
+      "url": "https://substack.com/@laurelpantin/note/c-345777657",
+      "variants": [
+        "https://substack.com/@laurelpantin/note/c-345777657?r=1ir8aw&utm_medium=ios&utm_source=notes-share-",
+        "https://substack.com/note/c-345777657"
+      ],
+      "fixtureMode": "retained-record",
+      "retainedFile": "345777657-retained.json",
+      "maxRequests": 3,
+      "limitations": [
+        "Original outer HTML was not retained. Deterministic source replay begins from the real retained complete capture; this is not a public-page acquisition test. The explicit live command always reacquires the actual URL. Video Frame/audio export and physical rendering are qualified separately."
+      ],
+      "expected": {
+        "canonicalSource": "https://substack.com/@laurelpantin/note/c-345777657",
+        "kind": "video",
+        "selectedMedia": [
+          "1.1"
+        ],
+        "nodes": [
+          {
+            "id": "345777657",
+            "url": "https://substack.com/@laurelpantin/note/c-345777657",
+            "author": {
+              "handle": "laurelpantin",
+              "name": "Laurel Pantin"
+            },
+            "bodyText": "It’s me!",
+            "bodySHA256": "fdc719d2c63d611038f47d8f0ad07352df90112671046e73c2052dc724047baf",
+            "text": "It’s me!",
+            "links": [],
+            "media": [],
+            "attachments": []
+          },
+          {
+            "id": "345770676",
+            "url": "https://substack.com/@substack/note/c-345770676",
+            "author": {
+              "handle": "substack",
+              "name": "Substack"
+            },
+            "bodyText": "Laurel Pantin makes a living helping women get dressed in a way that is intuitive, expressive and interesting",
+            "bodySHA256": "533906e055cfdf87aaa96c30070dad02def11740e6d74278c8eb1751b78c9c91",
+            "text": "[Laurel Pantin](<https://substack.com/profile/5935295-laurel-pantin>) makes a living helping women get dressed in a way that is intuitive, expressive and interesting",
+            "links": [],
+            "media": [
+              {
+                "acquisition": "substack-public-original",
+                "alt": "",
+                "durationSeconds": 94.566666,
+                "height": 1920,
+                "kind": "video",
+                "posterUrl": "https://substack-video.s3.amazonaws.com/video_upload/user/81309935/d51e3d24-74e7-46ac-8392-c666fdc163c1/transcoded-00001.png",
+                "ref": "1.1",
+                "sourceRole": "original",
+                "url": "https://substack.com/api/v1/video/upload/d51e3d24-74e7-46ac-8392-c666fdc163c1/src?type=mp4",
+                "width": 1080
+              }
+            ],
+            "attachments": [
+              {
+                "commentId": 345770676,
+                "id": "4d07b699-e95a-42e9-8282-78d9c0e5960b",
+                "kind": "video",
+                "upload": {
+                  "durationSeconds": 94.566666,
+                  "height": 1920,
+                  "id": "d51e3d24-74e7-46ac-8392-c666fdc163c1",
+                  "postId": null,
+                  "publicationId": null,
+                  "state": "transcoded",
+                  "thumbnailId": 1,
+                  "userId": 81309935,
+                  "width": 1080
+                },
+                "userId": 81309935
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "353698796",
+      "title": "Arabic authored Note/image + separate quoted video (Frame choice is UI/render qualification)",
+      "url": "https://substack.com/@arr87/note/c-353698796",
+      "variants": [
+        "https://substack.com/@arr87/note/c-353698796?r=1ir8aw&utm_medium=ios&utm_source=notes-share-",
+        "https://substack.com/note/c-353698796"
+      ],
+      "fixtureMode": "retained-record",
+      "retainedFile": "353698796-retained.json",
+      "maxRequests": 3,
+      "limitations": [
+        "Original outer HTML was not retained. Deterministic source replay begins from the real retained complete capture; this is not a public-page acquisition test. The explicit live command always reacquires the actual URL. Video Frame/audio export and physical rendering are qualified separately."
+      ],
+      "expected": {
+        "canonicalSource": "https://substack.com/@arr87/note/c-353698796",
+        "kind": "video",
+        "selectedMedia": [
+          "1.1",
+          "1.2"
+        ],
+        "nodes": [
+          {
+            "id": "353698796",
+            "url": "https://substack.com/@arr87/note/c-353698796",
+            "author": {
+              "handle": "arr87",
+              "name": "علي القرشي"
+            },
+            "bodyText": "اترك لقمه العيش وفكو حسابي",
+            "bodySHA256": "98a6c5139c10e02c647c5cdf6048abeb988ef6969a3211f6777449e6938bc7a8",
+            "text": "اترك لقمه العيش وفكو حسابي",
+            "links": [],
+            "media": [
+              {
+                "alt": "",
+                "kind": "image",
+                "ref": "1.1",
+                "sourceRole": "original",
+                "url": "https://substack-post-media.s3.amazonaws.com/public/images/b665f9d4-2b66-4860-9757-8d30e14e5cc6_720x720.jpeg"
+              }
+            ],
+            "attachments": []
+          },
+          {
+            "id": "353690182",
+            "url": "https://substack.com/@substack/note/c-353690182",
+            "author": {
+              "handle": "substack",
+              "name": "Substack"
+            },
+            "bodyText": "Danny Palumbo writes and cooks pasta for a living.",
+            "bodySHA256": "bec50035058dec24cf618c4b2f6090ea10f9a7db14749a16fd041d5432cd2050",
+            "text": "[Danny Palumbo](<https://substack.com/profile/30438759-danny-palumbo>) writes and cooks pasta for a living.",
+            "links": [],
+            "media": [
+              {
+                "acquisition": "substack-public-original",
+                "alt": "",
+                "durationSeconds": 72.61422,
+                "height": 1920,
+                "kind": "video",
+                "posterUrl": "https://substack-video.s3.amazonaws.com/video_upload/user/81309935/0c12776b-e2f4-4187-aaae-230a9d7c08e4/transcoded-00001.png",
+                "ref": "1.2",
+                "sourceRole": "original",
+                "url": "https://substack.com/api/v1/video/upload/0c12776b-e2f4-4187-aaae-230a9d7c08e4/src?type=mp4",
+                "width": 1080
+              }
+            ],
+            "attachments": [
+              {
+                "commentId": 353690182,
+                "id": "7b5cc724-a8f2-4be5-b888-695397fd6a90",
+                "kind": "video",
+                "upload": {
+                  "durationSeconds": 72.61422,
+                  "height": 1920,
+                  "id": "0c12776b-e2f4-4187-aaae-230a9d7c08e4",
+                  "postId": null,
+                  "publicationId": null,
+                  "state": "transcoded",
+                  "thumbnailId": 1,
+                  "userId": 81309935,
+                  "width": 1080
+                },
+                "userId": 81309935
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "receivingWitness": {
+    "block": "https://www.are.na/block/51476348",
+    "captureId": "57E00C7D-1A60-41CC-B749-C2C3378AEC2F",
+    "noteId": "348712218",
+    "scope": "Existing remotely saved Lucy Ives/Joodaloop capture, independently read by integration owner; not a fresh save, native rendering acceptance or permission to replay."
+  }
+}

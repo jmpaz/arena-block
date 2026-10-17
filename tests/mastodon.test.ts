@@ -108,12 +108,12 @@ describe("Mastodon resolution", () => {
     expect(boosted[0]!.author.handle).toBe("bob@origin.example");
     const quoteContent = '<p class="quote-inline">RE: <a href="https://origin.example/@bob/456">original</a></p><p>My response.</p>';
     const quoted = await resolver({ ...status, content: quoteContent, quote: { state: "accepted", quoted_status: original } }).resolve.resolve([source]);
-    expect(quoted[0]!.quote!.media[0]!.ref).toBe("quote.1");
+    expect(quoted[0]!.quote!.media[0]!.ref).toBe("1.1");
     const plan = blockPlanSchema.parse(composePlan(quoted));
     expect(plan.block.markdown).toContain("> Quoted text.");
     expect(plan.block.markdown).not.toContain("RE:");
     expect(plan.block.markdown).toContain("My response.");
-    expect(plan.block.selectedMedia).toEqual([]);
+    expect(plan.block.selectedMedia).toEqual(["1.1"]);
     expect(composePlan(quoted, { quote: "omit" }).block.markdown).not.toContain("Quoted text.");
     for (const state of ["pending", "revoked", "unauthorized", "future-state"]) {
       const posts = await resolver({ ...status, quote: { state, quoted_status: original } }).resolve.resolve([source]);

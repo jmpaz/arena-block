@@ -1,9 +1,11 @@
 import { createHash } from "node:crypto";
-import { mkdir, readdir, rm, stat } from "node:fs/promises";
+import { mkdir, readdir, rm, stat, copyFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { createCanvas, loadImage, type Image } from "@napi-rs/canvas";
-import type { BlockPlan, LayoutNode, MediaAsset, MediaKind } from "./types.ts";
+import type { BlockPlan, LayoutNode, MediaAsset, MediaKind, ResolvedPost } from "./types.ts";
 import { parseSource } from "../packages/core/url.ts";
+import { mediaSources, planMedia } from "../packages/core/media-tree.ts";
+import { blockPlanSchema } from "./types.ts";
 import { runYtDlp, type YtDlpRunner } from "./providers/soundcloud.ts";
 
 const FFMPEG = "ffmpeg";
@@ -37,7 +39,7 @@ export type RenderedMedia = {
   size: number;
 };
 
-export type RenderOptions = { signal?: AbortSignal; downloadTimeoutMs?: number; ytDlp?: YtDlpRunner };
+export type RenderOptions = { signal?: AbortSignal; downloadTimeoutMs?: number; ytDlp?: YtDlpRunner; fetcher?: typeof fetch; maximumAudioBytes?: number };
 
 function abortable<T>(operation: Promise<T>, signal: AbortSignal): Promise<T> {
   if (signal.aborted) { void operation.catch(() => {}); return Promise.reject(signal.reason); }
@@ -56,7 +58,7 @@ export { tileRects, even, canvasSize } from "../packages/core/render-recipe.ts";
 
 function assetMap(plan: BlockPlan): Map<string, MediaAsset> {
   const frames = new Map((plan.block.frameMedia ?? []).map(item => [item.ref, item.url]));
-  return new Map(plan.sources.flatMap((post) => post.media).map((item) => [item.ref,
+  return new Map(planMedia(plan).map((item) => [item.ref,
     frames.has(item.ref) ? { ...item, kind: "image" as const, url: frames.get(item.ref)! } : item]));
 }
 
@@ -246,7 +248,13 @@ async function stage(item: MediaAsset, directory: string, options: RenderOptions
     FFMPEG, "-nostdin", "-loglevel", "error",
     "-i", item.url, "-c", "copy", "-sn", "-dn", "-movflags", "+faststart", "-y", path,
   ], options.signal, { path, bytes: VIDEO_MAX_SOURCE_BYTES, ref: item.ref });
-  return { item, path, probe: await probe(path, options.signal) };
+  const result = await probe(path, options.signal);
+  if (item.acquisition === "substack-public-original") verifyOriginalDuration(item.durationSeconds, result.duration);
+  return { item, path, probe: result };
+}
+
+function verifyOriginalDuration(expected: number | undefined, actual: number): void {
+  if (!(expected && expected > 0) || Math.abs(actual - expected) > Math.max(1, expected * 0.02)) throw new Error("Substack original media duration disagrees with its complete public source; no preview was saved");
 }
 
 export { videoBitrate } from "../packages/core/render-recipe.ts";
@@ -298,10 +306,13 @@ async function renderImages(plan: BlockPlan, directory: string, options: RenderO
     return writeContentAddressed(directory, "jpg", await canvas.encode("jpeg", 92));
   }
   if (!plan.block.layout) throw new Error("Image plan has no layout");
-  const { size, rects } = tileRects(plan.block.layout, assets, IMAGE_LONG_EDGE, IMAGE_MIN_TILE);
   const images = new Map<string, Image>();
   await Promise.all(selected.map(async (item) => images.set(item.ref, await loadImage(await fetchBytes(item.url, options)))));
   options.signal?.throwIfAborted();
+  // Match native preparation: source metadata can omit image dimensions, so
+  // compute tile geometry from the decoded originals before drawing covers.
+  for (const [ref, image] of images) assets.set(ref, { ...assets.get(ref)!, width: image.width, height: image.height });
+  const { size, rects } = tileRects(plan.block.layout, assets, IMAGE_LONG_EDGE, IMAGE_MIN_TILE);
   const canvas = createCanvas(size.width, size.height);
   const context = canvas.getContext("2d");
   for (const [ref, rect] of rects) {
@@ -388,10 +399,11 @@ async function renderVideo(plan: BlockPlan, directory: string, options: RenderOp
 }
 
 async function renderSoundCloudAudio(plan: BlockPlan, directory: string, options: RenderOptions): Promise<RenderedMedia> {
-  if (plan.sources.length !== 1 || plan.sources[0]!.provider !== "soundcloud" || plan.sources[0]!.soundcloud?.kind !== "track"
-    || !plan.sources[0]!.soundcloud.originalDownloadAvailable) throw new Error("Audio plan does not identify a publicly downloadable SoundCloud track");
-  const source = parseSource(plan.block.canonicalSource);
-  if (source.provider !== "soundcloud" || source.kind !== "track" || source.canonicalUrl !== plan.block.canonicalSource) throw new Error("Audio source is not a canonical public SoundCloud track URL");
+  const owner = selectedAudioSource(plan);
+  if (plan.sources.length !== 1 || owner?.provider !== "soundcloud" || owner.soundcloud?.kind !== "track"
+    || !owner.soundcloud.originalDownloadAvailable) throw new Error("Audio plan does not identify a publicly downloadable SoundCloud track");
+  const source = parseSource(owner.canonicalUrl);
+  if (source.provider !== "soundcloud" || source.kind !== "track" || source.canonicalUrl !== owner.canonicalUrl) throw new Error("Audio source is not a canonical public SoundCloud track URL");
   const assets = selectedAssets(plan);
   if (assets.length !== 1 || assets[0]!.kind !== "audio" || assets[0]!.acquisition !== "soundcloud-original-download" || assets[0]!.url !== source.canonicalUrl) {
     throw new Error("Audio plan must select exactly one original SoundCloud download");
@@ -410,7 +422,7 @@ async function renderSoundCloudAudio(plan: BlockPlan, directory: string, options
     if (!details.isFile() || details.size === 0) throw new Error("yt-dlp produced an empty SoundCloud audio file");
     if (details.size > VIDEO_LIMIT_BYTES) throw new MediaBudgetError("Original SoundCloud audio exceeds the 250 MiB Are.na attachment limit");
     const extension = candidates[0]!.slice("original.".length) as RenderedMedia["extension"];
-    if (extension !== plan.sources[0]!.soundcloud.originalDownloadExtension) {
+    if (extension !== owner.soundcloud.originalDownloadExtension) {
       throw new Error("SoundCloud original download format changed since the plan was prepared");
     }
     const probe = JSON.parse(await run([FFPROBE, "-v", "error", "-show_streams", "-show_format", "-of", "json", path], options.signal)) as {
@@ -433,6 +445,64 @@ async function renderSoundCloudAudio(plan: BlockPlan, directory: string, options
   }
 }
 
+async function renderSubstackAudio(plan: BlockPlan, directory: string, options: RenderOptions): Promise<RenderedMedia> {
+  const assets = selectedAssets(plan), source = selectedAudioSource(plan), asset = assets[0];
+  let original=source?.substackArticle?.nativeMedia?.find(item=>item.kind==="audio"&&item.url===asset?.url);
+  if(asset?.sourceAttribution){
+    const node=mediaSources(plan.sources).find(node=>node.media.some(item=>item.ref===asset.ref));
+    let note=source?.substackCapture?.note;
+    if(!note){
+      note=node&&plan.sources[node.rootIndex]?.substackCapture?.note;
+      for(let depth=0;note&&depth<(node?.quoteDepth??0);depth++)note=note.quote?.expanded;
+    }
+    const attachment=note?.attachmentEvidence?.attachments.find(item=>item.id===asset.sourceAttribution!.attachmentId);
+    original=attachment?.kind==="article"?attachment.podcast?.article?.audio:undefined;
+  }
+  if (plan.sources.length !== 1 || assets.length !== 1 || asset?.kind !== "audio" || asset.acquisition !== "substack-public-original"
+    || !original || original.kind!=="audio" || original.url!==asset.url
+      || original.durationSeconds!==asset.durationSeconds) throw new Error("Original Substack audio is missing consistent complete public source evidence");
+  try { blockPlanSchema.parse(plan); }
+  catch { throw new Error("Original Substack audio is missing consistent complete public source evidence"); }
+  const signal = AbortSignal.any([...(options.signal ? [options.signal] : []), AbortSignal.timeout(options.downloadTimeoutMs ?? 60_000)]);
+  const staging = join(directory, ".staging", crypto.randomUUID()); await mkdir(staging, { recursive: true });
+  const path = join(staging, "original-audio");
+  const limit = Math.min(VIDEO_LIMIT_BYTES, Math.max(1, options.maximumAudioBytes ?? VIDEO_LIMIT_BYTES));
+  try {
+    const response = await abortable((options.fetcher ?? fetch)(asset.url, { credentials: "omit", signal, headers: { accept: "audio/*" } }), signal);
+    if (!response.ok || !response.body) throw new Error(`Public Substack audio download returned HTTP ${response.status}`);
+    if (Number(response.headers.get("content-length")) > limit) { void response.body.cancel(); throw new MediaBudgetError("Original audio exceeds the attachment limit"); }
+    const writer = Bun.file(path).writer(), reader = response.body.getReader(); let size = 0;
+    try {
+      while (true) {
+        const { done, value } = await abortable(reader.read(), signal); if (done) break;
+        if ((size += value.byteLength) > limit) throw new MediaBudgetError("Original audio exceeds the attachment limit");
+        writer.write(value);
+      }
+    } finally { await writer.end(); void reader.cancel().catch(() => {}); }
+    signal.throwIfAborted();
+    if (!size) throw new Error("Public Substack audio was empty");
+    const report = JSON.parse(await run([FFPROBE, "-v", "error", "-show_entries", "format=format_name,duration:stream=codec_type,codec_name:stream_disposition=attached_pic", "-of", "json", path], signal));
+    const streams: Array<{ codec_type: string; codec_name?: string; disposition?: { attached_pic?: number } }> = report.streams ?? [];
+    if (!streams.some(item => item.codec_type === "audio") || streams.some(item => item.codec_type === "video" && item.disposition?.attached_pic !== 1) || !(Number(report.format?.duration) > 0)) throw new Error("The public Substack original is not a valid audio-only attachment");
+    verifyOriginalDuration(asset.durationSeconds, Number(report.format.duration));
+    const formats = String(report.format?.format_name ?? "").split(",");
+    const extension = formats.includes("mp3") ? "mp3" : formats.includes("wav") ? "wav" : formats.includes("flac") ? "flac"
+      : formats.includes("ogg") ? "ogg" : formats.includes("aac") ? "aac" : formats.includes("m4a") || formats.includes("mp4") ? "m4a" : undefined;
+    if (!extension) throw new Error("This public audio format is not supported without conversion");
+    const hash = createHash("sha256"); for await (const chunk of Bun.file(path).stream()) { signal.throwIfAborted(); hash.update(chunk); }
+    signal.throwIfAborted();
+    const digest = hash.digest("hex"), output = join(directory, digest.slice(0, 2), `${digest}.${extension}`);
+    await mkdir(dirname(output), { recursive: true }); signal.throwIfAborted(); await copyFile(path, output);
+    if (signal.aborted) { await rm(output, { force: true }); signal.throwIfAborted(); }
+    return { path: output, hash: digest, extension, mimeType: FORMAT_MIME[extension], size };
+  } finally { await rm(staging, { recursive: true, force: true }); }
+}
+
+function selectedAudioSource(plan: BlockPlan): ResolvedPost | undefined {
+  const ref = plan.block.selectedMedia[0];
+  return mediaSources(plan.sources).find(node => node.media.some(asset => asset.ref === ref && asset.kind === "audio"))?.source;
+}
+
 export async function renderPlan(plan: BlockPlan, directory: string, options: RenderOptions = {}): Promise<RenderedMedia | undefined> {
   options.signal?.throwIfAborted();
   if (plan.block.kind === "text" || plan.block.kind === "url") return undefined;
@@ -441,7 +511,7 @@ export async function renderPlan(plan: BlockPlan, directory: string, options: Re
   try {
     return await (plan.block.kind === "image" ? renderPlaylistArtwork(plan, directory, { ...options, signal })
       : plan.block.kind === "video" ? renderVideo(plan, directory, { ...options, signal })
-      : plan.block.kind === "audio" ? renderSoundCloudAudio(plan, directory, { ...options, signal })
+      : plan.block.kind === "audio" ? (selectedAudioSource(plan)?.provider === "substack" ? renderSubstackAudio(plan, directory, { ...options, signal }) : renderSoundCloudAudio(plan, directory, { ...options, signal }))
         : renderImages(plan, directory, { ...options, signal }));
   } catch (error) {
     controller.abort(error); // Stop other selected downloads after a partial failure.

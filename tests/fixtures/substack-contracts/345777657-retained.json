@@ -1,0 +1,76 @@
+{
+  "schema": "arena-block/substack-browser-capture",
+  "version": 1,
+  "sourceUrl": "https://substack.com/@laurelpantin/note/c-345777657",
+  "observedAt": "2026-10-16T06:28:17.749Z",
+  "method": "public-html",
+  "note": {
+    "acquisition": {
+      "method": "public-html",
+      "observedAt": "2026-10-16T06:28:17.570Z"
+    },
+    "url": "https://substack.com/@laurelpantin/note/c-345777657",
+    "author": {
+      "handle": "laurelpantin",
+      "name": "Laurel Pantin",
+      "profileUrl": "https://substack.com/@laurelpantin"
+    },
+    "body": {
+      "status": "complete",
+      "html": "<p>It’s me!</p>"
+    },
+    "publishedLabel": "Sep 25, 2026, 6:13 PM",
+    "postedAt": "2026-09-25T18:13:56.000Z",
+    "links": [],
+    "quote": {
+      "url": "https://substack.com/@substack/note/c-345770676",
+      "previewHtml": "<p><span class=\"node-substack_mention\"><span style=\"min-width:0\" data-state=\"closed\"><a class=\"mention-LUD0tW\" href=\"https://substack.com/profile/5935295-laurel-pantin\">Laurel Pantin</a></span></span> makes a living helping women get dressed in a way that is intuitive, expressive and interesting</p>",
+      "expanded": {
+        "acquisition": {
+          "method": "public-html",
+          "observedAt": "2026-10-16T06:28:17.749Z"
+        },
+        "url": "https://substack.com/@substack/note/c-345770676",
+        "author": {
+          "handle": "substack",
+          "name": "Substack",
+          "profileUrl": "https://substack.com/@substack"
+        },
+        "body": {
+          "status": "complete",
+          "html": "<p><span class=\"node-substack_mention\"><span style=\"min-width:0\" data-state=\"closed\"><a class=\"mention-LUD0tW\" href=\"https://substack.com/profile/5935295-laurel-pantin\">Laurel Pantin</a></span></span> makes a living helping women get dressed in a way that is intuitive, expressive and interesting</p>"
+        },
+        "publishedLabel": "Sep 25, 2026, 6:04 PM",
+        "postedAt": "2026-09-25T18:04:46.000Z",
+        "links": [],
+        "attachmentEvidence": {
+          "method": "public-api",
+          "observedAt": "2026-10-16T06:28:17.747Z",
+          "commentId": 345770676,
+          "userId": 81309935,
+          "handle": "substack",
+          "bodyText": "@Laurel Pantin makes a living helping women get dressed in a way that is intuitive, expressive and interesting",
+          "attachments": [
+            {
+              "kind": "video",
+              "id": "4d07b699-e95a-42e9-8282-78d9c0e5960b",
+              "userId": 81309935,
+              "commentId": 345770676,
+              "upload": {
+                "id": "d51e3d24-74e7-46ac-8392-c666fdc163c1",
+                "userId": 81309935,
+                "state": "transcoded",
+                "postId": null,
+                "publicationId": null,
+                "durationSeconds": 94.566666,
+                "width": 1080,
+                "height": 1920,
+                "thumbnailId": 1
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

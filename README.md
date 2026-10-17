@@ -45,11 +45,14 @@ Use `resolve`, `plan`, `publish`, `save`, `status`, `cancel` or `retry` as shown
 | Bluesky | Profile post permalinks, `at://.../app.bsky.feed.post/...` | Public AT Protocol AppView responses |
 | [Delvetown](https://delve.town) | Profile post permalinks, `at://.../town.delve.feed.post/...` | Delvetown AppView and repository records |
 | Mastodon | Public HTTPS post permalinks | The instance's public status API |
-| Reddit | Posts, comments, galleries, share links | Public JSON, with bounded fallback for specified availability failures |
+| Reddit | Posts, comments, galleries, share links | Direct public JSON where available; bounded availability fallback; retained record compatibility |
 | LessWrong, Alignment Forum, EA Forum | Post and comment permalinks | Each site's public GraphQL API |
+| Substack | Public Notes and complete freely public articles | Public HTML/API or user-invoked browser records |
 | TikTok, Instagram | Supported post, video and share permalinks | FxEmbed Atmosphere responses |
 | SoundCloud | Public track and playlist pages | Public page data and available download metadata |
 | Hacker News, Lobsters | Comment permalinks | Public comment APIs |
+
+[Substack captures](docs/substack-notes.md) preserve authored text, original images, quoted Notes and complete freely public articles. Add `-t` to follow a verified same-author linear Note chain. Public article video and original audio, verified Note video and inline article video use the shared media path. Podcast players in Notes can carry the linked article's original audio, with its own title and byline. Notes use the title **Note by @handle**. Article cards include their author with a labelled preview or excerpt. Choose `--quote-author-link source` to link quoted authors to their posts, or `plain` to leave the names unlinked. Omitting the option keeps the existing presentation. Observation details remain in the source record. See [capture support](docs/substack-parity.md).
 
 Bluesky and Delvetown use separate record collections and facet vocabularies. The renderer expands a shortened URL label after checking its facet destination, preserves meaningful link labels, keeps mention wording and leaves tags as text. It checks UTF-8 ranges before generating Markdown. Plans retain the original text and record data. Refresh an older cached Bluesky source to acquire facets discarded by an older resolver.
 
@@ -59,7 +62,13 @@ Mastodon boosts resolve to the original post. Content warnings and attachment de
 
 For x.com articles, the composer places the article Markdown in the block and uses the accompanying post text as its description. Article images remain in reading order. Embedded videos and posts remain links. Incomplete article responses produce an error.
 
-Reddit post titles become block titles. Body Markdown and gallery captions become text content or media descriptions. Cross-posts retain the quoting post and expose the original attachments. Reddit-hosted video uses HLS for audio. HTTP 403 and 429 stop acquisition. Specified temporary availability failures may use the bounded Arctic Shift fallback; archive responses can omit recent edits. Comment capture uses the selected comment and its parent title. It excludes surrounding replies and parent attachments.
+Reddit post titles become block titles. Body Markdown and gallery captions become text content or media descriptions. Cross-posts retain the quoting post and expose the original attachments. Reddit-hosted video uses HLS for audio. Comment capture uses the selected comment and its parent title. It excludes surrounding replies and parent attachments.
+
+Ordinary Reddit links use the shared HTTP provider in CLI and iOS. Safari Share supplies the URL. HTTP failures, including 401, 403, 429 and 503, stop the read; archived content is not substituted for an unavailable live source. Complete capture requires the post's authored text and conditional media/parent data. See [Reddit source access](docs/reddit-source-access.md).
+
+Existing API, browser and public-page records remain readable in drafts, plans and receivers. Validation checks the supplied identities, bounds and media. It cannot establish current source availability or authenticate the observation time. The `reddit-browser-records-v1` and `reddit-public-page-records-v1` capabilities preserve those records.
+
+Instagram Reel links use **Reel by @handle**; other Instagram posts use **Post by @handle**. A verified Reel link keeps that title when the provider returns a `/p/` alias for the same post. The permalink determines the title for both photo and video posts.
 
 TikTok and Instagram carousels preserve source order. Photo mosaics omit soundtracks. Video mosaics use the selected soundtrack. Public provider access and media URLs can become unavailable, so refresh a stale plan before another acquisition attempt.
 
@@ -67,7 +76,7 @@ Hacker News links must identify comments. Lobsters accepts `/c/ID` and story lin
 
 For a Quick Take or Shortform entry, copy its comment permalink. A bare Shortform container has no body to capture. Use `?commentId=ID`, a comment path, or a comment hash. GreaterWrong links resolve through LessWrong's public API. The resulting plan includes the selected comment's author, date, formatting, links, quotes and image references. Embedded frames appear as links.
 
-For a single comment URL, the default expansion follows up to six available parents. Use `--thread-expansion off` to capture only the selected comment. Use `on` to include up to eight direct replies and bounded same-author continuations. When you list several comment URLs, the result follows your order. Deleted, private and unavailable content returns an error.
+The CLI captures the selected comment by default. Add `-t` or `--thread-expansion` to include up to eight direct replies and bounded same-author continuations. In Capture, choose selected-only, up to six parents, or nearby replies from the comment-context menu. When you list several comment URLs, the result follows your order. Deleted, private and unavailable content returns an error. See [CLI thread options](docs/cli-thread-options.md).
 
 Before submitting a Forum Magnum plan, the client checks the receiver for `forum-magnum-posts-v1`. You can plan and render locally without a receiver.
 
@@ -80,6 +89,8 @@ Supply primary URLs in the required reading order. Equivalent links are included
 Use `--media auto|none|images|video|audio|all`, or explicit media references, according to command help. Selected images form an ordered JPEG mosaic. Selected videos form an MP4 mosaic. Video framing and soundtrack choices remain explicit. During acquisition, the renderer checks source bytes, decoded pixels, media dimensions, duration and output limits before creating the final file.
 
 The title identifies the first author. A speaker change adds that author's label. `--separator auto|always|never` controls dividers between contributions. Quote depth, dates and inclusion follow the composition policy. Each quoted post retains its own author and source information.
+
+Fresh captures can compose original images and videos from included quotes through the same media controls. Quoted media follow their outer post's media and retain their own source and author. One verified original audio file can be selected on its own without conversion. Video soundtracks support Auto, Mix or a selected video; frames carry no audio. Quoted images require `quoted-image-media-v1` on the receiver, and quoted video/audio choices require `quoted-video-audio-v1`. Older queued plans keep their existing selection.
 
 For Bluesky and Delvetown, thread expansion follows the returned author and reply relationships. For x.com, import an observed author chain or enter exact post links. The client accepts up to 32 posts from an observed expanded thread and up to 20 explicit links. Before submitting a plan with more than 20 posts, it checks the receiver for `expanded-source-count-32-v1`. If a provider omits replies or branches, the result describes the scope it returned.
 

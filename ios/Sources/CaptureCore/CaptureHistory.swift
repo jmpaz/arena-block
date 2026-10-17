@@ -10,7 +10,32 @@ public struct DeletedCapture: Codable, Identifiable, Sendable {
     }
 }
 
+/// A placement edit belongs to a capture, rather than another history item.
+/// The prior snapshot retains the receipt and intent before each amendment.
+public struct CapturePlacementChange: Codable, Identifiable, Sendable {
+    public var id: UUID
+    public var captureID: UUID
+    public var before: CaptureDraft
+    public var selectedChannels: [Channel]
+    public var changedAt: Date
+    public init(before: CaptureDraft, selectedChannels: [Channel]) {
+        id = UUID(); captureID = before.id; self.before = before
+        self.selectedChannels = selectedChannels; changedAt = Date()
+    }
+}
+
+/// A picker can survive relaunch without changing an accepted save until Apply.
+public struct CapturePlacementEdit: Codable, Sendable {
+    public var captureID: UUID
+    public var selection: DestinationSelection
+    public var baseline: DestinationSelection?
+    public init(captureID: UUID, selection: DestinationSelection, baseline: DestinationSelection? = nil) {
+        self.captureID = captureID; self.selection = selection; self.baseline = baseline
+    }
+}
+
 extension CaptureDraft {
+    public var isCanceled: Bool { deliveryState?.canceledAt != nil }
     public var hasDraftContent: Bool {
         !input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             || titleOverride?.isEmpty == false || descriptionOverride?.isEmpty == false
@@ -18,8 +43,14 @@ extension CaptureDraft {
     }
 
     public var isUnsubmittedDraft: Bool {
-        [.editing, .preparing, .ready, .failed].contains(phase)
+        !isCanceled && [.editing, .preparing, .ready, .failed].contains(phase)
     }
+
+    public var isActiveCapture: Bool {
+        captureIsActive(phase: phase, deliveryState: deliveryState)
+    }
+
+    public var isDraftCapture: Bool { !isCanceled && (isUnsubmittedDraft || deliveryState?.preparationFailureStage != nil) }
 
     public var hasUserEdits: Bool { titleOverride != nil || descriptionOverride != nil }
 
@@ -31,14 +62,58 @@ extension CaptureDraft {
 
 extension CaptureStore {
     private struct DeliveryCompletion: Decodable { var stage: String }
+    private struct CanceledTransfer: Decodable { var transferID: String? }
 
-    public func canDeleteDraft(_ draft: CaptureDraft) throws -> Bool {
-        if draft.phase == .saved {
-            let job = try value(DeliveryCompletion.self, account: 0, kind: "delivery", id: draft.id.uuidString)
+    /// Filter before limiting so older live work cannot be buried by saved history.
+    public func captureHistory(account: Int, activeOnly: Bool? = nil, limit: Int = 100) throws -> [CaptureDraft] {
+        try captureHistorySummaries(account: account, activeOnly: activeOnly, limit: limit).compactMap {
+            try value(CaptureDraft.self, account: account, kind: "draft", id: $0.id.uuidString)
+        }
+    }
+
+    public func captureHistorySummaries(account: Int, activeOnly: Bool? = nil, limit: Int = 100) throws -> [CaptureHistorySummary] {
+        guard limit > 0 else { return [] }
+        return Array(try draftSummaries(account: account).lazy.filter {
+            !$0.input.isEmpty && (activeOnly == nil || $0.isActiveCapture == activeOnly)
+        }.prefix(limit))
+    }
+
+    public func activeCaptureCount(account: Int) throws -> Int {
+        try draftSummaries(account: account).reduce(0) { $0 + (!$1.input.isEmpty && $1.isActiveCapture ? 1 : 0) }
+    }
+
+    private func draftSummaries(account: Int) throws -> [CaptureHistorySummary] {
+        let records = try recordRevisions(account: account, kind: "draft")
+        var previous = historySummaryCache[account] ?? [:]
+        var current: [String: CachedHistorySummary] = [:]
+        var summaries: [CaptureHistorySummary] = []
+        for record in records {
+            if let cached = previous.removeValue(forKey: record.id), cached.revision == record.revision {
+                current[record.id] = cached; summaries.append(cached.summary)
+            } else if let summary = try value(CaptureHistorySummary.self, account: account, kind: "draft", id: record.id) {
+                current[record.id] = .init(revision: record.revision, summary: summary); summaries.append(summary)
+            }
+        }
+        historySummaryCache[account] = current
+        return summaries
+    }
+
+    public func canDeleteDraft(_ summary: CaptureHistorySummary) throws -> Bool {
+        // Older readers can strip optional cancellation metadata from a draft.
+        // The retained transfer remains authoritative until its receipt arrives.
+        if try projectedValue(CanceledTransfer.self, account: 0, kind: "canceledDelivery", id: summary.id.uuidString)?.transferID != nil {
+            return false
+        }
+        if summary.phase == .saved {
+            let job = try projectedValue(DeliveryCompletion.self, account: 0, kind: "delivery", id: summary.id.uuidString)
             return job == nil || job?.stage == "done"
         }
-        guard draft.isUnsubmittedDraft else { return false }
-        return try !recordIDs(account: 0, kind: "delivery").contains(draft.id.uuidString)
+        guard summary.isUnsubmittedDraft else { return false }
+        return try !containsRecord(account: 0, kind: "delivery", id: summary.id.uuidString)
+    }
+
+    public func canDeleteDraft(_ draft: CaptureDraft) throws -> Bool {
+        try canDeleteDraft(CaptureHistorySummary(draft: draft))
     }
 
     /// Retention is reversible. No captured text or file is permanently purged.
@@ -48,7 +123,7 @@ extension CaptureStore {
             if let id = workspace.activeDraftID { protected.insert(id) }
             if let id = workspace.retainedResultID { protected.insert(id) }
         }
-        let ids = try recordIDs(account: account, kind: "draft").compactMap { try value(CaptureDraft.self, account: account, kind: "draft", id: $0) }
+        let ids = try draftSummaries(account: account)
             .filter { !protected.contains($0.id) && $0.automaticDraftExpired(at: now) }
             .filter { (try? canDeleteDraft($0)) == true }.map(\.id)
         return try deleteDrafts(ids, account: account)

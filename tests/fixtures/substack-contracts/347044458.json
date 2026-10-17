@@ -1,0 +1,76 @@
+{
+  "item": {
+    "comment": {
+      "id": 347044458,
+      "user_id": 18339673,
+      "handle": "joodaloop",
+      "type": "feed",
+      "post_id": null,
+      "body": "ok, starting with the first one i remember that blew my mind because of the sheer intensity of care for the details\n\nstill online at http://colly.com/v4",
+      "body_json": {
+        "type": "doc",
+        "attrs": {
+          "schemaVersion": "v1"
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "ok, starting with the first one i remember that blew my mind because of the sheer intensity of care for the details"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "text": "still online at ",
+                "type": "text"
+              },
+              {
+                "text": "http://colly.com/v4",
+                "type": "text",
+                "marks": [
+                  {
+                    "attrs": {
+                      "rel": "nofollow ugc noopener",
+                      "class": "note-link",
+                      "target": "_blank",
+                      "href": "http://colly.com/v4"
+                    },
+                    "type": "link"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "attachments": [
+        {
+          "id": "071296be-76eb-43eb-9d68-627925fb7a75",
+          "type": "comment"
+        },
+        {
+          "id": "079a338b-6f69-4ddc-8e27-b6a2a8a0cb6a",
+          "type": "link",
+          "linkMetadata": {
+            "url": "http://colly.com/v4",
+            "host": "colly.com",
+            "title": "Simon Collison | Colly | The Celebrated Miscellany",
+            "description": "This is the celebrated journal of Simon Collison (aka Colly); web designer, developer, author and speaker, Nottingham, UK."
+          }
+        },
+        {
+          "id": "607f772a-0258-4439-8a62-8b8ac854d24c",
+          "type": "image",
+          "imageUrl": "https://substack-post-media.s3.amazonaws.com/public/images/f0e3bd4a-3606-42e8-a300-be503eb4dae7_2560x1738.jpeg",
+          "imageWidth": 2560,
+          "imageHeight": 1738
+        }
+      ]
+    }
+  }
+}

@@ -68,7 +68,7 @@ test("real public Quick Take receives its own author, date, rich links, and no c
   expect(calls.map(call => call.url)).toEqual(Array(2).fill("https://www.lesswrong.com/graphql"));
   const quoted = await provider.resolve(parseSource(publicExamples.lesswrong_thread!.comments.find(item => item._id === "qTyoKrT8s9NT8octc")!.pageUrl));
   expect(quoted.text).toContain("> ");
-  await expect(provider.resolve(parseSource(sample.split("?")[0]!))).rejects.toThrow("Shortform post is a container");
+  await expect(provider.resolve(parseSource(sample.split("?")[0]!))).rejects.toThrow("Copy the link to the Quick Take");
 });
 
 test("contrasting public EA and Alignment Forum comments use their own API origins", async () => {
@@ -92,7 +92,7 @@ test("multiple real comment permalinks preserve declared order and actual reply 
   expect(resolved.posts[0]!.replyTo?.id).toBe(parent._id);
   expect(resolved.posts.map(post => post.selection?.declaredIndex)).toEqual([1, 2, 3]);
   const plan = composePlan(resolved.posts, resolved.policy);
-  expect(plan.block.markdown).toContain(`Reply to comment ${parent._id}`);
+  expect(plan.block.markdown).toContain(`Reply to @${parent.user.username}`);
   expect(plan.block.markdown.indexOf("`@Nanashi`")).toBeLessThan(plan.block.markdown.indexOf("`@estimator`"));
 });
 
@@ -102,7 +102,7 @@ test("reply links from path-style comments resolve to the actual parent", () => 
   const plan = composePlan([{ provider: "forum_magnum", id: child,
     canonicalUrl: `https://www.alignmentforum.org/posts/PostID1234/example/comment/${child}`,
     author: { handle: "commenter" }, text: "A reply", media: [], replyTo: { id: parent } }]);
-  const link = plan.block.markdown.match(/\[Reply to comment ParentCommentABC\]\(<([^>]+)>\)/)?.[1];
+  const link = plan.block.markdown.match(/\[Parent comment\]\(<([^>]+)>\)/)?.[1];
   expect(link).toBeDefined();
   expect(parseSource(link!)).toMatchObject({ provider: "forum_magnum", id: "PostID1234", commentId: parent });
 });
@@ -165,7 +165,7 @@ test("rich text keeps authored quote boundaries and stable body media refs", asy
   expect(plan.posts[0]!.media.map(item => item.ref)).toEqual(["1.1", "1.2"]);
   expect(plan.posts[0]!.text).toContain("> Quoted source words");
   expect(plan.posts[0]!.text).toContain(`[footnote](<${post.pageUrl}#footnote-1>)`);
-  expect(plan.posts[0]!.text).toContain("*Caption:* Figure note");
+  expect(plan.posts[0]!.text).toContain("Figure note");
   expect(plan.posts[0]!.mediaIssues).toMatchObject([{ status: "unsupported" }]);
   expect(composePlan(plan.posts, plan.policy).block.selectedMedia).toEqual(["1.1", "1.2"]);
 });
@@ -177,17 +177,17 @@ test("unavailable and mismatched content fails closed", async () => {
     const { query } = JSON.parse(String(init?.body));
     return Response.json({ data: query.includes("ForumPost") ? { post: { result: post } } : { comment: { result: { ...comment, deleted: true } } } });
   }) as typeof fetch;
-  await expect(new ForumMagnumProvider(fetcher).resolve(parseSource(sample))).rejects.toThrow("unavailable, private, or deleted");
+  await expect(new ForumMagnumProvider(fetcher).resolve(parseSource(sample))).rejects.toThrow("unavailable");
   const missing = (async (_input: RequestInfo | URL, init?: RequestInit) => {
     const { query } = JSON.parse(String(init?.body));
     return Response.json({ data: query.includes("ForumPost") ? { post: { result: post } } : { comment: { result: null } } });
   }) as typeof fetch;
-  await expect(new ForumMagnumProvider(missing).resolve(parseSource(sample))).rejects.toThrow("unavailable or private");
+  await expect(new ForumMagnumProvider(missing).resolve(parseSource(sample))).rejects.toThrow("unavailable");
   const privatePost = (async (_input: RequestInfo | URL, init?: RequestInit) => {
     const { query } = JSON.parse(String(init?.body));
     return Response.json({ data: query.includes("ForumPost") ? { post: { result: { ...post, draft: true } } } : { comment: { result: comment } } });
   }) as typeof fetch;
-  await expect(new ForumMagnumProvider(privatePost).resolve(parseSource(sample))).rejects.toThrow("unavailable, private, or deleted");
+  await expect(new ForumMagnumProvider(privatePost).resolve(parseSource(sample))).rejects.toThrow("unavailable");
   const wrongPost = (async (_input: RequestInfo | URL, init?: RequestInit) => {
     const { query } = JSON.parse(String(init?.body));
     return Response.json({ data: query.includes("ForumPost") ? { post: { result: post } } : { comment: { result: { ...comment, postId: "WrongPostABC123" } } } });
@@ -248,4 +248,21 @@ liveTest("live public receiving examples across three Forum Magnum sites", async
   expect(article.postTitle).toBe("Cyborgism");
   expect(article.media.length).toBeGreaterThan(10);
   expect(article.text).toContain("> ");
+});
+
+test("parent labels use only a matching site and post while retaining the parent link", () => {
+  const child = { provider: "forum_magnum" as const, id: "ChildABC", canonicalUrl: "https://www.lesswrong.com/posts/PostABC/example?commentId=ChildABC",
+    author: { handle: "child" }, text: "Reply", media: [], replyTo: { id: "ParentABC" } };
+  const other = { ...child, id: "ParentABC", canonicalUrl: "https://forum.effectivealtruism.org/posts/PostABC/example?commentId=ParentABC", author: { handle: "other-site" }, replyTo: undefined };
+  const unmatched = composePlan([child, other]).block.markdown;
+  expect(unmatched).toContain("[Parent comment](<https://www.lesswrong.com/posts/PostABC/?commentId=ParentABC>)");
+  expect(unmatched).not.toContain("Reply to @other-site");
+  const parent = { ...other, canonicalUrl: "https://www.lesswrong.com/posts/PostABC/example?commentId=ParentABC", author: { handle: "parent" } };
+  expect(composePlan([child, parent]).block.markdown).toContain("[Reply to @parent]");
+});
+
+test.each([sample, ea, af])("read errors name the selected site: %s", async url => {
+  const denied = (async () => new Response("Forbidden", { status: 403 })) as unknown as typeof fetch;
+  const name = url === sample ? "LessWrong" : url === ea ? "EA Forum" : "Alignment Forum";
+  await expect(new ForumMagnumProvider(denied).resolve(parseSource(url))).rejects.toThrow(`${name} returned HTTP 403`);
 });

@@ -1,0 +1,218 @@
+{
+  "schemaVersion": 1,
+  "sources": [
+    {
+      "provider": "substack",
+      "id": "348712218",
+      "canonicalUrl": "https://substack.com/@joodaloop/note/c-348712218",
+      "author": {
+        "handle": "joodaloop",
+        "name": "Judah"
+      },
+      "text": "second up, the site i’m most intimidated by in terms of breadth of content and quality of execution\n\nDENSITY!!!\n\n[lucy-ives.com](<https://www.lucy-ives.com/>)",
+      "postTitle": "Note by @joodaloop",
+      "postedAt": "2026-09-29T15:01:51.000Z",
+      "media": [
+        {
+          "kind": "image",
+          "url": "https://substack-post-media.s3.amazonaws.com/public/images/68a64432-2acb-43f4-bfa8-ed1f39bcef11_2560x1593.jpeg",
+          "alt": "",
+          "ref": "1.1",
+          "sourceRole": "original"
+        }
+      ],
+      "quote": {
+        "provider": "substack",
+        "id": "347044458",
+        "canonicalUrl": "https://substack.com/@joodaloop/note/c-347044458",
+        "author": {
+          "handle": "joodaloop",
+          "name": "Judah"
+        },
+        "text": "ok, starting with the first one i remember that blew my mind because of the sheer intensity of care for the details\n\nstill online at\n\n*Preview of [Simon Collison | Colly | The Celebrated Miscellany](<http://colly.com/v4>):*\n\n> This is the celebrated journal of Simon Collison (aka Colly); web designer, developer, author and speaker, Nottingham, UK.",
+        "postTitle": "Note by @joodaloop",
+        "postedAt": "2026-09-27T13:12:51.000Z",
+        "media": [
+          {
+            "kind": "image",
+            "url": "https://substack-post-media.s3.amazonaws.com/public/images/f0e3bd4a-3606-42e8-a300-be503eb4dae7_2560x1738.jpeg",
+            "alt": "",
+            "ref": "1.2",
+            "sourceRole": "original"
+          }
+        ],
+        "quote": {
+          "provider": "substack",
+          "id": "346876542",
+          "canonicalUrl": "https://substack.com/@joodaloop/note/c-346876542",
+          "author": {
+            "handle": "joodaloop",
+            "name": "Judah"
+          },
+          "text": "i think i’m going to start posting personal websites that i admire, as an act of reverence for the medium",
+          "postTitle": "Note by @joodaloop",
+          "postedAt": "2026-09-27T06:32:33.000Z",
+          "media": []
+        }
+      },
+      "substackCapture": {
+        "schema": "arena-block/substack-browser-capture",
+        "version": 1,
+        "sourceUrl": "https://substack.com/@joodaloop/note/c-348712218",
+        "observedAt": "2026-10-16T06:04:03.044Z",
+        "method": "public-html",
+        "note": {
+          "acquisition": {
+            "method": "public-html",
+            "observedAt": "2026-10-16T06:04:02.682Z"
+          },
+          "url": "https://substack.com/@joodaloop/note/c-348712218",
+          "author": {
+            "handle": "joodaloop",
+            "name": "Judah",
+            "profileUrl": "https://substack.com/@joodaloop"
+          },
+          "body": {
+            "status": "complete",
+            "html": "<p>second up, the site i’m most intimidated by in terms of breadth of content and quality of execution</p><p>DENSITY!!!</p><p><span style=\"min-width:0\" data-state=\"closed\"><a class=\"pencraft pc-reset decoration-hover-underline-zSXGjA reset-PDs18X\" style=\"color:var(--color-link-fg)\" href=\"https://www.lucy-ives.com/\">lucy-ives.com</a></span></p>"
+          },
+          "publishedLabel": "Sep 29, 2026, 3:01 PM",
+          "postedAt": "2026-09-29T15:01:51.000Z",
+          "links": [],
+          "media": [
+            {
+              "kind": "image",
+              "url": "https://substack-post-media.s3.amazonaws.com/public/images/68a64432-2acb-43f4-bfa8-ed1f39bcef11_2560x1593.jpeg",
+              "alt": ""
+            }
+          ],
+          "quote": {
+            "url": "https://substack.com/@joodaloop/note/c-347044458",
+            "previewHtml": "<p>ok, starting with the first one i remember that blew my mind because of the sheer intensity of care for the details</p><p>still online at </p>",
+            "expanded": {
+              "acquisition": {
+                "method": "public-html",
+                "observedAt": "2026-10-16T06:04:02.924Z"
+              },
+              "url": "https://substack.com/@joodaloop/note/c-347044458",
+              "author": {
+                "handle": "joodaloop",
+                "name": "Judah",
+                "profileUrl": "https://substack.com/@joodaloop"
+              },
+              "body": {
+                "status": "complete",
+                "html": "<p>ok, starting with the first one i remember that blew my mind because of the sheer intensity of care for the details</p><p>still online at </p>"
+              },
+              "publishedLabel": "Sep 27, 2026, 1:12 PM",
+              "postedAt": "2026-09-27T13:12:51.000Z",
+              "links": [
+                {
+                  "kind": "link",
+                  "role": "preview",
+                  "url": "http://colly.com/v4",
+                  "title": "Simon Collison | Colly | The Celebrated Miscellany",
+                  "previewText": "This is the celebrated journal of Simon Collison (aka Colly); web designer, developer, author and speaker, Nottingham, UK."
+                }
+              ],
+              "media": [
+                {
+                  "kind": "image",
+                  "url": "https://substack-post-media.s3.amazonaws.com/public/images/f0e3bd4a-3606-42e8-a300-be503eb4dae7_2560x1738.jpeg",
+                  "alt": ""
+                }
+              ],
+              "quote": {
+                "url": "https://substack.com/@joodaloop/note/c-346876542",
+                "previewHtml": "<p>i think i’m going to start posting personal websites that i admire, as an act of reverence for the medium </p>",
+                "expanded": {
+                  "acquisition": {
+                    "method": "public-html",
+                    "observedAt": "2026-10-16T06:04:03.044Z"
+                  },
+                  "url": "https://substack.com/@joodaloop/note/c-346876542",
+                  "author": {
+                    "handle": "joodaloop",
+                    "name": "Judah",
+                    "profileUrl": "https://substack.com/@joodaloop"
+                  },
+                  "body": {
+                    "status": "complete",
+                    "html": "<p>i think i’m going to start posting personal websites that i admire, as an act of reverence for the medium </p>"
+                  },
+                  "publishedLabel": "Sep 27, 2026, 6:32 AM",
+                  "postedAt": "2026-09-27T06:32:33.000Z",
+                  "links": []
+                }
+              }
+            }
+          }
+        }
+      },
+      "quoteCoverage": {
+        "maxDepth": 8,
+        "actualDepth": 2,
+        "maxReached": false,
+        "truncated": false,
+        "stopped": "end",
+        "sourceIds": [
+          "348712218",
+          "347044458",
+          "346876542"
+        ],
+        "acquisitionDepth": 2,
+        "mayExpand": false
+      },
+      "selection": {
+        "role": "primary",
+        "origin": "explicit",
+        "declaredIndex": 1
+      }
+    }
+  ],
+  "policy": {
+    "media": "auto",
+    "selectedMedia": [],
+    "threadExpansion": "off",
+    "quote": "block",
+    "separator": "auto"
+  },
+  "block": {
+    "kind": "link",
+    "title": "Note by @joodaloop",
+    "markdown": "> > [`@joodaloop`](<https://substack.com/@joodaloop/note/c-346876542>) (Sep 27, 2026)\n> >\n> > i think i’m going to start posting personal websites that i admire, as an act of reverence for the medium\n>\n> [`@joodaloop`](<https://substack.com/@joodaloop/note/c-347044458>) (Sep 27, 2026)\n>\n> ok, starting with the first one i remember that blew my mind because of the sheer intensity of care for the details\n>\n> still online at\n>\n> *Preview of [Simon Collison | Colly | The Celebrated Miscellany](<http://colly.com/v4>):*\n>\n> > This is the celebrated journal of Simon Collison (aka Colly); web designer, developer, author and speaker, Nottingham, UK.\n>\n> *[image]*\n\nsecond up, the site i’m most intimidated by in terms of breadth of content and quality of execution\n\nDENSITY!!!\n\n[lucy-ives.com](<https://www.lucy-ives.com/>)\n\n*[image]*",
+    "canonicalSource": "https://substack.com/@joodaloop/note/c-348712218",
+    "selectedMedia": [
+      "1.1",
+      "1.2"
+    ],
+    "layout": {
+      "kind": "split",
+      "axis": "vertical",
+      "children": [
+        {
+          "kind": "media",
+          "ref": "1.1"
+        },
+        {
+          "kind": "media",
+          "ref": "1.2"
+        }
+      ]
+    },
+    "quoteCoverage": [
+      {
+        "sourceId": "348712218",
+        "availableDepth": 2,
+        "renderedDepth": 2,
+        "requestedDepth": 2,
+        "maxDepth": 8,
+        "maxReached": false,
+        "truncated": false,
+        "stopped": "end",
+        "mayExpand": false
+      }
+    ]
+  },
+  "hash": "e7f83ac33ba9d0aed3ad01c20e0b7c1d94305584bf1016fe423cc65bf5930db0"
+}

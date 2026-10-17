@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "sources": [
+    {
+      "provider": "reddit",
+      "id": "pf30wuc",
+      "canonicalUrl": "https://www.reddit.com/r/slatestarcodex/comments/1x2k7et/comment/pf30wuc/",
+      "author": {
+        "handle": "/u/bibliophile785"
+      },
+      "text": "Ooh, what a sharply bifurcated talk. Just a wild quality jump from the talk of mathematical frontiers to the part about value judgments. Maybe it's not surprising that the famed mathematician is really good at math and less stunningly capable with the broader meta-context.\n\nThe part about new frontiers is _fascinating_. I love that he's shining a light on the impact of synthetic data sets to move beyond the case study modality of mathematics. I actually think that this case study modality is a large part of the reason so many famous conjectures are being disproved. Sure, cool, the Jacobian conjecture is false in three dimensions. Okay, lots of people thought it might be.\n\nUltimately, though, that's kind of like saying that a particular catalyst doesn't work for all coupling reactions in a class. Yeah, we were happy it worked so broadly, but we didn't really expect it to work everywhere. The real value comes from scope characterization. What parts of chemical space contains substrates that will couple, and why? Similarly, which regions of higher-dimension space have non-zero Jacobians but don't have inverse polynomials? Why? This is something that mathematicians have historically carved out laboriously with individual proofs, but I agree that population-level analysis might be a really, really fruitful alternative.\n\nThe part about what we should value in mathematics (and knowledge gathering more broadly) is frankly a little baffling. Part of it is the desperate (self- and special-interest-group-serving) elevation of \"human understanding\" above any actual output. It's obviously the only thing that matters to him. Hell, he's not even happy to have _applied_ math — the stuff that could genuinely save lives, increase prosperity, and reshape societies — worked on by agents unless his human knowledge workers get their cut. He wouldn't be happy to see _cancer cures_ unless humans got to stay in the loop. It's obscenely misguided. His efforts to validate that last example with arguments about long-term side effects (as though human researchers have magic future sight the AI will never replicate?) show the weakness of his ability to project beyond his field.\n\nIt's easier to sympathize with Tao here than with the very vocal mathematicians who cared more about getting to go to cool conferences and meet fun people than they did advancing mathematics, but I ultimately don't think he has made a better case for why we can't have autonomous advances in the field. I welcome human involvement for as long as humans are making meaningful contributions, but honestly I'm taking the cancer cure whether or not a human researcher got to feel wonderful intellectual fulfillment in being a part of the process.",
+      "postedAt": "2026-10-10T17:28:26.997Z",
+      "storyTitle": "Terence Tao's actual current thoughts on AI and math",
+      "media": [],
+      "redditCapture": {
+        "schema": "arena-block/reddit-public-page-capture",
+        "version": 1,
+        "sourceUrl": "https://www.reddit.com/comments/1x2k7et/comment/pf30wuc/",
+        "observedAt": "2026-10-15T17:59:30.177Z",
+        "transport": "ephemeral-public-webview",
+        "post": {
+          "id": "1x2k7et",
+          "author": "kzhou7",
+          "permalink": "/r/slatestarcodex/comments/1x2k7et/terence_taos_actual_current_thoughts_on_ai_and/",
+          "postedAt": "2026-10-10T16:58:06.332Z",
+          "title": "Terence Tao's actual current thoughts on AI and math",
+          "postType": "link",
+          "body": {
+            "status": "context-only",
+            "html": ""
+          },
+          "media": [],
+          "evidence": {
+            "root": "shreddit-post",
+            "fullContent": false
+          }
+        },
+        "comment": {
+          "id": "pf30wuc",
+          "author": "bibliophile785",
+          "permalink": "/r/slatestarcodex/comments/1x2k7et/comment/pf30wuc/",
+          "postedAt": "2026-10-10T17:28:26.997Z",
+          "postId": "1x2k7et",
+          "body": {
+            "status": "complete",
+            "html": "\n      <p>\n      Ooh, what a sharply bifurcated talk. Just a wild quality jump from the talk of mathematical frontiers to the part about value judgments. Maybe it's not surprising that the famed mathematician is really good at math and less stunningly capable with the broader meta-context.\n    </p><p>\n      The part about new frontiers is <em>fascinating</em>. I love that he's shining a light on the impact of synthetic data sets to move beyond the case study modality of mathematics. I actually think that this case study modality is a large part of the reason so many famous conjectures are being disproved. Sure, cool, the Jacobian conjecture is false in three dimensions. Okay, lots of people thought it might be.\n    </p><p>\n      Ultimately, though, that's kind of like saying that a particular catalyst doesn't work for all coupling reactions in a class. Yeah, we were happy it worked so broadly, but we didn't really expect it to work everywhere. The real value comes from scope characterization. What parts of chemical space contains substrates that will couple, and why? Similarly, which regions of higher-dimension space have non-zero Jacobians but don't have inverse polynomials? Why? This is something that mathematicians have historically carved out laboriously with individual proofs, but I agree that population-level analysis might be a really, really fruitful alternative.\n    </p><p>\n      The part about what we should value in mathematics (and knowledge gathering more broadly) is frankly a little baffling. Part of it is the desperate (self- and special-interest-group-serving) elevation of \"human understanding\" above any actual output. It's obviously the only thing that matters to him. Hell, he's not even happy to have <em>applied</em> math — the stuff that could genuinely save lives, increase prosperity, and reshape societies — worked on by agents unless his human knowledge workers get their cut. He wouldn't be happy to see <em>cancer cures</em> unless humans got to stay in the loop. It's obscenely misguided. His efforts to validate that last example with arguments about long-term side effects (as though human researchers have magic future sight the AI will never replicate?) show the weakness of his ability to project beyond his field.\n    </p><p>\n      It's easier to sympathize with Tao here than with the very vocal mathematicians who cared more about getting to go to cool conferences and meet fun people than they did advancing mathematics, but I ultimately don't think he has made a better case for why we can't have autonomous advances in the field. I welcome human involvement for as long as humans are making meaningful contributions, but honestly I'm taking the cancer cure whether or not a human researcher got to feel wonderful intellectual fulfillment in being a part of the process.\n    </p>\n    "
+          },
+          "media": [],
+          "evidence": {
+            "root": "shreddit-comment",
+            "bodyId": "t1_pf30wuc-post-rtjson-content"
+          }
+        }
+      },
+      "selection": {
+        "role": "primary",
+        "origin": "explicit",
+        "declaredIndex": 1
+      }
+    }
+  ],
+  "policy": {
+    "media": "all",
+    "selectedMedia": [],
+    "quote": "block",
+    "separator": "auto"
+  },
+  "block": {
+    "kind": "text",
+    "title": "Comment by /u/bibliophile785 on “Terence Tao's actual current thoughts on AI and math”",
+    "markdown": "Ooh, what a sharply bifurcated talk. Just a wild quality jump from the talk of mathematical frontiers to the part about value judgments. Maybe it's not surprising that the famed mathematician is really good at math and less stunningly capable with the broader meta-context.\n\nThe part about new frontiers is _fascinating_. I love that he's shining a light on the impact of synthetic data sets to move beyond the case study modality of mathematics. I actually think that this case study modality is a large part of the reason so many famous conjectures are being disproved. Sure, cool, the Jacobian conjecture is false in three dimensions. Okay, lots of people thought it might be.\n\nUltimately, though, that's kind of like saying that a particular catalyst doesn't work for all coupling reactions in a class. Yeah, we were happy it worked so broadly, but we didn't really expect it to work everywhere. The real value comes from scope characterization. What parts of chemical space contains substrates that will couple, and why? Similarly, which regions of higher-dimension space have non-zero Jacobians but don't have inverse polynomials? Why? This is something that mathematicians have historically carved out laboriously with individual proofs, but I agree that population-level analysis might be a really, really fruitful alternative.\n\nThe part about what we should value in mathematics (and knowledge gathering more broadly) is frankly a little baffling. Part of it is the desperate (self- and special-interest-group-serving) elevation of \"human understanding\" above any actual output. It's obviously the only thing that matters to him. Hell, he's not even happy to have _applied_ math — the stuff that could genuinely save lives, increase prosperity, and reshape societies — worked on by agents unless his human knowledge workers get their cut. He wouldn't be happy to see _cancer cures_ unless humans got to stay in the loop. It's obscenely misguided. His efforts to validate that last example with arguments about long-term side effects (as though human researchers have magic future sight the AI will never replicate?) show the weakness of his ability to project beyond his field.\n\nIt's easier to sympathize with Tao here than with the very vocal mathematicians who cared more about getting to go to cool conferences and meet fun people than they did advancing mathematics, but I ultimately don't think he has made a better case for why we can't have autonomous advances in the field. I welcome human involvement for as long as humans are making meaningful contributions, but honestly I'm taking the cancer cure whether or not a human researcher got to feel wonderful intellectual fulfillment in being a part of the process.",
+    "description": "Posted at: 2026-10-10T17:28:26.997Z",
+    "canonicalSource": "https://www.reddit.com/r/slatestarcodex/comments/1x2k7et/comment/pf30wuc/",
+    "selectedMedia": []
+  },
+  "hash": "5a3709fdf9de6120e16bc3e756d8fb2b83faa1825ea82b819dbc595e6e64b475"
+}

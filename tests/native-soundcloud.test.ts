@@ -45,7 +45,7 @@ describe("native SoundCloud page resolver", () => {
     const post = soundCloudPostFromPage(source, page("sound", { ...track, downloadable: true, has_downloads_left: true }));
     expect(post.soundcloud).toMatchObject({ originalDownloadAvailable: true });
     expect(post.media).toEqual([]);
-    expect(post.text).toContain("did not provide a verified original file URL");
+    expect(post.text).toBe("Artist: Exact artist\n\nDuration: 1:01\n\nOriginal source description");
   });
 
   test("playlist keeps exact order, absent duration and artwork; media none omits artwork", () => {

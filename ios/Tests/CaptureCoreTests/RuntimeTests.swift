@@ -3,6 +3,52 @@ import Foundation
 import XCTest
 
 final class RuntimeTests: XCTestCase {
+    @MainActor func testLiveActualImageOnlySubstackNote() async throws {
+        guard ProcessInfo.processInfo.environment["CAPTURE_LIVE_SUBSTACK_IMAGE_NOTE"] == "1" else {
+            throw XCTSkip("Opt-in credentialless public Note read; no save.")
+        }
+        let canonical = "https://substack.com/@norvidstudies/note/c-362104813"
+        let runtime = try CaptureRuntime()
+        let value = try await runtime.resolve(refs: [canonical + "?r=1ir8aw&utm_medium=ios&utm_source=notes-share-"], policyJSON: #"{"threadExpansion":"off"}"#)
+        let envelope = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(value.utf8)) as? [String: Any])
+        let plan = try XCTUnwrap(envelope["plan"] as? [String: Any])
+        let block = try XCTUnwrap(plan["block"] as? [String: Any])
+        XCTAssertEqual(block["title"] as? String, "Note by @norvidstudies")
+        XCTAssertEqual(block["canonicalSource"] as? String, canonical)
+        XCTAssertFalse((block["markdown"] as? String ?? "").contains("📸"))
+        let source = try XCTUnwrap((plan["sources"] as? [[String: Any]])?.first)
+        XCTAssertEqual(source["text"] as? String, "")
+        let image = try XCTUnwrap((source["media"] as? [[String: Any]])?.first)
+        XCTAssertEqual(image["url"] as? String, "https://substack-post-media.s3.amazonaws.com/public/images/9fc436fc-78b9-407e-9a44-70f18500a27d_1448x1086.png")
+        XCTAssertEqual(image["width"] as? Int, 1448)
+        XCTAssertEqual(image["height"] as? Int, 1086)
+        for id in ["346876542", "347044458", "348712218"] {
+            let url = "https://substack.com/@joodaloop/note/c-\(id)"
+            let output = try await runtime.resolve(refs: [url + "?r=1ir8aw&utm_medium=ios&utm_source=notes-share-"], policyJSON: #"{"threadExpansion":"off"}"#)
+            let result = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(output.utf8)) as? [String: Any])
+            let contrast = try XCTUnwrap(result["plan"] as? [String: Any])
+            let block = try XCTUnwrap(contrast["block"] as? [String: Any])
+            XCTAssertEqual(block["canonicalSource"] as? String, url)
+            let post = try XCTUnwrap((contrast["sources"] as? [[String: Any]])?.first)
+            if id == "347044458" {
+                XCTAssertTrue((post["text"] as? String ?? "").contains("still online at"))
+                XCTAssertTrue((post["text"] as? String ?? "").contains("http://colly.com/v4"))
+                XCTAssertEqual((post["media"] as? [Any])?.count, 1)
+                let quote = try XCTUnwrap(post["quote"] as? [String: Any])
+                XCTAssertEqual(quote["id"] as? String, "346876542")
+                XCTAssertTrue((quote["text"] as? String ?? "").contains("as an act of reverence for the medium"))
+            } else if id == "348712218" {
+                XCTAssertTrue((post["text"] as? String ?? "").contains("DENSITY!!!"))
+                XCTAssertTrue((post["text"] as? String ?? "").contains("https://www.lucy-ives.com/"))
+                let parent = try XCTUnwrap(post["quote"] as? [String: Any])
+                XCTAssertEqual(parent["id"] as? String, "347044458")
+                XCTAssertEqual((parent["quote"] as? [String: Any])?["id"] as? String, "346876542")
+                XCTAssertEqual((post["media"] as? [Any])?.count, 1)
+                XCTAssertEqual((parent["media"] as? [Any])?.count, 1)
+                XCTAssertEqual(block["selectedMedia"] as? [String],["1.1","1.2"])
+            } else { XCTAssertNil(post["quote"]) }
+        }
+    }
     func testPublicFacetSnapshotsComposeIdenticallyInJavaScriptCore() async throws {
         try await MainActor.run {
             let fixture = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
@@ -84,6 +130,22 @@ final class RuntimeTests: XCTestCase {
             XCTAssertEqual(fields["description"] as? String, "")
             XCTAssertEqual(payload["original_source_url"] as? String, "https://delve.town/profile/did:plc:aaaaaaaaaaaaaaaaaaaaaaaa/post/a")
             XCTAssertEqual(try runtime.source("at://did:plc:aaaaaaaaaaaaaaaaaaaaaaaa/town.delve.feed.post/a"), #"{"kind":"social","url":"https://delve.town/profile/did:plc:aaaaaaaaaaaaaaaaaaaaaaaa/post/a"}"#)
+        }
+    }
+
+    func testInstagramReelTitlesSurviveNativeRecompositionAndCanonicalAliases() async throws {
+        try await MainActor.run {
+            let runtime = try CaptureRuntime()
+            for (route, retainedTitle, expected) in [("reel", nil, "Reel"), ("p", "Reel by @alice", "Reel"), ("p", nil, "Post")] as [(String, String?, String)] {
+                var post: [String: Any] = ["provider": "instagram", "id": "Ab_c-123", "canonicalUrl": "https://www.instagram.com/\(route)/Ab_c-123/",
+                    "author": ["handle": "alice"], "text": "Authored caption", "media": []]
+                if let retainedTitle { post["postTitle"] = retainedTitle }
+                let posts = String(decoding: try JSONSerialization.data(withJSONObject: [post]), as: UTF8.self)
+                let envelope = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(runtime.compose(postsJSON: posts).utf8)) as? [String: Any])
+                let fields = try XCTUnwrap(envelope["fields"] as? [String: Any])
+                XCTAssertEqual(fields["title"] as? String, "\(expected) by @alice")
+                XCTAssertEqual(fields["content"] as? String, "Authored caption")
+            }
         }
     }
 

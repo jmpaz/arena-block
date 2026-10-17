@@ -1,32 +1,68 @@
+import { mediaSources, planMedia, videoSoundtrackSources } from "../../packages/core/media-tree.ts";
+import { renderedQuoteDepth } from "../../packages/core/quote-policy.ts";
+import { normalizeSubstackCapture, substackCapturesSchema, substackSourceKey, type SubstackCapture } from "../../packages/core/substack-record.ts";
+import { configureSubstackTabReading, readActiveSubstackTab, type TabReadingManifest } from "./substack-tab.ts";
+import { containsDraftSource, shouldReplaceAutomaticDraft } from "./draft-retention.ts";
+import { resolveWithNative } from "./native-reddit.ts";
+import { normalizeRedditCapture, redditLiveReadUnavailable, redditCapturesSchema, redditSourceKey, REDDIT_CAPTURE_MAX_BYTES, type RedditBrowserCapture } from "../../packages/core/reddit-record.ts";
 import { blockPlanSchema, type BlockPlan, type CompositionPolicy } from "../../packages/core/types.ts";
-import { requiredOrigins, resolveCapture, revisePlan } from "./core.ts";
+import { requiredOrigins, resolveCapture, revisePlan, mediaSelectionPolicy } from "./core.ts";
 import { BrowserOAuth } from "./browser-auth.ts";
 import { BrowserSaver, browserCanPublish, routeBrowserDestinations, type BrowserSaveIntent } from "./browser-save.ts";
 import { ResolutionGuard } from "./resolution-guard.ts";
 import { ChannelPickerModel, channelPage, channelValue, type ChannelRow, type ChannelScope } from "./channel-picker.ts";
 import type { CaptureJob } from "./capture-job.ts";
+import { parseSource } from "../../packages/core/url.ts";
+import { CaptureAccess, renderCaptureAccess } from "./capture-access.ts";
+import type { PermissionManifest, PermissionRequest } from "../permission-policy.ts";
+import { markdownSummary, renderBlockTextPreview } from "./markdown-preview.ts";
+import { quoteAuthorChoice, quoteAuthorPolicy, reviseQuoteAuthorLink } from "./quote-presentation.ts";
 
 type BrowserAPI = {
   permissions: { request(value: { origins?: string[]; permissions?: string[] }): Promise<boolean>;
-    contains(value: { origins?: string[]; permissions?: string[] }): Promise<boolean> };
+    contains(value: { origins?: string[]; permissions?: string[] }): Promise<boolean>;
+    onAdded?: { addListener(listener: () => void): void };
+    onRemoved?: { addListener(listener: () => void): void } };
   storage: { local: { get(key: string): Promise<Record<string, unknown>>; set(value: Record<string, unknown>): Promise<void>; remove(key: string): Promise<void> };
     onChanged: { addListener(listener: (changes: Record<string, { newValue?: unknown }>, area: string) => void): void } };
-  runtime: { sendNativeMessage(host: string, message: unknown): Promise<unknown>; sendMessage(message: unknown): Promise<unknown>; getURL(path: string): string };
-  tabs: { query(query: { active: boolean; currentWindow: boolean }): Promise<Array<{ url?: string }>> };
+  runtime: { sendNativeMessage(host: string, message: unknown): Promise<unknown>; sendMessage(message: unknown): Promise<unknown>; getURL(path: string): string; getManifest(): TabReadingManifest & PermissionManifest };
+  tabs: { query(query: { active: boolean; currentWindow: boolean }): Promise<Array<{ id?: number; url?: string }>> };
+  scripting?: { executeScript(value: { target: { tabId: number }; world: "MAIN" | "ISOLATED"; func: (...args: any[]) => any; args: string[] }): Promise<Array<{ result?: unknown }>> };
   identity: { getRedirectURL(): string; launchWebAuthFlow(options: { url: string; interactive: boolean }): Promise<string | undefined> };
 };
 const browser = ((globalThis as any).browser ?? (globalThis as any).chrome) as BrowserAPI;
+const manifest = browser.runtime.getManifest();
 const key = "arena-block-editor-draft-v1";
 const earlierKey = "arena-block-earlier-saves-v1";
 const channelCacheKey = "arena-block-channel-index-v1";
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
+const substackTabReading = configureSubstackTabReading(manifest, $<HTMLButtonElement>("read-substack"), $("substack-tab-availability"));
+$("read-substack").setAttribute("aria-describedby", "substack-tab-availability");
 const primary = $<HTMLTextAreaElement>("primary");
 const extras = $<HTMLTextAreaElement>("extras");
+const captureAccess = new CaptureAccess(browser.permissions, manifest, () =>
+  [...new Set([...lines(primary.value), ...lines(extras.value)].flatMap(ref => {
+    try { return parseSource(ref).provider === "mastodon" ? [new URL(ref).origin] : []; }
+    catch { return []; }
+  }))], state => renderCaptureAccess(state, $<HTMLButtonElement>("allow-capture-access"),
+    $("capture-access-status"), $("capture-access-origins"), $("capture-access-unavailable")));
+$("allow-capture-access").addEventListener("click", () => { void captureAccess.requestFromClick(); });
+browser.permissions.onAdded?.addListener(() => { void captureAccess.refresh(); });
+browser.permissions.onRemoved?.addListener(() => { void captureAccess.refresh(); });
+async function capturePermission(request: PermissionRequest): Promise<boolean> {
+  const allowed = await browser.permissions.contains(request);
+  if (!allowed) {
+    $<HTMLDetailsElement>("capture-access").open = true;
+    void captureAccess.refresh();
+  }
+  return allowed;
+}
 const mediaPolicy = $<HTMLSelectElement>("media-policy");
 const threadPolicy = $<HTMLSelectElement>("thread-policy");
 const quotePolicy = $<HTMLSelectElement>("quote-policy");
 const quoteDepth = $<HTMLSelectElement>("quote-depth");
 const quoteDates = $<HTMLSelectElement>("quote-dates");
+const quoteAuthorLink = $<HTMLSelectElement>("quote-author-link");
 const separatorPolicy = $<HTMLSelectElement>("separator-policy");
 const title = $<HTMLInputElement>("title");
 const writing = $<HTMLTextAreaElement>("writing");
@@ -54,6 +90,8 @@ type Pending = { saveId: string; planHash?: string; inputSignature?: string; job
 type EarlierSave = { saveId: string; source: string; title: string; phase: string;
   method: "browser" | "native" | "job"; destinations: string[] };
 let plan: BlockPlan | undefined;
+let redditCaptures: RedditBrowserCapture[] = [];
+let substackCaptures: SubstackCapture[] = [];
 let pending: Pending | undefined;
 let earlierSaves: EarlierSave[] = [];
 let saveInFlight = false;
@@ -87,9 +125,10 @@ function currentDestinations(): string[] {
 }
 function message(value: string, error = false): void { status.textContent = value; status.classList.toggle("error", error); }
 function draft() {
-  return { primary: primary.value, extras: extras.value, media: mediaPolicy.value,
+  return { primary: primary.value, extras: extras.value, redditCaptures, substackCaptures, media: mediaPolicy.value,
     thread: threadPolicy.value, quote: quotePolicy.value, depth: quoteDepth.value,
     dates: quoteDates.value, separator: separatorPolicy.value,
+    ...(quoteAuthorLink.value ? { quoteAuthorLink: quoteAuthorChoice(quoteAuthorLink.value) } : {}),
     channel: channel.value, selectedChannels: [...picker.selected.values()],
     defaultChannel: defaultChannel.value, defaultMode: defaultMode.value, plan, pending, resolvedInput,
     manualContentEdit, manualFields };
@@ -100,18 +139,22 @@ function editedFields(): { title?: string; markdown?: string; description?: stri
     ...(manualFields.writing ? { markdown: writing.value } : {}),
     ...(manualFields.description ? { description: description.value } : {}) };
 }
-function inputSignature(): string {
-  return JSON.stringify([primary.value, extras.value, mediaPolicy.value, threadPolicy.value,
-    quotePolicy.value, quoteDepth.value, quoteDates.value, separatorPolicy.value]);
+function inputSignature(authorChoice = quoteAuthorLink.value): string {
+  const values: unknown[] = [primary.value, extras.value, mediaPolicy.value, threadPolicy.value,
+    quotePolicy.value, quoteDepth.value, quoteDates.value, separatorPolicy.value, redditCaptures, substackCaptures];
+  // Preserve legacy unset signatures and frozen drafts byte for byte.
+  if (authorChoice) values.push(authorChoice);
+  return JSON.stringify(values);
 }
 function destinationsFrozen(): boolean { return Boolean(pending || saveInFlight); }
 function syncDestinationLock(): void {
   const frozen = destinationsFrozen();
   for (const id of ["choose-channel", "clear-channels", "add-channel", "default-channel", "default-mode",
-    "primary", "extras", "media-policy", "thread-policy", "quote-policy", "quote-depth", "quote-dates",
-    "separator-policy", "title", "writing", "description", "resolve-local", "add-current",
+    "primary", "extras", "media-policy", "thread-policy", "quote-policy", "quote-depth", "quote-dates", "quote-author-link",
+    "separator-policy", "import-reddit", "reddit-file", "title", "writing", "description", "resolve-local", "add-current",
     "single-media-toggle", "audio-choice"])
     $(id).toggleAttribute("disabled", frozen);
+  configureSubstackTabReading(manifest, $<HTMLButtonElement>("read-substack"), $("substack-tab-availability"), frozen || resolveInFlight);
   resolveButton.disabled = frozen || resolveInFlight;
   $<HTMLButtonElement>("preview-source").disabled = frozen || resolveInFlight;
   if (frozen) $("preview-source").hidden = true;
@@ -172,6 +215,7 @@ function refreshSaveButton(): void {
   syncDestinationLock();
 }
 function intakeChanged(): void {
+  void captureAccess.refresh();
   resolutionGuard.changed();
   if (previewTimer) clearTimeout(previewTimer);
   retain();
@@ -213,7 +257,7 @@ function renderMedia(): void {
   const section = $("media-section");
   const list = $<HTMLOListElement>("media-list");
   list.replaceChildren();
-  const assets = plan?.sources.flatMap(source => source.media) ?? [];
+  const assets = plan ? planMedia(plan) : [];
   section.hidden = assets.length === 0;
   const singleImage = assets.length === 1 && assets[0]!.kind === "image" ? assets[0] : undefined;
   const singleSelected = Boolean(singleImage && plan?.block.selectedMedia.includes(singleImage.ref));
@@ -262,7 +306,9 @@ function renderMedia(): void {
     const meta = document.createElement("div");
     meta.className = "media-meta";
     const name = document.createElement("strong");
-    name.textContent = `${asset.kind[0]!.toUpperCase()}${asset.kind.slice(1)} · ${asset.ref}`;
+    const owner = mediaSources(plan!.sources, renderedQuoteDepth(plan!.policy)).find(node => node.media.some(item => item.ref === asset.ref));
+    name.textContent = `${asset.kind[0]!.toUpperCase()}${asset.kind.slice(1)} · ${asset.ref}${owner?.quoteDepth ? ` · quoted from @${owner.source.author.handle.replace(/^@/, "")}` : ""}`;
+    if(asset.sourceAttribution)name.textContent+=` · from ${asset.sourceAttribution.title}, by ${asset.sourceAttribution.authors.join(", ")}`;
     const link = document.createElement("a");
     link.href = asset.url;
     link.target = "_blank";
@@ -289,7 +335,7 @@ function renderMedia(): void {
         resolutionGuard.changed();
         const refs = new Set(plan.policy.videoFrames ?? []);
         if (frame.checked) refs.add(asset.ref); else refs.delete(asset.ref);
-        plan = revisePlan(plan, { policy: { videoFrames: [...refs] }, title: title.value,
+        plan = revisePlan(plan, { policy: { videoFrames: [...refs], ...(frame.checked && plan.policy.audio === asset.ref ? { audio: "auto" } : {}) }, title: title.value,
           markdown: writing.value, description: description.value });
         renderPlanKeepingMediaFocus();
       });
@@ -307,31 +353,27 @@ function renderMedia(): void {
     row.append(thumb, meta, controls);
     list.append(row);
   }
-  const audio = assets.filter(asset => asset.kind === "audio" && plan?.block.selectedMedia.includes(asset.ref));
+  const audio = plan ? videoSoundtrackSources(plan).flatMap(node => node.media.map(asset => ({ asset, node }))) : [];
   const audioChoice = $<HTMLSelectElement>("audio-choice");
   audioChoice.replaceChildren();
   audioChoice.hidden = $("audio-label").hidden = audio.length < 2;
   if (audio.length >= 2) {
-    for (const [value, label] of [["auto", "Auto"], ["mix", "Mix"], ...audio.map(asset => [asset.ref, `Only ${asset.ref}`])]) {
+    for (const [value, label] of [["auto", "Auto"], ["mix", "Mix"], ...audio.map(({ asset, node }) => [asset.ref,
+      `Video ${asset.ref}${node.quoteDepth ? ` · quoted from @${node.source.author.handle.replace(/^@/, "")}` : ""}`])]) {
       const option = document.createElement("option");
       option.value = value!;
       option.textContent = label!;
       audioChoice.append(option);
     }
-    audioChoice.value = plan?.policy.audio ?? "auto";
+    const value = plan?.policy.audio ?? "auto";
+    audioChoice.value = ["auto", "mix"].includes(value) || audio.some(item => item.asset.ref === value) ? value : "auto";
   }
 }
 
 function changeMedia(ref: string, selected: boolean): void {
   if (!plan) return;
   resolutionGuard.changed();
-  const refs = new Set(plan.block.selectedMedia);
-  if (selected) refs.add(ref); else refs.delete(ref);
-  const previousOrder = plan.policy.mediaOrder ?? plan.block.selectedMedia;
-  const mediaOrder = previousOrder.filter(value => refs.has(value));
-  for (const value of refs) if (!mediaOrder.includes(value)) mediaOrder.push(value);
-  const policy: Partial<CompositionPolicy> = { media: "selected", selectedMedia: [...refs],
-    mediaOrder, videoFrames: (plan.policy.videoFrames ?? []).filter(value => refs.has(value)) };
+  const policy = mediaSelectionPolicy(plan, ref, selected);
   plan = revisePlan(plan, { policy, title: title.value, markdown: writing.value, description: description.value });
   renderPlanKeepingMediaFocus();
 }
@@ -406,14 +448,17 @@ function renderCapturePreview(): void {
     ? `${host}${count > 1 ? ` · ${count} posts` : ""}` : "Source";
   $("capture-preview-title").textContent = current ? plan!.block.title : ref ? host : "Add a source";
   $("capture-preview-excerpt").textContent = current
-    ? (manualFields.writing ? writing.value.trim() : plan!.sources[0]?.text.trim()) || ref!
+    ? markdownSummary(document, (manualFields.writing ? writing.value : plan!.sources[0]?.text) ?? "") || ref!
     : ref ?? "Paste a link to begin";
+  $("block-preview").hidden = !current;
+  if (current) renderBlockTextPreview($("block-text-preview"), plan!);
+  else $("block-text-preview").replaceChildren();
   let needsProviderPreview = false;
   try { needsProviderPreview = Boolean(ref && requiredOrigins([ref]).length); }
   catch { /* Incomplete sources remain in Edit sources. */ }
   $("preview-source").hidden = !needsProviderPreview || current || destinationsFrozen();
   const image = $<HTMLImageElement>("capture-preview-image");
-  const selected = current ? plan!.sources.flatMap(source => source.media).find(asset =>
+  const selected = current ? planMedia(plan!).find(asset =>
     plan!.block.selectedMedia.includes(asset.ref) && (asset.kind === "image" || asset.posterUrl)) : undefined;
   image.hidden = !selected;
   if (selected) image.src = selected.kind === "image" ? selected.url : selected.posterUrl!;
@@ -431,7 +476,7 @@ function renderPickerPreview(): void {
   $("picker-preview-title").textContent = current && plan?.block.title ? plan.block.title : source;
   $("picker-preview-source").textContent = current ? source : ref;
   const image = $<HTMLImageElement>("picker-preview-image");
-  const selected = current ? plan!.sources.flatMap(item => item.media).find(item =>
+  const selected = current ? planMedia(plan!).find(item =>
     plan!.block.selectedMedia.includes(item.ref) && (item.kind === "image" || item.posterUrl)) : undefined;
   image.hidden = !selected;
   if (selected) image.src = selected.kind === "image" ? selected.url : selected.posterUrl!;
@@ -440,8 +485,8 @@ function renderPickerPreview(): void {
 
 type NativeReply = { id?: string; ok: boolean; value?: any; error?: string };
 async function native(action: string, fields: Record<string, unknown> = {}, askPermission = true): Promise<any> {
-  if (askPermission && !await browser.permissions.request({ permissions: ["nativeMessaging"] } as any)) {
-    throw new Error("Access to the local helper was not granted.");
+  if (askPermission && !await capturePermission({ permissions: ["nativeMessaging"] })) {
+    throw new Error("Allow local helper access in Capture access.");
   }
   const id = crypto.randomUUID();
   const result = await browser.runtime.sendNativeMessage("net.fjpaz.arena_block", { id, action, ...fields }) as NativeReply;
@@ -613,11 +658,11 @@ async function save(): Promise<void> {
   syncDestinationLock();
   try {
     if (method === "browser") {
-      if (!await browser.permissions.request({ origins: ["https://api.are.na/*"] }))
-        throw new Error("Are.na access was not granted.");
+      if (!await capturePermission({ origins: ["https://api.are.na/*"] }))
+        throw new Error("Allow Are.na access in Capture access.");
       try { await oauth!.token(); } catch { await oauth!.signIn(); }
-    } else if (!await browser.permissions.request({ permissions: ["nativeMessaging"] })) {
-      throw new Error("Local helper access was not granted.");
+    } else if (!await capturePermission({ permissions: ["nativeMessaging"] })) {
+      throw new Error("Allow local helper access in Capture access.");
     }
     if (!pending) {
       const saveId = crypto.randomUUID();
@@ -665,19 +710,19 @@ async function saveSourceIntent(destinations: string[]): Promise<void> {
     if (pending?.phase === "needs_auth") await oauth!.signIn();
     else if (pending?.phase === "rejected" && pending.jobMethod === "browser") await oauth!.signIn();
     else if (pending?.phase === "needs_helper") {
-      if (!await browser.permissions.request({ permissions: ["nativeMessaging"] }))
-        throw new Error("Local helper access was not granted.");
+      if (!await capturePermission({ permissions: ["nativeMessaging"] }))
+        throw new Error("Allow local helper access in Capture access.");
     }
     if (!pending) {
-      const origins = requiredOrigins([...refs, ...extraRefs]);
+      const origins = requiredOrigins([...refs, ...extraRefs], redditCaptures, substackCaptures);
       if (oauth) origins.push("https://api.are.na/*");
-      if (origins.length && !await browser.permissions.request({ origins: [...new Set(origins)] }))
-        throw new Error("Source access was not granted.");
-      if (!oauth && !await browser.permissions.request({ permissions: ["nativeMessaging"] }))
-        throw new Error("Local helper access was not granted.");
+      if (origins.length && !await capturePermission({ origins: [...new Set(origins)] }))
+        throw new Error("Allow source access in Capture access.");
+      if (!oauth && !await capturePermission({ permissions: ["nativeMessaging"] }))
+        throw new Error("Allow local helper access in Capture access.");
       const saveId = crypto.randomUUID();
       const edits = editedFields();
-      const job: CaptureJob = { saveId, input: { primary: refs, extras: extraRefs, policy: chosenPolicy() },
+      const job: CaptureJob = { saveId, input: { primary: refs, extras: extraRefs, policy: chosenPolicy(), redditCaptures, substackCaptures },
         ...(edits ? { edits } : {}), destinations, phase: "queued" };
       pending = { saveId, inputSignature: signature, destinations, phase: "queued", method: "job" };
       syncDestinationLock();
@@ -938,9 +983,9 @@ async function openChannels(force = false): Promise<void> {
   picker.query = channel.value.trim();
   renderChannelRows();
   try {
-    const allowed = oauth ? await browser.permissions.request({ origins: ["https://api.are.na/*"] })
-      : await browser.permissions.request({ permissions: ["nativeMessaging"] });
-    if (!allowed) throw new Error("Channel access was not granted.");
+    const allowed = oauth ? await capturePermission({ origins: ["https://api.are.na/*"] })
+      : await capturePermission({ permissions: ["nativeMessaging"] });
+    if (!allowed) throw new Error("Allow channel access in Capture access.");
     channelAccessGranted = true;
     if (oauth) {
       const headers = { accept: "application/json", authorization: `Bearer ${await oauth.token()}` };
@@ -978,6 +1023,7 @@ function chosenPolicy(): Partial<CompositionPolicy> {
     quote: quotePolicy.value as CompositionPolicy["quote"],
     quoteDepth: quoteDepth.value === "full" ? "full" : Number(quoteDepth.value),
     quoteDates: quoteDates.value as NonNullable<CompositionPolicy["quoteDates"]>,
+    ...quoteAuthorPolicy(quoteAuthorChoice(quoteAuthorLink.value)),
     separator: separatorPolicy.value as CompositionPolicy["separator"],
   };
 }
@@ -988,7 +1034,7 @@ async function resolveLocal(): Promise<void> {
   message("Resolving with local helper…");
   const ticket = resolutionGuard.begin(), signature = inputSignature();
   try {
-    const resolved = blockPlanSchema.parse(await native("resolve", { input: { refs, extraRefs, policy: chosenPolicy(), refresh: false } }));
+    const resolved = await resolveWithNative({ refs, extraRefs, policy: chosenPolicy(), refresh: false, redditCaptures, substackCaptures }, native);
     if (!resolutionGuard.current(ticket) || signature !== inputSignature()) return;
     plan = editedFields() ? revisePlan(resolved, editedFields()!) : resolved;
     resolvedInput = signature;
@@ -1007,22 +1053,34 @@ async function resolve(): Promise<void> {
   if (!refs.length || refs.length + extraRefs.length > 20) { message("Add 1–20 links.", true); return; }
   resolveInFlight = true;
   syncDestinationLock();
-  try { if (requiredOrigins([...refs, ...extraRefs]).length) message("Resolving sources…"); }
+  try { if (requiredOrigins([...refs, ...extraRefs], redditCaptures, substackCaptures).length) message("Resolving sources…"); }
   catch { /* The resolver reports an invalid link below. */ }
-  const ticket = resolutionGuard.begin(), signature = inputSignature();
+  const ticket = resolutionGuard.begin();
   try {
-    const origins = requiredOrigins([...refs, ...extraRefs]);
+    // A user-invoked preview of the matching active Note can use already granted activeTab/scripting.
+    if (substackTabReading) for (const ref of [...refs, ...extraRefs]) {
+      try {
+        const id = substackSourceKey(ref);
+        if (substackCaptures.some(c => substackSourceKey(c.sourceUrl) === id)) continue;
+        const captured = await readActiveSubstackTab(browser, ref);
+        if (!resolutionGuard.current(ticket) || ![...lines(primary.value), ...lines(extras.value)].includes(ref)) return;
+        substackCaptures = substackCapturesSchema.parse([...substackCaptures, captured]);
+        showRedditObservation();
+        await browser.storage.local.set({ [key]: draft() });
+      } catch { /* Ordinary credentialless public acquisition remains available; never request a browser grant. */ }
+    }
+    const signature = inputSignature();
+    const origins = requiredOrigins([...refs, ...extraRefs], redditCaptures, substackCaptures);
     if (origins.length) {
       let allowed: boolean;
-      try { allowed = await browser.permissions.contains({ origins })
-        || await browser.permissions.request({ origins }); }
+      try { allowed = await capturePermission({ origins }); }
       catch (error) {
         if (!await browser.permissions.contains({ origins })) throw error;
         allowed = true;
       }
-      if (!allowed) throw new Error("Access to the source sites was not granted.");
+      if (!allowed) throw new Error("Allow source access in Capture access.");
     }
-    const resolved = await resolveCapture({ primary: refs, extras: extraRefs, policy: chosenPolicy() });
+    const resolved = await resolveCapture({ primary: refs, extras: extraRefs, policy: chosenPolicy(), redditCaptures, substackCaptures });
     if (!resolutionGuard.current(ticket) || signature !== inputSignature()) return;
     plan = editedFields() ? revisePlan(resolved, editedFields()!) : resolved;
     resolvedInput = signature;
@@ -1031,7 +1089,7 @@ async function resolve(): Promise<void> {
     message("");
   } catch (error) {
     if (!resolutionGuard.current(ticket)) return;
-    $("resolve-local").hidden = false;
+    $("resolve-local").hidden = redditLiveReadUnavailable(error);
     message(error instanceof Error ? error.message : "Could not resolve this source.", true);
   }
   finally {
@@ -1040,7 +1098,109 @@ async function resolve(): Promise<void> {
   }
 }
 
-for (const field of [primary, extras, mediaPolicy, threadPolicy, quotePolicy, quoteDepth, quoteDates, separatorPolicy]) field.addEventListener("input", intakeChanged);
+function showRedditObservation() {
+  const captures = [...redditCaptures, ...substackCaptures];
+  $("export-reddit").hidden = captures.length === 0;
+  const choice = $<HTMLSelectElement>("reddit-export-choice"), selected = choice.value;
+  choice.hidden = captures.length < 2;
+  choice.replaceChildren(...captures.map(capture => {
+    const option = document.createElement("option"); option.value = capture.schema === "arena-block/substack-browser-capture" ? `substack:${substackSourceKey(capture.sourceUrl)}` : redditSourceKey(capture.sourceUrl);
+    option.textContent = capture.schema === "arena-block/substack-browser-capture" ? `Note by @${capture.note.author.handle}` : capture.comment ? `Comment ${capture.comment.id}` : capture.post.title;
+    return option;
+  }));
+  if ([...choice.options].some(option => option.value === selected)) choice.value = selected;
+  $("reddit-observation").hidden = captures.length === 0;
+  $("reddit-observation").textContent = captures.map(capture => `Saved page record from ${new Date(capture.observedAt).toLocaleString()}`).join("; ");
+}
+async function acceptRedditCapture(value: unknown) {
+  if (destinationsFrozen() || resolveInFlight) throw new Error("Finish the current capture operation before importing a browser record");
+  const capture = normalizeRedditCapture(value);
+  const refs = [...lines(primary.value), ...lines(extras.value)];
+  const matches = refs.some(ref => { try { return redditSourceKey(ref) === redditSourceKey(capture.sourceUrl); } catch { return false; } });
+  if (refs.length && !matches) throw new Error("This record belongs to another source. Start a new capture and clear its source links before importing it.");
+  if (!refs.length) primary.value = capture.sourceUrl;
+  redditCaptures = redditCapturesSchema.parse([...redditCaptures.filter(item => redditSourceKey(item.sourceUrl) !== redditSourceKey(capture.sourceUrl)), capture]);
+  showRedditObservation();
+  intakeChanged();
+  await browser.storage.local.set({ [key]: draft() });
+  await resolve();
+}
+async function acceptSubstackCapture(value: unknown) {
+  if (destinationsFrozen() || resolveInFlight) throw new Error("Finish the current capture operation before importing a browser record");
+  const capture = normalizeSubstackCapture(value);
+  const refs = [...lines(primary.value), ...lines(extras.value)];
+  const matches = refs.some(ref => { try { return substackSourceKey(ref) === substackSourceKey(capture.sourceUrl); } catch { return false; } });
+  if (refs.length && !matches) throw new Error("This record belongs to another source. Start a new capture before importing it.");
+  if (!refs.length) primary.value = capture.sourceUrl;
+  substackCaptures = substackCapturesSchema.parse([...substackCaptures.filter(c => substackSourceKey(c.sourceUrl) !== substackSourceKey(capture.sourceUrl)), capture]);
+  showRedditObservation(); intakeChanged();
+  await browser.storage.local.set({ [key]: draft() });
+  await resolve();
+}
+$("read-substack").addEventListener("click", () => {
+  if (!substackTabReading || destinationsFrozen() || resolveInFlight) return;
+  const signature = inputSignature();
+  void capturePermission({ permissions: ["scripting"] }).then(allowed => {
+    if (!allowed) throw new Error("Allow tab reading in Capture access.");
+    return readActiveSubstackTab(browser);
+  }).then(capture => {
+    if (signature !== inputSignature()) throw new Error("The draft changed while reading Substack. Read the tab again.");
+    return acceptSubstackCapture(capture);
+  }).catch(error => message(error instanceof Error ? error.message : String(error), true));
+});
+$("import-reddit").addEventListener("click", () => $<HTMLInputElement>("reddit-file").click());
+$("reddit-file").addEventListener("change", () => { void (async () => {
+  const input = $<HTMLInputElement>("reddit-file"), file = input.files?.[0];
+  input.value = "";
+  if (!file) return;
+  try {
+    if (file.size > REDDIT_CAPTURE_MAX_BYTES) throw new Error("Reddit capture file exceeds 2 MiB");
+    const value = JSON.parse(await file.text());
+    if (value.schema === "arena-block/substack-browser-capture") await acceptSubstackCapture(value);
+    else await acceptRedditCapture(value);
+  } catch (error) { message(error instanceof Error ? error.message : String(error), true); }
+})(); });
+$("export-reddit").addEventListener("click", () => {
+  const choice = $<HTMLSelectElement>("reddit-export-choice").value;
+  const capture = [...redditCaptures, ...substackCaptures].find(item => item.schema === "arena-block/substack-browser-capture"
+    ? `substack:${substackSourceKey(item.sourceUrl)}` === choice : redditSourceKey(item.sourceUrl) === choice) ?? redditCaptures[0] ?? substackCaptures[0];
+  if (capture) {
+    const href = URL.createObjectURL(new Blob([JSON.stringify(capture, null, 2)], { type: "application/json" }));
+    const link = document.createElement("a"); link.href = href; link.download = capture.schema === "arena-block/substack-browser-capture" ? `${substackSourceKey(capture.sourceUrl)}.arena-substack.json` : `${capture.comment?.id ?? capture.post.id}.arena-reddit.json`; link.click();
+    setTimeout(() => URL.revokeObjectURL(href), 1000);
+  }
+});
+
+for (const field of [primary, extras, mediaPolicy, threadPolicy, quotePolicy, quoteDepth, quoteDates, separatorPolicy]) field.addEventListener("input", () => {
+  if (field === primary || field === extras) {
+    const keys = new Set([...lines(primary.value), ...lines(extras.value)].flatMap(ref => { try { return [redditSourceKey(ref)]; } catch { return []; } }));
+    redditCaptures = redditCaptures.filter(capture => keys.has(redditSourceKey(capture.sourceUrl)));
+    const substackKeys = new Set([...lines(primary.value), ...lines(extras.value)].flatMap(ref => { try { return [substackSourceKey(ref)]; } catch { return []; } }));
+    substackCaptures = substackCaptures.filter(c => substackKeys.has(substackSourceKey(c.sourceUrl)));
+    showRedditObservation();
+  }
+  intakeChanged();
+});
+quoteAuthorLink.addEventListener("change", () => {
+  if (destinationsFrozen()) {
+    quoteAuthorLink.value = plan?.policy.quoteAuthorLink ?? "";
+    return;
+  }
+  const choice = quoteAuthorChoice(quoteAuthorLink.value);
+  const wasCurrent = plan && resolvedInput === inputSignature(plan.policy.quoteAuthorLink ?? "");
+  if (!wasCurrent || !plan) { intakeChanged(); return; }
+  resolutionGuard.changed();
+  if (previewTimer) clearTimeout(previewTimer);
+  try {
+    plan = reviseQuoteAuthorLink(plan, choice, editedFields());
+    resolvedInput = inputSignature();
+    renderPlan();
+    message("");
+  } catch (error) {
+    quoteAuthorLink.value = plan.policy.quoteAuthorLink ?? "";
+    message(error instanceof Error ? error.message : "Could not update quoted authors.", true);
+  }
+});
 for (const field of [title, writing, description]) field.addEventListener("input", editPlan);
 channel.addEventListener("input", () => {
   picker.query = channel.value.trim();
@@ -1136,6 +1296,9 @@ async function startNewCapture(): Promise<void> {
   }
   resolutionGuard.changed();
   plan = pending = undefined;
+  redditCaptures = [];
+  substackCaptures = [];
+  showRedditObservation();
   resolvedInput = undefined;
   manualContentEdit = false;
   manualFields = {};
@@ -1145,6 +1308,7 @@ async function startNewCapture(): Promise<void> {
   for (const select of [mediaPolicy, threadPolicy, quotePolicy, quoteDates, separatorPolicy]) select.value = "auto";
   quotePolicy.value = "block";
   quoteDepth.value = "2";
+  quoteAuthorLink.value = "";
   title.value = writing.value = description.value = "";
   picker.selected.clear();
   channel.value = "";
@@ -1256,8 +1420,7 @@ void (async () => {
       defaultChannel.value = saved.defaultChannel ?? "";
       defaultMode.value = saved.defaultMode ?? "fallback";
       const unconfirmed = saved.pending && !["saved", "rejected", "not_saved"].includes(saved.pending.phase);
-      const replaceAuto = Boolean(source && !saved.primary?.split(/\r?\n/).includes(source)
-        && !saved.manualContentEdit && !unconfirmed);
+      const replaceAuto = shouldReplaceAutomaticDraft(saved, source, Boolean(unconfirmed));
       if (replaceAuto) {
         primary.value = source!;
         retain();
@@ -1266,6 +1429,9 @@ void (async () => {
         manualFields = saved.manualFields ?? (manualContentEdit
           ? { title: true, writing: true, description: true } : {});
         primary.value = saved.primary ?? "";
+        redditCaptures = redditCapturesSchema.parse(saved.redditCaptures ?? []);
+        substackCaptures = substackCapturesSchema.parse(saved.substackCaptures ?? []);
+        showRedditObservation();
         extras.value = saved.extras ?? "";
         mediaPolicy.value = saved.media ?? "auto";
         threadPolicy.value = saved.thread ?? "auto";
@@ -1273,6 +1439,7 @@ void (async () => {
         quoteDepth.value = saved.depth ?? "2";
         quoteDates.value = saved.dates ?? "auto";
         separatorPolicy.value = saved.separator ?? "auto";
+        quoteAuthorLink.value = quoteAuthorChoice(saved.quoteAuthorLink, saved.plan);
         picker.restore(saved.selectedChannels);
         if (!saved.selectedChannels && saved.channel) {
           try { picker.add(saved.channel); } catch { /* Ignore an invalid old typed destination. */ }
@@ -1285,10 +1452,11 @@ void (async () => {
         if (plan && resolvedInput !== inputSignature()) intakeChanged();
       }
     }
+    await captureAccess.refresh();
     renderSelectedChannels();
     renderCapturePreview();
     $<HTMLDetailsElement>("source-details").open = !primary.value.trim();
-    if (!source || primary.value.split(/\r?\n/).includes(source)) {
+    if (!source || containsDraftSource(primary.value, source)) {
       if (source) void resolveAuthorizedSource(source);
       return;
     }

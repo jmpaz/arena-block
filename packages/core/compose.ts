@@ -11,7 +11,8 @@ import { combineAspects, explicitAudio, mediaAspect, tileRects, IMAGE_RECIPE_LON
 import { atprotoMarkdown } from "./providers/atproto-post.ts";
 import { availableQuoteNodes, quoteDateLabel, renderedQuoteDepth } from "./quote-policy.ts";
 import { soundCloudPlaylistText } from "./soundcloud.ts";
-import { parseSource } from "./url.ts";
+import { isInstagramReel, parseSource } from "./url.ts";
+import { mediaSources, selectableMedia } from "./media-tree.ts";
 
 function handle(post: ResolvedPost): string {
   return post.author.handle.replace(/^@/, "");
@@ -28,6 +29,7 @@ function sourceAuthor(post: ResolvedPost): string {
 function title(post: ResolvedPost): string {
   if (post.postTitle !== undefined) return post.postTitle;
   if (post.storyTitle !== undefined) return `Comment by ${handle(post)} on “${post.storyTitle}”`;
+  if (post.provider === "instagram" && isInstagramReel(post.canonicalUrl)) return `Reel by @${handle(post)}`;
   if (post.provider === "tiktok") return `TikTok by @${(post.author.name?.trim() || handle(post)).replace(/^@/, "")}`;
   return `Post by @${handle(post)}`;
 }
@@ -43,20 +45,26 @@ function escapeAuthoredSeparators(value: string): string {
 }
 
 function description(posts: ResolvedPost[]): string | undefined {
-  const stories = posts.filter((post) => post.storyTitle !== undefined);
-  if (stories.length) {
-    return stories.map((post) => post.postedAt ? `Posted at: ${post.postedAt}` : "").join("\n\n---\n\n");
-  }
   const introductions = posts
     .filter((post) => post.article !== undefined && post.text.trim())
     .map((post) => escapeAuthoredSeparators(post.text.trim()));
-  return introductions.length ? introductions.join("\n\n---\n\n") : undefined;
+  const dates = posts.filter(post => post.storyTitle !== undefined && post.provider !== "forum_magnum")
+    .flatMap(post => post.postedAt ? [`Posted at: ${post.postedAt}`] : []);
+  return [...dates, ...introductions].join("\n\n---\n\n") || undefined;
 }
 
 const MEDIA_FIRST_PROVIDERS = new Set<ResolvedPost["provider"]>(["reddit", "instagram", "tiktok", "arena", "soundcloud"]);
 
 function mediaMarker(media: MediaAsset[], frameRefs: Set<string>): string {
   if (!media.length) return "";
+  if(media.some(asset=>asset.sourceAttribution)){
+    const literal=(value:string)=>value.replace(/[\r\n]+/g," ").replace(/[\\`*_{}\[\]<>]/g,"\\$&");
+    return media.map(asset=>{
+      const source=asset.sourceAttribution;
+      return source?`*Audio from [${literal(source.title)}](<${source.url}>), by ${source.authors.map(literal).join(", ")}*`:
+        `*[${frameRefs.has(asset.ref)?"video frame":asset.kind}]*`;
+    }).join("\n\n");
+  }
   const kinds = media.map((item) => frameRefs.has(item.ref) ? "video frame" : item.kind);
   const uniform = new Set(kinds).size === 1;
   return `*[${uniform && kinds.length > 1 ? `${kinds[0]}s` : kinds.join(", ")}]*`;
@@ -80,7 +88,10 @@ function quoteHeader(post: ResolvedPost, root: ResolvedPost, policy: Composition
   const date = quoteDateLabel(root, post, policy.quoteDates).label;
   // A quote is an independently authored source, even when the quoting
   // account also wrote it. Keep both identities visible at the boundary.
-  const lead = [`\`${authorTag(post)}\``, date ? `(${date})` : ""].filter(Boolean).join(" ");
+  const author = `\`${authorTag(post)}\``;
+  const linked = policy.quoteAuthorLink === "source" || policy.quoteAuthorLink === undefined && post.provider === "substack";
+  const credit = linked ? `[${author}](<${post.canonicalUrl}>)` : author;
+  const lead = [credit, date ? `(${date})` : ""].filter(Boolean).join(" ");
   return [lead, post.quoteSnapshot ? "*[embedded source snapshot; standalone quote unavailable]*" : ""].filter(Boolean).join(" · ");
 }
 
@@ -94,7 +105,7 @@ function quoteBoundary(post: ResolvedPost): string {
 function renderQuoted(post: ResolvedPost, root: ResolvedPost, policy: CompositionPolicy, depth: number, visited: Set<ResolvedPost>, frameRefs: Set<string>): string {
   if (visited.has(post)) return "*[Cyclic quoted source omitted]*";
   const path = new Set(visited); path.add(post);
-  const own = [quoteHeader(post, root, policy), quoteBody(depth < renderedQuoteDepth(policy) ? post : { ...post, embeddedRecord: undefined }, frameRefs)].filter(Boolean).join("\n");
+  const own = [quoteHeader(post, root, policy), quoteBody(depth < renderedQuoteDepth(policy) ? post : { ...post, embeddedRecord: undefined }, frameRefs)].filter(Boolean).join(post.provider === "substack" ? "\n\n" : "\n");
   const descendant = depth < renderedQuoteDepth(policy) && post.quote ? renderQuoted(post.quote, root, policy, depth + 1, path, frameRefs) : "";
   const boundary = depth < renderedQuoteDepth(policy) ? quoteBoundary(post) : "";
   const prior = descendant || boundary;
@@ -130,7 +141,13 @@ function renderSequence(posts: ResolvedPost[], policy: CompositionPolicy, frameR
       const source = parseSource(post.canonicalUrl);
       if (source.provider !== "forum_magnum") throw new Error("Forum Magnum reply has a mismatched source URL");
       const parentUrl = new URL(`?commentId=${post.replyTo.id}`, source.canonicalUrl).href;
-      forumRelation = `*[Reply to ${post.replyTo.authorHandle ? `@${post.replyTo.authorHandle}` : `comment ${post.replyTo.id}`}](<${parentUrl}>)*`;
+      const parent = posts.find(candidate => {
+        if (candidate.provider !== "forum_magnum" || candidate.id !== post.replyTo!.id) return false;
+        const parsed = parseSource(candidate.canonicalUrl);
+        return parsed.provider === "forum_magnum" && parsed.site === source.site && parsed.id === source.id;
+      });
+      const parentAuthor = post.replyTo.authorHandle ?? parent?.author.handle;
+      forumRelation = `*[${parentAuthor ? `Reply to @${parentAuthor.replace(/^@/, "")}` : "Parent comment"}](<${parentUrl}>)*`;
     }
     if (!multiSource) return [forumRelation, body].filter(Boolean).join("\n\n");
     // The title identifies the first speaker. Label turns, not every post;
@@ -148,7 +165,8 @@ function renderSequence(posts: ResolvedPost[], policy: CompositionPolicy, frameR
 }
 
 function selectedMedia(posts: ResolvedPost[], policy: CompositionPolicy): MediaAsset[] {
-  const rootMedia = posts.flatMap((post) => post.media);
+  const rootMedia = selectableMedia(posts, renderedQuoteDepth(policy));
+  const quotedImages = mediaSources(posts, renderedQuoteDepth(policy)).filter(node => node.quoteDepth > 0).flatMap(node => node.media);
   if (policy.media === "none") return [];
   if (policy.media === "selected") {
     const requested = new Set(policy.selectedMedia);
@@ -159,11 +177,25 @@ function selectedMedia(posts: ResolvedPost[], policy: CompositionPolicy): MediaA
   if (policy.media === "audio") return rootMedia.filter((item) => item.kind === "audio");
   if (policy.media === "images") return rootMedia.filter((item) => item.kind === "image");
   const automaticMedia = rootMedia.filter(item => item.sourcePlacement !== "body");
-  if (policy.mediaOnlyPosts?.length) return automaticMedia;
-  if (posts.length > 1) return automaticMedia;
+  if(automaticMedia.length>1&&automaticMedia.every(asset=>asset.kind==="audio")&&automaticMedia.some(asset=>asset.sourceAttribution))
+    throw new Error("Choose one original audio attachment. Audio files must be captured separately.");
+  const quotedAV = mediaSources(posts, renderedQuoteDepth(policy)).filter(node => node.quoteDepth > 0)
+    .flatMap(node => node.media).some(item => item.kind !== "image");
+  if (quotedAV) {
+    const visuals = automaticMedia.filter(item => item.kind !== "audio");
+    if (visuals.length) return visuals;
+    const audio = automaticMedia.filter(item => item.kind === "audio");
+    if (audio.length > 1) throw new Error("Choose one original audio attachment. Audio files must be captured separately.");
+    return audio;
+  }
+  // Native podcast audio is an alternative to its visuals, never an automatic
+  // soundtrack for an ordered composition or media extra.
+  if (policy.mediaOnlyPosts?.length || posts.length > 1) return automaticMedia.filter(item => item.kind !== "audio");
   if (MEDIA_FIRST_PROVIDERS.has(posts[0]!.provider)) return automaticMedia;
   const video = automaticMedia.find((item) => item.kind === "video");
-  return video ? [video] : automaticMedia.filter((item) => item.kind === "image");
+  const images = automaticMedia.filter((item) => item.kind === "image");
+  const publicAudio = posts[0]!.provider === "substack" ? automaticMedia.find(item => item.kind === "audio" && item.acquisition === "substack-public-original") : undefined;
+  return video ? [video, ...quotedImages] : images.length ? images : publicAudio ? [publicAudio] : [];
 }
 
 const RETAINED_ARRANGEMENTS = 32;
@@ -309,7 +341,8 @@ export function composePlan(
   if (posts.length > MAX_EXPANDED_SOURCE_POSTS) throw new Error(`At most ${MAX_EXPANDED_SOURCE_POSTS} resolved source posts are supported`);
   const policy = compositionPolicySchema.parse(policyInput);
   if (["all", "images"].includes(policy.media)) {
-    const issue = posts.flatMap(post => post.mediaIssues ?? [])[0];
+    const issue = posts.flatMap(post => [post, ...availableQuoteNodes(post).slice(0, renderedQuoteDepth(policy))])
+      .flatMap(post => post.mediaIssues ?? [])[0];
     if (issue) throw new Error(`Body media ${issue.id ?? issue.url ?? "reference"} is ${issue.status}; choose available media explicitly`);
   }
   if (posts.some(post => post.provider === "web")) {
@@ -369,18 +402,24 @@ export function composePlan(
     throw new Error("One or more media-only post indexes do not exist");
   }
   let chosen = selectedMedia(posts, policy);
-  if (policy.media === "selected" && chosen.length !== policy.selectedMedia.length) {
-    throw new Error("One or more selected media references do not exist on root posts");
+  const allKnown = selectableMedia(posts);
+  const knownRefs = new Set(allKnown.map(item => item.ref));
+  const visibleRefs = new Set(selectableMedia(posts, renderedQuoteDepth(policy)).map(item => item.ref));
+  const hiddenQuotes = new Set(allKnown.filter(item => !visibleRefs.has(item.ref)).map(item => item.ref));
+  if (policy.media === "selected" && (new Set(policy.selectedMedia).size !== policy.selectedMedia.length || policy.selectedMedia.some(ref => !knownRefs.has(ref)))) {
+    throw new Error("One or more selected media references do not exist in the available source assets");
   }
   if (policy.mediaOrder !== undefined) {
     const assets = new Map(chosen.map(item => [item.ref, item]));
-    if (policy.mediaOrder.length !== chosen.length || new Set(policy.mediaOrder).size !== chosen.length || policy.mediaOrder.some(ref => !assets.has(ref))) {
+    const order = policy.mediaOrder.filter(ref => !hiddenQuotes.has(ref));
+    if (order.length !== chosen.length || new Set(policy.mediaOrder).size !== policy.mediaOrder.length || order.some(ref => !assets.has(ref))) {
       throw new Error("Media order must name every selected media reference exactly once");
     }
-    chosen = policy.mediaOrder.map(ref => assets.get(ref)!);
+    chosen = order.map(ref => assets.get(ref)!);
   }
   const explicitFrames = new Set(policy.videoFrames ?? []);
-  if ([...explicitFrames].some(ref => !chosen.some(item => item.ref === ref && item.kind === "video" && item.posterUrl))) {
+  if ([...explicitFrames].some(ref => !allKnown.some(item => item.ref === ref && item.kind === "video" && item.posterUrl
+    && (hiddenQuotes.has(ref) || chosen.some(selected => selected.ref === ref))))) {
     throw new Error("A chosen video frame needs its selected source video and an observed poster; no block was created");
   }
   const frameThreshold = policy.videoFrameThresholdSeconds ?? 600;
@@ -393,11 +432,12 @@ export function composePlan(
   const renderPosts = posts.map(post => ({ ...post, media: post.media.map(item => frameByRef.has(item.ref)
     ? { ...item, kind: "image" as const, url: frameByRef.get(item.ref)! } : item) }));
   const audioAssets = effective.filter(item => item.kind === "audio");
-  if (audioAssets.length && (chosen.length !== 1 || posts.length !== 1 || audioAssets[0]!.acquisition !== "soundcloud-original-download")) {
-    throw new Error("Original SoundCloud audio must be captured alone; it cannot be composited or converted");
+  if (audioAssets.length && (chosen.length !== 1 || posts.length !== 1 || !["soundcloud-original-download", "substack-public-original"].includes(audioAssets[0]!.acquisition ?? ""))) {
+    throw new Error("Capture one original audio attachment alone; choose audio or visual media. Audio cannot be composited or converted.");
   }
   const audio = explicitAudio(policy);
-  if (audio && !effective.some((item) => item.kind === "video" && item.ref === audio)) {
+  if (audio && !effective.some((item) => item.kind === "video" && item.ref === audio)
+    && !(hiddenQuotes.has(audio) && allKnown.some(item => item.ref === audio && item.kind === "video"))) {
     throw new Error(`Audio source ${audio} is not a selected video`);
   }
   const carried = new Set(effective.map((item) => item.url));
@@ -435,7 +475,8 @@ export function composePlan(
       ...(audioOnly && first.soundcloud?.kind === "track" && first.soundcloud.artworkUrl ? { artworkUrl: first.soundcloud.artworkUrl } : {}),
       selectedMedia: chosen.map((item) => item.ref),
       ...(frameMedia.length ? { frameMedia } : {}),
-      ...(chosen.length && !soloVideo ? { layout: layoutFor(renderPosts, effective, policy.mediaOrder !== undefined) } : {}),
+      ...(chosen.length && !soloVideo && !audioOnly ? { layout: layoutFor(renderPosts, effective,
+        policy.mediaOrder !== undefined || mediaSources(posts, renderedQuoteDepth(policy)).some(node => node.quoteDepth > 0 && node.media.some(asset => chosen.some(item => item.ref === asset.ref)))) } : {}),
       ...(quoteCoverage.length ? { quoteCoverage } : {}),
     },
   };

@@ -164,7 +164,7 @@ test("help uses ASCII ranges, x.com and Delvetown without promising publish layo
 
 test("the exact reported command composes all captured media and submits one new immutable save", async () => {
   const result = await cli(["publish", "--media", "all", "--to", "https://www.are.na/josh-pazmino/inbox-pfzlyqs4uuc", original.block.canonicalSource, "--thread-expansion", "on"], "exact-source");
-  expect(result.code).toBe(0); expect(result.stderr).toBe("");
+  expect(result.code).toBe(0); expect(result.stderr).toBe("Warning: --thread-expansion on is deprecated; use -t or --thread-expansion without a value.\n");
   const submits = result.calls.filter((call: {method: string}) => call.method === "POST");
   expect(submits).toHaveLength(1); expect(submits[0].body.plan).toEqual(replan());
   expect(submits[0].body.snapshot.plan).toEqual(replan());

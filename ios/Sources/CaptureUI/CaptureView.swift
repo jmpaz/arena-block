@@ -6,6 +6,10 @@ import SwiftUI
 import UIKit
 
 public struct CaptureRootView: View {
+    private struct SoundtrackChoice: Identifiable {
+        let id: String
+        let label: String
+    }
     private struct PreviewInvalidationKey: Equatable {
         var draftID: UUID?
         var phase: CapturePhase?
@@ -13,6 +17,12 @@ public struct CaptureRootView: View {
         var policy: JSONValue?
         var plan: JSONValue?
         var inCaptureTab: Bool
+    }
+
+    private struct ContinuationOffer {
+        let operationID: UUID
+        let channelIDs: Set<Int>
+        let channels: [Channel]
     }
 
     @Bindable var session: CaptureSession
@@ -24,10 +34,14 @@ public struct CaptureRootView: View {
     @State private var tab = CaptureTab.capture
     @State private var channels = false
     @State private var retryConfirmation = false
+    @State private var continuationOffer: ContinuationOffer?
+    @State private var continuationRequest: ContinuationOffer?
+    @State private var continuationConfirmation = false
     @State private var offeredClipboard = -1
     @State private var historyPath: [UUID] = []
     @State private var savedNotice: CaptureDraft?
-    @State private var compositionPreviewURL: URL?
+    @State private var compositionPreview: NativeMediaPreview?
+    private var compositionPreviewURL: URL? { compositionPreview?.fileURL }
     @State private var compositionPreviewProblem: String?
     @State private var compositionPreviewIsLoading = false
     @State private var compositionPreviewTask: Task<Void, Never>?
@@ -57,7 +71,14 @@ public struct CaptureRootView: View {
                     } else { ConnectView(session: session) }
                 }
             } else if isExtension {
-                NavigationStack { composer }
+                NavigationStack {
+                    if session.receivingShareInput {
+                        ProgressView("Reading link").frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .accessibilityIdentifier("capture.share.loading")
+                            .navigationTitle("Capture").navigationBarTitleDisplayMode(.inline)
+                            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { completion?() } } }
+                    } else { composer }
+                }
             } else {
                 TabView(selection: $tab) {
                     NavigationStack { composer }
@@ -77,7 +98,8 @@ public struct CaptureRootView: View {
                             session.addPlacements(to: draft)
                             if session.isAddingPlacements { tab = .capture }
                         })
-                    }.tabItem { Label("History", systemImage: "clock") }.tag(CaptureTab.history)
+                    }.tabItem { Label("History", systemImage: "clock") }
+                        .badge(session.activeCaptureCount).tag(CaptureTab.history)
                     NavigationStack { SettingsView(session: session) }
                         .tabItem { Label("Settings", systemImage: "gearshape") }.tag(CaptureTab.settings)
                 }
@@ -88,7 +110,12 @@ public struct CaptureRootView: View {
         .alert("Capture", isPresented: Binding(get: { session.problem != nil }, set: { if !$0 { session.problem = nil } })) {
             Button("OK") { session.problem = nil }
         } message: { Text(session.problem ?? "") }
-        .onChange(of: session.draft?.phase) { _, _ in acknowledgeSave() }
+        .onChange(of: session.draft?.phase) { _, _ in acknowledgeSave(); refreshContinuationOffer() }
+        .onChange(of: session.draft?.id) { _, _ in refreshContinuationOffer() }
+        .onChange(of: session.deliveryRevision) { _, _ in
+            refreshContinuationOffer()
+            if let savedNotice, session.historyDraft(savedNotice.id)?.isCanceled == true { self.savedNotice = nil }
+        }
         .onChange(of: session.busy) { _, busy in if !busy { acknowledgeSave() } }
         .onChange(of: previewInvalidationKey) { _, _ in resetCompositionPreview() }
         .onChange(of: session.draft?.input) { _, input in
@@ -100,6 +127,9 @@ public struct CaptureRootView: View {
             session.logLockState("scenePhase.\(phase)")
             #endif
             if phase == .active {
+                if !isExtension {
+                    do { try session.prepareForegroundDelivery() } catch { session.problem = error.localizedDescription }
+                }
                 session.refreshSharedIntake()
                 if !session.busy {
                     do { try session.reloadAccount() } catch { session.problem = error.localizedDescription }
@@ -115,7 +145,11 @@ public struct CaptureRootView: View {
             #if DEBUG
             session.logLockState("sceneTask")
             #endif
+            if scenePhase == .active && !isExtension {
+                do { try session.prepareForegroundDelivery() } catch { session.problem = error.localizedDescription }
+            }
             await session.resumeDelivery()
+            refreshContinuationOffer()
             if session.draft?.phase == .editing && session.draft?.input.isEmpty == false { session.resolve() }
             acknowledgeSave()
             offerClipboard()
@@ -150,10 +184,10 @@ public struct CaptureRootView: View {
         session.busy || [.queued, .creating, .checking, .uncertain, .saved].contains(session.draft?.phase ?? .editing)
     }
 
-    private var stoppedSubmission: CaptureDraft? {
-        guard let draft = session.draft, draft.deliveryState?.stopRequested == true,
-              draft.deliveryState?.stage == .attention, session.canCheck(draft.id) else { return nil }
-        return draft
+    private var continuableSubmission: ContinuationOffer? {
+        guard let offer = continuationOffer, session.draft?.id == offer.operationID,
+              session.draft?.isCanceled != true else { return nil }
+        return offer
     }
 
     private var sourceControlLayout: AnyLayout {
@@ -163,8 +197,8 @@ public struct CaptureRootView: View {
     }
 
     private var threadBinding: Binding<Bool> {
-        Binding(get: { session.canExpandAtprotoThread ? session.expandsAtprotoThread : session.importsXThread },
-                set: { session.canExpandAtprotoThread ? session.setAtprotoThreadExpansion($0) : session.setXThreadImport($0) })
+        Binding(get: { session.canExpandAtprotoThread ? session.expandsAtprotoThread : session.importsLinearThread },
+                set: { session.canExpandAtprotoThread ? session.setAtprotoThreadExpansion($0) : session.setLinearThreadImport($0) })
     }
 
     private var composer: some View {
@@ -183,7 +217,10 @@ public struct CaptureRootView: View {
                     }
                 }
             }
-            if session.draft?.phase == .saved {
+            if session.draft?.isCanceled == true {
+                if let result = session.draft { Section { deliveryStatus(result) } }
+                if let block = session.savedBlock { Section { BlockContentView(block: block, showTitle: false) } }
+            } else if session.draft?.phase == .saved {
                 if let result = session.draft { Section { deliveryStatus(result) } }
                 Section {
                     if let block = session.savedBlock { BlockContentView(block: block, showTitle: false) }
@@ -239,6 +276,15 @@ public struct CaptureRootView: View {
                             CaptureMediaSelection(session: session, locked: locked)
                                 .listRowSeparator(.hidden)
                         }
+                        if soundtrackChoices.count > 1 {
+                            Picker("Audio", selection: Binding(get: { effectiveSoundtrackChoice }, set: session.setAudio)) {
+                                Text("Auto").tag("auto")
+                                Text("Mix").tag("mix")
+                                ForEach(soundtrackChoices) { choice in Text(choice.label).tag(choice.id) }
+                            }
+                            .accessibilityIdentifier("capture.audio-choice")
+                            .disabled(locked)
+                        }
                         if canOfferCompositionPreview {
                             compositionPreviewControls
                                 .listRowSeparator(.hidden)
@@ -269,6 +315,14 @@ public struct CaptureRootView: View {
                                 Text(CaptureQuoteDepth.full.title).tag(CaptureQuoteDepth.full)
                             }.pickerStyle(.menu).disabled(locked)
                                 .accessibilityIdentifier("capture.quote-depth")
+                            Picker("Quoted author", selection: Binding(get: { session.draft?.quoteAuthorLink }, set: session.setQuoteAuthorLink)) {
+                                Text("Keep current style").tag(CaptureQuoteAuthorLink?.none)
+                                Text(CaptureQuoteAuthorLink.source.title).tag(CaptureQuoteAuthorLink?.some(.source))
+                                Text(CaptureQuoteAuthorLink.plain.title).tag(CaptureQuoteAuthorLink?.some(.plain))
+                            }.pickerStyle(.menu).disabled(locked)
+                                .accessibilityIdentifier("capture.quote-author-link")
+                            Text("Links open the quoted post. Edited text is kept.")
+                                .font(.footnote).foregroundStyle(.secondary)
                         }
                         if session.preview?.plan?["block"]?["kind"]?.string == "text",
                            let content = session.preview?.plan?["block"]?["markdown"]?.string, !content.isEmpty {
@@ -343,15 +397,20 @@ public struct CaptureRootView: View {
                     } label: { Image(systemName: "plus") }
                         .disabled(session.busy || session.draft?.hasDraftContent != true)
                         .accessibilityLabel("New capture")
-                        .accessibilityHint("Keep this capture in History and start with an empty link")
+                        .accessibilityHint("Keep this capture and start with an empty link")
                         .accessibilityIdentifier("capture.new")
                 }
             }
             ToolbarItemGroup(placement: .confirmationAction) {
-                if session.draft?.phase == .saved {
+                if session.draft?.isCanceled == true {
                     if isExtension { Button("Done") { completion?() } }
-                } else if let stopped = stoppedSubmission {
-                    Button("Continue") { Task { await session.continueSave(stopped.id) } }
+                } else if session.draft?.phase == .saved {
+                    if isExtension { Button("Done") { completion?() } }
+                } else if continuableSubmission != nil {
+                    Button("Continue") {
+                        continuationRequest = continuableSubmission
+                        continuationConfirmation = true
+                    }
                         .accessibilityLabel("Continue save")
                         .accessibilityIdentifier("capture.toolbar.continue")
                     if isExtension { Button("Done") { completion?() } }
@@ -367,7 +426,7 @@ public struct CaptureRootView: View {
                     }
                     if isExtension { Button("Done") { completion?() } }
                 } else {
-                    Button(session.draft?.isPlacementOnly == true ? "Add" : "Save") {
+                    Button(session.isAddingPlacements ? "Apply" : "Save") {
                         focusedField = nil
                         Task { await session.save() }
                     }
@@ -409,6 +468,19 @@ public struct CaptureRootView: View {
         .confirmationDialog("Save again?", isPresented: $retryConfirmation, titleVisibility: .visible) {
             Button("I checked; save again") { session.retryAfterInspection() }
         } message: { Text("Check your channels in Are.na first. Saving again may create a duplicate block.") }
+        .confirmationDialog("Continue this save?", isPresented: $continuationConfirmation, titleVisibility: .visible) {
+            if let offer = continuationRequest {
+                Button("Continue save") {
+                    Task { await session.continueSave(offer.operationID, reaffirmingChannelIDs: offer.channelIDs) }
+                }
+            }
+        } message: {
+            if let offer = continuationRequest {
+                Text((offer.channelIDs.isEmpty ? "Continue preparing and checking this capture for:\n" : "Check the block and continue saving to these remaining channels:\n")
+                     + offer.channels.map(\.label).joined(separator: "\n")
+                     + (offer.channelIDs.isEmpty ? "" : "\nAn earlier request may already have reached these channels."))
+            }
+        }
       }
     }
 
@@ -421,9 +493,14 @@ public struct CaptureRootView: View {
                 VStack(alignment: .leading, spacing: 0) { resultLinks(value) }
                     .font(.callout).buttonStyle(.borderless)
             }
-            if !isExtension, value.canAddPlacements {
+            if !isExtension, !value.isCanceled, value.canAddPlacements {
                 Divider()
-                Button("Add to channels") { session.addPlacements(to: value) }
+                Button { session.addPlacements(to: value) } label: {
+                    Text("Add to channels")
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        .contentShape(Rectangle())
+                }
+                    .buttonStyle(.borderless)
                     .foregroundStyle(.primary)
                     .disabled(session.busy).accessibilityIdentifier("capture.add-placements")
             }
@@ -432,7 +509,7 @@ public struct CaptureRootView: View {
 
     @ViewBuilder
     private func resultLinks(_ value: CaptureDraft) -> some View {
-        if value.deliveryState?.preparationFailureStage != nil {
+        if !value.isCanceled, value.deliveryState?.preparationFailureStage != nil {
             if let source = try? CaptureInput.selectedPosts(value.input, roles: value.sourceRoles).primary.first {
                 Link(destination: source) {
                     Text("Open source").frame(maxWidth: .infinity, minHeight: 44, alignment: .leading).contentShape(Rectangle())
@@ -455,7 +532,7 @@ public struct CaptureRootView: View {
                     .accessibilityIdentifier("capture.preparation.edit")
             }
             if session.canUseOriginalLink { originalLinkChoice }
-        } else if value.phase != .saved, session.canCheck(value.id) {
+        } else if !value.isCanceled, value.phase != .saved, session.canCheck(value.id) {
             if value.deliveryState?.stopRequested == true {
                 if value.deliveryState?.stage == .attention {
                     if value.blockID != nil || value.phase == .uncertain {
@@ -489,7 +566,7 @@ public struct CaptureRootView: View {
 
     private func hasInlineStatusActions(_ value: CaptureDraft) -> Bool {
         if value.blockID != nil { return true }
-        guard value.phase != .saved, session.canCheck(value.id) else { return false }
+        guard !value.isCanceled, value.phase != .saved, session.canCheck(value.id) else { return false }
         if value.deliveryState?.stopRequested == true {
             return value.phase == .uncertain
         }
@@ -600,8 +677,9 @@ public struct CaptureRootView: View {
             if session.sourceRows.count > 1,
                let sources = session.preview?.plan?["sources"]?.array,
                sources.indices.contains(index),
-               sources[index]["media"]?.array.isEmpty == false {
-                Text("Media from this post")
+               session.preview?.sourceReviews.indices.contains(index) == true,
+               session.preview?.sourceReviews[index].availableMediaCount ?? 0 > 0 {
+                Text("Media")
                     .font(.footnote).foregroundStyle(.secondary)
                 CaptureMediaSelection(session: session, locked: locked, sourceIndex: index)
             }
@@ -636,7 +714,7 @@ public struct CaptureRootView: View {
                 .accessibilityIdentifier("capture.comment-context")
                 .accessibilityHint("Parents are limited to six. Nearby replies include up to eight direct replies and same-author continuations.")
                 .disabled(locked)
-            } else if session.canImportXThread || session.canExpandAtprotoThread {
+            } else if session.canImportLinearThread || session.canExpandAtprotoThread {
                 if !dynamicTypeSize.isAccessibilitySize { Spacer(minLength: 8) }
                 Toggle("Import thread", isOn: threadBinding)
                     .fixedSize(horizontal: dynamicTypeSize.isAccessibilitySize ? false : true, vertical: false)
@@ -669,14 +747,32 @@ public struct CaptureRootView: View {
 
     private var canOfferCompositionPreview: Bool {
         session.draft?.phase == .ready && !session.busy && session.preview?.kind == "social" &&
-            singleImageChoice == nil && !session.includedMediaRefs.isEmpty
+            singleImageChoice == nil && session.preview?.plan?["block"]?["kind"]?.string != "audio" && !session.includedMediaRefs.isEmpty
+    }
+
+    private var soundtrackChoices: [SoundtrackChoice] {
+        guard let plan = session.preview?.plan else { return [] }
+        let ordered = CaptureMediaTree.media(in: plan).compactMap { $0["ref"]?.string }
+        return CaptureMediaTree.videoSoundtrackSources(in: plan).flatMap { node in
+            node.media.compactMap { asset -> SoundtrackChoice? in
+                guard let ref = asset["ref"]?.string, let position = ordered.firstIndex(of: ref) else { return nil }
+                let handle = node.source["author"]?["handle"]?.string
+                let owner = node.ownershipLabel ?? handle.map { "@" + $0.trimmingCharacters(in: CharacterSet(charactersIn:"@")) }
+                return SoundtrackChoice(id:ref,label:["Video \(position + 1)",owner].compactMap { $0 }.joined(separator:" · "))
+            }
+        }
+    }
+
+    private var effectiveSoundtrackChoice: String {
+        let value = session.draft?.audio ?? "auto"
+        return ["auto","mix"].contains(value) || soundtrackChoices.contains(where: { $0.id == value }) ? value : "auto"
     }
 
     private var previewVideoLimitation: String? {
         guard let plan = session.preview?.plan else { return nil }
         let selected = Set(session.includedMediaRefs)
         let frames = Set((plan["block"]?["frameMedia"]?.array ?? []).compactMap { $0["ref"]?.string })
-        let hasFullVideo = (plan["sources"]?.array ?? []).flatMap { $0["media"]?.array ?? [] }.contains { asset in
+        let hasFullVideo = CaptureMediaTree.media(in: plan).contains { asset in
             guard let ref = asset["ref"]?.string else { return false }
             return selected.contains(ref) && asset["kind"]?.string == "video" && !frames.contains(ref)
         }
@@ -719,10 +815,8 @@ public struct CaptureRootView: View {
     @MainActor private func resetCompositionPreview() {
         compositionPreviewTask?.cancel(); compositionPreviewTask = nil
         compositionPreviewTicket = UUID()
-        if let compositionPreviewURL {
-            try? FileManager.default.removeItem(at: compositionPreviewURL.deletingLastPathComponent())
-        }
-        compositionPreviewURL = nil
+        compositionPreview?.discard()
+        compositionPreview = nil
         compositionPreviewProblem = nil
         compositionPreviewIsLoading = false
     }
@@ -735,14 +829,14 @@ public struct CaptureRootView: View {
         compositionPreviewIsLoading = true
         compositionPreviewTask = Task {
             do {
-                let url = try await session.previewComposition(plan: plan, draftID: draft.id)
+                let prepared = try await session.previewComposition(plan: plan, draftID: draft.id)
                 try Task.checkCancellation()
                 guard compositionPreviewTicket == ticket, session.draft?.id == draft.id,
                       session.draft?.phase == .ready, session.preview?.plan == plan else {
-                    try? FileManager.default.removeItem(at: url.deletingLastPathComponent())
+                    prepared.discard()
                     return
                 }
-                compositionPreviewURL = url
+                compositionPreview = prepared
                 compositionPreviewIsLoading = false
                 compositionPreviewTask = nil
             } catch is CancellationError {
@@ -950,13 +1044,20 @@ public struct CaptureRootView: View {
 
     private func acknowledgeSave() {
         guard !isExtension, !session.busy, !session.isAddingPlacements,
-              let result = session.draft, result.phase == .saved, result.blockID != nil else { return }
+              let result = session.draft, !result.isCanceled, result.phase == .saved, result.blockID != nil else { return }
         if session.newCapture() {
             savedNotice = result
             if UIAccessibility.isVoiceOverRunning {
                 UIAccessibility.post(notification: .announcement, argument: "Saved to Are.na")
             }
         }
+    }
+
+    private func refreshContinuationOffer() {
+        guard let current = session.draft, !current.isCanceled, current.deliveryState?.stage == .attention,
+              let targets = session.continuationTargets(current.id) else { continuationOffer = nil; return }
+        continuationOffer = ContinuationOffer(operationID: current.id, channelIDs: targets,
+            channels: current.selection.channels.filter { targets.isEmpty || targets.contains($0.id) })
     }
 
     private func offerClipboard() {
@@ -978,13 +1079,29 @@ func blockURL(_ id: Int) -> URL { URL(string: "https://www.are.na/block/\(id)")!
 struct CaptureMediaView: View {
     let url: URL
     var isVideo = false
+    var isAudio = false
     @State private var player: AVPlayer?
+    @State private var audioPlaying = false
     @State private var localImage: UIImage?
     @State private var localLoadFinished = false
     private var video: Bool { isVideo || ["mp4", "mov", "m4v", "webm"].contains(url.pathExtension.lowercased()) }
+    private var audio: Bool { isAudio || ["mp3", "m4a", "wav", "flac", "ogg", "opus", "aac"].contains(url.pathExtension.lowercased()) }
     var body: some View {
         VStack(spacing: 0) {
-            if video {
+            if audio {
+                Button(audioPlaying ? "Pause audio" : "Play audio", systemImage: audioPlaying ? "pause.circle.fill" : "play.circle.fill") {
+                    if player == nil { player = AVPlayer(url: url) }
+                    if audioPlaying { player?.pause() } else { player?.play() }
+                    audioPlaying.toggle()
+                }
+                .buttonStyle(.bordered).controlSize(.large).frame(maxWidth: .infinity, minHeight: 140)
+                .accessibilityIdentifier("capture.audio-preview.play")
+                .onDisappear { player?.pause(); player = nil; audioPlaying = false }
+                .onReceive(NotificationCenter.default.publisher(for: AVPlayerItem.didPlayToEndTimeNotification)) { notification in
+                    guard let item = notification.object as? AVPlayerItem, item === player?.currentItem else { return }
+                    audioPlaying = false; player?.seek(to: .zero)
+                }
+            } else if video {
                 VideoPlayer(player: player).frame(minHeight: 230)
                     .onAppear { player = AVPlayer(url: url) }
                     .onDisappear { player?.pause(); player = nil }
@@ -1001,9 +1118,9 @@ struct CaptureMediaView: View {
                     }
                 }
             }
-        }.frame(maxWidth: .infinity).accessibilityLabel(video ? "Block video preview" : "Block image preview")
+        }.frame(maxWidth: .infinity).accessibilityLabel(audio ? (audioPlaying ? "Pause audio" : "Play audio") : video ? "Block video preview" : "Block image preview")
             .task(id: url) {
-                guard url.isFileURL, !video else { return }
+                guard url.isFileURL, !video, !audio else { return }
                 localImage = nil; localLoadFinished = false
                 let sourceURL = url
                 let image = await Task.detached(priority: .userInitiated) {
@@ -1019,14 +1136,38 @@ struct CaptureMediaView: View {
 
 struct CaptureTextView: View {
     let text: String
+    var accessibilityPrefix = "capture.text"
     @State private var expanded = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
-        let preview = CaptureMarkdownPreview.render(text)
+        let blocks = CaptureMarkdownPreview.blocks(text)
+        let visible = expanded ? blocks : Array(blocks.prefix(2))
+        let canExpand = text.count > 250 || blocks.count > 2
         VStack(alignment: .leading, spacing: 10) {
-            Text(preview).lineLimit(expanded ? nil : 6).textSelection(.enabled)
-                .accessibilityIdentifier("capture.text.content")
-            if preview.characters.count > 250 {
+            VStack(alignment: .leading, spacing: 12) {
+                ForEach(Array(visible.enumerated()), id: \.offset) { _, block in
+                    if block.isRule { Divider() }
+                    else {
+                        HStack(alignment: .top, spacing: 8) {
+                            ForEach(0..<min(block.quoteDepth, 6), id: \.self) { _ in
+                                Rectangle().fill(.secondary.opacity(0.35)).frame(width: 2)
+                            }
+                            HStack(alignment: .top, spacing: 8) {
+                                if block.listDepth > 0 {
+                                    Text(block.marker ?? "").foregroundStyle(.secondary)
+                                        .frame(minWidth: 18, alignment: .leading)
+                                }
+                                Text(block.text)
+                                    .font(block.isCode ? .system(.body, design: .monospaced) : .body)
+                                    .lineLimit(expanded || !canExpand ? nil : (visible.count == 1 ? 6 : 3))
+                                    .textSelection(.enabled)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }.padding(.leading, CGFloat(max(0, block.listDepth - 1)) * 16)
+                        }.fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }.accessibilityIdentifier("\(accessibilityPrefix).content")
+            if canExpand {
                 Button {
                     if reduceMotion { expanded.toggle() }
                     else { withAnimation(.easeInOut(duration: 0.22)) { expanded.toggle() } }
@@ -1039,7 +1180,7 @@ struct CaptureTextView: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(CaptureExpansionButtonStyle())
-                .accessibilityIdentifier("capture.text.expansion")
+                .accessibilityIdentifier("\(accessibilityPrefix).expansion")
             }
         }
     }
@@ -1063,8 +1204,8 @@ struct BlockContentView: View {
                 CaptureMediaView(url: url, isVideo: block["attachment"]?["content_type"]?.string?.hasPrefix("video/") == true)
             }
             if showTitle, let title = block["title"]?.string, !title.isEmpty { Text(title).font(.headline).textSelection(.enabled) }
-            if let content = BlockDisplay.text(block, "content"), !content.isEmpty { Text(content).textSelection(.enabled) }
-            if let description = BlockDisplay.text(block, "description"), !description.isEmpty { Text(description).textSelection(.enabled) }
+            if let content = BlockDisplay.text(block, "content"), !content.isEmpty { CaptureTextView(text: content, accessibilityPrefix: "block.content") }
+            if let description = BlockDisplay.text(block, "description"), !description.isEmpty { CaptureTextView(text: description, accessibilityPrefix: "block.description") }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

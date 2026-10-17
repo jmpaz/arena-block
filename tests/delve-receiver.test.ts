@@ -11,11 +11,20 @@ import { createService } from "../src/service.ts";
 import { ArenaBlockStore } from "../src/store.ts";
 import { blockPlanSchema, type BlockPlan, type PublishRequest } from "../src/types.ts";
 import { MockApi } from "./fixtures/remote-api.ts";
+import { assignMediaRefs } from "../packages/core/providers/provider.ts";
 
 const policy = { inboxChannel: "901", mode: "full" as const, credentialProfile: "shared", expectedAccountId: 47 };
 const config = userConfigSchema.parse({ remoteInbox: { channel: "901", mode: "always" }, provenance: { remoteSnapshot: "full" },
   credentialProfiles: { shared: { arenaTokenEnv: "ARENA_WRITE_ACCESS_TOKEN", expectedAccountId: 47 } } });
 async function fixture(name: string): Promise<BlockPlan> {
+  if (name === "substack-quoted-video-frame") {
+    const source = await Bun.file(new URL("./fixtures/substack-quoted-video-public-plan.json", import.meta.url)).json();
+    return blockPlanSchema.parse(composePlan(source.sources, { ...source.policy, videoFrames: [source.block.selectedMedia[0]] }));
+  }
+  if (name === "substack-quoted-images") {
+    const legacy = await Bun.file(new URL("./fixtures/substack-legacy-containing-note-plan.json", import.meta.url)).json();
+    return blockPlanSchema.parse(composePlan(legacy.sources.map(assignMediaRefs), legacy.policy));
+  }
   return blockPlanSchema.parse(await Bun.file(new URL(`./fixtures/${name}.json`, import.meta.url)).json());
 }
 function submission(plan: BlockPlan): PublishRequest {
@@ -78,7 +87,7 @@ test("unavailable quote descendants respect depth while their source identity is
   expect(parent.quote!.embeddedRecord.uri).toBe(missing);
 });
 
-test.each(["delve-client-thread-plan", "delve-client-image-plan", "delve-client-quote-images-plan", "legacy-client-bluesky-plan"])("%s publishes and replays through the existing mock-only provenance path", async name => {
+test.each(["delve-client-thread-plan", "delve-client-image-plan", "delve-client-quote-images-plan", "legacy-client-bluesky-plan", "substack-quoted-images", "substack-quoted-video-frame", "substack-podcast-note-public-plan"])("%s publishes and replays through the existing mock-only provenance path", async name => {
   const directory = await mkdtemp(join(tmpdir(), "delve-receiver-publish-"));
   const store = new ArenaBlockStore(join(directory, "state.sqlite"));
   const api = new MockApi();
@@ -89,11 +98,15 @@ test.each(["delve-client-thread-plan", "delve-client-image-plan", "delve-client-
       Object.assign(api.blocks.get(created.data.id)!, { type: "Link", source: { url: JSON.parse(String(init.body)).original_source_url },
         image: { src: "https://fixture.invalid/copied-cover.jpg" } });
     }
+    if(init?.method==="POST"&&new URL(String(input)).pathname==="/v3/blocks"&&name==="substack-podcast-note-public-plan"){
+      const created=await response.clone().json();
+      Object.assign(api.blocks.get(created.data.id)!,{type:"Attachment",attachment:{content_type:"audio/mpeg"}});
+    }
     return response;
   }) as typeof fetch;
   const client = new ArenaClient("fixture-never-live", "https://arena.invalid/v3", fetcher, 100);
   const publisher = new ArenaPublisher(client, store, { publicBaseUrl: "https://fixture.invalid", mediaDirectory: directory,
-    render: async plan => plan.block.kind === "text" ? undefined : { hash: plan.hash, path: join(directory, "mock.jpg"),
+    render: async plan => plan.block.kind === "text" ? undefined : plan.block.kind === "audio" ? { hash:plan.hash,path:join(directory,"mock.mp3"),extension:"mp3",mimeType:"audio/mpeg",size:13 } : { hash: plan.hash, path: join(directory, "mock.jpg"),
       extension: "jpg", mimeType: "image/jpeg", size: 13 }, verifyTimeoutMs: 100, pollIntervalMs: 1, remoteProvenance: policy });
   try {
     const input = submission(await fixture(name));
@@ -143,7 +156,7 @@ test("capabilities and Delve save endpoints retain bearer and MCP authorization"
     }
     const headers = { authorization: "Bearer fixture-engine-token" };
     const response = await service.handler(new Request("https://fixture.invalid/v1/version", { headers }));
-    expect((await response.json()).planCapabilities).toEqual(["atproto-post-records-v1", "delve-posts-v1", "bluesky-thread-coverage-v1", "forum-magnum-posts-v1", "expanded-source-count-32-v1"]);
+    expect((await response.json()).planCapabilities).toEqual(["atproto-post-records-v1", "delve-posts-v1", "bluesky-thread-coverage-v1", "forum-magnum-posts-v1", "expanded-source-count-32-v1", "reddit-browser-records-v1", "reddit-public-page-records-v1", "substack-browser-records-v1", "substack-public-sources-v2", "substack-native-media-v1", "substack-note-attachments-v1", "quoted-image-media-v1", "quoted-video-audio-v1", "substack-note-podcast-audio-v1", "quote-author-links-v1"]);
     const denied = await service.handler(new Request("https://fixture.invalid/v1/mcp-saves", { method: "POST", headers, body: JSON.stringify(input) }));
     expect(denied.status).toBe(403);
     await denied.text();

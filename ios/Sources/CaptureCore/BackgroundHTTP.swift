@@ -7,6 +7,11 @@ public struct BackgroundHTTPResult: Codable, Sendable {
     public var retryAfter: Date?
     public var errorCode: Int? = nil
     public var errorDomain: String? = nil
+    public var completedAt: Date? = nil
+    public init(status: Int?, body: Data, error: String?, retryAfter: Date?, errorCode: Int? = nil, errorDomain: String? = nil, completedAt: Date? = nil) {
+        self.status = status; self.body = body; self.error = error; self.retryAfter = retryAfter
+        self.errorCode = errorCode; self.errorDomain = errorDomain; self.completedAt = completedAt
+    }
     public var json: JSONValue? { try? JSONDecoder().decode(JSONValue.self, from: body) }
 }
 
@@ -17,11 +22,17 @@ public final class BackgroundHTTP: NSObject, URLSessionDownloadDelegate, URLSess
     private let queue: OperationQueue
     private var responseBodies: [Int: Data] = [:]
     private var responseErrors: [Int: String] = [:]
+    private var reportedProgress: [Int: CaptureTransferProgress] = [:]
     private var eventTasks: [Task<Void, Never>] = []
     private let callbackLock = NSLock()
     private var resultHandler: (@Sendable (String) async -> Void)?
     private var finishedHandler: (@Sendable () async -> Void)?
     private var invalidatedHandler: (@Sendable () async -> Void)?
+    private var progressHandler: (@Sendable (CaptureTransferProgress) async -> Void)?
+    public var onProgress: (@Sendable (CaptureTransferProgress) async -> Void)? {
+        get { callbackLock.withLock { progressHandler } }
+        set { callbackLock.withLock { progressHandler = newValue } }
+    }
     public var onResult: (@Sendable (String) async -> Void)? {
         get { callbackLock.withLock { resultHandler } }
         set { callbackLock.withLock { resultHandler = newValue } }
@@ -81,6 +92,9 @@ public final class BackgroundHTTP: NSObject, URLSessionDownloadDelegate, URLSess
         let task: URLSessionTask
         if let file { task = session.uploadTask(with: request, fromFile: file) }
         else { task = session.downloadTask(with: request) }
+        if let file, let bytes = try? file.resourceValues(forKeys: [.fileSizeKey]).fileSize, bytes > 0 {
+            task.countOfBytesClientExpectsToSend = Int64(bytes)
+        }
         task.taskDescription = id
         task.earliestBeginDate = notBefore
         return task
@@ -88,6 +102,33 @@ public final class BackgroundHTTP: NSObject, URLSessionDownloadDelegate, URLSess
 
     public func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse, newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) {
         completionHandler(nil)
+    }
+
+    private func report(_ task: URLSessionTask, completed: Int64, expected: Int64, waiting: Bool = false) {
+        guard let id = task.taskDescription else { return }
+        let now = Date(), previous = reportedProgress[task.taskIdentifier]
+        let complete = expected > 0 && completed >= expected
+        guard previous == nil || previous?.waitingForConnectivity != waiting || complete
+                || now.timeIntervalSince(previous!.observedAt) >= 0.5 else { return }
+        guard previous?.completedBytes != completed || previous?.expectedBytes != (expected > 0 ? expected : nil)
+                || previous?.waitingForConnectivity != waiting else { return }
+        let progress = CaptureTransferProgress(transferID: id, completedBytes: completed, expectedBytes: expected, observedAt: now, waitingForConnectivity: waiting)
+        reportedProgress[task.taskIdentifier] = progress
+        if let onProgress { eventTasks.append(Task { await onProgress(progress) }) }
+    }
+
+    public func urlSession(_ session: URLSession, task: URLSessionTask, didSendBodyData bytesSent: Int64, totalBytesSent: Int64, totalBytesExpectedToSend: Int64) {
+        report(task, completed: totalBytesSent, expected: totalBytesExpectedToSend > 0 ? totalBytesExpectedToSend : task.countOfBytesClientExpectsToSend)
+    }
+
+    public func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
+        report(downloadTask, completed: totalBytesWritten, expected: totalBytesExpectedToWrite)
+    }
+
+    public func urlSession(_ session: URLSession, taskIsWaitingForConnectivity task: URLSessionTask) {
+        let uploading = task is URLSessionUploadTask
+        report(task, completed: uploading ? task.countOfBytesSent : task.countOfBytesReceived,
+               expected: uploading ? task.countOfBytesExpectedToSend : task.countOfBytesExpectedToReceive, waiting: true)
     }
 
     public func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
@@ -114,6 +155,7 @@ public final class BackgroundHTTP: NSObject, URLSessionDownloadDelegate, URLSess
         let response = task.response as? HTTPURLResponse
         let retry = Self.retryDate(response)
         var result = BackgroundHTTPResult(status: response?.statusCode, body: responseBodies.removeValue(forKey: task.taskIdentifier) ?? Data(), error: responseErrors.removeValue(forKey: task.taskIdentifier) ?? error?.localizedDescription, retryAfter: retry)
+        result.completedAt = Date(); reportedProgress.removeValue(forKey: task.taskIdentifier)
         if let error = error as NSError? { result.errorCode = error.code; result.errorDomain = error.domain }
         do {
             let data = try JSONEncoder().encode(result)

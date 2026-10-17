@@ -1,0 +1,35 @@
+[
+  {
+    "id": "truncated",
+    "case": "360337718",
+    "url": "https://substack.com/@joodaloop/note/c-360337718",
+    "file": "negative-truncated.html",
+    "expected": "collapsed preview",
+    "origin": "Deliberate mutation of sanitized real public response; negative fixture is not an observed upstream response."
+  },
+  {
+    "id": "ambiguous",
+    "case": "360337718",
+    "url": "https://substack.com/@joodaloop/note/c-360337718",
+    "file": "negative-ambiguous.html",
+    "expected": "selected_body_count",
+    "origin": "Deliberate mutation of sanitized real public response; negative fixture is not an observed upstream response."
+  },
+  {
+    "id": "changed-writing",
+    "case": "360337718",
+    "url": "https://substack.com/@joodaloop/note/c-360337718",
+    "file": "negative-changed-writing.html",
+    "expected": "structured_text_mismatch",
+    "origin": "Deliberate mutation of sanitized real public response; negative fixture is not an observed upstream response."
+  },
+  {
+    "id": "missing-quote",
+    "case": "360337718",
+    "url": "https://substack.com/@joodaloop/note/c-357819575",
+    "status": 404,
+    "body": "Not found",
+    "expected": "incomplete-quote",
+    "origin": "Explicit unavailable-source simulation; full root must never count as full quote-contract success."
+  }
+]

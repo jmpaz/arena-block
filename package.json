@@ -24,10 +24,12 @@
     "@atcute/bluesky": "^4.0.14",
     "@atcute/client": "^5.1.1",
     "@atcute/lexicons": "^2.0.2",
+    "@mixmark-io/domino": "^2.2.0",
     "@napi-rs/canvas": "^0.1.80",
     "abort-controller": "^3.0.0",
     "commander": "^14.0.1",
     "core-js-pure": "^3.50.0",
+    "marked": "18.1.1",
     "turndown": "^7.2.4",
     "whatwg-fetch": "^3.6.20",
     "zod": "^4.3.5"

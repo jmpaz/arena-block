@@ -200,7 +200,7 @@ struct ChannelPicker: View {
         .accessibilityIdentifier("channel.selection-options")
     }
 
-    private var resetOrClearTitle: String { session.defaultChannel == nil ? "Clear" : "Reset to default" }
+    private var resetOrClearTitle: String { session.isAddingPlacements ? "Clear pending" : session.defaultChannel == nil ? "Clear" : "Reset to default" }
 
     private var canResetOrClear: Bool {
         guard let selection = session.draft?.selection else { return false }
@@ -217,12 +217,12 @@ struct ChannelPicker: View {
         Button(action: saveSelection) {
             HStack {
                 if session.busy { ProgressView() }
-                Text("Save").font(.body.weight(.semibold))
+                Text(session.isAddingPlacements ? "Apply" : "Save").font(.body.weight(.semibold))
             }.fixedSize(horizontal: true, vertical: false).frame(minWidth: 64, minHeight: 44)
         }
         .modifier(PickerSaveStyle())
         .disabled(!session.canSubmitCapture)
-        .accessibilityLabel("Save to \(session.actualDestinations.count) \(session.actualDestinations.count == 1 ? "channel" : "channels")")
+        .accessibilityLabel("\(session.isAddingPlacements ? "Apply changes to" : "Save to") \(session.actualDestinations.count) \(session.actualDestinations.count == 1 ? "channel" : "channels")")
         .accessibilityIdentifier("channel.connect")
     }
 
@@ -230,6 +230,13 @@ struct ChannelPicker: View {
         let recentIDs = Set(currentLocal.map(\.id))
         let selectedIDs = Set(selected.map(\.id))
         List {
+            if session.isAddingPlacements {
+                Section {
+                    Text("Add channels or remove pending choices. Channels already sent or confirmed stay selected; their connections can be removed in Are.na.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                        .accessibilityIdentifier("channel.placement-edit-note")
+                }
+            }
             if showSelected {
                 if reviewChannels.isEmpty {
                     ContentUnavailableView("No channels selected", systemImage: "checkmark.square")
@@ -377,8 +384,8 @@ struct ChannelPicker: View {
         }
         .buttonStyle(ChannelSelectionStyle(tint: ChannelAppearance.tint(channel), selected: isSelected))
         .accessibilityIdentifier("channel.select.\(channel.id)")
-        .accessibilityValue(isSelected ? "Selected" : "Not selected")
-        .disabled(channel.can?.addTo == false && !isSelected)
+        .accessibilityValue(isSelected && !choosingDefault && !session.canRemovePlacement(channel) ? "Sent or confirmed" : isSelected ? "Selected" : "Not selected")
+        .disabled((channel.can?.addTo == false && !isSelected) || (!choosingDefault && isSelected && !session.canRemovePlacement(channel)))
         .contextMenu {
             if session.defaultChannel?.id == channel.id {
                 Button("Remove default", systemImage: "pin.slash") {
@@ -416,7 +423,7 @@ struct ChannelPicker: View {
     }
 
     private func automaticDefault(_ channel: Channel) -> Bool {
-        !choosingDefault && session.defaultPolicy.mode == .always && channel.id == session.defaultChannel?.id
+        !choosingDefault && !session.isAddingPlacements && session.defaultPolicy.mode == .always && channel.id == session.defaultChannel?.id
     }
 
     private func setDefault(_ channel: Channel) {
@@ -442,7 +449,7 @@ struct ChannelPicker: View {
         }
         guard !automaticDefault(channel) else { return }
         guard isSelected || session.canAddDestination(channel) else {
-            problem = "Choose up to 20 destinations, including the default."
+            problem = session.isAddingPlacements ? "Choose up to 20 additional channels at a time." : "Choose up to 20 destinations, including the default."
             return
         }
         session.toggle(channel)

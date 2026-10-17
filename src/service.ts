@@ -1,3 +1,7 @@
+import { bindSubstackCaptures } from "../packages/core/substack-record.ts";
+import { SubstackProvider } from "../packages/core/providers/substack.ts";
+import { RedditProvider } from "../packages/core/providers/reddit.ts";
+import { bindRedditCaptures } from "../packages/core/reddit-record.ts";
 import { join } from "node:path";
 import { z } from "zod";
 import { openSync, readSync, closeSync } from "node:fs";
@@ -342,15 +346,21 @@ export function createService(config: ServiceConfig, dependencies: { client?: Ar
         return json({ payload, update: publicationFields(plan) });
       }
       if (request.method === "POST" && url.pathname === "/v1/resolve") {
-        const input = planInputSchema.parse(await request.json());
-        if (input.refresh) resolver.clearSourceCache();
-        const resolved = await resolver.resolveComposition(input.refs, input.extraRefs, input.policy, request.signal);
+        const input = planInputSchema.parse(await boundedJson(request, 3 * 1024 * 1024, deadline(10_000, request.signal)));
+        const captures = bindRedditCaptures([...input.refs, ...input.extraRefs], input.redditCaptures);
+        const substack = bindSubstackCaptures([...input.refs, ...input.extraRefs], input.substackCaptures);
+        const requestResolver = captures.length || substack.length ? new SocialResolver({ reddit: new RedditProvider(undefined, captures), substack: new SubstackProvider(substack) }) : resolver;
+        if (input.refresh) requestResolver.clearSourceCache();
+        const resolved = await requestResolver.resolveComposition(input.refs, input.extraRefs, input.policy, request.signal);
         return json({ schemaVersion: 1, posts: resolved.posts, policy: resolved.policy });
       }
       if (request.method === "POST" && url.pathname === "/v1/plans") {
-        const input = planInputSchema.parse(await request.json());
-        if (input.refresh) resolver.clearSourceCache();
-        const resolved = await resolver.resolveComposition(input.refs, input.extraRefs, input.policy, request.signal);
+        const input = planInputSchema.parse(await boundedJson(request, 3 * 1024 * 1024, deadline(10_000, request.signal)));
+        const captures = bindRedditCaptures([...input.refs, ...input.extraRefs], input.redditCaptures);
+        const substack = bindSubstackCaptures([...input.refs, ...input.extraRefs], input.substackCaptures);
+        const requestResolver = captures.length || substack.length ? new SocialResolver({ reddit: new RedditProvider(undefined, captures), substack: new SubstackProvider(substack) }) : resolver;
+        if (input.refresh) requestResolver.clearSourceCache();
+        const resolved = await requestResolver.resolveComposition(input.refs, input.extraRefs, input.policy, request.signal);
         const plan = composePlan(resolved.posts, resolved.policy);
         store.savePlan(plan);
         return json(plan);

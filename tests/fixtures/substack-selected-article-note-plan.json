@@ -1,0 +1,120 @@
+{
+  "schemaVersion": 1,
+  "sources": [
+    {
+      "provider": "substack",
+      "id": "337896966",
+      "canonicalUrl": "https://substack.com/@oatmilkallison/note/c-337896966",
+      "author": {
+        "handle": "oatmilkallison",
+        "name": "Oatmilk Allison"
+      },
+      "text": "Obsessed with this sentiment on friendship\n\n*[Article card (preview; full article not acquired)](<https://sofset.substack.com/p/nice-people-make-bad-friends>)*\n\nNice People Make Bad Friends — SOFSET\n\n*Selected article excerpt (not full article), by SOFSET:*\n\n> If I buy you a $5 coffee, I am not asking you to Venmo me. You’ll get the next one. Or you won’t. Maybe I’ll buy ten coffees and thirty years from now you’ll be helping me move the Hamptons house into an offshore holding company before my ex-husband realizes what’s happening. Who cares?\n\n*[Substack Note source](<https://substack.com/@oatmilkallison/note/c-337896966>) · Sep 15, 2026, 6:50 PM*",
+      "postTitle": "Substack Note by @oatmilkallison",
+      "postedAt": "2026-09-15T18:50:37.000Z",
+      "media": [],
+      "substackCapture": {
+        "schema": "arena-block/substack-browser-capture",
+        "version": 1,
+        "sourceUrl": "https://substack.com/@oatmilkallison/note/c-337896966",
+        "observedAt": "2026-10-15T15:48:18.853Z",
+        "method": "public-html",
+        "note": {
+          "acquisition": {
+            "method": "public-html",
+            "observedAt": "2026-10-15T15:48:18.853Z"
+          },
+          "url": "https://substack.com/@oatmilkallison/note/c-337896966",
+          "author": {
+            "handle": "oatmilkallison",
+            "name": "Oatmilk Allison",
+            "profileUrl": "https://substack.com/@oatmilkallison"
+          },
+          "body": {
+            "status": "complete",
+            "html": "<p>Obsessed with this sentiment on friendship</p>"
+          },
+          "publishedLabel": "Sep 15, 2026, 6:50 PM",
+          "postedAt": "2026-09-15T18:50:37.000Z",
+          "links": [],
+          "attachmentEvidence": {
+            "method": "public-api",
+            "observedAt": "2026-10-15T15:48:18.853Z",
+            "commentId": 337896966,
+            "userId": 130253470,
+            "handle": "oatmilkallison",
+            "bodyText": "Obsessed with this sentiment on friendship",
+            "attachments": [
+              {
+                "kind": "article",
+                "id": "2acdfb41-797d-41d2-a427-3919d9aa32b7",
+                "postId": 211480016,
+                "publicationId": 9745090,
+                "url": "https://sofset.substack.com/p/nice-people-make-bad-friends",
+                "title": "Nice People Make Bad Friends",
+                "previewText": "On $5 Venmo requests, 3 a.m. cockroach emergencies, social climbing, and why real friendship requires inconvenience.",
+                "authors": [
+                  {
+                    "id": 285175677,
+                    "name": "SOFSET",
+                    "handle": "sofset"
+                  }
+                ],
+                "selection": {
+                  "id": "27cef561-adbd-4a8e-8771-57811564d610",
+                  "postId": 211480016,
+                  "startParagraph": 32,
+                  "endParagraph": 33,
+                  "startOffset": 0,
+                  "endOffset": 10,
+                  "text": "If I buy you a $5 coffee, I am not asking you to Venmo me. You’ll get the next one. Or you won’t. Maybe I’ll buy ten coffees and thirty years from now you’ll be helping me move the Hamptons house into an offshore holding company before my ex-husband realizes what’s happening. Who cares?",
+                  "isAutoSelection": false
+                }
+              }
+            ]
+          }
+        }
+      },
+      "quoteCoverage": {
+        "maxDepth": 8,
+        "actualDepth": 0,
+        "maxReached": false,
+        "truncated": false,
+        "stopped": "end",
+        "sourceIds": [
+          "337896966"
+        ],
+        "acquisitionDepth": 2,
+        "mayExpand": false
+      }
+    }
+  ],
+  "policy": {
+    "media": "none",
+    "selectedMedia": [],
+    "quote": "block",
+    "separator": "auto"
+  },
+  "block": {
+    "kind": "text",
+    "title": "Substack Note by @oatmilkallison",
+    "markdown": "Obsessed with this sentiment on friendship\n\n*[Article card (preview; full article not acquired)](<https://sofset.substack.com/p/nice-people-make-bad-friends>)*\n\nNice People Make Bad Friends — SOFSET\n\n*Selected article excerpt (not full article), by SOFSET:*\n\n> If I buy you a $5 coffee, I am not asking you to Venmo me. You’ll get the next one. Or you won’t. Maybe I’ll buy ten coffees and thirty years from now you’ll be helping me move the Hamptons house into an offshore holding company before my ex-husband realizes what’s happening. Who cares?\n\n*[Substack Note source](<https://substack.com/@oatmilkallison/note/c-337896966>) · Sep 15, 2026, 6:50 PM*",
+    "description": "Substack public HTML capture observed at: 2026-10-15T15:48:18.853Z. Full root prose; quoted Note availability and linked/preview/attachment roles retained in the source record. Displayed publication labels have no inferred timezone.",
+    "canonicalSource": "https://substack.com/@oatmilkallison/note/c-337896966",
+    "selectedMedia": [],
+    "quoteCoverage": [
+      {
+        "sourceId": "337896966",
+        "availableDepth": 0,
+        "renderedDepth": 0,
+        "requestedDepth": 2,
+        "maxDepth": 8,
+        "maxReached": false,
+        "truncated": false,
+        "stopped": "end",
+        "mayExpand": false
+      }
+    ]
+  },
+  "hash": "c161a61ee91136d0ffa7492812a604f3e80a909b5a9df18da60d1cc334834fea"
+}

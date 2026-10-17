@@ -18,10 +18,14 @@ struct CaptureMediaSelection: View {
         let fixturePoster = ProcessInfo.processInfo.environment["CAPTURE_UI_FIXTURE"] == "video-frame"
             ? session.container.appendingPathComponent("fixture-0.jpg") : nil
         var position = 0
-        return (session.preview?.plan?["sources"]?.array ?? []).map { source in
-            (source["media"]?.array ?? []).compactMap { asset in
-                defer { position += 1 }
-                return MediaChoice(asset, position: position, localFixturePoster: fixturePoster)
+        guard let plan = session.preview?.plan else { return [] }
+        let nodes = CaptureMediaTree.sources(inPlan: plan)
+        return (plan["sources"]?.array ?? []).indices.map { index in
+            nodes.filter { $0.rootIndex == index }.flatMap { node in
+                node.media.compactMap { asset in
+                    defer { position += 1 }
+                    return MediaChoice(asset, position: position, localFixturePoster: fixturePoster, ownershipLabel: node.ownershipLabel)
+                }
             }
         }
     }
@@ -98,12 +102,16 @@ struct CaptureMediaSelection: View {
                                     }
                             }
                             .buttonStyle(MediaChoiceButtonStyle())
-                            .accessibilityLabel(asset.label)
+                            .accessibilityLabel([asset.label, asset.ownershipLabel].compactMap { $0 }.joined(separator: ", "))
                             .accessibilityValue((included ? "Included" : "Excluded") + (usesFrame(asset.id) ? ", video frame" : "") + (asset.isPreview ? ", preview" : ""))
                             .accessibilityHint(included ? "Exclude this media" : "Include this media")
                             .accessibilityIdentifier("capture.media.asset.\(asset.id)")
                             .contextMenu {
                                 Button("Preview", systemImage: "arrow.up.left.and.arrow.down.right") { inspected = asset }
+                            }
+                            if let label = asset.ownershipLabel {
+                                Text(label).font(.caption2).foregroundStyle(.secondary)
+                                    .frame(width: thumbnailSize).fixedSize(horizontal: false, vertical: true)
                             }
                             if asset.kind == "video" {
                                 let forced = asset.posterURL != nil &&
@@ -147,7 +155,7 @@ struct CaptureMediaSelection: View {
         .sheet(item: $inspected) { asset in
             NavigationStack {
                 Group {
-                    if let url = asset.url { CaptureMediaView(url: url, isVideo: asset.kind == "video") }
+                    if let url = asset.url { CaptureMediaView(url: url, isVideo: asset.kind == "video", isAudio: asset.kind == "audio") }
                     else { ContentUnavailableView("Preview unavailable", systemImage: "photo") }
                 }
                 .navigationTitle(asset.label).navigationBarTitleDisplayMode(.inline)
@@ -169,7 +177,7 @@ struct CaptureMediaSelection: View {
         let usesAutomaticFrame = asset.posterURL != nil &&
             (asset.durationSeconds.map { $0 > Double(session.draft?.videoFrameThresholdSeconds ?? 600) } ?? false)
         if asset.kind == "video" {
-            Text("Video from post").font(.caption).foregroundStyle(.secondary)
+            Text(asset.ownershipLabel.map { "Video · \($0)" } ?? "Video from post").font(.caption).foregroundStyle(.secondary)
             if session.renderURL == nil {
                 Button { inspected = asset } label: {
                     MediaThumbnail(asset: asset, usesFrame: usesFrame(asset.id), maxPixel: 1200)
@@ -194,7 +202,14 @@ struct CaptureMediaSelection: View {
                     .font(.footnote).foregroundStyle(.secondary)
             }
         } else {
+            if asset.canPreviewAudio {
+                Button("Preview audio", systemImage: "play.circle") { inspected = asset }
+                    .accessibilityIdentifier("capture.audio-preview.open")
+            }
             HStack {
+                if let label = asset.ownershipLabel {
+                    Text(label).font(.caption).foregroundStyle(.secondary)
+                }
                 Spacer()
                 Button {
                     session.toggleMedia(asset.id)
@@ -221,11 +236,17 @@ private struct MediaChoice: Identifiable {
     let label: String
     let position: Int
     let isPreview: Bool
+    let canPreviewAudio: Bool
+    let ownershipLabel: String?
 
-    init?(_ asset: JSONValue, position: Int, localFixturePoster: URL? = nil) {
+    init?(_ asset: JSONValue, position: Int, localFixturePoster: URL? = nil, ownershipLabel: String? = nil) {
         guard let ref = asset["ref"]?.string else { return nil }
         id = ref
+        let articleAuthors = asset["sourceAttribution"]?["authors"]?.array.compactMap(\.string).joined(separator: ", ")
+        let ownership = [ownershipLabel, articleAuthors.map { "Audio by \($0)" }].compactMap { $0 }.joined(separator: " · ")
+        self.ownershipLabel = ownership.isEmpty ? nil : ownership
         kind = asset["kind"]?.string ?? "image"
+        canPreviewAudio = kind == "audio" && asset["acquisition"]?.string == "substack-public-original"
         isPreview = asset["sourceRole"]?.string == "preview"
         self.position = position
         url = asset["url"]?.string.flatMap(URL.init(string:))
@@ -257,6 +278,7 @@ private struct MediaThumbnail: View {
         }
         .task(id: asset.kind == "video" ? asset.thumbnailURL ?? asset.url : asset.url) {
             localImage = nil
+            guard asset.kind != "audio" else { return }
             guard let url = asset.kind == "video" ? asset.thumbnailURL ?? asset.url : asset.url else { return }
             let loaded = await MediaThumbnailCache.shared.image(for: url, video: asset.kind == "video" && asset.posterURL == nil, maxPixel: maxPixel)
             guard !Task.isCancelled else { return }

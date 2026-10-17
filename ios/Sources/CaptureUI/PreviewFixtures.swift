@@ -138,6 +138,11 @@ struct PreviewFixtures {
         saved.id = UUID(); saved.phase = .saved; saved.blockID = 900
         saved.deliveryState = CaptureDeliveryState(operationID: saved.id, stage: .done, confirmedChannelIDs: [101], contentVerified: true)
         saved.savedBlock = .object(["id": .number(900), "type": .string("Link"), "state": .string("available"), "title": .string("A study in shape"), "content": .object(["markdown": .string("")]), "description": .object(["markdown": .string("A small collection of things worth looking at again.")]), "image": .object(["large": .object(["url": .string(imageURL.absoluteString)])])])
+        if let markdown = ProcessInfo.processInfo.environment["CAPTURE_UI_SAVED_MARKDOWN"], !markdown.isEmpty {
+            var block = saved.savedBlock?.object ?? [:]
+            block["description"] = .object(["markdown": .string(markdown)])
+            saved.savedBlock = .object(block)
+        }
         history = saved
         switch mode {
         case "empty", "slow-resolution": sample = CaptureDraft(accountID: account.id, defaultChannel: channels[0])
@@ -146,6 +151,9 @@ struct PreviewFixtures {
             sample.phase = .failed
             sample.problem = "Paste a link to capture."
         case "saved": sample = saved
+        case "saved-stopped":
+            sample = saved
+            sample.deliveryState?.stopRequested = true
         case "queued":
             sample.phase = .queued
             sample.deliveryState = CaptureDeliveryState(operationID: sample.id, stage: .queued)
@@ -171,6 +179,10 @@ struct PreviewFixtures {
             sample.problem = "The earlier save could not be confirmed."
             sample.publicationKey = "offline-unknown-save"
             sample.deliveryState = CaptureDeliveryState(operationID: sample.id, stage: .attention)
+        case "connecting":
+            sample.selection.toggle(channels[1])
+            sample.phase = .checking; sample.blockID = saved.blockID; sample.savedBlock = saved.savedBlock
+            sample.deliveryState = CaptureDeliveryState(operationID: sample.id, stage: .connections, confirmedChannelIDs: [101], contentVerified: true)
         case "partial":
             sample.selection.toggle(channels[1]); sample.selection.toggle(channels[2])
             sample.phase = .checking; sample.blockID = saved.blockID; sample.savedBlock = saved.savedBlock
@@ -199,7 +211,8 @@ private final class FixtureURLProtocol: URLProtocol {
             let value: Any
             if url.path.contains("/channels/"), let id = Int(url.lastPathComponent), let channel = channels.first(where: { $0["id"] as? Int == id }) { value = channel }
             else if url.path.contains("/blocks/") {
-                value = ["id": 900, "type": "Link", "state": "available", "title": "A study in shape", "description": ["markdown": "A small collection of things worth looking at again."]]
+                let description = ProcessInfo.processInfo.environment["CAPTURE_UI_SAVED_MARKDOWN"] ?? "A small collection of things worth looking at again."
+                value = ["id": 900, "type": "Link", "state": "available", "title": "A study in shape", "description": ["markdown": description]]
             } else {
                 let term = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "query" }?.value ?? ""
                 let found = term.isEmpty || term == "*" ? channels : channels.filter { ($0["title"] as? String)?.localizedCaseInsensitiveContains(term) == true }

@@ -112,17 +112,16 @@ test("cross-posts retain their source and author while exposing parent attachmen
   const posts = await new SocialResolver({ reddit: provider(value) }).resolve(["https://redd.it/xyz"]);
   expect(composePlan(posts).block.markdown).not.toContain("*[");
 });
-test("short links expand before a bounded archive fallback and identities are checked", async () => {
+test("short links expand before a live JSON read and identities are checked", async () => {
   const calls: string[] = [];
   const resolver = new RedditProvider(async (url, init) => {
     calls.push(String(url));
     expect(init?.signal).toBeDefined();
     if (calls.length === 1) return new Response(null, { status: 302, headers: { location: "https://www.reddit.com/r/test/comments/abc/title/?tracking=1" } });
-    if (calls.length === 2) return new Response(null, { status: 503 });
-    return Response.json({ data: [post] });
+    return Response.json([{ data: { children: [{ data: post }] } }]);
   });
   expect((await resolver.resolve(parseSource("https://reddit.com/r/test/s/SHARE"))).id).toBe("abc");
-  expect(calls[2]).toBe("https://arctic-shift.photon-reddit.com/api/posts/ids?ids=abc");
+  expect(calls).toEqual(["https://www.reddit.com/r/test/s/SHARE", "https://www.reddit.com/comments/abc.json?raw_json=1"]);
   await expect(provider(post).resolve(parseSource("https://redd.it/other"))).rejects.toThrow("different post");
 });
 test("unavailable gallery entries and removed posts fail without silently dropping content", async () => {
@@ -142,28 +141,31 @@ test("a blocked live read stops without consulting an archive or claiming deleti
   expect(calls).toEqual(["https://www.reddit.com/comments/1wzw8zd.json?raw_json=1"]);
 });
 
-test("a filtered archive snapshot after an unavailable live server is not a current deletion claim", async () => {
-  const resolver = new RedditProvider(async url => String(url).includes("arctic-shift")
+test("an unavailable live server cannot infer a current deletion from an archive", async () => {
+  const calls: string[] = [];
+  const resolver = new RedditProvider(async url => { calls.push(String(url)); return String(url).includes("arctic-shift")
     ? Response.json({ data: [{ id: "1wzw8zd", title: "A post", author: "source-author",
       permalink: "/r/ClaudeAI/comments/1wzw8zd/a_post/", selftext: "[removed]", created_utc: 1700000000,
       removed_by_category: "automod_filtered" }] })
-    : new Response(null, { status: 503 }));
+    : new Response(null, { status: 503 }); });
   await expect(resolver.resolve(parseSource("https://www.reddit.com/r/ClaudeAI/comments/1wzw8zd/a_post/")))
-    .rejects.toThrow("archived snapshot marks this post automod_filtered. Current content cannot be verified; no block was created");
+    .rejects.toThrow("live post read returned HTTP 503 without a usable post; current content cannot be verified");
+  expect(calls).toEqual(["https://www.reddit.com/comments/1wzw8zd.json?raw_json=1"]);
 });
 test("native video uses HLS to retain audio instead of the silent fallback", async () => {
   const result = await provider({ ...post, secure_media: { reddit_video: { hls_url: "https://v.redd.it/abc/HLSPlaylist.m3u8", fallback_url: "https://v.redd.it/abc/DASH_720.mp4", has_audio: true, width: 720, height: 1280 } } }).resolve(parseSource("https://redd.it/abc"));
   expect(result.media[0]!.url).toEndWith(".m3u8");
 });
 
-test("unprocessed archive images are repaired only from matching preview media IDs", async () => {
+test("incomplete galleries stop without bot-facing embed requests or guessed originals", async () => {
   const incomplete = { ...gallery, media_metadata: { a: image("a"), b: { status: "unprocessed" } } };
-  const resolver = new RedditProvider(async url => String(url).startsWith("https://vxreddit.com")
-    ? new Response('<meta property="og:url" content="https://www.reddit.com/comments/abc"><meta property="og:image" content="https://i.redd.it/b.png">')
-    : Response.json([{ data: { children: [{ data: incomplete }] } }]));
-  const result = await resolver.resolve(parseSource("https://redd.it/abc"));
-  expect(result.media.map(item => item.id)).toEqual(["b", "a"]);
-  expect(result.media[0]!.url).toBe("https://i.redd.it/b.png");
+  const calls: string[] = [];
+  const resolver = new RedditProvider(async url => {
+    calls.push(String(url));
+    return Response.json([{ data: { children: [{ data: incomplete }] } }]);
+  });
+  await expect(resolver.resolve(parseSource("https://redd.it/abc"))).rejects.toThrow("gallery item b is unavailable");
+  expect(calls).toEqual(["https://www.reddit.com/comments/abc.json?raw_json=1"]);
 });
 test("root attachments are depicted consistently across providers even with media none", () => {
   for (const provider of ["x", "bluesky", "mastodon", "reddit"] as const) {
@@ -194,7 +196,6 @@ test("comment media is explicit instead of silently becoming text-only", async (
     data: { children: [{ data: String(url).includes("t1_") ? { ...comment, ...changes } : post }] },
   })).resolve(parseSource("https://reddit.com/r/test/comments/abc/title/def/"));
   for (const body of [
-    "Read this ![img](https://preview.redd.it/picture.png)",
     "Watch https://v.redd.it/clip/HLSPlaylist.m3u8",
     "![gif](giphy|clip)",
   ]) await expect(resolve({ body })).rejects.toThrow("Reddit comment media is unsupported");
@@ -204,14 +205,19 @@ test("comment media is explicit instead of silently becoming text-only", async (
     .rejects.toThrow("Reddit comment media is unavailable");
   await expect(resolve({ media: { reddit_video: { id: "clip" } } }))
     .rejects.toThrow("Reddit comment media is unsupported");
+  const illustrated = await resolve({ body: "Read this ![img](https://preview.redd.it/picture.png)" });
+  expect(illustrated.media[0]?.url).toBe("https://preview.redd.it/picture.png");
   const plain = await resolve({ body: "A text reply with https://example.com/article", media_metadata: {} });
   expect(plain.text).toBe("A text reply with https://example.com/article");
   expect(plain.media).toEqual([]);
   expect(plain.storyTitle).toBe(post.title);
 });
-test("comment lookup uses the archive fallback for both comment and parent title", async () => {
-  const resolver = new RedditProvider(async url => String(url).includes("/api/info") ? new Response(null, { status: 503 }) : Response.json({ data: [String(url).includes("/comments/ids") ? comment : post] }));
-  expect((await resolver.resolve(parseSource("https://reddit.com/r/test/comments/abc/title/def/"))).storyTitle).toBe(post.title);
+test("unavailable comment metadata stops before consulting an archive or parent", async () => {
+  const calls: string[] = [];
+  const resolver = new RedditProvider(async url => { calls.push(String(url)); return String(url).includes("/api/info") ? new Response(null, { status: 503 }) : Response.json({ data: [String(url).includes("/comments/ids") ? comment : post] }); });
+  await expect(resolver.resolve(parseSource("https://reddit.com/r/test/comments/abc/title/def/")))
+    .rejects.toThrow("live metadata read returned HTTP 503 without usable content; current content cannot be verified");
+  expect(calls).toEqual(["https://www.reddit.com/api/info.json?id=t1_def&raw_json=1"]);
 });
 test("a blocked live comment lookup stops before the archive", async () => {
   const calls: string[] = [];

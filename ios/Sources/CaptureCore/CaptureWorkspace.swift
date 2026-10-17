@@ -6,12 +6,28 @@ public struct CaptureWorkspaceContents: Sendable {
 }
 
 extension CaptureStore {
+    /// Begin a share presentation without reopening its previous composer.
+    /// Drafts and delivery records remain available through History.
+    public func startShareWorkspace(account: Int, id: String, defaultChannel: Channel?, invocationID: UUID) throws -> CaptureWorkspaceContents {
+        let draft = CaptureDraft(accountID: account, defaultChannel: defaultChannel)
+        try save(CaptureWorkspace(emptySelection: draft.selection, shareInvocationID: invocationID), account: account, kind: "workspace", id: id)
+        return CaptureWorkspaceContents(draft: draft, retainedResult: nil)
+    }
+
+    public func requireShareInvocation(_ invocationID: UUID?, account: Int, workspaceID: String) throws {
+        if let invocationID,
+           try value(CaptureWorkspace.self, account: account, kind: "workspace", id: workspaceID)?.shareInvocationID != invocationID {
+            throw CancellationError()
+        }
+    }
+
     /// Claim a composer before returning its draft. Only a main app's first
     /// initialization may adopt an unowned draft from the legacy shared store.
-    public func openWorkspace(account: Int, id: String, defaultChannel: Channel?, migrateLegacy: Bool) throws -> CaptureWorkspaceContents {
+    public func openWorkspace(account: Int, id: String, defaultChannel: Channel?, migrateLegacy: Bool, shareInvocationID: UUID? = nil) throws -> CaptureWorkspaceContents {
         var active = CaptureDraft(accountID: account, defaultChannel: defaultChannel)
         var retained: CaptureDraft?
         try transaction {
+            try requireShareInvocation(shareInvocationID, account: account, workspaceID: id)
             let existing = try value(CaptureWorkspace.self, account: account, kind: "workspace", id: id)
             var workspace = existing ?? CaptureWorkspace()
             if let selected = workspace.activeDraftID,

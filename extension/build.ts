@@ -2,10 +2,16 @@ import { cp, mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { createPublicKey } from "node:crypto";
 import { extensionIcons, generateIcons } from "../scripts/generate-icons.ts";
+import { permissionManifest } from "./permission-policy.ts";
 
 const root = join(import.meta.dir, "..");
 const output = join(import.meta.dir, "dist");
 const chromePublicKey = process.env.ARENA_BLOCK_CHROME_PUBLIC_KEY?.trim();
+const substackTabReading = process.env.ARENA_BLOCK_SUBSTACK_TAB_READING ?? "true";
+if (!["true", "false"].includes(substackTabReading))
+  throw new Error("ARENA_BLOCK_SUBSTACK_TAB_READING must be true or false");
+const permissions = permissionManifest(process.env.ARENA_BLOCK_PERMISSION_PROFILE ?? "legacy",
+  substackTabReading === "true", JSON.parse(process.env.ARENA_BLOCK_MASTODON_ORIGINS ?? "[]"));
 if (chromePublicKey && (
   chromePublicKey.length % 4 !== 0 ||
   !/^[A-Za-z0-9+/]+={0,2}$/.test(chromePublicKey) ||
@@ -25,9 +31,7 @@ const shared = {
   manifest_version: 3,
   icons: extensionIcons,
   action: { default_title: "Capture to Are.na", default_popup: "editor.html", default_icon: extensionIcons },
-  permissions: ["activeTab", "storage", "identity"],
-  optional_permissions: ["nativeMessaging"],
-  optional_host_permissions: ["https://*/*"],
+  ...permissions,
 };
 
 await generateIcons(root);

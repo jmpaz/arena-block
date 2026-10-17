@@ -54,7 +54,7 @@ final class CapturePreparation {
         } else {
             var acquisition = snapshot.policy.object
             acquisition["quoteDepth"] = (snapshot.policy["quoteDepth"] == .string("full") || (snapshot.policy["quoteDepth"]?.int ?? 0) > 2) ? .string("full") : .number(2)
-            let resolved = try decode(await runtime.resolve(refs: refs, extraRefs: extras, policyJSON: json(.object(acquisition))))
+            let resolved = try decode(await runtime.resolve(refs: refs, extraRefs: extras, policyJSON: json(.object(acquisition)), redditCapturesJSON: snapshot.redditCapturesJSON ?? "[]", substackCapturesJSON: snapshot.substackCapturesJSON ?? "[]"))
             guard let retained = resolved["plan"]?["sources"], !retained.array.isEmpty else { throw CaptureError.message("The source could not be read. Retry this capture.") }
             sources = retained
         }
@@ -65,7 +65,7 @@ final class CapturePreparation {
     func compose(_ snapshot: CaptureSubmissionSnapshot, sources: JSONValue) throws -> CapturePreparedSource {
         let policy = try snapshot.pendingMediaChoices?.applying(to: snapshot.policy, sources: sources) ?? snapshot.policy
         let requested = policy["selectedMedia"]?.array.compactMap(\.string) ?? []
-        let available = Set(sources.array.flatMap { $0["media"]?.array ?? [] }.compactMap { $0["ref"]?.string })
+        let available = Set(CaptureMediaTree.sources(in: sources).flatMap(\.media).compactMap { $0["ref"]?.string })
         guard Set(requested).isSubset(of: available) else { throw CaptureError.message("Some selected media is unavailable. No block was created. Try again.") }
         let effectivePolicy = try CaptureSourcePolicy.composing(policy, sources: sources)
         let composed = try decode(runtime.compose(postsJSON: json(sources), policyJSON: json(effectivePolicy)))
@@ -79,12 +79,14 @@ final class CapturePreparation {
         let edited = try decode(runtime.edit(planJSON: json(original), editsJSON: json(.object(edits))))
         guard let plan = edited["plan"] else { throw CaptureError.message("Couldn't prepare this capture.") }
         let selected = Set(plan["block"]?["selectedMedia"]?.array.compactMap(\.string) ?? [])
-        guard policy["media"] != .string("selected") || selected == Set(requested) else { throw CaptureError.message("Couldn't prepare the selected media. No block was created.") }
+        let visible = Set(CaptureMediaTree.media(in: plan).compactMap { $0["ref"]?.string })
+        guard policy["media"] != .string("selected") || selected == Set(requested).intersection(visible) else { throw CaptureError.message("Couldn't prepare the selected media. No block was created.") }
         let preview = CapturePreview(kind: "social", url: snapshot.url, plan: plan,
                                      inputRefs: snapshot.sourceRefs, extraInputRefs: snapshot.supplementaryRefs)
         let payload = try decode(runtime.localPayload(planJSON: json(plan), mediaURL: "https://s3.amazonaws.com/arena_images-temp/pending", ingestURL: snapshot.url)).object
         // Edits cannot change geometry; compare the composed block before applying writing overrides.
-        let sameMedia = snapshot.preview?.plan?["block"] == original["block"] && snapshot.preview?.plan?["sources"] == sources
+        let sameAudio = (snapshot.preview?.plan?["policy"]?["audio"]?.string ?? "auto") == (original["policy"]?["audio"]?.string ?? "auto")
+        let sameMedia = sameAudio && snapshot.preview?.plan?["block"] == original["block"] && snapshot.preview?.plan?["sources"] == sources
         let path = sameMedia ? snapshot.reusableRenderPath : nil
         return .init(preview: preview, prepared: .init(payload: payload, update: edited["fields"]?.object ?? [:]), reusableRenderPath: path)
     }
@@ -92,19 +94,20 @@ final class CapturePreparation {
     func render(plan: JSONValue, draftID: UUID) async throws -> NativeRenderedMedia? {
         let selected = Set(plan["block"]?["selectedMedia"]?.array.compactMap(\.string) ?? [])
         guard !selected.isEmpty else { return nil }
-        let directory = container.appendingPathComponent("renders").appendingPathComponent(draftID.uuidString).appendingPathComponent(UUID().uuidString)
+        let workspace = try NativeMediaWorkspace(container: container, purpose: "render-inputs")
+        defer { workspace.discard() }
+        let directory = workspace.directory
+        let retainedDirectory = container.appendingPathComponent("renders").appendingPathComponent(draftID.uuidString).appendingPathComponent(UUID().uuidString)
         var media: [NativeStagedMedia] = [], probes: [String: JSONValue] = [:]
-        var completed = false
-        defer {
-            if completed { for asset in media { try? FileManager.default.removeItem(at: asset.fileURL) } }
-            else { try? FileManager.default.removeItem(at: directory) }
-        }
-        for asset in plan["sources"]?.array.flatMap({ $0["media"]?.array ?? [] }) ?? [] {
+        for asset in CaptureMediaTree.media(in: plan) {
             guard let ref = asset["ref"]?.string, selected.contains(ref), let originalKind = asset["kind"]?.string,
                   let originalAddress = asset["url"]?.string else { continue }
             let frame = plan["block"]?["frameMedia"]?.array.first { $0["ref"]?.string == ref }
             let kind = frame == nil ? originalKind : "image"
             let address = frame?["url"]?.string ?? originalAddress
+            if kind == "video", case .number(let duration) = asset["durationSeconds"], duration > 600 {
+                throw CaptureError.message("This video exceeds the 10-minute composition limit. Choose its Frame or capture text instead.")
+            }
             try Task.checkCancellation()
             let sources = try decode(await runtime.mediaSources(address))
             guard let resolved = sources["url"]?.string, let url = URL(string: resolved) else { throw CaptureError.message("Couldn't load the media link.") }
@@ -115,21 +118,31 @@ final class CapturePreparation {
             } else { audioURL = nil }
             let staged = try await NativeMediaRenderer.stage(ref: ref, kind: kind, source: url, directory: directory, audioSource: audioURL)
             media.append(staged)
+            if frame == nil, asset["acquisition"]?.string == "substack-public-original" {
+                guard case .number(let duration) = asset["durationSeconds"] else { throw CaptureError.message("The original media has no verified duration.") }
+                try NativeMediaRenderer.verifyOriginalDuration(expected: duration, actual: staged.duration)
+            }
             probes[ref] = .object(["width": .number(staged.width), "height": .number(staged.height), "duration": .number(staged.duration), "fps": .number(staged.fps), "audio": .bool(staged.hasAudio)])
         }
         guard media.count == selected.count else { throw CaptureError.message("Some selected media could not be prepared. No block was created.") }
+        if plan["block"]?["kind"]?.string == "audio" {
+            guard media.count == 1, let audio = media.first else { throw CaptureError.message("Capture one original audio attachment alone.") }
+            let result = try NativeMediaRenderer.originalAudio(audio, directory: directory)
+            try Task.checkCancellation()
+            return try workspace.promote(result, to: retainedDirectory)
+        }
         let recipe = try decode(runtime.renderRecipe(planJSON: json(plan), probesJSON: json(.object(probes))))
         let result = try await NativeMediaRenderer.render(recipe: NativeMediaRecipe(json: recipe), media: media, directory: directory)
-        try Task.checkCancellation(); completed = true
-        return result
+        try Task.checkCancellation()
+        return try workspace.promote(result, to: retainedDirectory)
     }
 
     /// Optional, image-only preview of the current selected composition. It is
     /// never stored on the draft or reused by the durable Save path.
-    func previewComposition(plan: JSONValue, draftID: UUID) async throws -> URL {
+    func previewComposition(plan: JSONValue, draftID: UUID) async throws -> NativeMediaPreview {
         let selected = Set(plan["block"]?["selectedMedia"]?.array.compactMap(\.string) ?? [])
         guard !selected.isEmpty else { throw CaptureError.message("Select media to preview.") }
-        let assets = (plan["sources"]?.array ?? []).flatMap { $0["media"]?.array ?? [] }
+        let assets = CaptureMediaTree.media(in: plan)
             .filter { selected.contains($0["ref"]?.string ?? "") }
         guard assets.count == selected.count else { throw CaptureError.message("The selected media is not ready for preview.") }
         let frames = plan["block"]?["frameMedia"]?.array ?? []
@@ -144,13 +157,13 @@ final class CapturePreparation {
            (1...5_000).contains(delay) { try await Task.sleep(for: .milliseconds(delay)) }
         #endif
 
-        let directory = container.appendingPathComponent("composition-previews")
-            .appendingPathComponent(draftID.uuidString).appendingPathComponent(UUID().uuidString)
+        let workspace = try NativeMediaWorkspace(container: container, purpose: "composition-preview")
+        let directory = workspace.directory
         var stagedFiles: [URL] = []
         var completed = false
         defer {
             if completed { for file in stagedFiles { try? FileManager.default.removeItem(at: file) } }
-            else { try? FileManager.default.removeItem(at: directory) }
+            else { workspace.discard() }
         }
         var media: [NativeStagedMedia] = [], probes: [String: JSONValue] = [:]
         for asset in assets {
@@ -217,7 +230,7 @@ final class CapturePreparation {
         let rendered = try await NativeMediaRenderer.render(recipe: layout, media: media, directory: directory)
         try Task.checkCancellation()
         completed = true
-        return rendered.fileURL
+        return NativeMediaPreview(fileURL: rendered.fileURL, workspace: workspace)
     }
 
     private func decode(_ value: String) throws -> JSONValue { try JSONDecoder().decode(JSONValue.self, from: Data(value.utf8)) }

@@ -1,12 +1,17 @@
 #!/usr/bin/env bun
+import { planMedia } from "../packages/core/media-tree.ts";
 import { snapshotDefaultChannel } from "./provenance-schema.ts";
 import { copyFile, open } from "node:fs/promises";
 import { join } from "node:path";
 import { isDeepStrictEqual } from "node:util";
-import { Command } from "commander";
+import { Command, Option } from "commander";
 import { ArenaBlockClient, PublicationError } from "./client.ts";
 import { composePlan, planHash } from "./compose.ts";
 import { SocialResolver } from "./providers/index.ts";
+import { SubstackProvider } from "../packages/core/providers/substack.ts";
+import { bindSubstackCaptures, normalizeSubstackCapture, SUBSTACK_CAPTURE_MAX_BYTES } from "../packages/core/substack-record.ts";
+import { RedditProvider } from "../packages/core/providers/reddit.ts";
+import { bindRedditCaptures, normalizeRedditCapture, REDDIT_CAPTURE_MAX_BYTES } from "../packages/core/reddit-record.ts";
 import type { MosaicMode } from "./mosaic-preview.ts";
 import { buildInfo } from "./version.ts";
 import type { ThreadDescription } from "./thread-capture.ts";
@@ -26,16 +31,19 @@ type Options = {
   videoFrameThreshold?: string;
   quoteDepth?: string;
   quoteDates?: CompositionPolicy["quoteDates"];
+  quoteAuthorLink?: CompositionPolicy["quoteAuthorLink"];
   audio?: string;
   quote?: CompositionPolicy["quote"];
   separator?: CompositionPolicy["separator"];
-  threadExpansion?: CompositionPolicy["threadExpansion"];
+  threadExpansion?: boolean;
   to?: string[];
   json?: boolean;
   output?: string;
   plan?: string;
   force?: boolean;
   extra?: string[];
+  substackCapture?: string[];
+  redditCapture?: string[];
   layout?: string;
   outputDir?: string;
   canvas?: string;
@@ -82,8 +90,9 @@ function policy(options: Options, postCount: number): Partial<CompositionPolicy>
     quote: options.quote ?? "block",
     ...(options.quoteDepth !== undefined ? { quoteDepth: options.quoteDepth === "full" ? "full" : Number(options.quoteDepth) } : {}),
     ...(options.quoteDates !== undefined ? { quoteDates: options.quoteDates } : {}),
+    ...(options.quoteAuthorLink !== undefined ? { quoteAuthorLink: options.quoteAuthorLink } : {}),
     separator: options.separator ?? "auto",
-    ...(options.threadExpansion ? { threadExpansion: options.threadExpansion } : {}),
+    threadExpansion: options.threadExpansion ? "on" : "off",
     ...(options.audio ? { audio: audioSource(options.audio, postCount) } : {}),
   };
 }
@@ -93,7 +102,7 @@ function displayPlan(plan: BlockPlan): string {
     const role = source.selection?.role ?? (plan.policy.mediaOnlyPosts?.includes(index + 1) ? "extra" : "primary");
     const origin = source.selection?.origin === "expanded" ? " · expanded" : "";
     const chosen = plan.block.selectedMedia.filter(ref => ref.startsWith(`${index + 1}.`)).length;
-    return `  ${index + 1}. ${role}${origin} · @${source.author.handle.replace(/^@/, "")} · ${chosen}/${source.media.length} media · ${source.canonicalUrl}`;
+    return `  ${index + 1}. ${role}${origin} · @${source.author.handle.replace(/^@/, "")} · ${chosen}/${planMedia(plan).filter(asset => asset.ref.startsWith(`${index + 1}.`)).length} media · ${source.canonicalUrl}`;
   });
   return [
     `${plan.block.title} · ${plan.block.kind} · ${plan.hash.slice(0, 12)}`,
@@ -112,14 +121,33 @@ async function readLocalPlan(path: string): Promise<BlockPlan> {
   return blockPlanSchema.parse(await file.json());
 }
 
-async function localPlan(values: string[], options: Options): Promise<{ plan: BlockPlan; destinations: string[] }> {
+async function captureInputs(values: string[], options: Options) {
+  const captures = [];
+  for (const path of options.redditCapture ?? []) {
+    const file = Bun.file(path);
+    if (file.size > REDDIT_CAPTURE_MAX_BYTES) throw new Error("Reddit capture file exceeds 2 MiB");
+    captures.push(normalizeRedditCapture(await file.json()));
+  }
+  const substack = [];
+  for (const path of options.substackCapture ?? []) {
+    const file = Bun.file(path);
+    if (file.size > SUBSTACK_CAPTURE_MAX_BYTES) throw new Error("Substack capture file exceeds 2 MiB");
+    substack.push(normalizeSubstackCapture(await file.json()));
+  }
   const inputs = splitInputs(values, options.to);
+  if (!inputs.refs.length) inputs.refs = [...captures, ...substack].map(capture => capture.sourceUrl);
+  const normalized = bindRedditCaptures([...inputs.refs, ...(options.extra ?? [])], captures);
+  return { inputs, resolver: new SocialResolver({ reddit: new RedditProvider(undefined, normalized), substack: new SubstackProvider(bindSubstackCaptures([...inputs.refs, ...(options.extra ?? [])], substack)) }) };
+}
+
+async function localPlan(values: string[], options: Options): Promise<{ plan: BlockPlan; destinations: string[] }> {
+  const { inputs, resolver } = await captureInputs(values, options);
   if (!inputs.refs.length) throw new Error("At least one source post or non-text Are.na block URL is required");
   const extras = options.extra ?? [];
   const refs = [...inputs.refs, ...extras];
   if (refs.length > 20) throw new Error("At most 20 source posts are supported");
   const composition = policy(options, refs.length);
-  const resolved = await new SocialResolver().resolveComposition(inputs.refs, extras, composition);
+  const resolved = await resolver.resolveComposition(inputs.refs, extras, composition);
   const plan = composePlan(resolved.posts, resolved.policy);
   return { plan, destinations: inputs.destinations };
 }
@@ -134,15 +162,19 @@ function client(): ArenaBlockClient {
 function addCompositionOptions(command: Command, extras = true): Command {
   if (extras) command.option("--extra <url>", "add media from a post or non-text Are.na block (repeatable); keep primary text", (value, values: string[]) => [...values, value], []);
   return command
-    .option("--media <mode>", "auto, none, all, video, audio (SoundCloud original download), images, indexes (1+4), or refs (1.1,1.4)", "auto")
+    .option("--substack-capture <path>", "import browser-observed public Substack Note prose and explicit source boundaries (repeatable)", (value, values: string[]) => [...values, value], [])
+    .option("--reddit-capture <path>", "import a public browser-observed Reddit record (repeatable); no browser session is imported", (value, values: string[]) => [...values, value], [])
+    .option("--media <mode>", "auto, none, all, video, audio (one original SoundCloud/Substack attachment), images, indexes (1+4), or refs (1.1,1.4)", "auto")
     .option("--frame <refs>", "use observed source poster frames for selected video refs (1.1,2.1)")
     .option("--video-frame-threshold <seconds>", "auto-use observed poster for videos longer than this (default 600; 1-600)")
-    .option("--thread-expansion <mode>", "auto (single Bluesky, Delvetown, or Forum Magnum comment seed), on (bounded x.com/AT Protocol threads or Forum Magnum replies), or off")
+    .addOption(new Option("-t, --thread-expansion", "expand bounded x.com/AT Protocol threads (Bluesky, Delvetown), Substack author chains, or Forum Magnum comment replies").default(false, "off"))
+    .addOption(new Option("--no-thread-expansion").hideHelp())
     .option("--media-order <refs>", "complete tile order using stable source refs (2.1,1.2,1.1); includes the first item")
     .option("--audio <mode>", "video-mosaic soundtrack: auto, mix, index (2), or post.media ref (1.2)")
     .option("--quote <mode>", "block, sequence, or omit", "block")
     .option("--quote-depth <depth>", "render 0-8 quote descendants (default 2), or full available chain bounded at 8")
     .option("--quote-dates <mode>", "auto (earlier comparable source day), source (literal timestamp), or none")
+    .addOption(new Option("--quote-author-link <mode>", "quoted author credit: source links the original post; plain leaves the name unlinked; omission keeps existing presentation").choices(["source", "plain"]))
     .option("--separator <mode>", "auto, always, or never", "auto")
     .option("--to <channel>", "Are.na channel slug or URL", (value, values: string[]) => [...values, value], []);
 }
@@ -185,7 +217,7 @@ const program = addCompositionOptions(new Command("arena-block"))
   .option("--json", "print stable JSON")
   .option("--config <path>", "private configuration file; never contains credential values")
   .action(async (refs: string[], options: Options) => {
-    if (!refs.length && !options.extra?.length) {
+    if (!refs.length && !options.extra?.length && !options.redditCapture?.length && !options.substackCapture?.length) {
       console.log(program.helpInformation());
       return;
     }
@@ -194,6 +226,18 @@ const program = addCompositionOptions(new Command("arena-block"))
   });
 
 program.enablePositionalOptions();
+// Composition flags may precede a subcommand. Preserve an explicit parent
+// choice unless the subcommand supplies its own choice.
+program.hook("preAction", (root, command) => {
+  if (command === root) return;
+  for (const key of ["threadExpansion", "quoteAuthorLink"] as const) {
+    const source = command.getOptionValueSource(key);
+    if (root.getOptionValueSource(key) === "cli" && (source === undefined || source === "default")
+      && command.options.some(option => option.attributeName() === key)) {
+      command.setOptionValueWithSource(key, root.opts()[key], "cli");
+    }
+  }
+});
 
 program.command("version").description("Report this CLI build and optionally the daemon build")
   .option("--daemon", "include the configured daemon")
@@ -201,13 +245,15 @@ program.command("version").description("Report this CLI build and optionally the
     console.log(JSON.stringify({ client: buildInfo(), ...(options.daemon ? { daemon: await client().version() } : {}) }, null, 2));
   });
 
-addCompositionOptions(program.command("resolve").description("Resolve provider-native post data").argument("<refs...>").option("--json", "print JSON"), false)
+addCompositionOptions(program.command("resolve").description("Resolve provider-native post data").argument("[refs...]").option("--json", "print JSON"), false)
   .action(async (refs: string[], options: Options) => {
-    const posts = await new SocialResolver().resolve(splitInputs(refs).refs, undefined, compositionPolicySchema.parse(policy(options, refs.length)));
+    const { inputs, resolver } = await captureInputs(refs, options);
+    if (!inputs.refs.length) throw new Error("At least one source URL or browser-capture file is required");
+    const posts = await resolver.resolve(inputs.refs, undefined, compositionPolicySchema.parse(policy(options, inputs.refs.length)));
     console.log(JSON.stringify(posts, null, options.json ? 2 : 0));
   });
 
-addCompositionOptions(program.command("plan").description("Create an immutable block plan").argument("<refs...>").option("--json", "print stable JSON"))
+addCompositionOptions(program.command("plan").description("Create an immutable block plan").argument("[refs...]").option("--json", "print stable JSON"))
   .action(async (refs: string[], options: Options) => {
     const { plan } = await localPlan(refs, options);
     console.log(options.json ? JSON.stringify(plan, null, 2) : displayPlan(plan));
@@ -221,7 +267,7 @@ addCompositionOptions(program.command("render").description("Render a local medi
   .option("--canvas <width>x<height>", "explicit-layout canvas; reading defaults to 4096x4096, wallpaper to 1440x2560")
   .option("--min-scale <number>", "reading-page minimum original pixel scale (default 1; smaller values explicitly allow downsampling)"))
   .action(async (refs: string[], options: Options) => {
-    if (options.plan && (refs.length || options.extra?.length)) throw new Error("--plan cannot accompany source URLs or --extra");
+    if (options.plan && (refs.length || options.extra?.length || options.redditCapture?.length || options.substackCapture?.length)) throw new Error("--plan cannot accompany source URLs, --extra, --reddit-capture, or --substack-capture");
     if (options.layout && !["reading", "wallpaper"].includes(options.layout)) throw new Error("--layout must be reading or wallpaper");
     if (options.layout ? (!options.outputDir || options.output) : (!options.output || options.outputDir || options.canvas || options.minScale)) {
       throw new Error("Normal rendering requires -o; --layout requires --output-dir and writes local preview pages");
@@ -263,7 +309,7 @@ addCompositionOptions(addReceiptOptions(program.command("publish").description("
   .action(async (refs: string[], options: Options) => {
     activeReceiptOptions = options;
     const display = receiptOutputMode(options, Boolean(process.stdout.isTTY));
-    if (options.plan && (refs.length || options.extra?.length)) throw new Error("--plan cannot accompany source URLs or --extra");
+    if (options.plan && (refs.length || options.extra?.length || options.redditCapture?.length || options.substackCapture?.length)) throw new Error("--plan cannot accompany source URLs, --extra, --reddit-capture, or --substack-capture");
     const planned = options.plan
       ? { plan: await readLocalPlan(options.plan), destinations: options.to ?? [] }
       : await localPlan(refs, options);
@@ -511,7 +557,42 @@ function publicationIssue(error: PublicationError): string {
   return error.message;
 }
 
-program.parseAsync().catch(async (error) => {
+function threadExpansionArguments(args: string[]): string[] {
+  const normalized: string[] = [];
+  const warnings = new Set<string>();
+  const commands = new Set(program.commands.flatMap(command => [command.name(), ...command.aliases()]));
+  for (let index = 0; index < args.length; index++) {
+    const arg = args[index]!;
+    if (arg === "--") { normalized.push(...args.slice(index)); break; }
+    if (arg !== "--thread-expansion" && arg !== "-t" && !arg.startsWith("--thread-expansion=")) {
+      normalized.push(arg); continue;
+    }
+    const attached = arg.startsWith("--thread-expansion=");
+    const next = args[index + 1];
+    const legacy = attached ? arg.slice("--thread-expansion=".length)
+      : arg === "--thread-expansion" && next !== undefined && ["on", "off", "auto"].includes(next) ? next : undefined;
+    if (legacy !== undefined) {
+      if (legacy === "auto") throw new Error("CLI thread expansion has no auto mode. Omit the flag to keep expansion off, or use -t / --thread-expansion to enable it.");
+      if (legacy !== "on" && legacy !== "off") throw new Error("--thread-expansion takes no value. Omit it for off, or use -t / --thread-expansion for on.");
+      if (!attached) index++;
+      normalized.push(legacy === "on" ? "--thread-expansion" : "--no-thread-expansion");
+      warnings.add(legacy === "on"
+        ? "Warning: --thread-expansion on is deprecated; use -t or --thread-expansion without a value."
+        : "Warning: --thread-expansion off is deprecated; omit the flag to keep expansion off.");
+      continue;
+    }
+    // A URL can immediately follow the boolean flag. Reject old mode-like
+    // words here so they never become source references or trigger acquisition.
+    if (next && !next.startsWith("-") && !/^[a-z][a-z0-9+.-]*:\/\//i.test(next) && !commands.has(next)) {
+      throw new Error(`${arg} takes no value. Omit it for off, or use -t / --thread-expansion for on; CLI auto mode is not supported.`);
+    }
+    normalized.push(arg);
+  }
+  for (const warning of warnings) console.error(warning);
+  return normalized;
+}
+
+Promise.resolve().then(() => program.parseAsync(threadExpansionArguments(process.argv.slice(2)), { from: "user" })).catch(async (error) => {
   if (error instanceof PublicationError && error.userInterrupted) {
     console.error(error.message);
     const receipt = error.receipt ?? error.saveStatus?.receipt;

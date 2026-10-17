@@ -106,8 +106,7 @@ function postFromView(post: Json, fallback: Extract<ParsedSource, { provider: "b
 
 type ThreadNode = { post: Json; parent?: unknown; replies?: unknown[] };
 
-// A conversation count or a sibling author reply cannot identify the OP chain.
-// Keep the strict tree checks, but allow stronger provider evidence to resolve it.
+// Use author-feed positions to identify the OP chain when the conversation response is incomplete.
 class ThreadNeedsAuthorEvidence extends Error {}
 
 type AuthorThreadEntry = { post: Json; index: number; count: number };

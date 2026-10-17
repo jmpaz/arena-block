@@ -39,3 +39,15 @@ iOS controls scheduling. A force-quit, offline period or revoked account can def
 Read [the architecture](Design/architecture.md) and [interaction flow](Design/interaction.md) before changing the editor or picker. `CaptureView`, `ChannelPicker` and `CaptureSession` provide the main UI and state transitions. The browser design study provides a visual reference; the native source and fixture tests determine current behavior.
 
 Run simulator tests through the generated `CaptureUITests` target. The background transport probe uses `CAPTURE_BACKGROUND_URL` to contact a controlled fixture server. Without that setting, the probe is skipped.
+
+## Reddit URL intake and retained records
+
+Paste a public post or comment URL, or share its page from Safari to Capture.
+Safari Share supplies the source URL; native Capture reads it through the shared
+HTTP provider. HTTP 401, 403 and 429 stop the read. See
+[source access](../docs/reddit-source-access.md) for current limits.
+
+Existing source records remain readable in drafts and save snapshots. Validation
+checks the supplied data; it cannot authenticate the observation time or establish
+current source availability. Capture commits a replacement snapshot before showing
+it and retains the selected draft and intake across reloads.

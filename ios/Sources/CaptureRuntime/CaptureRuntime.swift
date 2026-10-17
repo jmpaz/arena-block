@@ -1,6 +1,7 @@
 import CryptoKit
 import Foundation
 import JavaScriptCore
+import OSLog
 
 @MainActor
 public final class CaptureRuntime {
@@ -11,6 +12,8 @@ public final class CaptureRuntime {
     private var nextTimer = 0
     private var continuations: [String: CheckedContinuation<String, Error>] = [:]
     private let session: URLSession
+    private let sourceLog = Logger(subsystem: "net.fjpaz.arena-capture", category: "source")
+    public private(set) var lastSourceDiagnostic: String?
 
     public init() throws {
         guard let context = JSContext(), let resource = Bundle.module.url(forResource: "capture-core", withExtension: "js") else {
@@ -28,6 +31,11 @@ public final class CaptureRuntime {
         }
         let http: @convention(block) (Int, String) -> Void = { [weak self] id, request in self?.request(id: id, json: request) }
         let cancel: @convention(block) (Int) -> Void = { [weak self] id in self?.requests.removeValue(forKey: id)?.cancel() }
+        let diagnostic: @convention(block) (String) -> Void = { [weak self] value in
+            guard value.utf8.count <= 1024 else { return }
+            self?.lastSourceDiagnostic = value
+            self?.sourceLog.error("Source read detail: \(value, privacy: .private)")
+        }
         let complete: @convention(block) (String, JSValue, JSValue) -> Void = { [weak self] id, result, error in
             guard let continuation = self?.continuations.removeValue(forKey: id) else { return }
             if !error.isNull && !error.isUndefined { continuation.resume(throwing: RuntimeError(error.toString())) }
@@ -53,6 +61,7 @@ public final class CaptureRuntime {
         context.setObject(hash, forKeyedSubscript: "nativeSHA256" as NSString)
         context.setObject(http, forKeyedSubscript: "nativeHTTP" as NSString)
         context.setObject(cancel, forKeyedSubscript: "nativeCancelHTTP" as NSString)
+        context.setObject(diagnostic, forKeyedSubscript: "nativeSourceDiagnostic" as NSString)
         context.setObject(complete, forKeyedSubscript: "nativeResolveComplete" as NSString)
         context.setObject(setTimer, forKeyedSubscript: "setTimeout" as NSString)
         context.setObject(clearTimer, forKeyedSubscript: "clearTimeout" as NSString)
@@ -60,12 +69,11 @@ public final class CaptureRuntime {
         if let error = context.exception { throw RuntimeError(error.toString()) }
     }
 
-    public func resolve(refs: [String], extraRefs: [String] = [], policyJSON: String = "{}", refresh: Bool = false) async throws -> String {
+    public func resolve(refs: [String], extraRefs: [String] = [], policyJSON: String = "{}", refresh: Bool = false, redditCapturesJSON: String = "[]", substackCapturesJSON: String = "[]") async throws -> String {
+        lastSourceDiagnostic = nil
         let refsJSON = String(decoding: try JSONEncoder().encode(refs), as: UTF8.self)
-        var arguments = [refsJSON, policyJSON, refresh ? "true" : "false"]
-        if !extraRefs.isEmpty {
-            arguments.append(String(decoding: try JSONEncoder().encode(extraRefs), as: UTF8.self))
-        }
+        let arguments = [refsJSON, policyJSON, refresh ? "true" : "false",
+                         String(decoding: try JSONEncoder().encode(extraRefs), as: UTF8.self), redditCapturesJSON, substackCapturesJSON]
         return try await invokeAsync("captureResolve", arguments: arguments)
     }
 
@@ -100,6 +108,14 @@ public final class CaptureRuntime {
     }
 
     public func fields(planJSON: String) throws -> String { try invoke("captureFields", [planJSON]) }
+    public func importRedditCapture(_ value: String) throws -> String {
+        guard value.utf8.count <= 2 * 1024 * 1024 else { throw RuntimeError("Reddit capture exceeds 2 MiB") }
+        return try invoke("captureRedditImport", [value])
+    }
+    public func importSubstackCapture(_ value: String) throws -> String {
+        guard value.utf8.count <= 2 * 1024 * 1024 else { throw RuntimeError("Substack capture exceeds 2 MiB") }
+        return try invoke("captureSubstackImport", [value])
+    }
     public func source(_ value: String) throws -> String { try invoke("captureSource", [value]) }
     /// Convert an existing on-device authenticated Are.na read to a media source without transmitting its credential.
     public func arenaMediaPost(blockJSON: String, blockID: Int) throws -> String {
@@ -174,11 +190,11 @@ public struct RuntimeError: LocalizedError {
     public init(_ message: String) { errorDescription = message }
 }
 
-private final class CaptureRedirectDelegate: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
+final class CaptureRedirectDelegate: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
     func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
                     newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) {
-        let manual = task.taskDescription == "manual"
-        guard !manual, request.url?.scheme == "https", request.url?.user == nil, request.url?.password == nil else { completionHandler(nil); return }
+        let refusesRedirect = task.taskDescription == "manual" || task.taskDescription == "error"
+        guard !refusesRedirect, request.url?.scheme == "https", request.url?.user == nil, request.url?.password == nil else { completionHandler(nil); return }
         completionHandler(request)
     }
 }

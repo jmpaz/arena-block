@@ -151,11 +151,18 @@ public struct CaptureDraft: Codable, Identifiable, Sendable {
     public var input: String
     /// Explicit user choice to capture one original URL without provider content or metadata.
     public var originalLinkOnly: Bool?
+    /// Sanitized public records observed in the user-invoked browser share, without browser session data.
+    public var redditCapturesJSON: String?
+    public var substackCapturesJSON: String?
     public var media: MediaPolicy
     public var selectedMedia: [String]?
     public var videoFrames: [String]?
+    /// Video soundtrack policy: auto, mix, or a selected moving video's ref.
+    public var audio: String?
     public var videoFrameThresholdSeconds: Int?
     public var quoteDepth: CaptureQuoteDepth?
+    /// Nil retains legacy quote credits; an explicit choice applies only to this draft.
+    public var quoteAuthorLink: CaptureQuoteAuthorLink?
     /// Nil decodes older drafts as the shared core's default automatic mode.
     public var threadExpansion: CaptureThreadExpansion?
     /// One role per visible input row. Missing entries from older drafts are primary.
@@ -200,6 +207,29 @@ public struct CaptureDraft: Codable, Identifiable, Sendable {
 }
 
 public enum CaptureInput {
+    /// Note identity is in its verified path. Remove sharing parameters before
+    /// displaying intake, while leaving other providers' query/fragment IDs intact.
+    public static func canonicalSourceURL(_ url: URL) -> URL {
+        guard url.scheme?.lowercased() == "https", ["substack.com", "www.substack.com"].contains(url.host?.lowercased() ?? ""),
+              url.user == nil, url.password == nil, url.port == nil,
+              var components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              components.percentEncodedPath.range(of: #"^/(?:(@[A-Za-z0-9_]+|profile/[1-9][0-9]*(?:-[A-Za-z0-9_-]+)?)/)?note/c-[1-9][0-9]*/?$"#, options: .regularExpression) != nil else { return url }
+        components.scheme = "https"; components.host = "substack.com"
+        components.query = nil; components.fragment = nil
+        if components.path.hasSuffix("/") { components.path.removeLast() }
+        return components.url ?? url
+    }
+
+    public static func canonicalSourceText(_ text: String) -> String {
+        text.components(separatedBy: "\n").map { line in
+            let value = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard value.rangeOfCharacter(from: .whitespacesAndNewlines) == nil,
+                  let url = URL(string: value) else { return line }
+            let canonical = canonicalSourceURL(url)
+            return canonical == url ? line : canonical.absoluteString
+        }.joined(separator: "\n")
+    }
+
     /// Local preflight identity for post variants. The shared resolver remains
     /// authoritative for provider canonicalization and coverage.
     public static func canonicalSourceIdentity(_ url: URL) -> String {
@@ -210,6 +240,10 @@ public enum CaptureInput {
             return "\(provider):\(author.lowercased())/\(parts[1])"
         }
         let host = (url.host ?? "").lowercased().replacingOccurrences(of: #"^www\."#, with: "", options: .regularExpression)
+        if host == "substack.com", let range = url.path.range(of: #"/note/c-([1-9][0-9]*)/?$"#, options: .regularExpression) {
+            let identity = String(url.path[range]).replacingOccurrences(of: "/note/c-", with: "").trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            return "substack:\(identity)"
+        }
         if ["x.com", "twitter.com", "fixupx.com", "fxtwitter.com", "vxtwitter.com", "twittpr.com"].contains(host),
            let index = parts.firstIndex(of: "status"), parts.indices.contains(index + 1),
            !parts[index + 1].isEmpty, parts[index + 1].allSatisfy(\.isNumber) {
@@ -218,6 +252,20 @@ public enum CaptureInput {
         if ["bsky.app", "delve.town"].contains(host), parts.count == 4, parts[0] == "profile", parts[2] == "post" {
             let provider = host == "delve.town" ? "delve" : "bluesky"
             return "\(provider):\(parts[1].replacingOccurrences(of: "@", with: "").lowercased())/\(parts[3])"
+        }
+        if ["reddit.com", "old.reddit.com", "new.reddit.com", "redd.it"].contains(host),
+           url.scheme?.lowercased() == "https", url.user == nil, url.password == nil, url.port == nil {
+            let path = url.path
+            if parts.count == 2, parts[0] == "gallery", parts[1].range(of: #"^[a-z0-9]+$"#, options: .regularExpression) != nil {
+                return "reddit:\(parts[1]):"
+            }
+            let pattern = host == "redd.it" ? #"^/([a-z0-9]+)/?$"# : #"^/(?:r/[A-Za-z0-9_]+/)?comments/([a-z0-9]+)(?:/[^/]+(?:/([a-z0-9]+))?)?/?$"#
+            if let regex = try? NSRegularExpression(pattern: pattern),
+               let match = regex.firstMatch(in: path, range: NSRange(path.startIndex..., in: path)),
+               let postRange = Range(match.range(at: 1), in: path) {
+                let comment = match.numberOfRanges > 2 ? Range(match.range(at: 2), in: path).map { String(path[$0]) } : nil
+                return "reddit:\(path[postRange]):\(comment ?? "")"
+            }
         }
         if let site = ["lesswrong.com": "lesswrong", "greaterwrong.com": "lesswrong",
                        "alignmentforum.org": "alignment_forum", "forum.effectivealtruism.org": "ea_forum"][host] {
@@ -284,7 +332,7 @@ public enum CaptureInput {
         return matches.compactMap { match in
             guard let url = match.url, ["https", "http"].contains(url.scheme?.lowercased() ?? ""),
                   url.user == nil, url.password == nil, seen.insert(url.absoluteString).inserted else { return nil }
-            return url
+            return canonicalSourceURL(url)
         }
     }
 
@@ -311,7 +359,7 @@ public enum CaptureInput {
         }
         var seen = Set<String>()
         let links = candidates.sorted { $0.0 < $1.0 }.compactMap { _, url -> String? in
-            seen.insert(canonicalSourceIdentity(url)).inserted ? url.absoluteString : nil
+            seen.insert(canonicalSourceIdentity(url)).inserted ? canonicalSourceURL(url).absoluteString : nil
         }
         guard !links.isEmpty, links.count <= 20 else { return nil }
         return links.joined(separator: "\n")
