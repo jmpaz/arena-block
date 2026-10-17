@@ -2,13 +2,13 @@
 
 A quote credit can link its author label to the **quoted post**. This is a presentation choice. The quoted author identity, canonical post URL, authored text, quote order, dates, media ownership and retained source records remain unchanged.
 
-`policy.quoteAuthorLink` accepts `source` or `plain`. It is optional. An absent value preserves the existing presentation and immutable plan hash: Substack credits keep their current links; X, Bluesky and Delve credits keep their current plain labels. Existing saved items and queued plans are not rewritten.
+`policy.quoteAuthorLink` accepts `source` or `plain`. It is optional. An absent value preserves the existing presentation and immutable plan hash: Substack credits keep their current links; x.com, Bluesky and Delve credits keep their current plain labels. Existing saved items and queued plans are not rewritten.
 
 In Capture, use the per-capture **Quoted author** menu to choose **Keep current style**, **Link to quoted post** or **Name only**. The choice survives draft restoration and submission; it changes generated credits while preserving edited writing. Changing source presentation reuses the retained source tree. It does not request more quotes or change the native thread default.
 
-The explicit modes apply consistently across Substack, X, Bluesky and Delve, including nested quotes. They also apply to the shared composer's other supported quote providers. The link always targets the quoted post's canonical URL, never an inferred author profile. Omitting a quote still omits its credit; its retained source is not discarded.
+The explicit modes apply consistently across Substack, x.com, Bluesky and Delve, including nested quotes. They also apply to the shared composer's other supported quote providers. The link always targets the quoted post's canonical URL, never an inferred author profile. Omitting a quote still omits its credit; its retained source is not discarded.
 
-For a quoted X post, the generated Markdown changes as follows:
+For a quoted x.com post, the generated Markdown changes as follows:
 
 ```markdown
 # Link to quoted post

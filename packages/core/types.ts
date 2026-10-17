@@ -95,7 +95,7 @@ export type ResolvedPost = {
   text: string;
   /** Provider-observed reply parent, distinct from a quoted post. */
   replyTo?: { id: string; authorHandle?: string };
-  /** Exact X display-hidden leading mention span, validated against raw facets. */
+  /** Exact x.com display-hidden leading mention span, validated against raw facets. */
   replyAddressPrefix?: string;
   /** Bounded public author-chain evidence; unrelated conversation gaps are not missing author posts. */
   threadCoverage?: { scope: "author-chain"; replyGaps: { uri: string; reported?: number; returned: number; unavailable: number }[] };
