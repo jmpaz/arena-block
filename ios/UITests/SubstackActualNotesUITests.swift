@@ -85,13 +85,15 @@ final class SubstackActualNotesUITests: XCTestCase {
                 for _ in 0..<8 where !quoteImage.isHittable { app.swipeUp() }
                 XCTAssertTrue(quoteImage.waitForExistence(timeout:20))
                 XCTAssertTrue(quoteImage.label.contains("Quoted from @joodaloop"))
-                XCTAssertTrue((quoteImage.value as? String ?? "").contains("Included"))
+                XCTAssertTrue((quoteImage.value as? String ?? "").contains("Excluded"), quoteImage.debugDescription)
+                quoteImage.tap()
+                let included = XCTNSPredicateExpectation(predicate:NSPredicate(format:"value CONTAINS %@","Included"),object:quoteImage)
+                XCTAssertEqual(XCTWaiter.wait(for:[included],timeout:20),.completed)
                 quoteImage.tap()
                 let excluded = XCTNSPredicateExpectation(predicate:NSPredicate(format:"value CONTAINS %@","Excluded"),object:quoteImage)
                 XCTAssertEqual(XCTWaiter.wait(for:[excluded],timeout:20),.completed)
                 quoteImage.tap()
-                let included = XCTNSPredicateExpectation(predicate:NSPredicate(format:"value CONTAINS %@","Included"),object:quoteImage)
-                XCTAssertEqual(XCTWaiter.wait(for:[included],timeout:20),.completed)
+                XCTAssertEqual(XCTWaiter.wait(for:[XCTNSPredicateExpectation(predicate:NSPredicate(format:"value CONTAINS %@","Included"),object:quoteImage)],timeout:20),.completed)
                 let compose = app.buttons["capture.composition-preview.start"]
                 for _ in 0..<8 where !compose.isHittable { app.swipeUp() }
                 XCTAssertTrue(compose.waitForExistence(timeout:20)); compose.tap()

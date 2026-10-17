@@ -45,7 +45,12 @@ final class RuntimeTests: XCTestCase {
                 XCTAssertEqual((parent["quote"] as? [String: Any])?["id"] as? String, "346876542")
                 XCTAssertEqual((post["media"] as? [Any])?.count, 1)
                 XCTAssertEqual((parent["media"] as? [Any])?.count, 1)
-                XCTAssertEqual(block["selectedMedia"] as? [String],["1.1","1.2"])
+                XCTAssertEqual(block["selectedMedia"] as? [String],["1.1"])
+                let optedIn = try runtime.compose(postsJSON: String(decoding: JSONSerialization.data(withJSONObject: contrast["sources"]!), as: UTF8.self),
+                                                  policyJSON: #"{"media":"all","threadExpansion":"off"}"#)
+                let explicitEnvelope = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(optedIn.utf8)) as? [String: Any])
+                let explicitBlock = try XCTUnwrap((explicitEnvelope["plan"] as? [String: Any])?["block"] as? [String: Any])
+                XCTAssertEqual(explicitBlock["selectedMedia"] as? [String], ["1.1", "1.2"])
             } else { XCTAssertNil(post["quote"]) }
         }
     }

@@ -120,7 +120,8 @@ extension QuotedAVMediaTests {
         XCTAssertEqual(draft.selectedMedia,["1.2"]); XCTAssertEqual(draft.audio,"1.2")
         let restored = try JSONDecoder().decode(CaptureDraft.self,from:JSONEncoder().encode(draft))
         XCTAssertEqual(restored.audio,"1.2"); XCTAssertEqual(restored.compositionPolicy["audio"],.string("1.2"))
-        let sources = CaptureMediaTree.videoSoundtrackSources(in:try plan(.object([:])))
+        XCTAssertTrue(CaptureMediaTree.videoSoundtrackSources(in: try plan(.object([:]))).isEmpty)
+        let sources = CaptureMediaTree.videoSoundtrackSources(in:try plan(.object(["audio": .string("1.2")])))
         XCTAssertEqual(sources.flatMap(\.media).compactMap { $0["ref"]?.string },["1.2"])
         XCTAssertEqual(sources.first?.ownershipLabel,"Quoted from @inner")
     }

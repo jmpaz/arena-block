@@ -84,7 +84,12 @@ final class SubstackHTTPNoteTests: XCTestCase {
         XCTAssertTrue((source["text"]?.string ?? "").contains("and a themed grid at that!"))
         XCTAssertEqual(source["quote"]?["id"]?.string, "357819575")
         XCTAssertEqual(source["media"]?.array.count, 4)
-        XCTAssertEqual(plan["block"]?["selectedMedia"]?.array.count, 5)
+        XCTAssertEqual(plan["block"]?["selectedMedia"]?.array.compactMap(\.string), ["1.1", "1.2", "1.3", "1.4"])
+        XCTAssertEqual(source["quote"]?["media"]?.array.count, 1)
+        let optedIn = try CaptureRuntime().compose(postsJSON: String(decoding: JSONEncoder().encode(plan["sources"]!), as: UTF8.self),
+                                                  policyJSON: #"{"media":"all","threadExpansion":"off"}"#)
+        let explicitPlan = try JSONDecoder().decode(JSONValue.self, from: Data(optedIn.utf8))["plan"]
+        XCTAssertEqual(explicitPlan?["block"]?["selectedMedia"]?.array.count, 5)
         XCTAssertEqual(requested, [rootURL, quoteURL])
         let runtime = try CaptureRuntime()
         let encoded = String(decoding: try JSONEncoder().encode(plan), as: UTF8.self)
