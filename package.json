@@ -2,7 +2,7 @@
   "name": "arena-block",
   "version": "0.1.0",
   "license": "MIT",
-  "description": "Compose social posts into intentional Are.na blocks",
+  "description": "Capture social posts as editable Are.na blocks",
   "type": "module",
   "module": "src/index.ts",
   "bin": {

@@ -37,9 +37,9 @@ test("quote link CLI help names both explicit choices and leaves the default dec
   expect(result.code).toBe(0); expect(result.stderr).toBe(""); expect(result.acquired).toBeNull();
   const help = result.stdout.replace(/\s+/g, " ");
   expect(result.stdout).toContain("--quote-author-link <mode>");
-  expect(help).toContain("source links the original post");
-  expect(help).toContain("plain leaves the name unlinked");
-  expect(help).toContain("omission keeps existing presentation");
+  expect(help).toContain("source links to the quoted post");
+  expect(help).toContain("plain uses an unlinked name");
+  expect(help).toContain("Omit to keep the platform style");
   expect(result.stdout).toContain('choices: "source", "plain"');
   expect(result.stdout).not.toMatch(/quote-author-link[^\n]*default:/);
 });
