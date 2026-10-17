@@ -124,11 +124,18 @@ public struct CaptureRootView: View {
             if input?.isEmpty == false && session.draft?.phase != .saved { savedNotice = nil }
         }
         .onChange(of: session.account?.id) { _, _ in savedNotice = nil; historyPath = [] }
+        .onChange(of: session.foregroundWorkTicket) { _, ticket in
+            guard let ticket, session.allowsForegroundWork(ticket) else { return }
+            refreshContinuationOffer()
+            acknowledgeSave()
+            offerClipboard()
+        }
         .onChange(of: scenePhase) { _, phase in
             #if DEBUG
             session.logLockState("scenePhase.\(phase)")
             #endif
             if phase == .active {
+                guard let ticket = session.foregroundWorkTicket else { return }
                 if !isExtension {
                     do { try session.prepareForegroundDelivery() } catch { session.problem = error.localizedDescription }
                 }
@@ -136,7 +143,7 @@ public struct CaptureRootView: View {
                 if !session.busy {
                     do { try session.reloadAccount() } catch { session.problem = error.localizedDescription }
                 }
-                Task { await session.resumeDelivery() }
+                Task { await session.resumeForegroundDelivery(ifAdmitted: ticket) }
                 offerClipboard()
             } else {
                 session.persistOrReport()
@@ -147,10 +154,12 @@ public struct CaptureRootView: View {
             #if DEBUG
             session.logLockState("sceneTask")
             #endif
+            guard let ticket = session.foregroundWorkTicket else { return }
             if scenePhase == .active && !isExtension {
                 do { try session.prepareForegroundDelivery() } catch { session.problem = error.localizedDescription }
             }
-            await session.resumeDelivery()
+            await session.resumeForegroundDelivery(ifAdmitted: ticket)
+            guard session.allowsForegroundWork(ticket) else { return }
             refreshContinuationOffer()
             if session.draft?.phase == .editing && session.draft?.input.isEmpty == false { session.resolve() }
             acknowledgeSave()
@@ -1045,7 +1054,7 @@ public struct CaptureRootView: View {
     }
 
     private func acknowledgeSave() {
-        guard !isExtension, !session.busy, !session.isAddingPlacements,
+        guard session.foregroundWorkTicket != nil, !isExtension, !session.busy, !session.isAddingPlacements,
               let result = session.draft, !result.isCanceled, result.phase == .saved, result.blockID != nil else { return }
         if session.newCapture() {
             savedNotice = result
@@ -1063,7 +1072,7 @@ public struct CaptureRootView: View {
     }
 
     private func offerClipboard() {
-        guard !isExtension, session.automaticPaste, session.account != nil,
+        guard session.foregroundWorkTicket != nil, !isExtension, session.automaticPaste, session.account != nil,
               session.incomingLinks.isEmpty, session.draft?.input.isEmpty == true,
               offeredClipboard != UIPasteboard.general.changeCount else { return }
         offeredClipboard = UIPasteboard.general.changeCount

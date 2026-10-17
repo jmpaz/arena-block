@@ -30,7 +30,7 @@ struct CaptureApp: App {
             else if applicationDelegate.launchGate.isolatedReport {
                 CaptureStorageReportView(owner: applicationDelegate)
             } else if let session = applicationDelegate.visibleSession {
-                CaptureRootView(session: session, storageReport: { applicationDelegate.launchGate.requestReport() })
+                CaptureRootView(session: session, storageReport: { applicationDelegate.requestStorageReport() })
                     .sheet(isPresented: Binding(get: { applicationDelegate.launchGate.destination == .report }, set: { _ in })) {
                         CaptureStorageReportView(owner: applicationDelegate).interactiveDismissDisabled()
                     }
@@ -69,24 +69,33 @@ final class CaptureApplicationDelegate: NSObject, UIApplicationDelegate, Observa
     }
 
     func receive(_ url: URL) {
-        if CaptureLaunchPolicy.storageReportURL(url, scheme: Self.callbackScheme) { launchGate.requestReport() }
+        if CaptureLaunchPolicy.storageReportURL(url, scheme: Self.callbackScheme) { requestStorageReport() }
     }
 
     func application(_ application: UIApplication, configurationForConnecting connectingSceneSession: UISceneSession,
                      options: UIScene.ConnectionOptions) -> UISceneConfiguration {
         let diagnostic = options.urlContexts.contains { CaptureLaunchPolicy.storageReportURL($0.url, scheme: Self.callbackScheme) }
+        if diagnostic { requestStorageReport() }
         launchGate.connectScene(reportRequested: diagnostic)
         if launchGate.destination == .capture { openCapture() }
         // Keep SwiftUI's scene configuration and delegate intact.
         return connectingSceneSession.configuration
     }
 
-    func openCapture() {
+    func requestStorageReport() {
+        Self.session?.holdForegroundForStorageReport()
+        launchGate.requestReport()
+    }
+
+    func openCapture(resumeForeground: Bool = false) {
         guard !Self.storageAuditOnly else { return }
         launchGate.requestCapture()
         do {
             visibleSession = try Self.makeSession()
             deferredBackgroundEvents.drain { identifier, completion in handleBackground(identifier, completionHandler: completion) }
+            if resumeForeground, let session = visibleSession, let ticket = session.releaseForegroundAfterStorageReport() {
+                Task { await session.resumeForegroundAfterStorageReport(ifAdmitted: ticket) }
+            }
         } catch { startupError = error.localizedDescription }
     }
 

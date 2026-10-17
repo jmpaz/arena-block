@@ -134,7 +134,7 @@ struct SettingsView: View {
             if let exportStorageReport {
                 Section {
                     Button("Export storage report", action: exportStorageReport)
-                } header: { Text("Storage") } footer: { Text("Existing saves may continue while you create a report.") }
+                } header: { Text("Storage") } footer: { Text("New foreground checks pause until you choose Open Capture. Existing save processing may continue.") }
             }
         }
         .contentMargins(.top, 24, for: .scrollContent)

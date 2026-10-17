@@ -34,6 +34,11 @@ public final class CaptureSession {
     var busy = false
     var deliveryRevision = 0
     var transferRevision = 0
+    private var foregroundAdmission = CaptureForegroundAdmission()
+    public var foregroundWorkTicket: CaptureForegroundAdmission.Ticket? { foregroundAdmission.ticket }
+    public func allowsForegroundWork(_ ticket: CaptureForegroundAdmission.Ticket) -> Bool { foregroundAdmission.allows(ticket) }
+    public func holdForegroundForStorageReport() { foregroundAdmission.hold() }
+
     public var scheduleRecovery: (() -> Void)?
     public var beginSubmission: (() -> Void)?
     public var startContinuedProcessing: ((UUID) -> Void)?
@@ -235,7 +240,12 @@ public final class CaptureSession {
         delivery.changed = { [weak self] in self?.refreshDelivery() }
         delivery.progressChanged = { [weak self] in self?.refreshTransferProgress() }
         try delivery.refreshPreparationFailures()
-        Task { await configureInitialDefault(); await delivery.resume() }
+        let initialForegroundTicket = foregroundWorkTicket
+        Task {
+            guard let ticket = initialForegroundTicket else { return }
+            await configureInitialDefault(ifAdmitted: ticket)
+            await resumeForegroundDelivery(ifAdmitted: ticket)
+        }
     }
 
     func reloadAccount() throws {
@@ -288,6 +298,7 @@ public final class CaptureSession {
     func connect(token: String) async {
         guard !busy else { return }
         busy = true; defer { busy = false }
+        let foregroundTicket = foregroundWorkTicket
         do {
             let cleaned = token.trimmingCharacters(in: .whitespacesAndNewlines)
             let identity = try await ArenaAPI(token: cleaned).me()
@@ -295,13 +306,17 @@ public final class CaptureSession {
             try store.save(identity, account: 0, kind: "account", id: "current")
             try reloadAccount()
             problem = nil
-            await configureInitialDefault()
+            guard let ticket = foregroundTicket, allowsForegroundWork(ticket) else { return }
+            await configureInitialDefault(ifAdmitted: ticket)
+            guard allowsForegroundWork(ticket) else { return }
             try refreshIncoming()
             for id in try store.recordIDs(account: 0, kind: "delivery") {
                 guard let job = try store.value(DeliveryJob.self, account: 0, kind: "delivery", id: id), job.draft.accountID == identity.id, job.stage == .attention, job.problem?.hasPrefix("Reconnect") == true else { continue }
+                guard allowsForegroundWork(ticket) else { return }
                 await delivery.retry(job.id)
             }
-            await delivery.resume()
+            await resumeForegroundDelivery(ifAdmitted: ticket)
+            guard allowsForegroundWork(ticket) else { return }
             if incomingLinks.count == 1 {
                 busy = false
                 useIncoming(incomingLinks[0])
@@ -343,8 +358,8 @@ public final class CaptureSession {
         }
     }
 
-    private func configureInitialDefault() async {
-        guard !sharePresentationClosed, !isPreviewFixture, let account, account.id == initialDefaultAccountID,
+    private func configureInitialDefault(ifAdmitted ticket: CaptureForegroundAdmission.Ticket) async {
+        guard allowsForegroundWork(ticket), !sharePresentationClosed, !isPreviewFixture, let account, account.id == initialDefaultAccountID,
               let identifier = initialDefaultChannelID, identifier > 0, let api else { return }
         do {
             let configured = try store.value(Bool.self, account: account.id, kind: "defaultSeedApplied", id: "default") == true
@@ -352,8 +367,10 @@ public final class CaptureSession {
                                                                targetChannelID: identifier, replacingChannelID: initialReplacedDefaultChannelID,
                                                                currentDefaultID: defaultChannel?.id, alreadyConfigured: configured) else { return }
             let current = try await api.me()
+            guard allowsForegroundWork(ticket) else { return }
             guard current.id == account.id else { throw CaptureError.message("The configured default belongs to a different account.") }
             let channel = try CaptureDefaultRoute.verifiedProvenanceChannel(try await api.channel(String(identifier)), accountID: account.id, expectedChannelID: identifier)
+            guard allowsForegroundWork(ticket) else { return }
             let nowConfigured = try store.value(Bool.self, account: account.id, kind: "defaultSeedApplied", id: "default") == true
             guard !sharePresentationClosed, self.account?.id == account.id,
                   CaptureDefaultRoute.shouldApplyInitialDefault(accountID: account.id, configuredAccountID: initialDefaultAccountID,
@@ -361,7 +378,10 @@ public final class CaptureSession {
                                                                currentDefaultID: defaultChannel?.id, alreadyConfigured: nowConfigured) else { return }
             let storedPolicy = try store.value(DefaultChannelPolicy.self, account: account.id, kind: "defaultPolicy", id: "default")
             try setDefault(channel, seededPolicy: storedPolicy == nil ? DefaultChannelPolicy(mode: initialDefaultMode) : nil)
-        } catch { problem = "Couldn't load the default channel. Choose one in Settings. " + error.localizedDescription }
+        } catch {
+            guard allowsForegroundWork(ticket) else { return }
+            problem = "Couldn't load the default channel. Choose one in Settings. " + error.localizedDescription
+        }
     }
 
     func remember(_ channels: [Channel]) throws {
@@ -1195,7 +1215,7 @@ public final class CaptureSession {
     /// SwiftUI scenes deliver foreground activation even when the application
     /// delegate does not receive applicationDidBecomeActive.
     public func prepareForegroundDelivery() throws {
-        guard !isPreviewFixture else { return }
+        guard foregroundWorkTicket != nil, !isPreviewFixture else { return }
         for id in try pauseUnclaimedContinuedSaves() { cancelContinuedProcessing?(id) }
     }
 
@@ -1243,6 +1263,28 @@ public final class CaptureSession {
         #endif
         do { try delivery.attach(identifier, completion: completion) }
         catch { completion() }
+    }
+
+    public func resumeForegroundDelivery(ifAdmitted ticket: CaptureForegroundAdmission.Ticket) async {
+        guard allowsForegroundWork(ticket), !isPreviewFixture, !sharePresentationClosed else { return }
+        await delivery.resume()
+        guard allowsForegroundWork(ticket) else { return }
+        refreshDelivery()
+    }
+
+    public func releaseForegroundAfterStorageReport() -> CaptureForegroundAdmission.Ticket? {
+        foregroundAdmission.release() ? foregroundWorkTicket : nil
+    }
+
+    public func resumeForegroundAfterStorageReport(ifAdmitted ticket: CaptureForegroundAdmission.Ticket) async {
+        await configureInitialDefault(ifAdmitted: ticket)
+        guard allowsForegroundWork(ticket) else { return }
+        do { try prepareForegroundDelivery() } catch { problem = error.localizedDescription }
+        refreshSharedIntake()
+        if !busy { do { try reloadAccount() } catch { problem = error.localizedDescription } }
+        await resumeForegroundDelivery(ifAdmitted: ticket)
+        guard allowsForegroundWork(ticket) else { return }
+        if draft?.phase == .editing && draft?.input.isEmpty == false { resolve() }
     }
 
     public func resumeDelivery() async { guard !isPreviewFixture, !sharePresentationClosed else { return }; await delivery.resume(); refreshDelivery() }

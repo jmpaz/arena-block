@@ -30,7 +30,7 @@ struct CaptureStorageReportView: View {
                 Section {
                     Text("Review file sizes and saved capture references, then save the report to Files.")
                     if normalAlreadyActive {
-                        Text("Capture is already running. Existing saves may continue during collection.")
+                        Text("Automatic foreground checks are paused. Existing save processing may continue through the queue.")
                             .foregroundStyle(.orange)
                     } else {
                         Text("iOS and the Share extension may continue existing transfers.")
@@ -74,7 +74,7 @@ struct CaptureStorageReportView: View {
             }
             .navigationTitle("Storage report")
             .confirmationDialog("Open Capture?", isPresented: $openCapture, titleVisibility: .visible) {
-                Button("Open Capture") { cancel(); owner.openCapture() }
+                Button("Open Capture") { cancel(); owner.openCapture(resumeForeground: true) }
             } message: { Text("Opening Capture can resume existing saves.") }
             .fileExporter(isPresented: $exporting, document: document, contentType: .json,
                           defaultFilename: "Capture-storage-report") { result in

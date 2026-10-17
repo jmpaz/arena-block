@@ -15,11 +15,12 @@
       "Choose Create report, then Save report to Files"
     ],
     "defaultSourceLink": "arena-capture://storage-report",
-    "existingProcess": "The report is presented over the existing Capture view without destroying previews. Settings uses a direct in-process action, not a self-openURL round trip. Existing normal saves/lifecycle continue; the collector does not pause or retry them.",
+    "existingProcess": "The report is presented over the existing Capture view. Settings and URL routes hold new automatic foreground work in the session before showing the report. Existing save passes and background/continued handling can still advance queued captures.",
     "backgroundEventWinsBeforeRoute": "Ordinary background/explicit save-intent ownership remains valid. A subsequent report is labeled normal Capture already active; no false isolated-entry claim.",
     "coldBackgroundEvent": "Cancel collection, record interruption, preserve OS completion callbacks without reconnecting or acknowledging undrained events. The user must explicitly confirm Open Capture for ordinary handling. Duplicate session identifiers are attached once and completions fan out once.",
     "return": "Open Capture requires a separate confirmation that ordinary saves can resume. Canceling, backgrounding, exporting or dismissing the system file picker never opens normal Capture automatically.",
-    "doNotForceQuitForDiagnosis": true
+    "doNotForceQuitForDiagnosis": true,
+    "foregroundHold": "Session-owned generation tickets block automatic scene/root/initializer/default-channel work. Cancellation, Files return, backgrounding and view dismissal retain the hold. Confirmed Open Capture releases it synchronously once; stale work stays invalid after release."
   },
   "bounds": {
     "elapsedSecondsCooperative": 30,
@@ -54,6 +55,7 @@
     "Actual Settings sheet keeps the existing preview workspace alive",
     "Generate/cancel/background/file-picker cancellation and insufficient export space",
     "Background-event interruption and explicit completion handoff within OS time limits",
-    "Export receipt identity and snapshot scope; unknown dependencies remain protected"
+    "Export receipt identity and snapshot scope; unknown dependencies remain protected",
+    "Warm report activation, Files return and confirmed exit with the session-owned foreground hold on the normal app binary"
   ]
 }
