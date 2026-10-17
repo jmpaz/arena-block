@@ -79,7 +79,7 @@ test("browser fresh resolution excludes quoted images and its existing checkbox 
   expect(revisePlan(chosen, { policy: mediaSelectionPolicy(chosen, "1.2", false) }).block.selectedMedia).toEqual(["1.1"]);
 });
 
-test("CLI Auto excludes nested quotes while All and refs explicitly include them", () => {
+test("CLI Auto and All exclude quote-only media while exact refs opt in", () => {
   const invoke = (...args: string[]) => {
     const output = Bun.spawnSync([Bun.which("bun")!, "--preload", `${import.meta.dir}/fixtures/quote-depth-cli.ts`, "src/cli.ts", "plan", "https://x.com/author100/status/100", ...args, "--json"], {
       cwd: `${import.meta.dir}/..`, env: { ...process.env, ARENA_BLOCK_ACCESS_TOKEN: "" }, stdout: "pipe", stderr: "pipe",
@@ -88,7 +88,7 @@ test("CLI Auto excludes nested quotes while All and refs explicitly include them
     return JSON.parse(new TextDecoder().decode(output.stdout));
   };
   expect(invoke().block.selectedMedia).toEqual(["1.1"]);
-  expect(invoke("--media", "all").block.selectedMedia).toEqual(["1.1", "1.2", "1.3"]);
+  expect(invoke("--media", "all").block.selectedMedia).toEqual(["1.1"]);
   expect(invoke("--media", "1.2").block.selectedMedia).toEqual(["1.2"]);
 });
 

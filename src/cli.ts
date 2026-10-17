@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 import { planMedia } from "../packages/core/media-tree.ts";
+import { selectedPostMediaPolicy } from "./cli-media.ts";
 import { snapshotDefaultChannel } from "./provenance-schema.ts";
 import { copyFile, open } from "node:fs/promises";
 import { join } from "node:path";
@@ -148,7 +149,7 @@ async function localPlan(values: string[], options: Options): Promise<{ plan: Bl
   if (refs.length > 20) throw new Error("At most 20 source posts are supported");
   const composition = policy(options, refs.length);
   const resolved = await resolver.resolveComposition(inputs.refs, extras, composition);
-  const plan = composePlan(resolved.posts, resolved.policy);
+  const plan = composePlan(resolved.posts, selectedPostMediaPolicy(resolved.posts, resolved.policy));
   return { plan, destinations: inputs.destinations };
 }
 
@@ -164,7 +165,7 @@ function addCompositionOptions(command: Command, extras = true): Command {
   return command
     .option("--substack-capture <path>", "import browser-observed public Substack Note prose and explicit source boundaries (repeatable)", (value, values: string[]) => [...values, value], [])
     .option("--reddit-capture <path>", "import a public browser-observed Reddit record (repeatable); no browser session is imported", (value, values: string[]) => [...values, value], [])
-    .option("--media <mode>", "auto, none, all, video, audio (one original SoundCloud/Substack attachment), images, indexes (1+4), or refs (1.1,1.4)", "auto")
+    .option("--media <mode>", "auto, none, all, images, video, audio, indexes (1+4) or refs (1.1,1.4); all/types exclude quote-only media", "auto")
     .option("--frame <refs>", "use observed source poster frames for selected video refs (1.1,2.1)")
     .option("--video-frame-threshold <seconds>", "auto-use observed poster for videos longer than this (default 600; 1-600)")
     .addOption(new Option("-t, --thread-expansion", "expand bounded x.com/AT Protocol threads (Bluesky, Delvetown), Substack author chains, or Forum Magnum comment replies").default(false, "off"))

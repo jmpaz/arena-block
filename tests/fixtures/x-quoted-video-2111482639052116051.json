@@ -1,0 +1,61 @@
+{
+  "sourceUrl": "https://x.com/tracewoodgrains/status/2111482639052116051",
+  "observedAt": "2026-10-17T20:16:02.926070+00:00",
+  "acquisition": "FxTwitter via installed CLI plan; read-only public source",
+  "sources": [
+    {
+      "provider": "x",
+      "id": "2111482639052116051",
+      "canonicalUrl": "https://x.com/tracewoodgrains/status/2111482639052116051",
+      "author": {
+        "handle": "tracewoodgrains",
+        "name": "Jack"
+      },
+      "text": "Claims:\n\nGame detects “ad whales,” then periodically gives them smooth runs until they barely beat their high scores. Right at that point, it kills them deliberately and offers a revive if they watch an ad.\n\n$100 million annually in revenue. Hellish.",
+      "postedAt": "Sat Oct 17 15:41:05 +0000 2026",
+      "media": [],
+      "quote": {
+        "provider": "x",
+        "id": "2110461702936695263",
+        "canonicalUrl": "https://x.com/TheDonAyo/status/2110461702936695263",
+        "author": {
+          "handle": "TheDonAyo",
+          "name": "Ayo O"
+        },
+        "text": "i used AI to reverse engineer the block blaster mobile app.",
+        "postedAt": "Wed Oct 14 20:04:15 +0000 2026",
+        "media": [
+          {
+            "ref": "1.1",
+            "kind": "video",
+            "url": "https://video.twimg.com/amplify_video/2110461656274964480/vid/avc1/1080x1920/2Sdh9qqNJkmQJxGR.mp4?tag=29",
+            "id": "2110461656274964480",
+            "width": 1080,
+            "height": 1920,
+            "durationSeconds": 65.299,
+            "posterUrl": "https://pbs.twimg.com/amplify_video_thumb/2110461656274964480/img/nI2AaPZ_7x_X1bY_.jpg",
+            "alt": ""
+          }
+        ]
+      },
+      "quoteCoverage": {
+        "maxDepth": 8,
+        "actualDepth": 1,
+        "acquisitionDepth": 2,
+        "mayExpand": false,
+        "maxReached": false,
+        "truncated": false,
+        "stopped": "end",
+        "sourceIds": [
+          "2111482639052116051",
+          "2110461702936695263"
+        ]
+      },
+      "selection": {
+        "role": "primary",
+        "origin": "explicit",
+        "declaredIndex": 1
+      }
+    }
+  ]
+}
