@@ -1,6 +1,6 @@
 # CLI media choices
 
-`--media all` includes every attachment of the selected posts. That includes each requested primary URL, posts added by thread expansion and explicit `--extra` sources. `--media images`, `video` and `audio` filter the same selected-post set by type. Original audio remains limited to one supported attachment per capture.
+`--media all` includes every acquired attachment of the selected posts. That includes each requested primary URL, posts added by thread expansion and explicit `--extra` sources. `--media images`, `video` and `audio` filter the same selected-post set by type. Original audio remains limited to one supported attachment per capture.
 
 Media encountered only through a quoted post stays unselected. Quote text and source attribution remain included. A post requested directly or reached through ordinary thread traversal contributes its own media even if another selected post also quotes it; the quoted copy is not selected twice.
 
