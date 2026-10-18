@@ -9,17 +9,38 @@ const directory = await mkdtemp(join(tmpdir(), "arena-cli-thread-"));
 const preload = join(directory, "source-fixture.ts");
 const bskyFixture = join(import.meta.dir, "fixtures/bluesky-op-thread.json");
 const xSource = "https://x.com/threadwriter/status/102";
+const forumSource = "https://www.lesswrong.com/posts/5GnwjxbL3SQ7gjRn6/open-thread-july-16-22-2013#gFRKkcyXDTiKkug56";
+const forumPost = { _id: "5GnwjxbL3SQ7gjRn6", title: "Open thread, July 16-22, 2013",
+  pageUrl: forumSource.split("#")[0], postedAt: "2013-07-16T00:00:00.000Z", status: 2,
+  user: { username: "container-author" }, contents: { html: "<p>Unselected container body.</p>" } };
+const forumComments = [
+  { _id: "gFRKkcyXDTiKkug56", username: "gwern", text: "Selected comment fixture." },
+  { _id: "ReplyCommentABC12", username: "reader", text: "Direct reply fixture.", parentCommentId: "gFRKkcyXDTiKkug56" },
+  { _id: "SiblingComment12", username: "other", text: "Unrelated open-thread comment." },
+].map(({ username, text, ...comment }) => ({ ...comment, postId: forumPost._id,
+  pageUrl: `${forumPost.pageUrl}?commentId=${comment._id}`, postedAt: "2013-07-20T00:00:00.000Z",
+  deleted: false, deletedPublic: false, user: { username }, contents: { html: `<p>${text}</p>` } }));
 const xPosts = [101, 102, 103].map((id, index) => ({ id: String(id), author: { id: "writer-1", screen_name: "threadwriter" },
   text: `Thread part ${index + 1}.`, created_at: "Fri Oct 16 09:00:00 +0000 2026",
   ...(index ? { replying_to: { status: String(id - 1), screen_name: "threadwriter" } } : {}) }));
 await Bun.write(preload, `
 const fixture = await Bun.file(${JSON.stringify(bskyFixture)}).json();
 const posts = ${JSON.stringify(xPosts)};
+const forumPost = ${JSON.stringify(forumPost)};
+const forumComments = ${JSON.stringify(forumComments)};
 const calls = [];
 globalThis.fetch = async (input, init) => {
   const url = new URL(String(input));
-  calls.push({ url: url.href, method: init?.method ?? "GET" });
+  const forumRequest = url.href === "https://www.lesswrong.com/graphql" ? JSON.parse(String(init?.body)) : undefined;
+  calls.push({ url: url.href, method: init?.method ?? "GET", ...(forumRequest ? { variables: forumRequest.variables } : {}) });
   await Bun.write(process.env.ARENA_THREAD_TEST_LEDGER, JSON.stringify(calls));
+  if (forumRequest) {
+    const { query, variables } = forumRequest;
+    if (query.includes("ForumPost") && variables.id === forumPost._id) return Response.json({ data: { post: { result: forumPost } } });
+    if (query.includes("ForumComment")) return Response.json({ data: { comment: { result: forumComments.find(comment => comment._id === variables.id) ?? null } } });
+    if (query.includes("ForumReplies") && variables.terms.view === "commentReplies" && variables.terms.parentCommentId)
+      return Response.json({ data: { comments: { results: forumComments.filter(comment => comment.parentCommentId === variables.terms.parentCommentId) } } });
+  }
   if (url.origin === "https://api.fxtwitter.com" && url.pathname === "/2/thread/102") return Response.json({ code: 200, status: posts[1], thread: posts });
   if (url.origin === "https://api.fxtwitter.com" && url.pathname === "/threadwriter/status/102") return Response.json({ code: 200, tweet: posts[1] });
   if (url.origin === "https://public.api.bsky.app" && url.pathname.endsWith("getPostThread")) return Response.json(fixture.thread);
@@ -37,7 +58,7 @@ async function cli(args: string[]) {
     stdout: "pipe", stderr: "pipe",
   });
   const [stdout, stderr, code] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited]);
-  return { stdout, stderr, code, calls: await Bun.file(ledger).json() as { url: string; method: string }[] };
+  return { stdout, stderr, code, calls: await Bun.file(ledger).json() as { url: string; method: string; variables?: { terms?: { view: string; parentCommentId: string; limit: number } } }[] };
 }
 
 describe("CLI thread expansion", () => {
@@ -134,6 +155,34 @@ describe("CLI thread expansion", () => {
       const resolved = await cli(["resolve", xSource, ...flags, "--json"]);
       expect(resolved.code).toBe(0); expect(JSON.parse(resolved.stdout).map((post: { id: string }) => post.id)).toEqual(["102"]);
       expect(resolved.calls).toEqual([{ method: "GET", url: "https://api.fxtwitter.com/threadwriter/status/102" }]);
+    }
+  });
+
+  test("LessWrong fragment publish dry-run keeps the selected comment while -t adds its replies", async () => {
+    const destination = "https://www.are.na/josh-pazmino/on-writing-xbolnqpetki";
+    const config = join(directory, "forum-config.json");
+    await Bun.write(config, JSON.stringify({ provenance: { local: false, remoteSnapshot: "none" } }));
+    for (const flags of [[], ["-t"]]) {
+      const result = await cli(["publish", ...flags, "--media", "auto", "--to", destination, forumSource,
+        "--dry-run", "--config", config]);
+      expect(result.code).toBe(0); expect(result.stderr).toBe("");
+      const snapshot = JSON.parse(result.stdout).snapshot;
+      const plan = snapshot.plan as BlockPlan;
+      expect(snapshot.invocation.inputs.sourceRefs).toEqual([forumSource]);
+      expect(snapshot.routing.requestedDestinations).toEqual(["on-writing-xbolnqpetki"]);
+      expect(plan.policy).toMatchObject({ media: "auto", threadExpansion: flags.length ? "on" : "off" });
+      expect(plan.sources.map(post => post.id)).toEqual(flags.length
+        ? ["gFRKkcyXDTiKkug56", "ReplyCommentABC12"] : ["gFRKkcyXDTiKkug56"]);
+      expect(plan.sources[0]?.selection).toMatchObject({ origin: "explicit", declaredIndex: 1 });
+      expect(plan.block.canonicalSource).toBe(`${forumPost.pageUrl}?commentId=gFRKkcyXDTiKkug56`);
+      expect(plan.block.title).toBe("Comment by gwern on “Open thread, July 16-22, 2013”");
+      expect(plan.block.markdown).toContain("Selected comment fixture.");
+      expect(plan.block.markdown).not.toContain("Unselected container body.");
+      expect(plan.block.markdown).not.toContain("Unrelated open-thread comment.");
+      expect(plan.block.selectedMedia).toEqual([]);
+      expect(result.calls.every(call => call.url === "https://www.lesswrong.com/graphql" && call.method === "POST")).toBe(true);
+      expect(result.calls.flatMap(call => call.variables?.terms ? [call.variables.terms] : [])).toEqual(flags.length
+        ? [{ view: "commentReplies", parentCommentId: "gFRKkcyXDTiKkug56", limit: 9 }] : []);
     }
   });
 
