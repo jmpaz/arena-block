@@ -53,9 +53,14 @@ export async function resolveSoundCloudShareURL(value: string, fetcher: SourceFe
 }
 
 export async function resolveSourceRefs(refs: string[], fetcher: SourceFetcher = fetch, signal?: AbortSignal): Promise<string[]> {
-  const pending = new Map<string, Promise<string>>();
-  return Promise.all(refs.map(ref => {
+  const shares = refs.map(ref => {
     const share = soundCloudShareURL(ref);
+    if (!share) parseSource(ref);
+    return share;
+  });
+  const pending = new Map<string, Promise<string>>();
+  return Promise.all(refs.map((ref, index) => {
+    const share = shares[index];
     if (!share) return ref;
     let result = pending.get(share);
     if (!result) { result = resolveSoundCloudShareURL(share, fetcher, { signal }); pending.set(share, result); }

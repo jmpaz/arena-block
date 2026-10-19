@@ -70,6 +70,14 @@ describe("bounded SoundCloud share routing", () => {
     await expect(resolveSoundCloudShareURL(share, async () => followed)).rejects.toThrow("unchecked redirect");
   });
 
+  test("validates the whole selection before starting redirect readers", async () => {
+    let requests = 0;
+    for (const invalid of ["https://on.soundcloud.com/two/segments", "https://unsupported.invalid/source"]) {
+      await expect(resolveSourceRefs([share, invalid], async () => { requests++; return redirect(track); })).rejects.toThrow();
+    }
+    expect(requests).toBe(0);
+  });
+
   test("settles timeout and cancellation even when a test fetcher ignores abort", async () => {
     let requestSignal: AbortSignal | undefined;
     await expect(resolveSoundCloudShareURL(share, async (_url, init) => {
