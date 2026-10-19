@@ -208,10 +208,12 @@ describe("Delve protocol capture", () => {
     expect(result.posts.map(item => item.id)).toEqual(["a", "b", "c"]);
     expect(result.posts.map(item => item.selection?.origin)).toEqual(["expanded", "explicit", "expanded"]);
     expect(result.posts[2]!.selection?.parentUri).toBe(uri("b"));
+    expect(composePlan(result.posts, result.policy).block.title).toBe("Thread by @author.delve.town");
     expect(reads.map(url => url.pathname)).toEqual(["/xrpc/town.delve.feed.getPostThread", "/xrpc/town.delve.feed.getPostThread"]);
     expect(result.policy.mediaOnlyPosts).toEqual([]);
     const off = await new SocialResolver({ delve: provider }).resolveComposition([web("b")], [], { threadExpansion: "off" });
     expect(off.posts.map(item => item.id)).toEqual(["b"]);
+    expect(composePlan(off.posts, off.policy).block.title).toBe("Post by @author.delve.town");
   });
 
   test("retained public Delve responses reconstruct the three-post author chain from a middle seed", async () => {

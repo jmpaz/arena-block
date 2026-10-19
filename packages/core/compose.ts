@@ -14,6 +14,7 @@ import { soundCloudPlaylistText } from "./soundcloud.ts";
 import { isInstagramReel, parseSource } from "./url.ts";
 import { mediaSources, selectableMedia } from "./media-tree.ts";
 import { renderedParentDepth, type ParentEntry } from "./parent-context.ts";
+import { selectionIdentity } from "./source-selection.ts";
 
 function handle(post: ResolvedPost): string {
   return post.author.handle.replace(/^@/, "");
@@ -27,13 +28,40 @@ function sourceAuthor(post: ResolvedPost): string {
   return `${post.provider}:${handle(post).toLowerCase()}`;
 }
 
-function title(post: ResolvedPost): string {
-  if (post.postTitle !== undefined) return post.postTitle;
-  if (post.storyTitle !== undefined) return `Comment by ${handle(post)} on “${post.storyTitle}”`;
+function expandedThread(posts: ResolvedPost[]): boolean {
+  if (posts.length < 3 || posts.some(post => post.selection?.role !== "primary")
+    || posts.filter(post => post.selection?.origin === "explicit").length !== 1) return false;
+  return posts.every((post, index) => {
+    if (sourceAuthor(post) !== sourceAuthor(posts[0]!)) return false;
+    if (!index) return true;
+    const previous = posts[index - 1]!;
+    if (post.replyTo && post.replyTo.id !== previous.id) return false;
+    const parent = post.selection?.parentUri;
+    try {
+      if (post.provider === "forum_magnum") {
+        const source = parseSource(previous.canonicalUrl), current = parseSource(post.canonicalUrl);
+        return source.provider === "forum_magnum" && current.provider === "forum_magnum" && source.site === current.site
+          && source.id === current.id && source.commentId === previous.id && current.commentId === post.id
+          && post.replyTo?.id === previous.id && parent === `forum-magnum:${source.site}:comment:${previous.id}`;
+      }
+      if (post.provider !== "bluesky" && post.provider !== "delve") return post.replyTo?.id === previous.id;
+      if (!parent) return false;
+      if (previous.atproto) return parent === previous.atproto.uri;
+      return parseSource(parent).provider === post.provider
+        && selectionIdentity(parent) === selectionIdentity(previous.canonicalUrl);
+    } catch { return false; }
+  });
+}
+
+function title(post: ResolvedPost, thread = false): string {
+  if (post.postTitle !== undefined) return thread && post.provider === "substack" && !post.substackArticle
+    && [`Note by @${handle(post)}`, `Substack Note by @${handle(post)}`].includes(post.postTitle)
+    ? `Thread by @${handle(post)}` : post.postTitle;
+  if (post.storyTitle !== undefined) return `${thread ? "Thread" : "Comment"} by ${handle(post)} on “${post.storyTitle}”`;
   if (post.provider === "hackernews" || post.provider === "lobsters") return `Comment by ${handle(post)}`;
-  if (post.provider === "instagram" && isInstagramReel(post.canonicalUrl)) return `Reel by @${handle(post)}`;
-  if (post.provider === "tiktok") return `TikTok by @${(post.author.name?.trim() || handle(post)).replace(/^@/, "")}`;
-  return `Post by @${handle(post)}`;
+  if (post.provider === "instagram" && isInstagramReel(post.canonicalUrl)) return `${thread ? "Thread" : "Reel"} by @${handle(post)}`;
+  if (post.provider === "tiktok") return `${thread ? "Thread" : "TikTok"} by @${(post.author.name?.trim() || handle(post)).replace(/^@/, "")}`;
+  return `${thread ? "Thread" : "Post"} by @${handle(post)}`;
 }
 
 function body(post: ResolvedPost): string {
@@ -500,6 +528,8 @@ export function composePlan(
       ...(dateUncertainty.length ? { dateUncertainty } : {}) };
   });
   const first = posts[0]!;
+  const sequence = posts.filter((post, index) => post.selection?.role !== "extra" && !mediaOnlyPosts.has(index + 1));
+  const thread = expandedThread(sequence);
   const canonical = first.provider === "forum_magnum"
     ? posts.find(post => post.selection?.role === "primary" && post.selection.origin === "explicit") ?? first : first;
   const video = effective.some((item) => item.kind === "video");
@@ -511,7 +541,7 @@ export function composePlan(
     policy,
     block: {
       kind: video ? "video" : audioOnly ? "audio" : chosen.length ? "link" : "text",
-      title: title(first),
+      title: title(first, thread),
       markdown,
       ...(blockDescription === undefined ? {} : { description: blockDescription }),
       canonicalSource: canonical.canonicalUrl,

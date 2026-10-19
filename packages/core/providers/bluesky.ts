@@ -74,7 +74,7 @@ function quotedRecord(embed: Json | undefined): Json | undefined {
   return undefined;
 }
 
-function postFromView(post: Json, fallback: Extract<ParsedSource, { provider: "bluesky" }>): ResolvedPost {
+function postFromView(post: Json, fallback: Extract<ParsedSource, { provider: "bluesky" }>, retainIdentity = false): ResolvedPost {
   const author = object(post.author);
   const record = object(post.record) ?? object(post.value) ?? {};
   const uri = string(post.uri) ?? `at://${fallback.handle}/app.bsky.feed.post/${fallback.id}`;
@@ -87,6 +87,7 @@ function postFromView(post: Json, fallback: Extract<ParsedSource, { provider: "b
   const withFacets = Array.isArray(facets) && facets.length > 0;
   const cid = string(post.cid), did = string(author?.did);
   if (withFacets && (!cid || !did || uri !== `at://${did}/app.bsky.feed.post/${id}`)) throw new Error("Bluesky facet source is missing its record identity");
+  const withIdentity = withFacets || retainIdentity && cid && did && uri === `at://${did}/app.bsky.feed.post/${id}`;
   // Normalize derived fields before a plan is hashed; keep the raw record below.
   return resolvedPostSchema.parse({
     provider: "bluesky",
@@ -99,8 +100,9 @@ function postFromView(post: Json, fallback: Extract<ParsedSource, { provider: "b
     text: string(record.text) ?? "",
     ...(string(record.createdAt) ?? string(post.indexedAt) ? { postedAt: string(record.createdAt) ?? string(post.indexedAt) } : {}),
     media: mediaFromEmbed(embed),
-    ...(withFacets ? { facets: facets as NonNullable<ResolvedPost["facets"]>, atproto: {
-      uri, cid: cid!, authorDid: did!, record, ...(record.reply ? { reply: record.reply as NonNullable<ResolvedPost["atproto"]>["reply"] } : {}),
+    ...(withFacets ? { facets: facets as NonNullable<ResolvedPost["facets"]> } : {}),
+    ...(withIdentity ? { atproto: {
+      uri, cid: cid!, authorDid: did!, record, ...(withFacets && record.reply ? { reply: record.reply as NonNullable<ResolvedPost["atproto"]>["reply"] } : {}),
     } } : {}),
     ...(quoteRecord ? { quote: postFromView(quoteRecord, fallback) } : {}),
   });
@@ -229,7 +231,7 @@ export function linearAuthorThread(raw: unknown, source: Extract<ParsedSource, {
     const parent = string(parentRef(node)?.uri);
     return parent ? [[postUri(node), parent] as const] : [];
   }));
-  return { posts: ordered.map((node, index) => ({ ...postFromView(node.post, source),
+  return { posts: ordered.map((node, index) => ({ ...postFromView(node.post, source, ordered.length > 2),
     ...(options.retainConversationCoverage && index === 0 ? { threadCoverage: { scope: "author-chain" as const, replyGaps } } : {}) })), seedUri, parentUris };
 }
 
@@ -349,7 +351,7 @@ export class BlueskyProvider implements SocialProvider {
             }));
             const coverage: AuthorThreadCoverage = { scope: "author-chain", basis: "appview-op-thread",
               reportedPosts: root.count, replyGaps: conversationGaps(result, ordered) };
-            return { posts: ordered.map((post, index) => ({ ...postFromView(post, source),
+            return { posts: ordered.map((post, index) => ({ ...postFromView(post, source, ordered.length > 2),
               ...(this.discovery.retainConversationCoverage && index === 0 ? { threadCoverage: { scope: "author-chain" as const, replyGaps: coverage.replyGaps } } : {}) })),
               seedUri, parentUris, coverage };
           }

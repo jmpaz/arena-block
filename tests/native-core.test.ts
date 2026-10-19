@@ -141,9 +141,12 @@ test("bundled native Bluesky discovery expands a verified linear chain and honor
   const expanded = await resolve({});
   expect(expanded.plan.sources.map(source => source.id)).toEqual(["a", "b", "c"]);
   expect(expanded.plan.sources.map(source => source.selection?.origin)).toEqual(["expanded", "explicit", "expanded"]);
+  expect(expanded.plan.block.title).toBe("Thread by @author.test");
+  expect(expanded.plan.sources.map(source => source.atproto?.uri)).toEqual([uri("a"), uri("b"), uri("c")]);
   expect(calls).toHaveLength(2);
   const onlySeed = await resolve({ threadExpansion: "off" });
   expect(onlySeed.plan.sources.map(source => source.id)).toEqual(["b"]);
+  expect(onlySeed.plan.block.title).toBe("Post by @author.test");
   expect(calls).toHaveLength(3);
 });
 

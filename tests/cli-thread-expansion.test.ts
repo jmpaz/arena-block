@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from "bun:test";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { composePlan } from "../src/compose.ts";
+import { composePlan, planHash } from "../src/compose.ts";
 import type { BlockPlan } from "../src/types.ts";
 
 const directory = await mkdtemp(join(tmpdir(), "arena-cli-thread-"));
@@ -25,9 +25,9 @@ const xPosts = [101, 102, 103].map((id, index) => ({ id: String(id), author: { i
   ...(index ? { replying_to: { status: String(id - 1), screen_name: "threadwriter" } } : {}) }));
 await Bun.write(preload, `
 const fixture = await Bun.file(${JSON.stringify(bskyFixture)}).json();
-const posts = ${JSON.stringify(xPosts)};
+const posts = ${JSON.stringify(xPosts)}.slice(0, Number(process.env.ARENA_THREAD_TEST_COUNT ?? 3));
 const forumPost = ${JSON.stringify(forumPost)};
-const forumComments = ${JSON.stringify(forumComments)};
+const forumComments = ${JSON.stringify(forumComments.map(comment => ({ ...comment, user: { _id: `User${comment.user.username}`, ...comment.user }, directChildrenCount: forumComments.filter(child => child.parentCommentId === comment._id).length })))};
 const calls = [];
 globalThis.fetch = async (input, init) => {
   const url = new URL(String(input));
@@ -49,12 +49,12 @@ globalThis.fetch = async (input, init) => {
 };`);
 afterAll(() => rm(directory, { recursive: true, force: true }));
 
-async function cli(args: string[]) {
+async function cli(args: string[], env: Record<string, string> = {}) {
   const ledger = join(directory, `${crypto.randomUUID()}.json`);
   await Bun.write(ledger, "[]");
   const child = Bun.spawn([process.execPath, "--preload", preload, "src/cli.ts", ...args], {
     cwd: join(import.meta.dir, ".."), env: { ...process.env, HOME: directory, ARENA_BLOCK_CONFIG: "",
-      ARENA_BLOCK_ACCESS_TOKEN: "", ARENA_BLOCK_ENDPOINT: "https://no-daemon.test", ARENA_THREAD_TEST_LEDGER: ledger },
+      ARENA_BLOCK_ACCESS_TOKEN: "", ARENA_BLOCK_ENDPOINT: "https://no-daemon.test", ARENA_THREAD_TEST_LEDGER: ledger, ...env },
     stdout: "pipe", stderr: "pipe",
   });
   const [stdout, stderr, code] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited]);
@@ -94,14 +94,28 @@ describe("CLI thread expansion", () => {
       const plan = JSON.parse(result.stdout) as BlockPlan;
       expect(plan.policy.threadExpansion).toBe("on"); expect(plan.sources.map(post => post.id)).toEqual(["101", "102", "103"]);
       expect(plan.sources.map(post => post.selection?.origin)).toEqual(["expanded", "explicit", "expanded"]);
+      expect(plan.block.title).toBe("Thread by @threadwriter");
       expect(plan.block.markdown).toBe("Thread part 1.\n\n---\n\nThread part 2.\n\n---\n\nThread part 3.");
       expect(result.calls).toEqual([{ url: "https://api.fxtwitter.com/2/thread/102", method: "GET" }]);
     }
     const global = await cli(["-t", "plan", xSource, "--json"]);
     expect(global.code).toBe(0); expect(JSON.parse(global.stdout).sources).toHaveLength(3);
     const bsky = await cli(["plan", (await Bun.file(bskyFixture).json()).source, "-t", "--media", "none", "--json"]);
-    expect(bsky.code).toBe(0); expect(JSON.parse(bsky.stdout).sources.map((post: { id: string }) => post.id))
-      .toEqual(["3mxjzbrinf22d", "3mxjzmgx6sc2d", "3mxk2eqkcks2d", "3mxk2iwcjec2a"]);
+    expect(bsky.code).toBe(1); expect(bsky.stdout).toBe("");
+    expect(bsky.stderr).toContain("forks into multiple author replies");
+    expect(bsky.calls.map(call => new URL(call.url).pathname)).toEqual(["/xrpc/app.bsky.feed.getPostThread"]);
+  });
+
+  test("fresh CLI titles change at three included thread posts", async () => {
+    for (const count of [2, 3]) {
+      const result = await cli(["plan", xSource, "-t", "--json"], { ARENA_THREAD_TEST_COUNT: String(count) });
+      expect(result.code).toBe(0); expect(result.stderr).toBe("");
+      const plan = JSON.parse(result.stdout) as BlockPlan;
+      expect(plan.sources).toHaveLength(count);
+      expect(plan.block.title).toBe(`${count > 2 ? "Thread" : "Post"} by @threadwriter`);
+    }
+    const single = await cli(["plan", xSource, "--json"]);
+    expect(single.code).toBe(0); expect(JSON.parse(single.stdout).block.title).toBe("Post by @threadwriter");
   });
 
   test("legacy on/off scripts remain explicit, warn on stderr and never restore auto", async () => {
@@ -150,6 +164,7 @@ describe("CLI thread expansion", () => {
       expect(dryRun.code).toBe(0); expect(dryRun.stderr).toBe("");
       const snapshot = JSON.parse(dryRun.stdout).snapshot;
       expect(snapshot.plan.policy.threadExpansion).toBe(mode); expect(snapshot.plan.sources).toHaveLength(count);
+      expect(snapshot.plan.block.title).toBe(`${count > 2 ? "Thread" : "Post"} by @threadwriter`);
       for (const result of [rendered, dryRun]) expect(result.calls).toEqual([{ method: "GET",
         url: mode === "on" ? "https://api.fxtwitter.com/2/thread/102" : "https://api.fxtwitter.com/threadwriter/status/102" }]);
       const resolved = await cli(["resolve", xSource, ...flags, "--json"]);
@@ -158,7 +173,7 @@ describe("CLI thread expansion", () => {
     }
   });
 
-  test("LessWrong fragment publish dry-run keeps the selected comment while -t adds its replies", async () => {
+  test("LessWrong fragment publish dry-run keeps the selected comment while -t excludes other authors", async () => {
     const destination = "https://www.are.na/josh-pazmino/on-writing-xbolnqpetki";
     const config = join(directory, "forum-config.json");
     await Bun.write(config, JSON.stringify({ provenance: { local: false, remoteSnapshot: "none" } }));
@@ -171,8 +186,8 @@ describe("CLI thread expansion", () => {
       expect(snapshot.invocation.inputs.sourceRefs).toEqual([forumSource]);
       expect(snapshot.routing.requestedDestinations).toEqual(["on-writing-xbolnqpetki"]);
       expect(plan.policy).toMatchObject({ media: "auto", threadExpansion: flags.length ? "on" : "off" });
-      expect(plan.sources.map(post => post.id)).toEqual(flags.length
-        ? ["gFRKkcyXDTiKkug56", "ReplyCommentABC12"] : ["gFRKkcyXDTiKkug56"]);
+      expect(plan.sources.map(post => post.id)).toEqual(["gFRKkcyXDTiKkug56"]);
+      expect(plan.block.markdown).not.toContain("Direct reply fixture.");
       expect(plan.sources[0]?.selection).toMatchObject({ origin: "explicit", declaredIndex: 1 });
       expect(plan.block.canonicalSource).toBe(`${forumPost.pageUrl}?commentId=gFRKkcyXDTiKkug56`);
       expect(plan.block.title).toBe("Comment by gwern on “Open thread, July 16-22, 2013”");
@@ -182,13 +197,17 @@ describe("CLI thread expansion", () => {
       expect(plan.block.selectedMedia).toEqual([]);
       expect(result.calls.every(call => call.url === "https://www.lesswrong.com/graphql" && call.method === "POST")).toBe(true);
       expect(result.calls.flatMap(call => call.variables?.terms ? [call.variables.terms] : [])).toEqual(flags.length
-        ? [{ view: "commentReplies", parentCommentId: "gFRKkcyXDTiKkug56", limit: 9 }] : []);
+        ? [{ view: "commentReplies", parentCommentId: "gFRKkcyXDTiKkug56", limit: 101 }] : []);
     }
   });
 
   test("render and publish --plan preserve the frozen policy and plan instead of applying CLI defaults", async () => {
-    const frozen = composePlan([{ provider: "x", id: "102", canonicalUrl: xSource,
-      author: { handle: "threadwriter" }, text: "Frozen source writing.", media: [] }], { threadExpansion: "auto" });
+    const { hash: _, ...content } = composePlan(xPosts.map((post, index) => ({ provider: "x", id: post.id,
+      canonicalUrl: `https://x.com/threadwriter/status/${post.id}`, author: { handle: "threadwriter" },
+      text: post.text, media: [], ...(index ? { replyTo: { id: String(Number(post.id) - 1) } } : {}),
+      selection: { role: "primary", origin: index === 1 ? "explicit" : "expanded" } })), { threadExpansion: "auto" });
+    content.block.title = "Post by @threadwriter";
+    const frozen = { ...content, hash: planHash(content) };
     const path = join(directory, "frozen-plan.json"), output = join(directory, "frozen-preview.md"), config = join(directory, "config.json");
     await Bun.write(path, JSON.stringify(frozen)); await Bun.write(config, JSON.stringify({ provenance: { local: false, remoteSnapshot: "none" } }));
     for (const flags of [[], ["-t"]]) {
