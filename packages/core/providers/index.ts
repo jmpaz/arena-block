@@ -1,6 +1,7 @@
 import { compositionPolicySchema, DEFAULT_VIDEO_FRAME_THRESHOLD_SECONDS, MAX_EXPANDED_SOURCE_POSTS, type CompositionPolicy, type ResolvedPost } from "../types.ts";
 import { mediaSources } from "../media-tree.ts";
 import { parseSource } from "../url.ts";
+import { resolveSourceRefs } from "../source-redirects.ts";
 import { explicitSelections, selectionIdentity } from "../source-selection.ts";
 import { DelveProvider } from "./delve.ts";
 import { BlueskyProvider } from "./bluesky.ts";
@@ -20,7 +21,8 @@ import { ArenaMediaProvider } from "./arena-media.ts";
 export class SocialResolver {
   private readonly providers: Partial<Record<ReturnType<typeof parseSource>["provider"], SocialProvider>>;
 
-  constructor(providers?: Partial<Record<ReturnType<typeof parseSource>["provider"], SocialProvider>>) {
+  constructor(providers?: Partial<Record<ReturnType<typeof parseSource>["provider"], SocialProvider>>,
+    private readonly sourceFetcher: (input: string, init?: RequestInit) => Promise<Response> = fetch) {
     this.providers = {
       linkedin: providers?.linkedin ?? new LinkedInProvider(),
       substack: providers?.substack ?? new SubstackProvider(),
@@ -43,7 +45,7 @@ export class SocialResolver {
 
   async resolve(refs: string[], signal?: AbortSignal, policy?: Partial<SourceResolutionPolicy>): Promise<ResolvedPost[]> {
     if (!refs.length || refs.length > 20) throw new Error("Resolve 1–20 source references");
-    const sources = refs.map(parseSource);
+    const sources = (await resolveSourceRefs(refs, this.sourceFetcher, signal)).map(parseSource);
     const posts = await Promise.all(sources.map((source) => {
       const provider = this.providers[source.provider];
       if (!provider) throw new Error(`No resolver is configured for ${source.provider}`);
@@ -54,7 +56,9 @@ export class SocialResolver {
 
   /** Resolve the effective ordered source set and freeze each source's contribution role. */
   async resolveComposition(refs: string[], extraRefs: string[] = [], policyInput: Partial<CompositionPolicy> = {}, signal?: AbortSignal): Promise<{ posts: ResolvedPost[]; policy: CompositionPolicy }> {
-    const selected = explicitSelections(refs, extraRefs);
+    if (!refs.length || refs.length + extraRefs.length > 20) throw new Error("Choose 1–20 sources");
+    const normalized = await resolveSourceRefs([...refs, ...extraRefs], this.sourceFetcher, signal);
+    const selected = explicitSelections(normalized.slice(0, refs.length), normalized.slice(refs.length));
     // Older plan clients may declare media-only indexes directly in policy.
     if (!extraRefs.length && policyInput.mediaOnlyPosts?.length) {
       const legacy = new Set(policyInput.mediaOnlyPosts);

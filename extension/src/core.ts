@@ -16,7 +16,7 @@ import { ForumMagnumProvider } from "../../packages/core/providers/forum-magnum.
 import { NativeSoundCloudProvider } from "../../packages/core/providers/soundcloud-native.ts";
 import { XProvider } from "../../packages/core/providers/x.ts";
 import { compositionPolicySchema, type BlockPlan, type CompositionPolicy } from "../../packages/core/types.ts";
-import { parseSource } from "../../packages/core/url.ts";
+import { parseSource, soundCloudShareURL } from "../../packages/core/url.ts";
 import { mediaSources, planMedia } from "../../packages/core/media-tree.ts";
 
 export type CaptureInput = { primary: string[]; extras: string[]; policy: Partial<CompositionPolicy>; redditCaptures?: RedditBrowserCapture[]; substackCaptures?: SubstackCapture[] };
@@ -63,7 +63,7 @@ function resolver(fetcher: typeof fetch = browserFetch, captures: RedditBrowserC
     hackernews: new HackerNewsProvider(fetcher),
     lobsters: new LobstersProvider(fetcher),
     soundcloud: new NativeSoundCloudProvider(fetcher),
-  });
+  }, fetcher);
 }
 
 export async function resolveCapture(input: CaptureInput, signal?: AbortSignal, fetcher: typeof fetch = browserFetch): Promise<BlockPlan> {
@@ -97,6 +97,7 @@ export function requiredOrigins(refs: string[], captures: RedditBrowserCapture[]
   const keys = new Set(bindRedditCaptures(refs, captures).map(capture => parseSource(capture.sourceUrl).canonicalUrl));
   for (const capture of bindSubstackCaptures(refs, substack)) keys.add(parseSource(capture.sourceUrl).canonicalUrl);
   for (const ref of refs) {
+    if (soundCloudShareURL(ref)) { origins.add("https://on.soundcloud.com/*"); origins.add("https://soundcloud.com/*"); continue; }
     try { if (keys.has(parseSource(ref).canonicalUrl)) continue; } catch { /* Generic web source below. */ }
     const source = captureSource(ref);
     if (source.kind === "url") continue;

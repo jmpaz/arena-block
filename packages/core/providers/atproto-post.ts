@@ -37,9 +37,9 @@ function dimensions(value: unknown) {
   return { ...(width ? { width } : {}), ...(height ? { height } : {}) };
 }
 
-function media(embed: Json, app: AtprotoApp): MediaAsset[] {
+export function atprotoMediaFromEmbed(embed: Json, app: AtprotoApp): MediaAsset[] {
   const type = string(embed.$type);
-  if (type === `${app.namespace}.embed.recordWithMedia#view`) return media(object(embed.media) ?? {}, app);
+  if (type === `${app.namespace}.embed.recordWithMedia#view`) return atprotoMediaFromEmbed(object(embed.media) ?? {}, app);
   if (type === `${app.namespace}.embed.images#view` || type === `${app.namespace}.embed.gallery#view`) {
     const gallery = type === `${app.namespace}.embed.gallery#view`;
     const items = gallery ? embed.items : embed.images;
@@ -113,7 +113,7 @@ export function atprotoPostFromView(post: Json, app: AtprotoApp, depth = 0): Res
     provider: app.provider, id: match[3]!, canonicalUrl: `${app.origin}/profile/${atprotoActorPath(match[1]!)}/post/${match[3]}`,
     author: { handle, ...(string(author?.displayName) ? { name: string(author?.displayName) } : {}) },
     text: record.text, postedAt: record.createdAt as string,
-    media: embed ? media(embed, app) : [],
+    media: embed ? atprotoMediaFromEmbed(embed, app) : [],
     atproto: { uri: uri!, cid, authorDid: did!, record, ...(record.reply ? { reply: record.reply as NonNullable<ResolvedPost["atproto"]>["reply"] } : {}) },
     ...(facets ? { facets: facets as NonNullable<ResolvedPost["facets"]> } : {}),
     ...(card ? { external: card } : {}), ...(quote ? { quote } : {}), ...(embeddedRecord ? { embeddedRecord } : {}),

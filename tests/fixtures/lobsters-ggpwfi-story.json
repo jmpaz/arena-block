@@ -1,0 +1,19 @@
+{
+  "short_id": "ggpwfi",
+  "created_at": "2026-10-18T05:35:11.525-05:00",
+  "title": "It's enough - vibecoding tag crossed from useless to harmful",
+  "url": "",
+  "score": 321,
+  "flags": 11,
+  "comment_count": 271,
+  "description": "<p>The vibecoding tag has been getting more and more useless for a while now. It lost the original meaning as the culture of software engineering with LLMs matured a bit. It got silly when posts talking about LLMs in general got tagged. It got useless when posts even mentioning some project created with LLMs in passing got tagged. Now it actually got harmful to the community when tagging posts turns away very valuable members <a href=\"https://lobste.rs/c/vecuxj\" rel=\"ugc\">https://lobste.rs/c/vecuxj</a></p>\n<p>I sighed and moved on for a while now as almost everything gets tagged - you can skip a word. But now it not only carries no signal whatsoever, it turns away people creating original technical content - which is what I assume anti-vibecoding people would actually like to see more of.</p>\n<p>Please split it or kill it. But we'd be better off without what exists today.</p>\n<p>Added: To be clear, I totally support people filtering out llm-generated or llm-centric posts. But right now everyone loses. And every day we lose a little bit more. Whether it's an original, interesting article that turns out to be nth-degree related to llms and filtered out, or a community member annoyed by this recurring problem and leaving us with even fewer actual non-llm-centric entries.</p>\n",
+  "description_plain": "The vibecoding tag has been getting more and more useless for a while now. It lost the original meaning as the culture of software engineering with LLMs matured a bit. It got silly when posts talking about LLMs in general got tagged. It got useless when posts even mentioning some project created with LLMs in passing got tagged. Now it actually got harmful to the community when tagging posts turns away very valuable members https://lobste.rs/c/vecuxj\r\n\r\nI sighed and moved on for a while now as almost everything gets tagged - you can skip a word. But now it not only carries no signal whatsoever, it turns away people creating original technical content - which is what I assume anti-vibecoding people would actually like to see more of.\r\n\r\nPlease split it or kill it. But we'd be better off without what exists today.\r\n\r\nAdded: To be clear, I totally support people filtering out llm-generated or llm-centric posts. But right now everyone loses. And every day we lose a little bit more. Whether it's an original, interesting article that turns out to be nth-degree related to llms and filtered out, or a community member annoyed by this recurring problem and leaving us with even fewer actual non-llm-centric entries.",
+  "submitter_user": "viraptor",
+  "user_is_author": true,
+  "tags": [
+    "meta",
+    "vibecoding"
+  ],
+  "short_id_url": "https://lobste.rs/s/ggpwfi",
+  "comments_url": "https://lobste.rs/s/ggpwfi/it_s_enough_vibecoding_tag_crossed_from"
+}

@@ -9,6 +9,7 @@ import type { CompositionPolicy, ResolvedPost } from "./types.ts";
  * Saved plans bypass this step and retain their original policy and selection.
  */
 export function selectedPostMediaPolicy(posts: ResolvedPost[], policy: CompositionPolicy, includeQuotes = false): CompositionPolicy {
+  if (posts.length === 1 && posts[0]!.provider === "soundcloud") return policy;
   const mode = policy.media;
   if (!["all", "images", "video", "audio"].includes(mode)) return policy;
   const audio = explicitAudio(policy);

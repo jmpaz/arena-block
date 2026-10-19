@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "hash": "5f274f4c563f060fa3cea71cd6a4a34bb46c4e6e29c19f672882d3d56b9a6c11",
+  "sources": [
+    {
+      "provider": "soundcloud",
+      "id": "2422119177",
+      "canonicalUrl": "https://soundcloud.com/rrthielnc/fxxlsgxld",
+      "selection": {
+        "role": "primary",
+        "origin": "explicit",
+        "declaredIndex": 1
+      },
+      "author": {
+        "handle": "rrthielnc",
+        "name": "RRThiel"
+      },
+      "text": "Artist: RRThiel\n\nDuration: 4:00\n\na song that came to me in a dream\n\nsorry for lack of music lately. lifes a bitch",
+      "postedAt": "2026-10-19T16:27:22.000Z",
+      "postTitle": "FXXL'S GXLD [5-N163]",
+      "soundcloud": {
+        "kind": "track",
+        "trackId": "2422119177",
+        "artists": [
+          "RRThiel"
+        ],
+        "description": "a song that came to me in a dream\n\nsorry for lack of music lately. lifes a bitch",
+        "artworkUrl": "https://i1.sndcdn.com/artworks-CXvOTDpAcEWdiJHN-cKiIaw-original.jpg",
+        "durationSeconds": 240.786,
+        "originalDownloadAvailable": false
+      },
+      "media": []
+    }
+  ],
+  "policy": {
+    "media": "selected",
+    "selectedMedia": [],
+    "threadExpansion": "off",
+    "quote": "block",
+    "separator": "auto"
+  },
+  "block": {
+    "kind": "url",
+    "title": "FXXL'S GXLD [5-N163]",
+    "markdown": "",
+    "description": "Artist: RRThiel\n\nDuration: 4:00\n\na song that came to me in a dream\n\nsorry for lack of music lately. lifes a bitch",
+    "canonicalSource": "https://soundcloud.com/rrthielnc/fxxlsgxld",
+    "selectedMedia": []
+  }
+}

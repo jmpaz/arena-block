@@ -29,6 +29,8 @@ export function verifyPublication(plan: BlockPlan, block: Json, available: Json)
       const contentType = string(attachment?.content_type);
       if (!contentType?.startsWith("audio/")) throw new Error("Are.na attachment does not retain an audio content type");
     }
+    if ((plan.block.kind === "audio" || soundCloudLink) && plan.sources[0]?.provider === "soundcloud"
+      && string(object(block.source)?.url) !== plan.block.canonicalSource) throw new Error("Are.na SoundCloud source does not match the block plan");
     if (plan.block.kind === "image") {
       if (!arenaImageUrl(block)) throw new Error("Are.na playlist Image has no copied artwork");
       if (string(object(block.source)?.url) !== plan.block.canonicalSource) {

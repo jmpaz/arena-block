@@ -5,6 +5,7 @@ import type { ResourceUri } from "@atcute/lexicons";
 import { resolvedPostSchema, type MediaAsset, type ResolvedPost } from "../types.ts";
 import type { ParsedSource } from "../url.ts";
 import type { SocialProvider } from "./provider.ts";
+import { atprotoMediaFromEmbed, BLUESKY } from "./atproto-post.ts";
 
 type Json = Record<string, unknown>;
 
@@ -33,6 +34,10 @@ function mediaFromEmbed(embed: Json | undefined): MediaAsset[] {
   if (!embed) return [];
   const type = string(embed.$type) ?? "";
   if (type.endsWith("recordWithMedia#view")) return mediaFromEmbed(object(embed.media));
+  if (type === "app.bsky.embed.gallery#view") {
+    if (!Array.isArray(embed.items) || !embed.items.length || embed.items.length > 100) throw new Error("Bluesky gallery has no complete supported item list");
+    return atprotoMediaFromEmbed(embed, BLUESKY);
+  }
   if (type.endsWith("images#view")) {
     return (Array.isArray(embed.images) ? embed.images : []).flatMap((value) => {
       const image = object(value);
@@ -63,7 +68,8 @@ function mediaFromEmbed(embed: Json | undefined): MediaAsset[] {
       alt: string(embed.alt) ?? "",
     }];
   }
-  return [];
+  if (["app.bsky.embed.external#view", "app.bsky.embed.record#view"].includes(type)) return [];
+  throw new Error(`Bluesky returned an unsupported embed: ${type || "missing type"}`);
 }
 
 function quotedRecord(embed: Json | undefined): Json | undefined {
@@ -81,13 +87,23 @@ function postFromView(post: Json, fallback: Extract<ParsedSource, { provider: "b
   const id = uri.split("/").at(-1) ?? fallback.id;
   const handle = string(author?.handle) ?? fallback.handle;
   const embed = object(post.embed) ?? (Array.isArray(post.embeds) ? object(post.embeds[0]) : undefined);
+  const gallery = embed?.$type === "app.bsky.embed.gallery#view" ? embed
+    : embed?.$type === "app.bsky.embed.recordWithMedia#view" && object(embed.media)?.$type === "app.bsky.embed.gallery#view" ? object(embed.media) : undefined;
+  const rawEmbed = object(record.embed);
+  const rawGallery = rawEmbed?.$type === "app.bsky.embed.gallery" ? rawEmbed
+    : rawEmbed?.$type === "app.bsky.embed.recordWithMedia" && object(rawEmbed.media)?.$type === "app.bsky.embed.gallery" ? object(rawEmbed.media) : undefined;
+  if (gallery || rawGallery) {
+    if (!gallery || !rawGallery || !Array.isArray(rawGallery.items) || !Array.isArray(gallery.items) || rawGallery.items.length !== gallery.items.length) {
+      throw new Error("Bluesky gallery view is incomplete for its source record");
+    }
+  }
   const quoteRecord = quotedRecord(embed);
   const facets = record.$type === "app.bsky.feed.post" ? record.facets : undefined;
   if (facets !== undefined && !Array.isArray(facets)) throw new Error("Bluesky rich-text facets are malformed");
   const withFacets = Array.isArray(facets) && facets.length > 0;
   const cid = string(post.cid), did = string(author?.did);
-  if (withFacets && (!cid || !did || uri !== `at://${did}/app.bsky.feed.post/${id}`)) throw new Error("Bluesky facet source is missing its record identity");
-  const withIdentity = withFacets || retainIdentity && cid && did && uri === `at://${did}/app.bsky.feed.post/${id}`;
+  if ((withFacets || gallery) && (!cid || !did || uri !== `at://${did}/app.bsky.feed.post/${id}` || record.$type !== "app.bsky.feed.post")) throw new Error("Bluesky rich source is missing its record identity");
+  const withIdentity = withFacets || !!gallery || retainIdentity && cid && did && uri === `at://${did}/app.bsky.feed.post/${id}`;
   // Normalize derived fields before a plan is hashed; keep the raw record below.
   return resolvedPostSchema.parse({
     provider: "bluesky",

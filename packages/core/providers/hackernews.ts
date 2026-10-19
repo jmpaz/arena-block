@@ -2,14 +2,14 @@ import { z } from "zod";
 import { MAX_QUOTE_DEPTH, type ResolvedPost } from "../types.ts";
 import type { ParentContext, ParentEntry } from "../parent-context.ts";
 import type { ParsedSource } from "../url.ts";
-import { commentMarkdown, commentTitle, fetchJson, type Fetcher } from "./comments.ts";
+import { commentMarkdown, commentTitle, fetchJson, storyBody, type Fetcher } from "./comments.ts";
 import type { SocialProvider } from "./provider.ts";
 
 const itemSchema = z.object({
   id: z.number().int().positive(), type: z.string().optional(),
   deleted: z.boolean().optional(), dead: z.boolean().optional(), by: z.string().min(1).optional(),
   time: z.number().int().nonnegative().max(8_640_000_000_000).optional(), text: z.string().optional(),
-  parent: z.number().int().positive().optional(), title: z.string().min(1).optional(),
+  parent: z.number().int().positive().optional(), title: z.string().min(1).optional(), url: z.string().optional(),
 });
 const permalink = (id: string) => `https://news.ycombinator.com/item?id=${id}`;
 
@@ -24,8 +24,15 @@ export class HackerNewsProvider implements SocialProvider {
       return item;
     };
     const comment = await load(source.id);
-    if (comment.deleted || comment.dead) throw new Error("Hacker News comment is deleted or dead");
-    if (comment.type !== "comment") throw new Error("Expected a Hacker News comment, not a story or other item");
+    if (comment.deleted || comment.dead) throw new Error("Hacker News item is deleted or dead");
+    if (comment.type === "story") {
+      if (!comment.by || !comment.title || comment.time === undefined) throw new Error("Hacker News story is missing author, title, or timestamp");
+      return { provider: "hackernews", id: source.id, canonicalUrl: source.canonicalUrl,
+        author: { handle: comment.by }, postTitle: commentTitle(comment.title),
+        text: storyBody(commentMarkdown(comment.text ?? ""), comment.url, comment.by, `https://news.ycombinator.com/user?id=${encodeURIComponent(comment.by)}`),
+        postedAt: new Date(comment.time * 1000).toISOString(), media: [] };
+    }
+    if (comment.type !== "comment") throw new Error(`Hacker News ${comment.type ?? "unknown"} items are unsupported; choose a story or comment permalink`);
     if (!comment.by || !comment.text?.trim() || comment.time === undefined) throw new Error("Hacker News comment is missing author, text, or timestamp");
     const parents: ParentEntry[] = [];
     const context: ParentContext = { parents, stopped: "invalid_reference" };

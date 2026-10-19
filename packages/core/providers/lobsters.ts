@@ -2,7 +2,8 @@ import { z } from "zod";
 import { MAX_QUOTE_DEPTH, type ResolvedPost } from "../types.ts";
 import type { ParentContext } from "../parent-context.ts";
 import type { ParsedSource } from "../url.ts";
-import { fetchJson, type Fetcher } from "./comments.ts";
+import { parseSource } from "../url.ts";
+import { fetchJson, storyBody, type Fetcher } from "./comments.ts";
 import type { SocialProvider } from "./provider.ts";
 
 const commentSchema = z.object({
@@ -11,6 +12,10 @@ const commentSchema = z.object({
   commenting_user: z.string().optional(), url: z.url(), parent_comment: z.string().regex(/^[a-z0-9]+$/).nullable().optional(),
 });
 const storySchema = z.object({ short_id: z.string(), title: z.string().min(1), comments: z.array(z.unknown()).max(20_000).optional() });
+const submissionSchema = storySchema.extend({
+  created_at: z.iso.datetime({ offset: true }), submitter_user: z.string().min(1),
+  description_plain: z.string(), url: z.string(), short_id_url: z.url(), comments_url: z.url(),
+});
 const permalink = (id: string) => `https://lobste.rs/c/${id}`;
 function storyIdentity(address: string): string {
   const url = new URL(address), id = /^\/s\/([a-z0-9]+)(?:\/|$)/.exec(url.pathname)?.[1];
@@ -23,10 +28,23 @@ export class LobstersProvider implements SocialProvider {
 
   async resolve(source: ParsedSource, signal?: AbortSignal): Promise<ResolvedPost> {
     if (source.provider !== "lobsters") throw new Error("LobstersProvider received a non-Lobsters source");
+    if (source.kind === "story") {
+      const story = submissionSchema.parse(await fetchJson(`https://lobste.rs/s/${source.id}.json`, this.fetcher, signal));
+      if (story.short_id !== source.id || [story.short_id_url, story.comments_url].some(url => {
+        const returned = parseSource(url);
+        return returned.provider !== "lobsters" || returned.kind !== "story" || returned.id !== source.id;
+      })) throw new Error("Lobsters returned the wrong story");
+      return { provider: "lobsters", id: source.id, canonicalUrl: source.canonicalUrl,
+        author: { handle: story.submitter_user }, postTitle: story.title,
+        text: storyBody(story.description_plain, story.url || undefined, story.submitter_user, `https://lobste.rs/u/${encodeURIComponent(story.submitter_user)}`),
+        postedAt: new Date(story.created_at).toISOString(), media: [] };
+    }
     const comment = commentSchema.parse(await fetchJson(`${permalink(source.id)}.json`, this.fetcher, signal));
     if (comment.short_id !== source.id) throw new Error("Lobsters returned the wrong comment");
     if (comment.is_deleted || comment.is_moderated) throw new Error("Lobsters comment is deleted or moderated");
     if (!comment.commenting_user || !comment.comment_plain?.trim() || !comment.created_at) throw new Error("Lobsters comment is missing author, text, or timestamp");
+    const returned = parseSource(comment.url);
+    if (returned.provider !== "lobsters" || returned.kind === "story" || returned.id !== source.id) throw new Error("Lobsters comment has no valid story URL");
     const storyId = storyIdentity(comment.url);
     const context: ParentContext = { parents: [], stopped: "unavailable" };
     let story: z.infer<typeof storySchema> | undefined;

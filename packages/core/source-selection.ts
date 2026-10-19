@@ -13,6 +13,8 @@ function identity(source: ParsedSource): string {
   if (source.provider === "mastodon") return `mastodon:${source.server}:${source.id}`;
   if (source.provider === "reddit" && source.commentId) return `reddit-comment:${source.commentId}`;
   if (source.provider === "forum_magnum") return `forum-magnum:${source.site}:${source.commentId ? `comment:${source.commentId}` : `post:${source.id}`}`;
+  if (source.provider === "lobsters" && source.kind === "story") return `lobsters-story:${source.id}`;
+  if (source.provider === "soundcloud") return `soundcloud:${source.kind}:${source.canonicalUrl}`;
   return `${source.provider}:${source.id}`;
 }
 

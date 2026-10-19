@@ -43,8 +43,9 @@ describe("comment URLs", () => {
     }
   });
 
-  test("rejects story-only Lobsters URLs and malformed HN links", () => {
-    for (const url of ["https://lobste.rs/s/story1/a_story", "https://lobste.rs/s/story1/a_story#other", "https://news.ycombinator.com/item?id=oops", "https://news.ycombinator.com/user?id=3"]) {
+  test("recognizes Lobsters stories while refusing malformed item links", () => {
+    expect(parseSource("https://lobste.rs/s/story1/a_story")).toEqual({ provider: "lobsters", kind: "story", id: "story1", canonicalUrl: "https://lobste.rs/s/story1" });
+    for (const url of ["https://lobste.rs/s/story1/a_story#other", "https://news.ycombinator.com/item?id=oops", "https://news.ycombinator.com/user?id=3"]) {
       expect(() => parseSource(url)).toThrow();
     }
   });

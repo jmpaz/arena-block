@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { parseSource } from "./url.ts";
+import { parseSource, soundCloudShareURL } from "./url.ts";
 import type { BlockPlan, CompositionPolicy } from "./types.ts";
 import { compositionPolicySchema } from "./types.ts";
 import { composePlan } from "./compose.ts";
@@ -24,6 +24,8 @@ export function sourceComposition(refs: string[], extraRefs: string[] = [], poli
 }
 
 export function captureSource(value: string): { kind: "social" | "url"; url: string } {
+  const share = soundCloudShareURL(value);
+  if (share) return { kind: "social", url: share };
   if (value.startsWith("at://")) return { kind: "social", url: parseSource(value).canonicalUrl };
   const url = new URL(value);
   if (!["https:", "http:", "at:"].includes(url.protocol) || url.username || url.password) {

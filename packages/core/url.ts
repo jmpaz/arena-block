@@ -19,10 +19,23 @@ export type ParsedSource =
   | { provider: "delve"; handle: string; id: string; canonicalUrl: string }
   | { provider: "tiktok" | "instagram"; id: string; canonicalUrl: string }
   | { provider: "mastodon"; server: string; id: string; canonicalUrl: string }
-  | { provider: "hackernews" | "lobsters"; id: string; canonicalUrl: string }
+  | { provider: "hackernews"; id: string; canonicalUrl: string }
+  | { provider: "lobsters"; id: string; canonicalUrl: string; kind?: "story" }
   | { provider: "soundcloud"; kind: "track" | "playlist"; id: string; canonicalUrl: string };
 
 export function atprotoActorPath(actor: string): string { return actor.replaceAll("%", "%25"); }
+
+export function soundCloudShareURL(value: string): string | undefined {
+  let url: URL;
+  try { url = new URL(value); } catch { return undefined; }
+  if (url.hostname.toLowerCase() !== "on.soundcloud.com") return undefined;
+  if (value.length > 8192 || url.protocol !== "https:" || url.username || url.password || url.port) {
+    throw new Error("SoundCloud share links must use HTTPS without credentials or custom ports");
+  }
+  if (url.searchParams.has("secret_token")) throw new Error("SoundCloud private links are not supported; use a public track or playlist URL");
+  if (!/^\/[A-Za-z0-9_-]{1,128}\/?$/.test(url.pathname)) throw new Error("Expected a SoundCloud share link");
+  return `https://on.soundcloud.com${url.pathname.replace(/\/$/, "")}`;
+}
 
 export function parseSource(value: string): ParsedSource {
   if (value.startsWith("at://")) {
@@ -120,18 +133,28 @@ export function parseSource(value: string): ParsedSource {
     return { provider: "reddit", id: match[1]!, canonicalUrl: `https://www.reddit.com/comments/${match[1]}/` };
   }
   if (host === "news.ycombinator.com") {
-    const id = url.searchParams.get("id");
-    if (url.pathname !== "/item" || !id || !/^[1-9]\d*$/.test(id)) {
-      throw new Error(`Unsupported Hacker News comment URL: ${value}`);
+    const ids = url.searchParams.getAll("id"), id = ids[0];
+    if (url.protocol !== "https:" || url.username || url.password || url.port || !/^\/item\/?$/.test(url.pathname)
+      || ids.length !== 1 || !id || !/^[1-9]\d*$/.test(id) || !Number.isSafeInteger(Number(id))) {
+      throw new Error(`Expected an HTTPS Hacker News item permalink: ${value}`);
     }
+    if (url.hash && url.hash !== "#comments") throw new Error("Use the Hacker News comment's own item?id=ID permalink");
     return { provider: "hackernews", id, canonicalUrl: `https://news.ycombinator.com/item?id=${id}` };
   }
   if (host === "lobste.rs") {
-    const id = /^\/c\/([a-z0-9]+)(?:\.json)?\/?$/.exec(url.pathname)?.[1]
-      ?? (/^\/s\/[a-z0-9]+(?:\/[^/]+)?\/?$/.test(url.pathname) ? /^#c_([a-z0-9]+)$/.exec(url.hash)?.[1] : undefined)
-      ?? /^\/s\/[a-z0-9]+\/[^/]+\/comments\/([a-z0-9]+)\/?$/.exec(url.pathname)?.[1];
-    if (!id) throw new Error(`Expected a Lobsters comment permalink, including #c_ID for story URLs: ${value}`);
-    return { provider: "lobsters", id, canonicalUrl: `https://lobste.rs/c/${id}` };
+    if (url.protocol !== "https:" || url.username || url.password || url.port) throw new Error("Lobsters URLs must use HTTPS without credentials or custom ports");
+    const direct = /^\/c\/([a-z0-9]+)(?:\.json)?\/?$/.exec(url.pathname)?.[1];
+    const story = /^\/s\/([a-z0-9]+)(?:\.json|\/[^/]+)?\/?$/.exec(url.pathname)?.[1];
+    const nested = /^\/s\/[a-z0-9]+\/[^/]+\/comments\/([a-z0-9]+)\/?$/.exec(url.pathname)?.[1];
+    const fragment = /^#c_([a-z0-9]+)$/.exec(url.hash)?.[1];
+    if (url.hash && !fragment) throw new Error("Expected a Lobsters #c_ID comment anchor or a story permalink without an anchor");
+    const id = direct ?? nested ?? (story ? fragment : undefined);
+    if (id) {
+      if (fragment && fragment !== id) throw new Error("Conflicting Lobsters comment IDs");
+      return { provider: "lobsters", id, canonicalUrl: `https://lobste.rs/c/${id}` };
+    }
+    if (story) return { provider: "lobsters", kind: "story", id: story, canonicalUrl: `https://lobste.rs/s/${story}` };
+    throw new Error(`Expected a Lobsters story or comment permalink: ${value}`);
   }
   if (X_HOSTS.has(host)) {
     const statusIndex = parts.indexOf("status");
@@ -156,14 +179,17 @@ export function parseSource(value: string): ParsedSource {
     return { provider: "delve", handle, id: match[2]!, canonicalUrl: `https://delve.town/profile/${atprotoActorPath(handle)}/post/${match[2]}` };
   }
   if (host === "bsky.app") {
-    if (parts[0] !== "profile" || parts[2] !== "post" || !parts[1] || !parts[3]) {
+    const match = /^\/profile\/([^/]+)\/post\/([a-zA-Z0-9._~:-]+)\/?$/.exec(url.pathname);
+    if (url.protocol !== "https:" || url.username || url.password || url.port || !match) {
       throw new Error(`Unsupported Bluesky post URL: ${value}`);
     }
+    const handle = decodeURIComponent(match[1]!).replace(/^@/, "");
+    if (!/^[a-zA-Z0-9.:%_-]+$/.test(handle)) throw new Error("Expected a Bluesky handle or DID");
     return {
       provider: "bluesky",
-      handle: decodeURIComponent(parts[1]).replace(/^@/, ""),
-      id: parts[3],
-      canonicalUrl: `https://bsky.app/profile/${atprotoActorPath(decodeURIComponent(parts[1]).replace(/^@/, ""))}/post/${parts[3]}`,
+      handle,
+      id: match[2]!,
+      canonicalUrl: `https://bsky.app/profile/${atprotoActorPath(handle)}/post/${match[2]}`,
     };
   }
   const mastodonId = /^\/@[^/]+\/(\d+)\/?$/.exec(url.pathname)?.[1]

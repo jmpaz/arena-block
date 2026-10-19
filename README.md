@@ -54,7 +54,7 @@ Are.na lists blocks through search, which can refuse pages deep into a large acc
 | TikTok, Instagram | Post, video and share permalinks, read through FxEmbed Atmosphere |
 | SoundCloud | Public tracks and playlists, with track audio saved as an attachment |
 | LinkedIn | Public post permalinks with video; unsupported or incomplete post content returns an error |
-| Hacker News, Lobsters | Comment permalinks, read through public APIs |
+| Hacker News, Lobsters | Story and comment permalinks, read through public APIs |
 
 A Substack Note gets the title **Note by @handle**, and each quoted Note keeps its own author. Article previews and excerpts carry labels separating them from the Note's text. See [Substack captures](docs/substack-notes.md), [support and limits](docs/substack-parity.md) and [source checks](docs/substack-contract-checks.md).
 
@@ -62,7 +62,7 @@ A Substack Note gets the title **Note by @handle**, and each quoted Note keeps i
 
 An Instagram Reel gets the title **Reel by @handle**, and other Instagram posts get **Post by @handle**. TikTok and Instagram carousels keep their source order; their media URLs expire after a while, and planning again fetches fresh ones.
 
-Forum Magnum Quick Takes and Shortform entries resolve from their comment permalinks, since a Shortform container page holds no text of its own; GreaterWrong links resolve through LessWrong. Hacker News and Lobsters links resolve to a single comment.
+Forum Magnum Quick Takes and Shortform entries resolve from their comment permalinks, since a Shortform container page holds no text of its own; GreaterWrong links resolve through LessWrong. Hacker News and Lobsters links resolve to the selected story or comment. A story keeps its submission text, submitted link and submitter attribution, without the discussion. Comment parent depth remains separate from thread expansion.
 
 ## Text and media
 
@@ -73,6 +73,8 @@ By default the CLI reads only the listed posts. `-t` adds the surrounding thread
 `--media auto` selects media from the listed posts, leaving media inside quoted posts unselected. `--media all` selects every attachment from listed posts, thread posts and `--extra` sources, and `images`, `video` and `audio` filter that set; a reference such as `--media 1.2` selects a single item, including one from a quoted post. See [CLI media choices](docs/cli-media-options.md).
 
 Several images become a JPEG mosaic, and several videos an MP4 mosaic, with `--frame` and `--audio` picking poster frames and the soundtrack. New mosaics balance uneven tile areas with a modest preference for moving video. Choose Balanced, Source order or Compact in the editors, or use `--mosaic-layout`; see [media choices](docs/cli-media-options.md).
+
+The CLI and native capture resolve public SoundCloud share links through at most three manual HTTPS HEAD requests within ten seconds, validating each destination. Browser capture requires the expanded public track or playlist URL.
 
 The CLI saves a SoundCloud track as an audio attachment, using the artist's original file when offered. For other tracks, yt-dlp and FFmpeg convert the public stream to MP3, and `--media none` saves the track URL alone. A playlist block lists its tracks in order, with the playlist artwork.
 
