@@ -46,11 +46,30 @@ test("malformed, incomplete, unsafe and unsupported galleries cannot silently be
     (post: any) => delete post.embed,
     (post: any) => delete post.cid,
     (post: any) => post.embed.$type = "app.bsky.embed.future#view",
+    (post: any) => post.embed.items[1] = structuredClone(post.embed.items[0]),
+    (post: any) => post.embed.items.reverse(),
+    (post: any) => post.record.embed.items[0] = null,
+    (post: any) => post.record.embed.items[0].$type = "app.bsky.embed.gallery#video",
+    (post: any) => post.record.embed.items[0].image.ref.$link = "differentblob",
+    (post: any) => post.embed.items[0].alt = "Substituted alt text",
+    (post: any) => post.embed.items[0].fullsize = post.embed.items[0].fullsize.replace("cdn.bsky.app", "unproved.invalid"),
+    (post: any) => post.record.embed.items[0].aspectRatio = null,
   ];
   for (const alter of cases) {
     const value = structuredClone(fixture); alter(value.thread.post);
     await expect(provider(value).resolve(parseSource(url))).rejects.toThrow();
   }
+});
+
+test("gallery binding preserves duplicates present in the source and supported CDN format suffixes", async () => {
+  const value = structuredClone(fixture);
+  value.thread.post.record.embed.items[1] = structuredClone(value.thread.post.record.embed.items[0]);
+  value.thread.post.embed.items[1] = structuredClone(value.thread.post.embed.items[0]);
+  value.thread.post.embed.items[0].fullsize += "@jpeg";
+  const post = await provider(value).resolve(parseSource(url));
+  expect(post.media).toHaveLength(5);
+  expect(post.media[0]!.url).toBe(value.thread.post.embed.items[0].fullsize);
+  expect(post.media[1]!.url).toBe(value.thread.post.embed.items[1].fullsize);
 });
 
 test("a gallery inside a quoted record stays quote-only under CLI All", async () => {
@@ -98,5 +117,7 @@ test("rebuilt JavaScriptCore bundle classifies share links and resolves the exac
   const shareDone = new Promise<{ value: string | null; error: string | null }>(resolve => { finish = resolve; });
   context.captureResolve("share", JSON.stringify(["https://on.soundcloud.com/L0Z8FDzZWKyJQqIyHN"]), JSON.stringify({ media: "none", threadExpansion: "off" }));
   const shared = await shareDone; expect(shared.error).toBeNull();
-  expect(JSON.parse(shared.value!).plan.block.canonicalSource).toBe("https://soundcloud.com/rrthielnc/fxxlsgxld");
+  const sharedPlan = JSON.parse(shared.value!).plan;
+  expect(sharedPlan.block.canonicalSource).toBe("https://soundcloud.com/rrthielnc/fxxlsgxld");
+  expect(() => context.captureCompose(JSON.stringify(sharedPlan.sources), JSON.stringify({ media: "all" }))).toThrow("has not enabled an original audio download");
 });

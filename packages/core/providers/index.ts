@@ -1,6 +1,7 @@
 import { compositionPolicySchema, DEFAULT_VIDEO_FRAME_THRESHOLD_SECONDS, MAX_EXPANDED_SOURCE_POSTS, type CompositionPolicy, type ResolvedPost } from "../types.ts";
 import { mediaSources } from "../media-tree.ts";
 import { parseSource } from "../url.ts";
+import { assertSoundCloudAudioIntent } from "../soundcloud.ts";
 import { resolveSourceRefs } from "../source-redirects.ts";
 import { explicitSelections, selectionIdentity } from "../source-selection.ts";
 import { DelveProvider } from "./delve.ts";
@@ -149,6 +150,7 @@ export class SocialResolver {
       return true;
     });
     if (posts.length > MAX_EXPANDED_SOURCE_POSTS) throw new Error(`Expanded source selection exceeds ${MAX_EXPANDED_SOURCE_POSTS} posts; choose a smaller source set`);
+    for (const post of posts) assertSoundCloudAudioIntent(post, policy);
     const effective = compositionPolicySchema.parse({ ...policy,
       ...(policy.videoFrameThresholdSeconds === undefined && mediaSources(posts).some(node => node.media.some(asset => asset.kind === "video")) ? { videoFrameThresholdSeconds: DEFAULT_VIDEO_FRAME_THRESHOLD_SECONDS } : {}), ...(posts.length === 1 && posts[0]!.provider === "web" ? { media: "none" } : {}),
       ...(extraRefs.length || policyInput.mediaOnlyPosts?.length

@@ -29,6 +29,8 @@ export function verifyPublication(plan: BlockPlan, block: Json, available: Json)
       const contentType = string(attachment?.content_type);
       if (!contentType?.startsWith("audio/")) throw new Error("Are.na attachment does not retain an audio content type");
     }
+    const soundCloudLink = plan.block.kind === "url" && plan.sources[0]?.provider === "soundcloud";
+    if (soundCloudLink && type === "Embed" && !["auto", "none", "images"].includes(plan.policy.media)) throw new Error("Expected Link block for retained explicit audio intent");
     if ((plan.block.kind === "audio" || soundCloudLink) && plan.sources[0]?.provider === "soundcloud"
       && string(object(block.source)?.url) !== plan.block.canonicalSource) throw new Error("Are.na SoundCloud source does not match the block plan");
     if (plan.block.kind === "image") {

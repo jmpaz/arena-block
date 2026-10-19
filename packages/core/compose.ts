@@ -11,7 +11,7 @@ import { compositionPolicySchema, DEFAULT_QUOTE_DEPTH, DEFAULT_VIDEO_FRAME_THRES
 import { combineAspects, explicitAudio, mediaAspect, tileRects, IMAGE_RECIPE_LONG_EDGE, IMAGE_RECIPE_MIN_TILE, VIDEO_RECIPE_LONG_EDGE, VIDEO_RECIPE_MIN_TILE, even } from "./render-recipe.ts";
 import { atprotoMarkdown } from "./providers/atproto-post.ts";
 import { availableQuoteNodes, quoteDateLabel, renderedQuoteDepth } from "./quote-policy.ts";
-import { soundCloudPlaylistText } from "./soundcloud.ts";
+import { assertSoundCloudAudioIntent, soundCloudPlaylistText } from "./soundcloud.ts";
 import { isInstagramReel, parseSource } from "./url.ts";
 import { mediaSources, selectableMedia, planMedia } from "./media-tree.ts";
 import { renderedParentDepth, type ParentEntry } from "./parent-context.ts";
@@ -429,6 +429,7 @@ export function composePlan(
   if (!posts.length) throw new Error("At least one resolved post is required");
   if (posts.length > MAX_EXPANDED_SOURCE_POSTS) throw new Error(`At most ${MAX_EXPANDED_SOURCE_POSTS} resolved source posts are supported`);
   const policy = compositionPolicySchema.parse(policyInput);
+  for (const post of posts) assertSoundCloudAudioIntent(post, policy);
   if (["all", "images"].includes(policy.media)) {
     const issue = posts.flatMap(post => [post, ...availableQuoteNodes(post).slice(0, renderedQuoteDepth(policy))])
       .flatMap(post => post.mediaIssues ?? [])[0];

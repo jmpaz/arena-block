@@ -30,6 +30,7 @@ export async function resolveSoundCloudShareURL(value: string, fetcher: SourceFe
         method: "HEAD", redirect: "manual", credentials: "omit", signal: controller.signal,
       }), stopped]);
       if (failure) throw failure;
+      if (response.type === "opaqueredirect" || response.status === 0) throw new Error("This browser hides the SoundCloud share destination. Open the share link and copy the public track or playlist URL.");
       if (response.redirected || response.url && response.url !== current) throw new Error("SoundCloud share-link request followed an unchecked redirect");
       if (!REDIRECT_STATUSES.has(response.status)) throw new Error("SoundCloud share link did not redirect to a public track or playlist");
       const location = response.headers.get("location");

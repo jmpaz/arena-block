@@ -72,6 +72,34 @@ function mediaFromEmbed(embed: Json | undefined): MediaAsset[] {
   throw new Error(`Bluesky returned an unsupported embed: ${type || "missing type"}`);
 }
 
+function assertGallerySource(raw: Json | undefined, view: Json | undefined, did: string | undefined): void {
+  if (!raw || !view || !did || !Array.isArray(raw.items) || !Array.isArray(view.items)
+    || !raw.items.length || raw.items.length > 100 || raw.items.length !== view.items.length) throw new Error("Bluesky gallery view is incomplete for its source record");
+  for (let index = 0; index < raw.items.length; index++) {
+    const original = object(raw.items[index]), image = object(original?.image), ref = object(image?.ref);
+    const rendered = object(view.items[index]), cid = string(ref?.$link);
+    if (original?.$type !== "app.bsky.embed.gallery#image" || image?.$type !== "blob"
+      || !cid || !/^[A-Za-z0-9]{1,128}$/.test(cid) || !/^image\/[a-z0-9.+-]+$/i.test(string(image.mimeType) ?? "")
+      || !Number.isSafeInteger(image.size) || (image.size as number) <= 0 || typeof original.alt !== "string"
+      || rendered?.$type !== "app.bsky.embed.gallery#viewImage" || rendered.alt !== original.alt || !string(rendered.fullsize)) {
+      throw new Error("Bluesky gallery has unsupported or incomplete source image evidence");
+    }
+    const url = new URL(rendered.fullsize as string), parts = url.pathname.split("/");
+    const filename = decodeURIComponent(parts[5] ?? "");
+    if (url.protocol !== "https:" || url.hostname !== "cdn.bsky.app" || url.port || url.username || url.password
+      || parts.length !== 6 || parts[1] !== "img" || parts[2] !== "feed_fullsize" || parts[3] !== "plain"
+      || decodeURIComponent(parts[4] ?? "") !== did || !new RegExp(`^${cid}(?:@(jpeg|png|webp|avif))?$`).test(filename)) {
+      throw new Error("Bluesky gallery image does not match its source blob and order");
+    }
+    const aspect = object(original.aspectRatio), returnedAspect = object(rendered.aspectRatio);
+    if (original.aspectRatio !== undefined && !aspect) throw new Error("Bluesky gallery has malformed source image dimensions");
+    if (aspect && (!Number.isSafeInteger(aspect.width) || !Number.isSafeInteger(aspect.height)
+      || (aspect.width as number) <= 0 || (aspect.height as number) <= 0 || aspect.width !== returnedAspect?.width || aspect.height !== returnedAspect?.height)) {
+      throw new Error("Bluesky gallery image dimensions disagree with its source record");
+    }
+  }
+}
+
 function quotedRecord(embed: Json | undefined): Json | undefined {
   if (!embed) return undefined;
   const type = string(embed.$type) ?? "";
@@ -92,16 +120,12 @@ function postFromView(post: Json, fallback: Extract<ParsedSource, { provider: "b
   const rawEmbed = object(record.embed);
   const rawGallery = rawEmbed?.$type === "app.bsky.embed.gallery" ? rawEmbed
     : rawEmbed?.$type === "app.bsky.embed.recordWithMedia" && object(rawEmbed.media)?.$type === "app.bsky.embed.gallery" ? object(rawEmbed.media) : undefined;
-  if (gallery || rawGallery) {
-    if (!gallery || !rawGallery || !Array.isArray(rawGallery.items) || !Array.isArray(gallery.items) || rawGallery.items.length !== gallery.items.length) {
-      throw new Error("Bluesky gallery view is incomplete for its source record");
-    }
-  }
+  const cid = string(post.cid), did = string(author?.did);
+  if (gallery || rawGallery) assertGallerySource(rawGallery, gallery, did);
   const quoteRecord = quotedRecord(embed);
   const facets = record.$type === "app.bsky.feed.post" ? record.facets : undefined;
   if (facets !== undefined && !Array.isArray(facets)) throw new Error("Bluesky rich-text facets are malformed");
   const withFacets = Array.isArray(facets) && facets.length > 0;
-  const cid = string(post.cid), did = string(author?.did);
   if ((withFacets || gallery) && (!cid || !did || uri !== `at://${did}/app.bsky.feed.post/${id}` || record.$type !== "app.bsky.feed.post")) throw new Error("Bluesky rich source is missing its record identity");
   const withIdentity = withFacets || !!gallery || retainIdentity && cid && did && uri === `at://${did}/app.bsky.feed.post/${id}`;
   // Normalize derived fields before a plan is hashed; keep the raw record below.

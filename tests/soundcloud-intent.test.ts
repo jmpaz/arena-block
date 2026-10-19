@@ -6,7 +6,7 @@ import { blockPlanSchema } from "../packages/core/types.ts";
 import { SocialResolver } from "../src/providers/index.ts";
 import { SoundCloudProvider } from "../src/providers/soundcloud.ts";
 import { selectedPostMediaPolicy } from "../src/cli-media.ts";
-import { resolveCapture } from "../extension/src/core.ts";
+import { resolveCapture, revisePlan } from "../extension/src/core.ts";
 
 const url = "https://soundcloud.com/fixture/original-track";
 const info = (formats: unknown[] = []) => ({ id: "123", title: "Original track", track: "Original track", webpage_url: url,
@@ -61,6 +61,16 @@ test("an explicit source-link choice can verify a SoundCloud Embed with its exac
   const received = { state: "available", type: "Embed", title: plan.block.title, description: { markdown: publicationFields(plan).description }, source: { url } };
   expect(() => verifyPublication(plan, received, received)).not.toThrow();
   expect(() => verifyPublication(plan, { ...received, source: { url: "https://soundcloud.com/other/track" } }, received)).toThrow("SoundCloud source");
+});
+
+test("cached source recomposition cannot turn missing original audio into an All/Audio URL fallback", async () => {
+  const resolved = await new SocialResolver({ soundcloud: provider() }).resolveComposition([url], [], { media: "auto" });
+  const cached = composePlan(resolved.posts, resolved.policy);
+  for (const media of ["all", "audio"] as const) {
+    expect(() => composePlan(cached.sources, { ...cached.policy, media })).toThrow("has not enabled an original audio download");
+    expect(() => revisePlan(cached, { policy: { media } })).toThrow("has not enabled an original audio download");
+  }
+  expect(composePlan(cached.sources, { media: "none" }).block.kind).toBe("url");
 });
 
 test("native capture distinguishes an enabled download from a verified original file", async () => {

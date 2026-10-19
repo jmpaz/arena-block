@@ -1,4 +1,14 @@
-import type { SoundCloudMetadata } from "./types.ts";
+import type { CompositionPolicy, MediaAsset, ResolvedPost, SoundCloudMetadata } from "./types.ts";
+
+export function isSoundCloudAudio(asset: MediaAsset): boolean {
+  return asset.kind === "audio" && ["soundcloud-original-download", "soundcloud-mp3"].includes(asset.acquisition ?? "");
+}
+
+export function assertSoundCloudAudioIntent(post: ResolvedPost, policy: Pick<CompositionPolicy, "media">): void {
+  if (post.provider !== "soundcloud" || post.soundcloud?.kind !== "track" || !["all", "audio"].includes(policy.media)) return;
+  if (post.media.some(isSoundCloudAudio)) return;
+  throw new Error("No supported full SoundCloud audio is available to this client. Choose a source link or prepare a new audio plan. No audio block was created.");
+}
 
 function duration(seconds: number | undefined): string | undefined {
   if (seconds === undefined) return undefined;

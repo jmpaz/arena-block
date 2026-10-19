@@ -6,7 +6,6 @@ import { resolveSoundCloudShareURL, resolveSourceRefs } from "../packages/core/s
 import { explicitSelections } from "../packages/core/source-selection.ts";
 import { parseSource, soundCloudShareURL } from "../packages/core/url.ts";
 import { requiredOrigins, resolveCapture } from "../extension/src/core.ts";
-import { permissionManifest } from "../extension/permission-policy.ts";
 
 const share = "https://on.soundcloud.com/L0Z8FDzZWKyJQqIyHN";
 const track = "https://soundcloud.com/rrthielnc/fxxlsgxld";
@@ -68,6 +67,8 @@ describe("bounded SoundCloud share routing", () => {
     }
     const followed = redirect(track); Object.defineProperty(followed, "url", { value: track });
     await expect(resolveSoundCloudShareURL(share, async () => followed)).rejects.toThrow("unchecked redirect");
+    const opaque = new Response(); Object.defineProperty(opaque, "type", { value: "opaqueredirect" });
+    await expect(resolveSoundCloudShareURL(share, async () => opaque)).rejects.toThrow("browser hides");
   });
 
   test("validates the whole selection before starting redirect readers", async () => {
@@ -107,7 +108,7 @@ describe("bounded SoundCloud share routing", () => {
     expect(composePlan(resolved.posts, resolved.policy).block.canonicalSource).toBe(track);
   });
 
-  test("native/browser composition uses the injected reader for both redirect and source page", async () => {
+  test("portable composition uses an injected redirect-capable reader; browser preflight asks for a canonical URL", async () => {
     const calls: string[] = [];
     const plan = await resolveCapture({ primary: [share], extras: [], policy: { media: "none", threadExpansion: "off" } }, undefined,
       (async (input, init) => { const url = String(input); calls.push(url);
@@ -117,8 +118,7 @@ describe("bounded SoundCloud share routing", () => {
       }) as typeof fetch);
     expect(calls).toEqual([share, track]); expect(plan.block.kind).toBe("url"); expect(plan.block.canonicalSource).toBe(track);
     expect(plan.sources[0]!.soundcloud?.kind).toBe("track");
-    expect(requiredOrigins([share])).toEqual(["https://on.soundcloud.com/*", "https://soundcloud.com/*"]);
-    const manifest = permissionManifest("named-sources", true, []);
-    for (const origin of requiredOrigins([share])) expect(manifest.optional_host_permissions).toContain(origin);
+    expect(() => requiredOrigins([share])).toThrow("public track or playlist URL for browser capture");
+    expect(requiredOrigins([track])).toEqual(["https://soundcloud.com/*"]);
   });
 });

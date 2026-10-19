@@ -11,7 +11,6 @@ export const CAPTURE_ORIGINS = [
   "https://hacker-news.firebaseio.com/*",
   "https://lobste.rs/*",
   "https://soundcloud.com/*",
-  "https://on.soundcloud.com/*",
 ] as const;
 
 export type PermissionProfile = "legacy" | "named-sources";
