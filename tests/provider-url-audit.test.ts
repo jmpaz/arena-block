@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import { parseSource } from "../packages/core/url.ts";
+import { explicitSelections } from "../packages/core/source-selection.ts";
 
 test.each([
   ["https://x.com/writer/status/123?tracking=1", "x", "https://x.com/writer/status/123"],
@@ -34,4 +35,9 @@ test.each(["https://x.com/writer", "https://bsky.app/profile/writer.test", "http
   "https://news.ycombinator.com/", "https://lobste.rs/", "https://www.are.na/josh-pazmino/channel"])
 ("does not infer a selected source from profile, collection or malformed URL %s", input => {
   expect(() => parseSource(input)).toThrow();
+});
+
+test("share tokens do not stand in for globally identified source records before provider resolution", () => {
+  expect(explicitSelections(["https://www.reddit.com/r/test/s/abc123", "https://www.reddit.com/comments/abc123/"])).toHaveLength(2);
+  expect(explicitSelections(["https://vm.tiktok.com/123/", "https://www.tiktok.com/@writer/video/123"])).toHaveLength(2);
 });

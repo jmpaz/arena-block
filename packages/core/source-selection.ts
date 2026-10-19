@@ -12,6 +12,8 @@ function identity(source: ParsedSource): string {
   if (source.provider === "bluesky" || source.provider === "delve") return `${source.provider}:${source.handle.startsWith("did:") ? source.handle : source.handle.toLowerCase()}:${source.id}`;
   if (source.provider === "mastodon") return `mastodon:${source.server}:${source.id}`;
   if (source.provider === "reddit" && source.commentId) return `reddit-comment:${source.commentId}`;
+  if (source.provider === "reddit" && source.short) return `reddit-share:${source.canonicalUrl}`;
+  if (source.provider === "tiktok" && !/^https:\/\/www\.tiktok\.com\/@[^/]+\/(?:photo|video)\//.test(source.canonicalUrl)) return `tiktok-share:${source.canonicalUrl}`;
   if (source.provider === "forum_magnum") return `forum-magnum:${source.site}:${source.commentId ? `comment:${source.commentId}` : `post:${source.id}`}`;
   if (source.provider === "lobsters" && source.kind === "story") return `lobsters-story:${source.id}`;
   if (source.provider === "soundcloud") return `soundcloud:${source.kind}:${source.canonicalUrl}`;
