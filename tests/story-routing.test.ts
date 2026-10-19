@@ -89,5 +89,6 @@ describe("story and selected-comment dispatch", () => {
     await expect(fetchJson(root + ".json", async (_url, init) => { expect(init?.redirect).toBe("manual"); return new Response(null, { status: 302 }); })).rejects.toThrow("302");
     await expect(fetchJson(root + ".json", async () => new Response("{}", { headers: { "content-length": "2000001" } }))).rejects.toThrow("2 MB");
     await expect(fetchJson(root + ".json", async () => new Response(" ".repeat(2_000_001)))).rejects.toThrow("2 MB");
+    await expect(fetchJson(root + ".json", async () => Response.json({ body: "界".repeat(700_000) }))).rejects.toThrow("2 MB");
   });
 });

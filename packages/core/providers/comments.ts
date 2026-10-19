@@ -13,6 +13,12 @@ export async function fetchJson(url: string, fetcher: Fetcher, signal?: AbortSig
   if (Number(response.headers.get("content-length")) > 2_000_000) throw new Error("Public story/comment API response exceeds 2 MB");
   const body = await response.text();
   if (body.length > 2_000_000) throw new Error("Public story/comment API response exceeds 2 MB");
+  let bytes = 0;
+  for (const character of body) {
+    const point = character.codePointAt(0)!;
+    bytes += point < 0x80 ? 1 : point < 0x800 ? 2 : point < 0x10000 ? 3 : 4;
+    if (bytes > 2_000_000) throw new Error("Public story/comment API response exceeds 2 MB");
+  }
   return JSON.parse(body);
 }
 
