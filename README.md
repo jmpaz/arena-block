@@ -37,7 +37,7 @@ arena-block thread 'https://bsky.app/profile/example.com/post/first' --scope cha
 | x.com | Post permalinks, public articles and author threads, read through FxTwitter |
 | Bluesky, [Delvetown](https://delve.town) | Post links or `at://` post URIs, read through public AppViews |
 | Mastodon | Public HTTPS post permalinks, read through the instance's status API; a boost resolves to the original post |
-| Reddit | Public posts and comments, read as JSON |
+| Reddit\* | Public posts and comments, read as JSON |
 | LessWrong, Alignment Forum, EA Forum | Post and comment permalinks, read through each site's GraphQL API |
 | Substack | Public Notes, free public articles, original media and article cards |
 | TikTok, Instagram | Post, video and share permalinks, read through FxEmbed Atmosphere |
@@ -46,7 +46,7 @@ arena-block thread 'https://bsky.app/profile/example.com/post/first' --scope cha
 
 A Substack Note gets the title **Note by @handle**, and each quoted Note keeps its own author. Article previews and excerpts carry labels separating them from the Note's text. See [Substack captures](docs/substack-notes.md), [support and limits](docs/substack-parity.md) and [source checks](docs/substack-contract-checks.md).
 
-Reddit refuses some unauthenticated reads, and the CLI stops on HTTP 401, 403, 429 or 503; Reddit records saved by earlier versions still open. See [Reddit source access](docs/reddit-source-access.md).
+\* Reddit capture is unreliable: Reddit refuses many unauthenticated reads, and the CLI stops on HTTP 401, 403, 429 or 503. Reddit records saved by earlier versions still open. See [Reddit source access](docs/reddit-source-access.md).
 
 An Instagram Reel gets the title **Reel by @handle**, and other Instagram posts get **Post by @handle**. TikTok and Instagram carousels keep their source order; their media URLs expire after a while, and planning again fetches fresh ones.
 
