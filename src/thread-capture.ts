@@ -279,6 +279,10 @@ function replyRelation(capture: ThreadCapture, post: ThreadPost, options: Thread
   const excluded = options.excludedPosts?.find(p => p.id === parentId);
   return excluded ? `Reply to ${formatLink(`@${excluded.author.handle}`, excluded.url)} (intentionally excluded from this draft)` : "Reply parent unavailable";
 }
+function excludedQuoteReference(id: string, options: ThreadRenderOptions, formatLink: (label: string, url: string) => string): string | undefined {
+  const excluded = options.excludedPosts?.find(post => post.id === id);
+  return excluded ? `Quoted source ${formatLink(`@${excluded.author.handle}`, excluded.url)} (intentionally excluded from this draft)` : undefined;
+}
 export function renderThreadMarkdown(capture: ThreadCapture, options: ThreadRenderOptions = {}): string {
   const lines = ["# Thread capture", "", `Source: ${link(capture.sourceUrl, capture.sourceUrl)}`, `Captured: ${md(capture.capturedAt)}`, "", ...threadCoverageReport(capture).split("\n").map(line => `- ${md(line)}`), ""];
   const renderPost = (post: ThreadPost, visited: Set<string>, quoted: boolean): string[] => {
@@ -289,7 +293,7 @@ export function renderThreadMarkdown(capture: ThreadCapture, options: ThreadRend
     if (relation) body.push(relation, "");
     for (const e of capture.edges.filter(e => e.from === post.id && e.kind === "quote")) {
       const quote = capture.posts.find(p => p.id === e.to);
-      body.push(...(quote ? renderPost(quote, path, true) : ["Quoted post unavailable"]).flatMap(line => line.split("\n").map(part => `> ${part}`)), "");
+      body.push(...(quote ? renderPost(quote, path, true) : [excludedQuoteReference(e.to, options, link) ?? "Quoted post unavailable"]).flatMap(line => line.split("\n").map(part => `> ${part}`)), "");
     }
     body.push(post.status === "available" ? post.segments.map(segment => segment.url ? link(segment.text, segment.url) : safeMarkdown(segment.text)).join("") : md(`[${post.status}: original content unavailable]`));
     if (post.external) body.push("", `Embedded link: ${link(post.external.title || post.external.url, post.external.url)}`, md(post.external.description));
@@ -313,7 +317,7 @@ export function renderThreadHtml(capture: ThreadCapture, options: ThreadRenderOp
     if (visited.has(p.id)) return `<p>${anchor("Repeated quote: original post", p.url)}</p>`;
     const path = new Set(visited).add(p.id);
     const quotes = capture.edges.filter(e => e.from === p.id && e.kind === "quote").map(e => {
-      const quote = capture.posts.find(p => p.id === e.to); return `<blockquote>${quote ? renderPost(quote, path, true) : "Quoted post unavailable"}</blockquote>`;
+      const quote = capture.posts.find(p => p.id === e.to); return `<blockquote>${quote ? renderPost(quote, path, true) : excludedQuoteReference(e.to, options, anchor) ?? "Quoted post unavailable"}</blockquote>`;
     }).join("");
     const reply = !quoted && replyRelation(capture, p, options, anchor);
     const relation = reply ? `<p class="relation">${reply}</p>` : "";

@@ -8,6 +8,8 @@ The `thread` command saves API responses alongside normalized records. Its Markd
 
 After you exclude an acquired parent, the exporter keeps its original link beside the reply and labels the exclusion.
 
+When calling `writeThreadDraft`, use `selectedIds` for the draft's prose. Add acquired quote IDs to `referenceOnlyQuoteIds` to retain their source links while excluding their prose and media. The manifest records those quote relationships, original URLs and available CIDs. Choose each source as prose or as a reference-only quote. Quote expansion otherwise continues through the acquired context.
+
 For x.com, provide exact known post URLs when the returned author chain is insufficient. For Bluesky, choose `chain` or bounded `tree` traversal and configure request, depth and post limits. Returned replies can omit other branches. Read the coverage report before describing the selection.
 
 Supply reviewed image descriptions as `{ text, basis: "pixels", evidence }`, keyed by original media URL. The evidence refers to the inspected image. Attribute source alt text separately. A missing visual review remains pending; videos remain links unless a separate review is performed.
