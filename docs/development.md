@@ -25,7 +25,7 @@ bun test tests/plan-capabilities.test.ts tests/extension-browser.test.ts
 
 The full Bun suite requires loopback socket access and media tools such as FFmpeg. `bun test` runs the suite; `nix flake check` runs the packaged checks.
 
-To prepare SoundCloud MP3s, the service runs yt-dlp, with FFmpeg and FFprobe on `PATH`. A client posts a track plan to the authenticated `/v1/render` endpoint and gets back the MP3's URL, hash and size, with the URL derived from the file's content. The iOS app checks the downloaded file before uploading it to Are.na. The service lists `soundcloud-mp3-v1` at `/v1/version`. Set its HTTPS address and access token in the app's SoundCloud settings.
+To prepare SoundCloud MP3s, the service runs yt-dlp, with FFmpeg and FFprobe on `PATH`. A client posts a track plan to the authenticated `/v1/render` endpoint and gets back the MP3's URL, hash and size, with the URL derived from the file's content. The iOS app checks the downloaded file before uploading it to Are.na. The service lists `soundcloud-mp3-v1` at `/v1/version`. The app's SoundCloud settings hold its HTTPS address and access token.
 
 For native work, regenerate the core with `bun run build:ios-core`, then run `swift test` from `ios`. XcodeGen creates the app project and its `CaptureUITests` target. Use device checks for system background scheduling and Share extension lifecycle alongside the simulator fixtures.
 
@@ -55,6 +55,6 @@ The picker screenshot fixture accepts `--browser`, `--extension`, `--screenshot`
 
 For optional native live-source checks, set `CAPTURE_LIVE_SOURCE_CHECK=1` and provide a JSON path through `CAPTURE_LIVE_SOURCE_FIXTURE`. The JSON contains `chainURI`, `rootText`, `seedText`, `quotedAuthor`, `quoteCardURL`, `cardText`, `cardTarget`, `singleImageURL` and `twoImageURL`. The tests check content, thread, media and picker behavior against those selected sources.
 
-`CAPTURE_LIVE_SUBSTACK_IMAGE_NOTE=1` turns on public Note reads in the Swift suite and the Substack UI tests. `CAPTURE_LIVE_SUBSTACK_PODCAST_AUDIO=1` turns on podcast audio staging in the Swift suite, with a size and hash check. Neither saves anything. Set UI test flags in the test runner's environment.
+`CAPTURE_LIVE_SUBSTACK_IMAGE_NOTE=1` turns on public Note reads in the Swift suite and the Substack UI tests. `CAPTURE_LIVE_SUBSTACK_PODCAST_AUDIO=1` turns on podcast audio staging in the Swift suite, with a size and hash check. Neither saves anything. UI test flags go in the test runner's environment.
 
-`StorageReportUITests` covers opening the report by URL from a cold start, canceling collection, exporting to Files and returning to a capture. Unsigned simulator runs use a separate synthetic store. Check signed App Group access and background callbacks from iOS on a device.
+`StorageReportUITests` covers opening the report by URL from a cold start, canceling collection, exporting to Files and returning to a capture. Unsigned simulator runs use a separate synthetic store. Signed App Group access and background callbacks from iOS need a device.

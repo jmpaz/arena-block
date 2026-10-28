@@ -14,4 +14,4 @@ When Reddit refuses a request, the provider has no post record to work from. A t
 
 Reddit's [Data API documentation](https://support.reddithelp.com/hc/en-us/articles/16160319875092-Reddit-Data-API-Wiki) requires registered OAuth access. Another service could stand in for it only by supplying a complete record with IDs, media and parent data. VxReddit and Rxddit serve embed previews with partial parent and media data, so they can't.
 
-Records saved by earlier versions still open, as described in [saved page records](reddit-public-page.md).
+Records saved by earlier versions still open, as covered in [saved page records](reddit-public-page.md).

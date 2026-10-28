@@ -2,13 +2,13 @@
 
 The deterministic suite reads saved responses from real public Notes. It checks the full text, each quoted Note, author IDs, link targets, attachment IDs and source order, then checks the composed Markdown. A root Note with a quote that failed to load fails the full-content check, even though an ordinary capture can show the gap to the user.
 
-Run the deterministic checks offline:
+The deterministic checks run offline:
 
 ```sh
 bun test tests/substack-live-contract.test.ts
 ```
 
-The suite runs each fixture through the shared resolver used by the helper, the serialized Safari and browser page reader, and the checked-in native JavaScript bundle. After changing shared source code, run `bun run build:ios-core` before testing the bundled resolver. These checks run outside the app and save nothing.
+The suite runs each fixture through the shared resolver used by the helper, the serialized Safari and browser page reader, and the checked-in native JavaScript bundle. Changes to shared source code reach the bundled resolver after `bun run build:ios-core`. These checks run outside the app and save nothing.
 
 ## Source fixtures
 
@@ -36,19 +36,19 @@ The negative fixtures cover a collapsed preview, duplicate body candidates, chan
 
 ## Manual live check
 
-Print the URL list and request estimate without sending requests:
+Without `--live`, the script prints the URL list and request estimate and sends nothing:
 
 ```sh
 bun scripts/check-substack-contracts.ts
 ```
 
-Check the density/grid Note and its quoted Note:
+A live check of the density/grid Note and its quoted Note:
 
 ```sh
 bun scripts/check-substack-contracts.ts --live --case 360337718 --max-requests 4 --output /tmp/substack-contract-live.json
 ```
 
-For a broader check, omit `--case`, or pass a comma-separated list of cases. The default limit is 48 requests, up to a hard limit of 64. Requests run one at a time, at least a second apart, and repeated quote reads share a cache within the run. Each response can be up to 2 MiB, and the run up to 32 MiB. The reader uses public page and metadata routes without credentials. It leaves image, video and audio originals undownloaded, stays out of private channels and saves nothing. The live command always fetches the real URLs, including the two cases whose deterministic checks start from saved records.
+Without `--case`, the script checks every case. `--case` also takes a comma-separated list. The default limit is 48 requests, up to a hard limit of 64. Requests run one at a time, at least a second apart, and repeated quote reads share a cache within the run. Each response can be up to 2 MiB, and the run up to 32 MiB. The reader uses public page and metadata routes without credentials. It leaves image, video and audio originals undownloaded, stays out of private channels and saves nothing. The live command always fetches the real URLs, including the two cases whose deterministic checks start from saved records.
 
 The JSON report records each URL with its status, fetch time, response size and hash. A passing case includes the composed plan and its SHA-256, next to the compared source fields. A failing case records the message, the source diagnostic and the changed fields when available. Access restrictions, rate limits and network failures stop the run. Cases left over appear under `unrun`, and the process exits with a failure status.
 
@@ -66,8 +66,8 @@ The JSON report records each URL with its status, fetch time, response size and 
 | `render-contract` | Complete source writing is missing or out of order in composed Markdown. |
 | `request-budget` | The request or response-byte bound is reached. |
 
-When a response changes, review it before updating fixtures. Compare the source text, IDs and roles with the original fetch. Update expected values only after confirming the source itself changed.
+A changed response calls for review before any fixture update, comparing the source text, IDs and roles with the original fetch. Expected values change only once the source itself is confirmed to have changed.
 
 ## Remaining checks
 
-The fixtures cover Note text and attachment records. Check Share on a physical device, playback, media quality, native frame composition and audio export separately. A Note with a standalone native audio upload has no test case yet. Saved live results sit next to the fixtures, in `live-observation-20261016.json` and `live-observation-20261017.json`.
+The fixtures cover Note text and attachment records. Share on a physical device, playback, media quality, native frame composition and audio export need separate checks. A Note with a standalone native audio upload has no test case yet. Saved live results sit next to the fixtures, in `live-observation-20261016.json` and `live-observation-20261017.json`.
