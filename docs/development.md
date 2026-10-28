@@ -25,7 +25,7 @@ bun test tests/plan-capabilities.test.ts tests/extension-browser.test.ts
 
 The full Bun suite requires loopback socket access and media tools such as FFmpeg. `bun test` runs the suite; `nix flake check` runs the packaged checks.
 
-To prepare SoundCloud MP3s, the service runs yt-dlp, with FFmpeg and FFprobe on `PATH`. A client posts a track plan to the authenticated `/v1/render` endpoint and gets back the MP3's URL, hash and size, with the URL derived from the file's content. The iOS app checks the downloaded file before uploading it to Are.na. The service lists `soundcloud-mp3-v1` at `/v1/version`. The app's SoundCloud settings hold its HTTPS address and access token.
+To prepare SoundCloud MP3s, the service runs yt-dlp, with FFmpeg and FFprobe on `PATH`, and lists `soundcloud-mp3-v1` at `/v1/version`. A client posts a track plan to the authenticated `/v1/render` endpoint and gets back the MP3's content-addressed URL, hash and size. The iOS app, configured with the service's HTTPS address and access token, checks the downloaded file before uploading it to Are.na.
 
 For native work, regenerate the core with `bun run build:ios-core`, then run `swift test` from `ios`. XcodeGen creates the app project and its `CaptureUITests` target. Use device checks for system background scheduling and Share extension lifecycle alongside the simulator fixtures.
 
@@ -39,7 +39,9 @@ The iOS catalog supplies an opaque 1024px light image, a transparent dark foregr
 
 ## Fixture development
 
-Source fixtures include fictional cases and saved public posts. The public Substack examples record response hashes and fetch times. Regression tests rely on the fixtures' reply and quote graphs, media geometry and rich-text offsets. Retained-plan fixtures use their own immutable hashes. When changing fixture input, calculate a new fixture plan deliberately and keep the expected hash fixed during the test.
+Source fixtures include fictional cases and saved public posts, with response hashes and fetch times recorded for the public Substack examples. Regression tests rely on their reply and quote graphs, media geometry and rich-text offsets.
+
+Retained-plan fixtures use their own immutable hashes. A change to fixture input calls for a deliberately recalculated fixture plan, with the expected hash held fixed during the test.
 
 AT Protocol records include normalized facets plus retained raw record fields. Test UTF-8 boundaries, protocol namespaces, quote identities and capability rejection before submission. Browser fetch adapters omit credentials when reading public provider data.
 
@@ -55,6 +57,6 @@ The picker screenshot fixture accepts `--browser`, `--extension`, `--screenshot`
 
 For optional native live-source checks, set `CAPTURE_LIVE_SOURCE_CHECK=1` and provide a JSON path through `CAPTURE_LIVE_SOURCE_FIXTURE`. The JSON contains `chainURI`, `rootText`, `seedText`, `quotedAuthor`, `quoteCardURL`, `cardText`, `cardTarget`, `singleImageURL` and `twoImageURL`. The tests check content, thread, media and picker behavior against those selected sources.
 
-`CAPTURE_LIVE_SUBSTACK_IMAGE_NOTE=1` turns on public Note reads in the Swift suite and the Substack UI tests. `CAPTURE_LIVE_SUBSTACK_PODCAST_AUDIO=1` turns on podcast audio staging in the Swift suite, with a size and hash check. Neither saves anything. UI test flags go in the test runner's environment.
+`CAPTURE_LIVE_SUBSTACK_IMAGE_NOTE=1` turns on public Note reads in the Swift suite and the Substack UI tests; `CAPTURE_LIVE_SUBSTACK_PODCAST_AUDIO=1` turns on podcast audio staging in the Swift suite, with a size and hash check. Neither saves anything, and UI test flags go in the test runner's environment.
 
 `StorageReportUITests` covers opening the report by URL from a cold start, canceling collection, exporting to Files and returning to a capture. Unsigned simulator runs use a separate synthetic store. Signed App Group access and background callbacks from iOS need a device.

@@ -26,11 +26,11 @@ The suite runs each fixture through the shared resolver used by the helper, the 
 | `@laurelpantin` c-345777657 | Retained complete outer Note and separate quoted c-345770676 video, with original upload d51e3d24-74e7-46ac-8392-c666fdc163c1. |
 | `@arr87` c-353698796 | Retained Arabic prose and original image, plus separate quoted c-353690182 video upload 0c12776b-e2f4-4187-aaae-230a9d7c08e4. |
 
-The suite selects all media explicitly to check attachment coverage. A fresh Auto capture selects the root Note's media. Each case runs with its full URL, a variant with tracking parameters and the bare `substack.com/note/c-ID` alias. The alias case covers URL identity and cleanup. Redirect safety has its own tests in `tests/substack-receiving.test.ts`. The HTTP and Lucy Ives cases also compare shortened inline URL labels with their full targets.
+The suite selects all media explicitly to check attachment coverage, where a fresh Auto capture would select only the root Note's media. Each case runs with its full URL, a variant with tracking parameters and the bare `substack.com/note/c-ID` alias; redirect safety has its own tests in `tests/substack-receiving.test.ts`. The HTTP and Lucy Ives cases also compare shortened inline URL labels with their full targets.
 
-`tests/fixtures/substack-contracts` holds 20 saved HTML and JSON responses. Each HTML file keeps the Note's permalink unit, its quote preview, media and player elements and the matching JSON-LD, with unrelated bootstrap scripts and styles removed. Player elements stay as evidence, and the tests leave their URLs unloaded. API fixtures keep the fields the source reader uses.
+`tests/fixtures/substack-contracts` holds 20 saved HTML and JSON responses. Each HTML file keeps the Note's permalink unit, its quote preview, media and player elements and the matching JSON-LD, with unrelated bootstrap scripts and styles removed; player elements stay as evidence, with their URLs left unloaded. API fixtures keep the fields the source reader uses.
 
-`responses.json` records source URLs, fixture sizes and SHA-256 hashes, input fixture hashes, and the original response hash and fetch time where one was saved. Where the original metadata is missing, the entry holds `null` in place of a value rebuilt from a later fetch. The two quoted-video cases start from complete saved captures, without the original outer HTML, as `retained-provenance.json` notes. They count toward record checks, apart from public-page fetch coverage.
+`responses.json` records source URLs, fixture sizes and SHA-256 hashes, input fixture hashes, and the original response hash and fetch time where one was saved; missing original metadata stays `null`, in place of a value rebuilt from a later fetch. The two quoted-video cases start from complete saved captures without the original outer HTML, as `retained-provenance.json` notes, so they count toward record checks and stay out of public-page fetch coverage.
 
 The negative fixtures cover a collapsed preview, duplicate body candidates, changed text alongside unchanged structured data and a quoted page that failed to load. A separate test edits a valid complete body and confirms that the expected text digest fails. A check passes only on matching content, beyond HTTP 200 and a successful parse.
 
@@ -48,9 +48,15 @@ A live check of the density/grid Note and its quoted Note:
 bun scripts/check-substack-contracts.ts --live --case 360337718 --max-requests 4 --output /tmp/substack-contract-live.json
 ```
 
-Without `--case`, the script checks every case. `--case` also takes a comma-separated list. The default limit is 48 requests, up to a hard limit of 64. Requests run one at a time, at least a second apart, and repeated quote reads share a cache within the run. Each response can be up to 2 MiB, and the run up to 32 MiB. The reader uses public page and metadata routes without credentials. It leaves image, video and audio originals undownloaded, stays out of private channels and saves nothing. The live command always fetches the real URLs, including the two cases whose deterministic checks start from saved records.
+Without `--case`, the script checks every case; `--case` also takes a comma-separated list. The run has these limits:
 
-The JSON report records each URL with its status, fetch time, response size and hash. A passing case includes the composed plan and its SHA-256, next to the compared source fields. A failing case records the message, the source diagnostic and the changed fields when available. Access restrictions, rate limits and network failures stop the run. Cases left over appear under `unrun`, and the process exits with a failure status.
+- 48 requests by default, up to a hard limit of 64
+- one request at a time, at least a second apart, with repeated quote reads cached
+- 2 MiB per response, 32 MiB per run
+
+The reader uses public page and metadata routes without credentials, downloads no media originals and saves nothing. It always fetches the real URLs, including the two cases whose deterministic checks start from saved records.
+
+The JSON report records each URL with its status, fetch time, response size and hash. A passing case includes the composed plan and its SHA-256, next to the compared source fields; a failing case records the message, the source diagnostic and the changed fields when available. Access restrictions, rate limits and network failures stop the run, listing leftover cases under `unrun` and exiting with a failure status.
 
 | Result | Meaning |
 | --- | --- |
@@ -70,4 +76,4 @@ A changed response calls for review before any fixture update, comparing the sou
 
 ## Remaining checks
 
-The fixtures cover Note text and attachment records. Share on a physical device, playback, media quality, native frame composition and audio export need separate checks. A Note with a standalone native audio upload has no test case yet. Saved live results sit next to the fixtures, in `live-observation-20261016.json` and `live-observation-20261017.json`.
+The fixtures cover Note text and attachment records. Share on a physical device, playback, media quality, native frame composition and audio export need separate checks, and a Note with a standalone native audio upload has no test case yet. Saved live results sit next to the fixtures, in `live-observation-20261016.json` and `live-observation-20261017.json`.
