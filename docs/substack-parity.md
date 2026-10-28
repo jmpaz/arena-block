@@ -13,7 +13,7 @@
 | Images inside quoted Notes | Need selecting by hand. Each image keeps its quoted source and author. Preview images stay labeled as previews. |
 | Image-only Notes | Checks the empty text and the original images against the public Note record. The camera placeholder stays out of the saved text. |
 | External link cards | Keeps the card's title, URL and labeled preview apart from the Note's text and quoted Notes. The public record must match the visible card. HTTP links stay as links, unfetched. |
-| Multiple sources | Keeps the order you listed and merges Note aliases with the same ID. Media from `--extra` goes through the shared composer. |
+| Multiple sources | Keeps the listed order and merges Note aliases with the same ID. Media from `--extra` goes through the shared composer. |
 | Publication dates | Keeps timestamps with offsets, and display labels without them. Quote dates come from the sources. Fetch times stay in the source records. |
 | Drafts and saves | Keeps source records through browser and app drafts, saves, helper requests and receiver plans. |
 | Public article video and audio | Checks that the upload belongs to the full public article and its publication. A video over ten minutes uses the preview image when one exists. Copies a single original audio file without conversion, up to 250 MiB. |
@@ -26,11 +26,11 @@ Public reads depend on the source staying up. Mismatched IDs, challenges, collap
 
 ## Implementation limits
 
-You can select original images, videos and checked original audio inside quotes. A selected audio file goes in a block by itself, unconverted, without visual media or a second audio file. The video soundtrack can be Auto, Mix or a chosen video. A frame choice uses the source's poster image, which carries no audio.
+Original images, videos and checked original audio inside quotes are all selectable. A selected audio file goes in a block by itself, unconverted, without visual media or a second audio file. The video soundtrack can be Auto, Mix or a chosen video. A frame choice uses the source's poster image, which carries no audio.
 
-Media follows source order: the outer post, then its quoted posts, then the next post you listed. Quoted media gets references under the outer post, such as `1.2`. Quote depth limits both quoted text and quoted media, up to eight levels. Hiding a quote keeps its media choices for when you show it again. The app and extension pickers show who posted each quoted item.
+Media follows source order: the outer post, then its quoted posts, then the next listed post. Quoted media gets references under the outer post, such as `1.2`. Quote depth limits both quoted text and quoted media, up to eight levels. Hiding a quote keeps its media choices for when it shows again. The app and extension pickers show who posted each quoted item.
 
-Queued plans keep their original references and selections. To add quoted media to an older plan, read the source again. Newer plans need these capabilities on the receiving helper and daemon:
+Queued plans keep their original references and selections. Quoted media in an older plan takes a fresh read of the source. Newer plans need these capabilities on the receiving helper and daemon:
 
 - Quoted images: `quoted-image-media-v1`
 - Quoted video and audio, frame choices and saved soundtrack references: `quoted-video-audio-v1`

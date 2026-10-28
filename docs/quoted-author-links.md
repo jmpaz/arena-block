@@ -1,6 +1,6 @@
 # Quoted author links
 
-You can link a quoted author's name to the quoted post, or show the name alone. In the iOS app, open **Quoted author**. In the browser extension, open **Edit sources**, **Capture options**, then **Composition** and **Quoted authors**.
+A quoted author's name can link to the quoted post or appear alone. The iOS app keeps this setting under **Quoted author**. The browser extension keeps it under **Edit sources**, **Capture options**, **Composition**, **Quoted authors**.
 
 | Choice | Result |
 |---|---|
@@ -22,6 +22,6 @@ With **Name only**:
 > Complete quoted prose.
 ```
 
-The composer applies the choice to every included quote, using the author and URL saved with it. The app and extension previews show the resulting links. Changing the choice rebuilds the text from the saved sources and keeps your manual edits. A restored draft keeps the setting, and a submitted save keeps the setting it had when you submitted it.
+The composer applies the choice to every included quote, using the author and URL saved with it. The app and extension previews show the resulting links. Changing the choice rebuilds the text from the saved sources and keeps manual edits. A restored draft keeps the setting, and a submitted save keeps the setting it had at submission.
 
-In the CLI, use [`--quote-author-link source|plain`](cli-quote-options.md). The plan records an explicit choice in `policy.quoteAuthorLink`. Helpers and receivers check for `quote-author-links-v1` before accepting it. Plans without the field keep their existing style and hash.
+The CLI takes [`--quote-author-link source|plain`](cli-quote-options.md). The plan records an explicit choice in `policy.quoteAuthorLink`. Helpers and receivers check for `quote-author-links-v1` before accepting it. Plans without the field keep their existing style and hash.
