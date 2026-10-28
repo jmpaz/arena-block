@@ -26,7 +26,7 @@ The Add to row opens channel selection. Save records the draft, chosen destinati
 
 After remote creation, the delivery coordinator records the block ID and checks placements. The UI reports confirmed destinations from a complete server scan. A lost response keeps the attempt for reconciliation. History retains pending, failed and completed operations. Add placements uses a known block and checks the requested additions.
 
-SoundCloud tracks save as MP3 audio attachments. In Settings, enter the HTTPS address and access token for an arena-block media service with SoundCloud MP3 support. The app reads track metadata directly, requests the MP3 during media preparation, verifies its bytes, then uploads it to Are.na. The Share extension reads the same address and securely stored token. Select text-only media to save the track URL. Playlists preserve their ordered track list and selected artwork.
+The app saves a SoundCloud track as an MP3 attachment. In Settings, enter the HTTPS address and access token of an arena-block media service with SoundCloud MP3 support. When you save a track, the app reads its details from SoundCloud, asks the service for the MP3 while preparing media, checks the file, then uploads it to Are.na. The Share extension uses the same address, and the token from the keychain. To save only the track URL, choose text-only media. A playlist block lists its tracks in order, with the playlist artwork.
 
 Use New for another capture. Delete, Clear Drafts, Undo and Deleted Drafts recovery operate on unsubmitted drafts. During a queued save, the editor keeps the submitted values fixed. Clipboard import is opt-in and respects the system paste permission.
 
@@ -42,14 +42,8 @@ Read [the architecture](Design/architecture.md) and [interaction flow](Design/in
 
 Run simulator tests through the generated `CaptureUITests` target. The background transport probe uses `CAPTURE_BACKGROUND_URL` to contact a controlled fixture server. Without that setting, the probe is skipped.
 
-## Reddit URL intake and retained records
+## Reddit links and saved records
 
-Paste a public post or comment URL, or share its page from Safari to Capture.
-Safari Share supplies the source URL; native Capture reads it through the shared
-HTTP provider. HTTP 401, 403 and 429 stop the read. See
-[source access](../docs/reddit-source-access.md) for current limits.
+Paste a public post or comment URL, or share the page from Safari to the app. The app reads it through the shared HTTP provider and stops on HTTP 401, 403 or 429. See [source access](../docs/reddit-source-access.md).
 
-Existing source records remain readable in drafts and save snapshots. Validation
-checks the supplied data; it cannot authenticate the observation time or establish
-current source availability. Capture commits a replacement snapshot before showing
-it and retains the selected draft and intake across reloads.
+Drafts and saves still open Reddit records from earlier versions. Validation checks the data in a record. It can't verify when someone collected the record, or whether the post is still up. The app writes a replacement snapshot before showing it, and keeps the selected draft and its input across reloads.

@@ -1,10 +1,10 @@
 # CLI media choices
 
-`--media all` includes every acquired attachment of the selected posts. That includes each requested primary URL, posts added by thread expansion and explicit `--extra` sources. `--media images`, `video` and `audio` filter the same selected-post set by type. Original audio remains limited to one supported attachment per capture.
+`--media all` selects every attachment from the posts in the plan: each URL you list, posts added by thread expansion and `--extra` sources. `--media images`, `video` and `audio` filter that same set by type. A capture holds at most one original audio attachment.
 
-Media encountered only through a quoted post stays unselected. Quote text and source attribution remain included. A post requested directly or reached through ordinary thread traversal contributes its own media even if another selected post also quotes it; the quoted copy is not selected twice.
+Media inside a quoted post stays unselected, while the quote's text and attribution still appear. If you list a post directly, or thread expansion reaches it, its media counts as that post's own, even when another post in the plan quotes it. Each item appears once.
 
-Inspect `arena-block plan URL --json` for available media refs, including `sources[].quote.media`. Choose exact refs to include quoted assets:
+To find media references, including `sources[].quote.media`, read the output of `arena-block plan URL --json`. Give exact references to include media from quoted posts:
 
 ```sh
 arena-block plan URL --media all --json
@@ -13,4 +13,4 @@ arena-block plan URL -t --media images --json
 arena-block plan URL --media 1.1,1.2 --json
 ```
 
-An explicit media order, frame or soundtrack ref also names that item deliberately, subject to the chosen media type. Saved plans keep their frozen choices. None of these planning commands publishes a block.
+Giving a reference to `--media-order`, `--frame` or `--audio` also selects that item, as long as it matches the chosen media type. A saved plan keeps its media choices. These commands only plan, without saving a block.

@@ -6,9 +6,9 @@ Reading pages use a bounded canvas and preserve source scale when possible. A so
 
 The `thread` command saves API responses alongside normalized records. Its Markdown and HTML retain authors, dates, reply/quote relationships, media references and explicit unavailable entries. Selection records omitted posts/media in the coverage report.
 
-After you exclude an acquired parent, the exporter keeps its original link beside the reply and labels the exclusion.
+When you exclude a fetched parent post, the exporter keeps its link beside the reply and marks it as excluded.
 
-When calling `writeThreadDraft`, use `selectedIds` for the draft's prose. Add acquired quote IDs to `referenceOnlyQuoteIds` to retain their source links while excluding their prose and media. The manifest records those quote relationships, original URLs and available CIDs. Choose each source as prose or as a reference-only quote. Quote expansion otherwise continues through the acquired context.
+When calling `writeThreadDraft`, list the posts for the draft's text in `selectedIds`. To keep a quote's link without its text or media, add its ID to `referenceOnlyQuoteIds`. The manifest records those quotes with their original URLs and any CIDs. Put each post in one list or the other. Quote expansion carries on through the rest of the fetched posts.
 
 For x.com, provide exact known post URLs when the returned author chain is insufficient. For Bluesky, choose `chain` or bounded `tree` traversal and configure request, depth and post limits. Returned replies can omit other branches. Read the coverage report before describing the selection.
 

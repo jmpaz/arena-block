@@ -1,40 +1,17 @@
 # Reddit source access
 
-CLI and iOS read ordinary Reddit links through the shared HTTP provider. A bounded
-HEAD redirect resolves a share link to its post or comment. Safari Share supplies
-the URL. Capture validates the returned public JSON before composing a block.
+The CLI and iOS app read Reddit links through the shared HTTP provider. A share link resolves to its post or comment through a HEAD request with a redirect limit. Safari Share passes along the page URL. The provider checks Reddit's public JSON before building a block.
 
-A post needs its ID, title, author, date, permalink and body field. The body can be
-empty. Galleries additionally need ordered entries and observed media URLs; captions
-are retained when present. Native video needs an observed stream that preserves audio, or an explicitly silent
-stream when Reddit reports `has_audio: false`. A cross-post needs its parent record
-with a matching identity. Missing required media or parent data stops capture.
-An ordinary post read uses the post listing; it does not require the comments tree.
+A post needs an ID, title, author, date, permalink and body field. The body can be empty. A gallery also needs its entries in order, with media URLs, and keeps captions when present. Native video needs a stream with audio, or a silent stream when Reddit reports `has_audio: false`. A cross-post needs its parent record with a matching ID. When required media or parent data is missing, capture stops. Reading a post uses the post listing, without the comment tree.
 
-A selected comment includes its own writing and the parent post title. It excludes
-the surrounding discussion and parent attachments.
+A comment capture includes the comment's text and the parent post's title, without the rest of the discussion or the parent's attachments.
 
-HTTP failures, including 401, 403, 429 and 503, stop the direct read. Capture does
-not automatically substitute archived post text, comments or parent titles when
-the live source is unavailable. An archive may omit later edits or removal state
-and cannot establish the current content of a Reddit link.
+When Reddit answers with HTTP 401, 403, 429 or 503, the read stops. The provider reads only the live source. Archives can miss later edits and removals, so it skips them.
 
-## Unavailable sources
+## Refused requests
 
-A denied request provides no post record to render. A title, preview image, embed
-or source link cannot replace the missing authored text, ordered media and parent
-data. For the checked Neovim post `1x6nuin`, Reddit returned HTTP 403 and the archive
-lookup returned no record. Complete capture remains unavailable for that example.
+When Reddit refuses a request, the provider has no post record to work from. A title, preview image, embed or link falls short of the post's text, ordered media and parent data.
 
-Reddit's [Data API documentation](https://support.reddithelp.com/hc/en-us/articles/16160319875092-Reddit-Data-API-Wiki)
-requires registered OAuth access. A future intermediary must be permitted to supply
-a complete structured record with the required identity, media and parent data.
-The reviewed VxReddit and Rxddit interfaces provide embed presentation with
-incomplete parent and media information; they do not supply that record.
+Reddit's [Data API documentation](https://support.reddithelp.com/hc/en-us/articles/16160319875092-Reddit-Data-API-Wiki) requires registered OAuth access. Another service could stand in for it only by supplying a complete record with IDs, media and parent data. VxReddit and Rxddit serve embed previews with partial parent and media data, so they can't.
 
-Earlier saved blocks confirm that Reddit text and comments were captured. Their
-fields do not identify whether direct JSON or the former archive fallback supplied
-the text. They do not establish current access for another URL.
-
-Existing source records remain readable as described in
-[retained public-page records](reddit-public-page.md).
+Records saved by earlier versions still open, as described in [saved page records](reddit-public-page.md).

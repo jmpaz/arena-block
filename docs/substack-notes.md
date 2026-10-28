@@ -1,8 +1,6 @@
 # Substack captures
 
-Paste a public Note or article link, or share its page from Safari to Capture.
-The browser extension can also read the selected Substack tab using its existing
-access. A refused read, challenge or incomplete body stops capture.
+Paste a public Note or article link, or share the page from Safari to the iOS app. The browser extension can also read the open Substack tab with the access you already granted it. If Substack refuses the read, shows a challenge or returns a partial body, capture stops.
 
 ```sh
 arena-block plan 'https://substack.com/@writer/note/c-123' --quote-depth full --json
@@ -10,58 +8,30 @@ arena-block plan 'https://publication.substack.com/p/article-slug' --json
 arena-block plan 'https://substack.com/@writer/note/c-123' -t --json
 ```
 
-A Note becomes **Note by @handle**. Capture preserves the authored paragraphs,
-lists, emphasis and links. A quoted Note appears under its own author;
-quote controls set inclusion, depth and dates. Use `--quote-author-link source`
-to link each author to the quoted post, or `plain` to leave the names unlinked.
-Omitting this option keeps the existing presentation. Unavailable quotes keep a link to
-the missing text. The block's source field links to the outer Note.
+A Note gets the title **Note by @handle**. The capture keeps the Note's paragraphs, lists, emphasis and links. A quoted Note appears under its own author, and the quote options set how many levels to include and whether to show dates. Use `--quote-author-link source` to link each author to the quoted post, or `plain` for the name alone. Without the option, Substack's usual style applies. A quote that failed to load keeps a link to its Note. The block's source field links to the outer Note.
 
-Article cards include the article title and author. A selected passage is labelled
-an excerpt; an automatic selection or card summary is labelled a preview. These
-passages remain separate from the Note's own writing. A linked video keeps its
-observed title when available, or its URL.
+An article card shows the article's title and author. A passage chosen by the Note's author carries the label "excerpt". An automatic selection or card summary carries the label "preview". Both stay apart from the Note's own text. A linked video keeps its title when Substack provides one, or its URL otherwise.
 
-Public articles must expose their complete freely available body. Capture reads
-the title, subtitle, bylines, body and supported media. Publication and custom
-domain `/p/{slug}` links use this path when the page identifies a Substack article.
-An unidentified custom-domain page remains an ordinary Link. Paid, partial or
-inconsistent articles stop capture.
+For an article, Substack has to serve the whole free body. The capture reads the title, subtitle, bylines, body and supported media. Links of the form `/p/{slug}` on a publication or custom domain go through this path when the page identifies itself as a Substack article. A custom-domain page without that marker becomes an ordinary Link. Paid, partial or inconsistent articles stop capture.
 
-The CLI reads the selected Note by default. Add `-t` or `--thread-expansion` to
-follow a verified same-author linear Note chain,
-including parents around the selected Note. Other authors are excluded.
-Branches, missing replies, inconsistent identities and incomplete pagination stop
-expansion. List explicit Note links in order to choose a different set of sources.
+By default the CLI reads only the selected Note. Add `-t` or `--thread-expansion` to follow a chain of Notes by the same author, including the Notes before the selected one. Notes by other authors stay out of the chain. Branches, missing replies, mismatched IDs and incomplete pages stop expansion. To capture a different set of Notes, list their links in order.
 
-Original images use the shared media controls. Supported public article and Note
-videos use the shared video renderer. When the source supplies a preview image,
-videos over ten minutes use that frame. Choose `--media audio` for one original article audio file, copied without
-conversion and limited to 250 MiB. Capture checks the downloaded container and
-duration. External players remain links. Unsupported native players or captions
-that cannot be preserved stop capture. See [support and limits](substack-parity.md).
+Original images use the usual media options. Supported video from public articles and Notes goes through the shared video renderer. For a video over ten minutes, the renderer uses the preview image when Substack provides one. Choose `--media audio` to copy an article's original audio file without conversion, up to 250 MiB. The capture checks the downloaded file's container and duration. External players stay as links. Native players, or captions the capture can't preserve, stop capture. See [support and limits](substack-parity.md).
 
-## Retained records and compatibility
+## Saved records and compatibility
 
-Drafts and save snapshots retain the source HTML, authors, publication labels,
-observation times, media details and acquisition method. Imported records
-are checked for consistent identities and supported media; validation cannot
-confirm when or how someone collected them. `--substack-capture` opens an existing
-record.
+Drafts and saves keep the source HTML, authors, publication labels, fetch times, media details and how each source was fetched. When importing a record, the CLI checks that its IDs agree and its media is supported. It can't confirm when or how someone collected the record. Use `--substack-capture` to open a saved record.
 
-New resolution applies the current title and text formatting. Opening an older
-frozen save keeps its approved fields and hash. Refresh the source to compose a
-new version; Capture does not rewrite an earlier submission or a published block.
+Reading a source again applies the current title and text formatting. Opening an older save keeps its approved fields and hash. To make a new version, refresh the source. Earlier submissions and published blocks stay as they were.
 
-Records are limited to 2 MiB, twenty explicit roots, eight quote levels and one
-hundred links per Note. Reply discovery permits at most 64 pages, 8 MiB aggregate,
-2,000 identities and 32 selected sources.
+Each record can be up to 2 MiB, with up to twenty listed Notes, eight quote levels and one hundred links per Note. Reply discovery reads at most 64 pages, 8 MiB in total, 2,000 IDs and 32 selected sources.
 
-Compatible helpers and receivers retain the records used by the plan. Notes need
-`substack-browser-records-v1`; articles and expanded threads also need
-`substack-public-sources-v2`. Public article media needs
-`substack-native-media-v1`. Podcast article players in Notes additionally need
-`substack-note-podcast-audio-v1`; the retained record distinguishes the Note's
-prose from the article and its original audio. Note attachments and article cards need
-`substack-note-attachments-v1`. The helper checks support before reading or saving,
-then checks the returned plan for missing source fields.
+Helpers and receivers need support for the records a plan uses:
+
+- Notes: `substack-browser-records-v1`
+- Articles and expanded threads: `substack-public-sources-v2` as well
+- Public article media: `substack-native-media-v1`
+- Podcast article players in Notes: `substack-note-podcast-audio-v1` as well. The record keeps the Note's text apart from the article and its audio.
+- Note attachments and article cards: `substack-note-attachments-v1`
+
+The helper checks support before reading or saving, then checks the returned plan for missing source fields.
