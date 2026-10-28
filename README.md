@@ -41,7 +41,16 @@ arena-block ratio
 arena-block ratio --overlap both --json
 ```
 
-`ratio` reads the account's channels through the daemon, then reads each channel's block IDs, and prints channels and blocks by visibility (private, closed, public) with private-per-public ratios. It makes only GET requests. A block in several channels counts according to `--overlap`: `public` (default) counts it once at its most open visibility, `private` once at its most restricted, `both` once under every visibility it appears in, and `placements` sums each channel's listed content count without reading contents. `--cached` lists channels from the daemon's saved channel index.
+`ratio` reads your channels through the daemon, then the block IDs in each channel. It prints how many channels and blocks are private, closed and public, with the ratio of private to public. It only reads, using GET requests.
+
+`--overlap` sets how to count a block that appears in several channels:
+
+- `public` (default): once, at its most open visibility
+- `private`: once, at its most restricted visibility
+- `both`: once under each visibility it appears in
+- `placements`: adds up each channel's content count, without reading contents
+
+`--cached` reads channels from the daemon's saved channel index.
 
 ## Sources
 
