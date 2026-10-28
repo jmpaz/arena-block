@@ -400,45 +400,67 @@ async function renderVideo(plan: BlockPlan, directory: string, options: RenderOp
 
 async function renderSoundCloudAudio(plan: BlockPlan, directory: string, options: RenderOptions): Promise<RenderedMedia> {
   const owner = selectedAudioSource(plan);
-  if (plan.sources.length !== 1 || owner?.provider !== "soundcloud" || owner.soundcloud?.kind !== "track"
-    || !owner.soundcloud.originalDownloadAvailable) throw new Error("Audio plan does not identify a publicly downloadable SoundCloud track");
+  if (plan.sources.length !== 1 || owner?.provider !== "soundcloud" || owner.soundcloud?.kind !== "track") {
+    throw new Error("Audio plan does not identify a public SoundCloud track");
+  }
   const source = parseSource(owner.canonicalUrl);
   if (source.provider !== "soundcloud" || source.kind !== "track" || source.canonicalUrl !== owner.canonicalUrl) throw new Error("Audio source is not a canonical public SoundCloud track URL");
   const assets = selectedAssets(plan);
-  if (assets.length !== 1 || assets[0]!.kind !== "audio" || assets[0]!.acquisition !== "soundcloud-original-download" || assets[0]!.url !== source.canonicalUrl) {
-    throw new Error("Audio plan must select exactly one original SoundCloud download");
+  if (assets.length !== 1 || assets[0]!.kind !== "audio"
+    || !["soundcloud-original-download", "soundcloud-mp3"].includes(assets[0]!.acquisition ?? "") || assets[0]!.url !== source.canonicalUrl) {
+    throw new Error("Audio plan must select a SoundCloud track download");
   }
+  const mp3 = assets[0]!.acquisition === "soundcloud-mp3";
+  if (!mp3 && !owner.soundcloud.originalDownloadAvailable) {
+    throw new Error("SoundCloud original download is unavailable for this retained plan");
+  }
+  const signal = AbortSignal.any([...(options.signal ? [options.signal] : []), AbortSignal.timeout(options.downloadTimeoutMs ?? 600_000)]);
+  const maximumBytes = Math.min(VIDEO_LIMIT_BYTES, Math.max(1, options.maximumAudioBytes ?? VIDEO_LIMIT_BYTES));
   const staging = join(directory, ".staging", crypto.randomUUID());
   await mkdir(staging, { recursive: true });
   try {
     const output = join(staging, "original.%(ext)s");
     const runDownload = options.ytDlp ?? runYtDlp;
-    await runDownload(["--no-playlist", "--format", "download", "--max-filesize", "250M", "--output", output, "--", source.canonicalUrl], options.signal);
-    const allowed = new Set(["mp3", "m4a", "wav", "flac", "ogg", "opus", "aac"]);
+    const formatArgs = mp3
+      ? ["--format", "bestaudio[ext=mp3]/bestaudio", "--extract-audio", "--audio-format", "mp3", "--audio-quality", "0", "--print", "after_move:%(id)s"]
+      : ["--format", "download"];
+    const downloaded = await runDownload(["--no-playlist", ...formatArgs, "--max-filesize", "250M", "--output", output, "--", source.canonicalUrl], signal);
+    signal.throwIfAborted();
+    if (mp3 && downloaded.stdout.trim() !== owner.soundcloud.trackId) throw new Error("SoundCloud downloaded a different track than the prepared source");
+    const allowed = new Set(mp3 ? ["mp3"] : ["mp3", "m4a", "wav", "flac", "ogg", "opus", "aac"]);
     const candidates = (await readdir(staging)).filter(name => name.startsWith("original.") && allowed.has(name.slice("original.".length)));
-    if (candidates.length !== 1) throw new Error("yt-dlp did not produce exactly one supported original audio file");
+    if (candidates.length !== 1) throw new Error("yt-dlp did not produce the requested SoundCloud audio file");
     const path = join(staging, candidates[0]!);
     const details = await stat(path);
     if (!details.isFile() || details.size === 0) throw new Error("yt-dlp produced an empty SoundCloud audio file");
-    if (details.size > VIDEO_LIMIT_BYTES) throw new MediaBudgetError("Original SoundCloud audio exceeds the 250 MiB Are.na attachment limit");
+    if (details.size > maximumBytes) throw new MediaBudgetError("SoundCloud audio exceeds the attachment size limit");
     const extension = candidates[0]!.slice("original.".length) as RenderedMedia["extension"];
-    if (extension !== owner.soundcloud.originalDownloadExtension) {
+    if (!mp3 && extension !== owner.soundcloud.originalDownloadExtension) {
       throw new Error("SoundCloud original download format changed since the plan was prepared");
     }
-    const probe = JSON.parse(await run([FFPROBE, "-v", "error", "-show_streams", "-show_format", "-of", "json", path], options.signal)) as {
-      format?: { format_name?: string }; streams?: Array<{ codec_type?: string; codec_name?: string; disposition?: { attached_pic?: number } }>;
+    const probe = JSON.parse(await run([FFPROBE, "-v", "error", "-show_streams", "-show_format", "-of", "json", path], signal)) as {
+      format?: { format_name?: string; duration?: string }; streams?: Array<{ codec_type?: string; codec_name?: string; disposition?: { attached_pic?: number } }>;
     };
     const streams = probe.streams ?? [];
     if (!streams.some(stream => stream.codec_type === "audio") || streams.some(stream => stream.codec_type === "video" && stream.disposition?.attached_pic !== 1)) {
-      throw new Error("SoundCloud original download is not an audio-only media file");
+      throw new Error("SoundCloud download is not an audio-only media file");
     }
     const formats = new Set(probe.format?.format_name?.split(",") ?? []);
     const expected: Record<string, string> = { mp3: "mp3", m4a: "m4a", wav: "wav", flac: "flac", ogg: "ogg", opus: "ogg", aac: "aac" };
     if (!formats.has(expected[extension]!) || (extension === "opus" && !streams.some(stream => stream.codec_type === "audio" && stream.codec_name === "opus"))) {
-      throw new Error(`SoundCloud original audio content does not match its .${extension} file extension`);
+      throw new Error(`SoundCloud audio content does not match its .${extension} file extension`);
+    }
+    if (mp3) {
+      const duration = Number(probe.format?.duration), expectedDuration = assets[0]!.durationSeconds;
+      if (!streams.some(stream => stream.codec_type === "audio" && stream.codec_name === "mp3") || !(duration > 0)) {
+        throw new Error("SoundCloud download is not a valid MP3 audio file");
+      }
+      if (expectedDuration && Math.abs(duration - expectedDuration) > Math.max(1, expectedDuration * 0.02)) {
+        throw new Error("SoundCloud audio duration does not match the selected track");
+      }
     }
     const bytes = new Uint8Array(await Bun.file(path).arrayBuffer());
-    options.signal?.throwIfAborted();
+    signal.throwIfAborted();
     return writeContentAddressed(directory, extension, bytes);
   } finally {
     await rm(staging, { recursive: true, force: true });

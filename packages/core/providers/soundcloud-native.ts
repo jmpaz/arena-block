@@ -115,7 +115,10 @@ function soundCloudPostFromRecord(source: Extract<ParsedSource, { provider: "sou
     ...(milliseconds(data.duration) ? { durationSeconds: milliseconds(data.duration) } : {}),
     originalDownloadAvailable: offered,
   };
-  return { ...common, text: soundCloudTrackText(metadata, description), media: [], soundcloud: metadata };
+  return { ...common, text: soundCloudTrackText(metadata, description), soundcloud: metadata,
+    media: [{ ref: "0.0", id: metadata.trackId, kind: "audio", url: source.canonicalUrl,
+      mimeType: "audio/mpeg", acquisition: "soundcloud-mp3",
+      ...(metadata.durationSeconds ? { durationSeconds: metadata.durationSeconds } : {}), alt: "" }] };
 }
 
 export function soundCloudPostFromPage(source: Extract<ParsedSource, { provider: "soundcloud" }>, html: string): ResolvedPost {

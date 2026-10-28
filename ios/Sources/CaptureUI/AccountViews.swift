@@ -73,6 +73,8 @@ struct SettingsView: View {
     @State private var defaultPickerDetent: PresentationDetent = .large
     @State private var disconnect = false
     @State private var problem: String?
+    @State private var soundCloudServiceAddress = ""
+    @State private var soundCloudServiceToken = ""
     var body: some View {
         Form {
             if let account = session.account {
@@ -124,6 +126,22 @@ struct SettingsView: View {
                     .accessibilityIdentifier("settings.auto-frame-threshold")
                 } header: { Text("Video defaults") }
                 Section {
+                    TextField("HTTPS service address", text: $soundCloudServiceAddress)
+                        .textInputAutocapitalization(.never).autocorrectionDisabled().keyboardType(.URL)
+                        .accessibilityIdentifier("settings.soundcloud-service-address")
+                    SecureField("Service access token", text: $soundCloudServiceToken)
+                        .textInputAutocapitalization(.never).autocorrectionDisabled()
+                        .accessibilityIdentifier("settings.soundcloud-service-token")
+                    Button("Save media service") {
+                        do {
+                            try session.setSoundCloudMediaService(address: soundCloudServiceAddress, token: soundCloudServiceToken)
+                            soundCloudServiceToken = ""
+                        } catch { problem = error.localizedDescription }
+                    }.accessibilityIdentifier("settings.soundcloud-service-save")
+                } header: { Text("SoundCloud audio") } footer: {
+                    Text("Capture uses this service to download an MP3, then uploads it to Are.na. The service token is stored securely and shared with the Share extension. Clear the address to disconnect.")
+                }
+                Section {
                     Toggle("Paste on open", isOn: Binding(get: { session.automaticPaste }, set: {
                         session.automaticPaste = $0
                         session.defaults.set($0, forKey: "automaticPaste.\(account.id)")
@@ -140,6 +158,7 @@ struct SettingsView: View {
         .contentMargins(.top, 24, for: .scrollContent)
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(dynamicTypeSize.isAccessibilitySize ? .inline : .large)
+        .onAppear { soundCloudServiceAddress = session.soundCloudMediaServiceAddress }
         .alert("Settings", isPresented: Binding(get: { problem != nil }, set: { if !$0 { problem = nil } })) {
             Button("OK") { problem = nil }
         } message: { Text(problem ?? "") }

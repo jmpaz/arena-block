@@ -341,7 +341,7 @@ export function createService(config: ServiceConfig, dependencies: { client?: Ar
       if (request.method === "POST" && url.pathname === "/v1/capture/prepare") {
         const plan = blockPlanSchema.parse(await request.json());
         store.savePlan(plan);
-        const media = await renderPlan(plan, config.mediaDirectory);
+        const media = await (dependencies.render ?? renderPlan)(plan, config.mediaDirectory, { signal: request.signal });
         const { channel_ids: _, ...payload } = publicationPayload(plan, config.publicBaseUrl, media, []);
         return json({ payload, update: publicationFields(plan) });
       }
@@ -373,7 +373,7 @@ export function createService(config: ServiceConfig, dependencies: { client?: Ar
       if (request.method === "POST" && url.pathname === "/v1/render") {
         const plan = blockPlanSchema.parse(await request.json());
         store.savePlan(plan);
-        const media = await renderPlan(plan, config.mediaDirectory);
+        const media = await (dependencies.render ?? renderPlan)(plan, config.mediaDirectory, { signal: request.signal });
         return json({ plan, media: media ? { ...media, url: `${config.publicBaseUrl}/media/${media.hash}.${media.extension}` } : null });
       }
       if (request.method === "POST" && url.pathname === "/v1/publications") {

@@ -27,24 +27,24 @@ const page = (kind: "sound" | "playlist", data: unknown) => `<html><script>windo
 const bundle = await Bun.file(new URL("../ios/Sources/CaptureRuntime/Resources/capture-core.js", import.meta.url)).text();
 
 describe("native SoundCloud page resolver", () => {
-  test("track preserves identity, exact credit and duration, with an honest Link fallback", () => {
+  test("track preserves identity, credit and duration for an MP3 attachment", () => {
     const source = parseSource(trackURL);
     if (source.provider !== "soundcloud") throw new Error("bad fixture");
     const post = soundCloudPostFromPage(source, page("sound", track));
     expect(post.postTitle).toBe("Synthetic track");
     expect(post.soundcloud).toMatchObject({ kind: "track", artists: ["Exact artist"], durationSeconds: 61.345, originalDownloadAvailable: false });
-    expect(post.media).toEqual([]);
+    expect(post.media[0]).toMatchObject({ kind: "audio", mimeType: "audio/mpeg", acquisition: "soundcloud-mp3" });
     const plan = composePlan([post], { media: "all" });
-    expect(plan.block.kind).toBe("url");
+    expect(plan.block.kind).toBe("audio");
     expect(plan.block.canonicalSource).toBe(trackURL);
   });
 
-  test("offered download remains a Link without a verified original file URL", () => {
+  test("offered original download keeps its metadata while selecting MP3 acquisition", () => {
     const source = parseSource(trackURL);
     if (source.provider !== "soundcloud") throw new Error("bad fixture");
     const post = soundCloudPostFromPage(source, page("sound", { ...track, downloadable: true, has_downloads_left: true }));
     expect(post.soundcloud).toMatchObject({ originalDownloadAvailable: true });
-    expect(post.media).toEqual([]);
+    expect(post.media[0]).toMatchObject({ kind: "audio", mimeType: "audio/mpeg", acquisition: "soundcloud-mp3" });
     expect(post.text).toBe("Artist: Exact artist\n\nDuration: 1:01\n\nOriginal source description");
   });
 
@@ -106,7 +106,8 @@ describe("native SoundCloud page resolver", () => {
     expect(calls).toEqual([playlistURL, expect.stringContaining("/oembed?"), secondURL]);
   });
 
-  test("rebuilt JavaScriptCore bundle resolves a playlist through one public page read", async () => {
+  test.each(["track", "playlist"] as const)("rebuilt JavaScriptCore bundle resolves a %s through a public page read", async kind => {
+    const url = kind === "track" ? trackURL : playlistURL;
     const calls: string[] = [];
     let complete!: (value: { value: string | null; error: string | null }) => void;
     const done = new Promise<{ value: string | null; error: string | null }>(resolve => { complete = resolve; });
@@ -117,16 +118,22 @@ describe("native SoundCloud page resolver", () => {
         const request = JSON.parse(raw);
         calls.push(request.url);
         expect(request.redirect).toBe("manual");
-        queueMicrotask(() => context.captureHTTPComplete(id, JSON.stringify({ status: 200, headers: { "content-type": "text/html" }, body: page("playlist", playlist), url: request.url })));
+        queueMicrotask(() => context.captureHTTPComplete(id, JSON.stringify({ status: 200, headers: { "content-type": "text/html" },
+          body: kind === "track" ? page("sound", track) : page("playlist", playlist), url: request.url })));
       },
       nativeResolveComplete: (_id: string, value: string | null, error: string | null) => complete({ value, error }),
     });
     runInContext(bundle, context);
-    context.captureResolve("soundcloud", JSON.stringify([playlistURL]), "{}");
+    context.captureResolve("soundcloud", JSON.stringify([url]), "{}");
     const result = await done;
     expect(result.error).toBeNull();
-    expect(JSON.parse(result.value!).plan.block.kind).toBe("image");
-    expect(JSON.parse(result.value!).plan.block.markdown).toContain("Second");
-    expect(calls).toEqual([playlistURL]);
+    const plan = JSON.parse(result.value!).plan;
+    expect(plan.block.kind).toBe(kind === "track" ? "audio" : "image");
+    expect(plan.block.markdown).toContain(kind === "track" ? "Original source description" : "Second");
+    if (kind === "track") {
+      expect(plan.block.selectedMedia).toEqual(["1.1"]);
+      expect(plan.sources[0].media[0].acquisition).toBe("soundcloud-mp3");
+    }
+    expect(calls).toEqual([url]);
   });
 });

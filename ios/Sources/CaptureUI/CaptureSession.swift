@@ -399,6 +399,27 @@ public final class CaptureSession {
         return (try? CaptureDefaultRoute.destinations(draft.selection, defaultChannel: defaultChannel, mode: defaultPolicy.mode)) ?? []
     }
 
+    var soundCloudMediaServiceAddress: String { defaults.string(forKey: "soundCloudMediaService") ?? "" }
+
+    func setSoundCloudMediaService(address: String, token: String) throws {
+        let address = address.trimmingCharacters(in: .whitespacesAndNewlines)
+        if address.isEmpty {
+            try credentials.remove("soundcloud-media-service")
+            defaults.removeObject(forKey: "soundCloudMediaService")
+        } else {
+            guard let endpoint = URL(string: address) else { throw CaptureError.message("Enter an HTTPS media service address.") }
+            if address != soundCloudMediaServiceAddress && token.isEmpty {
+                throw CaptureError.message("Enter the access token for this media service.")
+            }
+            let storedToken = try credentials.read("soundcloud-media-service")
+            let accessToken = token.isEmpty ? storedToken ?? "" : token
+            _ = try SoundCloudAudioService(endpoint: endpoint, token: accessToken)
+            try credentials.write(accessToken, key: "soundcloud-media-service")
+            defaults.set(address, forKey: "soundCloudMediaService")
+        }
+        defaults.synchronize()
+    }
+
     func setDefaultMode(_ mode: DefaultChannelMode) throws {
         guard let account else { return }
         if mode == .always, let draft, let defaultChannel { _ = try CaptureDefaultRoute.destinations(draft.selection, defaultChannel: defaultChannel, mode: mode) }

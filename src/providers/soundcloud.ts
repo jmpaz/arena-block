@@ -136,6 +136,7 @@ function trackMedia(info: Json, source: Extract<ParsedSource, { provider: "sound
   const formats = Array.isArray(info.formats) ? info.formats.map(object).filter((item): item is Json => !!item) : [];
   const original = formats.find(format => format.format_id === "download" && format.vcodec === "none" && typeof format.ext === "string");
   const download = original && typeof original.ext === "string" && AUDIO_MIME[original.ext] ? original : undefined;
+  const streamable = formats.some(format => format.vcodec === "none" && text(format.url));
   const durationSeconds = positive(info.duration);
   const metadata: SoundCloudMetadata = {
     kind: "track", trackId: text(info.id) ?? source.id, artists: artists(info), description: sourceDescription(info),
@@ -143,9 +144,11 @@ function trackMedia(info: Json, source: Extract<ParsedSource, { provider: "sound
     ...(durationSeconds ? { durationSeconds } : {}), originalDownloadAvailable: !!original,
     ...(typeof original?.ext === "string" ? { originalDownloadExtension: original.ext } : {}),
   };
-  const media: MediaAsset[] = download ? [{ ref: "0.0", id: metadata.trackId, kind: "audio", url: source.canonicalUrl,
-    mimeType: AUDIO_MIME[download.ext as string], sourceRole: "original", acquisition: "soundcloud-original-download",
-    ...(durationSeconds ? { durationSeconds } : {}), alt: "" }] : [];
+  const acquisition: Pick<MediaAsset, "mimeType" | "sourceRole" | "acquisition"> = download
+    ? { mimeType: AUDIO_MIME[download.ext as string], sourceRole: "original", acquisition: "soundcloud-original-download" }
+    : { mimeType: "audio/mpeg", acquisition: "soundcloud-mp3" };
+  const media: MediaAsset[] = download || streamable ? [{ ref: "0.0", id: metadata.trackId, kind: "audio", url: source.canonicalUrl,
+    ...acquisition, ...(durationSeconds ? { durationSeconds } : {}), alt: "" }] : [];
   return { metadata, media };
 }
 function playlistTracks(info: Json, source: Extract<ParsedSource, { provider: "soundcloud" }>): Extract<SoundCloudMetadata, { kind: "playlist" }> {
@@ -195,7 +198,8 @@ export class SoundCloudProvider implements SocialProvider {
     const timestamp = positive(info.timestamp);
     const postedAt = timestamp && Number.isFinite(timestamp * 1000) && timestamp * 1000 <= 8.64e15
       ? new Date(timestamp * 1000).toISOString() : undefined;
-    const common = { provider: "soundcloud" as const, canonicalUrl: input.canonicalUrl, author: author(info, input), postTitle: text(info.title)!, postedAt };
+    const common = { provider: "soundcloud" as const, canonicalUrl: input.canonicalUrl, author: author(info, input), postTitle: text(info.title)!,
+      ...(postedAt ? { postedAt } : {}) };
     if (input.kind === "track") {
       const { metadata, media } = trackMedia(info, input);
       return { ...common, id: metadata.trackId, text: soundCloudTrackText(metadata, sourceDescription(info)), media, soundcloud: metadata };

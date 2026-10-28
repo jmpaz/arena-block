@@ -14,7 +14,12 @@ struct CapturePreparedSource {
 final class CapturePreparation {
     let runtime: CaptureRuntime
     let container: URL
-    init(runtime: CaptureRuntime, container: URL) { self.runtime = runtime; self.container = container }
+    let soundCloudService: (() throws -> SoundCloudAudioService)?
+    let mediaSession: URLSession
+    init(runtime: CaptureRuntime, container: URL, soundCloudService: (() throws -> SoundCloudAudioService)? = nil,
+         mediaSession: URLSession = NativeMediaRenderer.mediaSession) {
+        self.runtime = runtime; self.container = container; self.soundCloudService = soundCloudService; self.mediaSession = mediaSession
+    }
 
     func read(_ snapshot: CaptureSubmissionSnapshot) async throws -> CapturePreparedSource {
         if snapshot.originalLinkOnly == true {
@@ -109,14 +114,36 @@ final class CapturePreparation {
                 throw CaptureError.message("This video exceeds the 10-minute composition limit. Choose its Frame or capture text instead.")
             }
             try Task.checkCancellation()
-            let sources = try decode(await runtime.mediaSources(address))
+            let soundCloudDownload: SoundCloudAudioDownload?
+            let helper: SoundCloudAudioService?
+            let sources: JSONValue
+            if asset["acquisition"]?.string == "soundcloud-mp3" {
+                guard let soundCloudService else {
+                    throw CaptureError.message("Configure the SoundCloud media service in Settings before saving audio.")
+                }
+                let service = try soundCloudService()
+                let download = try await service.render(plan: plan)
+                helper = service; soundCloudDownload = download
+                sources = .object(["url": .string(download.url.absoluteString)])
+            } else {
+                helper = nil; soundCloudDownload = nil
+                sources = try decode(await runtime.mediaSources(address))
+            }
             guard let resolved = sources["url"]?.string, let url = URL(string: resolved) else { throw CaptureError.message("Couldn't load the media link.") }
             let audioURL: URL?
             if let audio = sources["audioURL"]?.string {
                 guard let parsed = URL(string: audio) else { throw CaptureError.message("Couldn't load the audio link.") }
                 audioURL = parsed
             } else { audioURL = nil }
-            let staged = try await NativeMediaRenderer.stage(ref: ref, kind: kind, source: url, directory: directory, audioSource: audioURL)
+            let staged = try await NativeMediaRenderer.stage(ref: ref, kind: kind, source: url, directory: directory, audioSource: audioURL, session: mediaSession)
+            if let helper, let soundCloudDownload {
+                guard staged.fileURL.pathExtension == "mp3" else { throw CaptureError.message("The SoundCloud download is not an MP3.") }
+                try await helper.verify(file: staged.fileURL, download: soundCloudDownload)
+                if case .number(let expected) = asset["durationSeconds"],
+                   abs(staged.duration - expected) > max(1, expected * 0.02) {
+                    throw CaptureError.message("The SoundCloud audio duration does not match the selected track.")
+                }
+            }
             media.append(staged)
             if frame == nil, asset["acquisition"]?.string == "substack-public-original" {
                 guard case .number(let duration) = asset["durationSeconds"] else { throw CaptureError.message("The original media has no verified duration.") }

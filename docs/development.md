@@ -25,6 +25,8 @@ bun test tests/plan-capabilities.test.ts tests/extension-browser.test.ts
 
 The full Bun suite requires loopback socket access and media tools such as FFmpeg. `bun test` runs the suite; `nix flake check` runs the packaged checks.
 
+SoundCloud MP3 preparation runs yt-dlp with FFmpeg and FFprobe available on `PATH`. The authenticated `/v1/render` endpoint accepts the prepared track plan and returns a content-addressed MP3 URL, hash and byte count. iOS verifies the downloaded file before continuing its Are.na upload. The service advertises `soundcloud-mp3-v1` through `/v1/version`; configure its HTTPS address and access token in the app's SoundCloud settings.
+
 For native work, regenerate the core with `bun run build:ios-core`, then run `swift test` from `ios`. XcodeGen creates the app project and its `CaptureUITests` target. Use device checks for system background scheduling and Share extension lifecycle alongside the simulator fixtures.
 
 ## Icons

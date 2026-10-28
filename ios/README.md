@@ -26,6 +26,8 @@ The Add to row opens channel selection. Save records the draft, chosen destinati
 
 After remote creation, the delivery coordinator records the block ID and checks placements. The UI reports confirmed destinations from a complete server scan. A lost response keeps the attempt for reconciliation. History retains pending, failed and completed operations. Add placements uses a known block and checks the requested additions.
 
+SoundCloud tracks save as MP3 audio attachments. In Settings, enter the HTTPS address and access token for an arena-block media service with SoundCloud MP3 support. The app reads track metadata directly, requests the MP3 during media preparation, verifies its bytes, then uploads it to Are.na. The Share extension reads the same address and securely stored token. Select text-only media to save the track URL. Playlists preserve their ordered track list and selected artwork.
+
 Use New for another capture. Delete, Clear Drafts, Undo and Deleted Drafts recovery operate on unsubmitted drafts. During a queued save, the editor keeps the submitted values fixed. Clipboard import is opt-in and respects the system paste permission.
 
 ## Background work

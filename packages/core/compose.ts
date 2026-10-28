@@ -367,7 +367,7 @@ export function composePlan(
     if (posts.length !== 1 || !posts[0]!.soundcloud) throw new Error("Capture one SoundCloud track or playlist at a time");
     const source = posts[0]!;
     const metadata = source.soundcloud!;
-    if (policy.audio !== undefined) throw new Error("--audio chooses video-mosaic soundtracks; use --media for SoundCloud original audio");
+    if (policy.audio !== undefined) throw new Error("--audio chooses video-mosaic soundtracks; use --media for SoundCloud audio");
     if (metadata.kind === "playlist") {
       if (policy.media === "selected" && policy.selectedMedia.length) throw new Error("SoundCloud playlists have no selectable media refs; choose auto, images, all, or none");
       if (policy.mediaOrder?.length) throw new Error("SoundCloud playlists have no media tile order");
@@ -390,8 +390,8 @@ export function composePlan(
         throw new Error("Media order must name every selected media reference exactly once");
       }
     }
-    if (chosen.some(item => item.kind !== "audio" || item.acquisition !== "soundcloud-original-download")) {
-      throw new Error("SoundCloud capture requires the source's original downloadable audio; stream conversion is disabled");
+    if (chosen.some(item => item.kind !== "audio" || !["soundcloud-original-download", "soundcloud-mp3"].includes(item.acquisition ?? ""))) {
+      throw new Error("SoundCloud audio requires a supported download method");
     }
     const hasAudio = chosen.length === 1;
     const keepArtwork = hasAudio || ["auto", "all", "images"].includes(policy.media);

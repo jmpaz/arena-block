@@ -381,7 +381,15 @@ final class CaptureDelivery {
 
     private func preparation() throws -> CapturePreparation {
         if let sourcePreparation { return sourcePreparation }
-        let created = CapturePreparation(runtime: try CaptureRuntime(), container: directory.deletingLastPathComponent())
+        let created = CapturePreparation(runtime: try CaptureRuntime(), container: directory.deletingLastPathComponent(),
+            soundCloudService: { [credentials, group] in
+                let defaults = UserDefaults(suiteName: group)
+                guard let address = defaults?.string(forKey: "soundCloudMediaService"), let endpoint = URL(string: address),
+                      let token = try credentials.read("soundcloud-media-service") else {
+                    throw CaptureError.message("Configure the SoundCloud media service in Settings before saving audio.")
+                }
+                return try SoundCloudAudioService(endpoint: endpoint, token: token)
+            })
         sourcePreparation = created; return created
     }
 

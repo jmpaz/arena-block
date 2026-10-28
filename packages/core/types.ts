@@ -26,7 +26,7 @@ export const mediaAssetSchema = z.object({
     const url = new URL(value);
     return url.protocol === "https:" && !url.username && !url.password;
   }).optional(),
-  acquisition: z.enum(["soundcloud-original-download", "substack-public-original"]).optional(),
+  acquisition: z.enum(["soundcloud-original-download", "soundcloud-mp3", "substack-public-original"]).optional(),
   sourceAttribution: substackPodcastAttributionSchema.optional(),
   alt: z.string().default(""),
 });

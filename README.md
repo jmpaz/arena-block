@@ -43,7 +43,7 @@ Reading pages preserve source scale when they fit the configured canvas. Wallpap
 | LessWrong, Alignment Forum, EA Forum | Public post and comment permalinks through each site's GraphQL API |
 | Substack | Public Notes, complete freely public articles, supported original media and article cards |
 | TikTok, Instagram | Supported post, video and share permalinks through FxEmbed Atmosphere |
-| SoundCloud | Public tracks and playlists, with original downloads when the source exposes them |
+| SoundCloud | Public tracks and playlists, with track audio uploaded as an attachment |
 | Hacker News, Lobsters | Selected comment permalinks through public APIs |
 
 Substack Notes use **Note by @handle**. Quoted Notes retain their own authors. Article previews and selected excerpts receive labels separate from the Note's writing. Original article audio and supported video use the shared media controls. See [Substack captures](docs/substack-notes.md), [support limits](docs/substack-parity.md) and [fixture checks](docs/substack-contract-checks.md).
@@ -62,7 +62,11 @@ New CLI compositions read the supplied posts. Add `-t` to request a supported th
 
 Fresh **Auto** captures leave quoted media unselected. In the CLI, `--media all` includes every attachment from all selected posts, including expanded thread members and explicit media extras. Type selectors use the same scope. Media belonging only to quotes requires an explicit choice such as `--media 1.2`. Quote text stays included. See [CLI media choices](docs/cli-media-options.md). Saved plans keep their frozen choices.
 
-Images form a JPEG mosaic; videos form an MP4 mosaic. Poster frames and soundtracks can be selected before rendering. An available original SoundCloud or Substack audio file can be saved alone without conversion.
+Images form a JPEG mosaic; videos form an MP4 mosaic. Poster frames and soundtracks can be selected before rendering. With `--media auto`, `all` or `audio`, the CLI saves a SoundCloud track as an audio attachment. When the artist offers a download, the CLI uploads that original file unchanged. For other tracks, yt-dlp and FFmpeg convert the public stream to MP3. Use `--media none` to save the track URL. Playlists preserve their ordered track list and selected artwork.
+
+In iOS Settings, configure the SoundCloud media service's HTTPS address and access token. The app reads track metadata from SoundCloud, requests an MP3 from that service even when the artist offers an original download, verifies the downloaded file, then uploads it through the existing Are.na save flow. The Share extension uses the same service configuration. Without a configured service, select text-only capture or configure the service before saving track audio.
+
+An available original Substack audio file can be saved alone without conversion.
 
 Use `--quote-author-link source` to link quoted authors to their posts, or `plain` for unlinked names. Omission preserves the platform's existing presentation. The [quote options](docs/cli-quote-options.md) and [client controls](docs/quoted-author-links.md) describe compatibility and saved-plan behavior.
 

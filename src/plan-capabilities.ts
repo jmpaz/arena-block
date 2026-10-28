@@ -10,6 +10,7 @@ export function requiredPlanCapabilities(plan: BlockPlan): string[] {
   if (mediaSources(plan.sources).some(node => node.quoteDepth > 0 && node.media.some(asset => asset.kind !== "image" && referenced.has(asset.ref)))) required.add("quoted-video-audio-v1");
   if (plan.sources.length > 20) required.add("expanded-source-count-32-v1");
   const visit = (post: ResolvedPost): void => {
+    if (post.media.some(item => item.acquisition === "soundcloud-mp3")) required.add("soundcloud-mp3-v1");
     let note = post.substackCapture?.note;
     while (note) {
       if (note.attachmentEvidence) required.add("substack-note-attachments-v1");
