@@ -34,19 +34,12 @@ arena-block thread 'https://bsky.app/profile/example.com/post/first' --scope cha
 
 ```sh
 arena-block ratio
-arena-block ratio --overlap both --json
+arena-block ratio --json
 ```
 
-`ratio` reads the account's channels through the daemon, then the block IDs in each channel. It prints how many channels and blocks are private, closed and public, with the ratio of private to public. It only reads, using GET requests.
+`ratio` counts the account's channels as private, closed or public, and every block the account created as private, public or orphan, an orphan being a block in no channel. Block counts come from the visibility Are.na assigns each block, and the command only sends GET requests.
 
-`--overlap` sets how to count a block that appears in several channels:
-
-- `public` (default): once, at its most open visibility
-- `private`: once, at its most restricted visibility
-- `both`: once under each visibility it appears in
-- `placements`: adds up each channel's content count, without reading contents
-
-`--cached` reads channels from the daemon's saved channel index.
+Are.na lists blocks through search, which can refuse pages deep into a large account; when a listing stops short, `ratio` reads it again newest first and reports any blocks it still couldn't reach. `--cached` takes the channel list from the daemon's saved channel index.
 
 ## Sources
 

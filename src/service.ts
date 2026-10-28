@@ -60,10 +60,10 @@ function pickerChannels(entries: unknown): ChannelRecord[] {
   });
 }
 
-function nextChannelPage(meta: unknown, page: number): number | null {
+function nextChannelPage(meta: unknown, page: number, limit = 100): number | null {
   const value = meta && typeof meta === "object" && !Array.isArray(meta) ? meta as Record<string, unknown> : {};
-  if (Number.isSafeInteger(value.next_page) && (value.next_page as number) > page && (value.next_page as number) <= 100) return value.next_page as number;
-  return value.has_more_pages === true && page < 100 ? page + 1 : null;
+  if (Number.isSafeInteger(value.next_page) && (value.next_page as number) > page && (value.next_page as number) <= limit) return value.next_page as number;
+  return value.has_more_pages === true && page < limit ? page + 1 : null;
 }
 
 class AccountMismatchError extends Error {}
@@ -285,14 +285,14 @@ export function createService(config: ServiceConfig, dependencies: { client?: Ar
         channelIndex.recordPage(accountId, page, channels, nextPage);
         return json({ accountId, channels, nextPage });
       }
-      const channelBlocksMatch = url.pathname.match(/^\/v1\/channels\/([1-9][0-9]{0,15})\/blocks$/);
-      if (request.method === "GET" && channelBlocksMatch) {
-        const rawPage = url.searchParams.get("page") ?? "1";
-        if (!/^[1-9][0-9]{0,2}$/.test(rawPage) || Number(rawPage) > 100) return json({ error: "Invalid channel page" }, 400);
-        await pickerAccount(request.signal);
-        const channelId = Number(channelBlocksMatch[1]), page = Number(rawPage);
-        const response = await client.channelBlockPage(channelId, page, request.signal);
-        return json({ channelId, blockIds: response.blockIds, channelEntries: response.channelEntries, nextPage: nextChannelPage(response.meta, page) });
+      if (request.method === "GET" && url.pathname === "/v1/account/blocks") {
+        const type = url.searchParams.get("type") ?? "Block", sort = url.searchParams.get("sort") ?? "created_at_asc", rawPage = url.searchParams.get("page") ?? "1";
+        if (!["Block", "Text", "Image", "Link", "Attachment", "Embed"].includes(type) || !["created_at_asc", "created_at_desc"].includes(sort)
+          || !/^[1-9][0-9]{0,3}$/.test(rawPage) || Number(rawPage) > 1000) return json({ error: "Invalid block page" }, 400);
+        const accountId = await pickerAccount(request.signal);
+        const page = Number(rawPage);
+        const response = await client.ownedBlockPage(accountId, type, sort, page, request.signal);
+        return json({ accountId, type, blocks: response.blocks, total: response.total, nextPage: nextChannelPage(response.meta, page, 1000) });
       }
       const saveRoot = url.pathname.startsWith("/v1/mcp-saves") ? "/v1/mcp-saves" : "/v1/saves";
       if (url.pathname === saveRoot || url.pathname.startsWith(`${saveRoot}/`)) {

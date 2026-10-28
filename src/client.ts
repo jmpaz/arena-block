@@ -149,10 +149,11 @@ export class ArenaBlockClient {
     })), updatedAt: z.string(), completeAt: z.string().nullable() }).parse(await this.request("/v1/channel-index", undefined, signal, 20_000));
   }
 
-  async channelBlocks(channelId: number, page = 1, signal?: AbortSignal) {
-    return z.object({ channelId: z.number().int().positive().safe(), blockIds: z.array(z.number().int().positive().safe()).max(100),
-      channelEntries: z.number().int().nonnegative(), nextPage: z.number().int().positive().nullable() })
-      .parse(await this.request(`/v1/channels/${channelId}/blocks?page=${page}`, undefined, signal, 20_000));
+  async accountBlocks(type: string, sort: string, page = 1, signal?: AbortSignal) {
+    return z.object({ accountId: z.number().int().positive(), type: z.string(),
+      blocks: z.array(z.object({ id: z.number().int().positive().safe(), visibility: z.string() })).max(100),
+      total: z.number().int().nonnegative(), nextPage: z.number().int().positive().nullable() })
+      .parse(await this.request(`/v1/account/blocks?type=${encodeURIComponent(type)}&sort=${encodeURIComponent(sort)}&page=${page}`, undefined, signal, 20_000));
   }
 
   /** Nested channels per channel, plus records for nested channels outside the account's own index. */

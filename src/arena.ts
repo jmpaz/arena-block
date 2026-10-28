@@ -107,14 +107,17 @@ export class ArenaClient {
     return { entries, complete: false };
   }
 
-  /** One read-only page of a channel's entries, reduced to block IDs and a nested-channel count. */
-  async channelBlockPage(id: number, page: number, signal?: AbortSignal): Promise<{ blockIds: number[]; channelEntries: number; meta: unknown }> {
-    if (!Number.isSafeInteger(id) || id <= 0 || !Number.isInteger(page) || page < 1 || page > 100) throw new Error("Invalid channel block page");
-    const response = object(await this.request("GET", `/channels/${id}/contents?per=100&page=${page}&sort=position_desc`, undefined, signal));
-    if (!Array.isArray(response?.data) || response.data.length > 100) throw new Error("Invalid channel contents response");
-    const entries = response.data.map(object).filter((value): value is Json => Boolean(value));
-    const blockIds = entries.flatMap(entry => entry.type !== "Channel" && number(entry.id) !== undefined ? [number(entry.id)!] : []);
-    return { blockIds, channelEntries: entries.filter(entry => entry.type === "Channel").length, meta: response.meta };
+  /** One read-only page of the blocks an account created, reduced to IDs and Are.na's block visibility. */
+  async ownedBlockPage(accountId: number, type: string, sort: string, page: number, signal?: AbortSignal): Promise<{ blocks: Array<{ id: number; visibility: string }>; total: number; meta: unknown }> {
+    if (!Number.isSafeInteger(accountId) || accountId < 1 || !Number.isInteger(page) || page < 1 || page > 1000
+      || !["Block", "Text", "Image", "Link", "Attachment", "Embed"].includes(type) || !["created_at_asc", "created_at_desc"].includes(sort)) throw new Error("Invalid block catalog page");
+    const response = object(await this.request("GET", `/users/${accountId}/contents?type=${type}&sort=${sort}&per=100&page=${page}`, undefined, signal));
+    if (!Array.isArray(response?.data) || response.data.length > 100) throw new Error("Invalid block catalog response");
+    const total = number(object(response.meta)?.total_count);
+    if (total === undefined) throw new Error("Block catalog response has no total count");
+    const blocks = response.data.map(object).flatMap(entry => entry && entry.type !== "Channel" && number(entry.id) !== undefined && typeof entry.visibility === "string"
+      ? [{ id: number(entry.id)!, visibility: entry.visibility }] : []);
+    return { blocks, total, meta: response.meta };
   }
 
   /** Find a present block's connection ID, including older placements in large channels. */

@@ -4,126 +4,119 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ArenaClient } from "../src/arena.ts";
 import { createService } from "../src/service.ts";
-import { collectRatio, formatRatioReport, tallyBlocks, type ChannelRow, type RatioSource } from "../src/visibility-ratio.ts";
+import { collectRatio, formatRatioReport, type BlockRow, type BlockType, type ChannelRow, type RatioSource } from "../src/visibility-ratio.ts";
 
 const directories: string[] = [];
 afterEach(async () => { await Promise.all(directories.splice(0).map(path => rm(path, { recursive: true, force: true }))); });
 
-const channel = (id: number, visibility: string, count: number | undefined, owner = "josh"): ChannelRow => ({ id, visibility, owner: { slug: owner }, ...(count === undefined ? {} : { count }) });
-const channels = [channel(1, "private", 3), channel(2, "public", 2), channel(3, "closed", 2), channel(4, "private", 0), channel(5, "private", 3, "group")];
-const contents: Record<number, { blocks: number[]; channels: number }> = {
-  1: { blocks: [10, 11, 12], channels: 0 },
-  2: { blocks: [10, 13], channels: 0 },
-  3: { blocks: [11], channels: 1 },
-  5: { blocks: [14, 15], channels: 1 },
+const channel = (id: number, visibility: string, owner = "josh"): ChannelRow => ({ id, visibility, owner: { slug: owner } });
+const channels = [channel(1, "private"), channel(2, "public"), channel(3, "closed"), channel(4, "private"), channel(5, "private", "group")];
+const blocks = (start: number, ...visibilities: string[]): BlockRow[] => visibilities.map((visibility, index) => ({ id: start + index, visibility }));
+const library: Record<BlockType, BlockRow[]> = {
+  Text: blocks(100, "private", "private", "public"),
+  Image: blocks(200, "public", "private", "orphan", "private", "public"),
+  Link: blocks(300, "public"),
+  Attachment: [],
+  Embed: blocks(500, "private"),
 };
 
-function stubSource(options: { pageSize?: number; failures?: Record<number, string[]>; calls?: string[] } = {}): RatioSource {
-  const pageSize = options.pageSize ?? 2;
+/** Serves the library oldest or newest first; `window` stands in for a search backend that refuses deep pages. */
+function stubSource(options: { pageSize?: number; window?: number; failures?: string[]; calls?: string[]; types?: Record<BlockType, BlockRow[]> } = {}): RatioSource {
+  const pageSize = options.pageSize ?? 2, types = options.types ?? library;
   return {
     channels: async (page) => {
       options.calls?.push(`channels:${page}`);
       const slice = channels.slice((page - 1) * 3, page * 3);
       return { accountId: 17, channels: slice, nextPage: page * 3 < channels.length ? page + 1 : null };
     },
-    channelBlocks: async (id, page) => {
-      options.calls?.push(`blocks:${id}:${page}`);
-      const failure = options.failures?.[id]?.shift();
+    blocks: async (type, sort, page) => {
+      options.calls?.push(`${type}:${sort}:${page}`);
+      const failure = options.failures?.shift();
       if (failure) throw new Error(failure);
-      const entry = contents[id]!;
-      const slice = entry.blocks.slice((page - 1) * pageSize, page * pageSize);
-      const more = page * pageSize < entry.blocks.length;
-      return { blockIds: slice, channelEntries: page === 1 ? entry.channels : 0, nextPage: more ? page + 1 : null };
+      const all = type === "Block" ? Object.values(types).flat() : types[type];
+      if (options.window !== undefined && (page - 1) * pageSize >= options.window) throw new Error("arena-block returned 400: Result window is too large");
+      const ordered = sort === "created_at_asc" ? all : [...all].reverse();
+      return { blocks: ordered.slice((page - 1) * pageSize, page * pageSize), total: all.length, nextPage: page * pageSize < all.length ? page + 1 : null };
     },
   };
 }
 
-test("overlap rules assign a block in private and public channels", () => {
-  const masks = [1 | 4, 1, 2 | 4, 4, 1 | 2];
-  expect(tallyBlocks(masks, "public")).toEqual({ private: 1, closed: 1, public: 3, total: 5 });
-  expect(tallyBlocks(masks, "private")).toEqual({ private: 3, closed: 1, public: 1, total: 5 });
-  expect(tallyBlocks(masks, "both")).toEqual({ private: 3, closed: 2, public: 3, total: 5 });
-});
-
-test("collection pages channels, skips empty ones, and counts unique blocks by the public rule", async () => {
+test("channels count by channel visibility and blocks by Are.na's block visibility", async () => {
   const calls: string[] = [];
-  const report = await collectRatio(stubSource({ calls }), { overlap: "public", now: () => new Date("2026-10-14T12:00:00Z") });
+  const report = await collectRatio(stubSource({ calls }), { now: () => new Date("2026-10-28T12:00:00Z") });
   expect(report.channels).toEqual({ private: 3, closed: 1, public: 1, total: 5 });
-  expect(report.blocks).toEqual({ private: 3, closed: 1, public: 2, total: 6 });
-  expect(report.blockRatios.privatePerPublic).toBe(1.5);
-  expect(report.blockRatios.privatePerOpen).toBe(1);
-  expect(report.blockRatios.privateShare).toBe(0.5);
   expect(report.owners).toEqual({ josh: { private: 2, closed: 1, public: 1, total: 4 }, group: { private: 1, closed: 0, public: 0, total: 1 } });
-  expect(report.scan).toEqual({ channelsRead: 4, blockPlacements: 8, nestedChannelEntries: 2, countMismatches: 0 });
-  expect(calls.filter(call => call.startsWith("channels:"))).toEqual(["channels:1", "channels:2"]);
-  expect(calls.some(call => call.startsWith("blocks:4:"))).toBe(false);
-  expect(calls).toContain("blocks:1:2");
+  expect(report.channelRatios).toEqual({ privatePerVisible: 1.5, privateShare: 0.6 });
+  expect(report.blocks).toEqual({ private: 5, public: 4, orphan: 1, other: 0, total: 10 });
+  expect(report.blockRatios).toEqual({ privatePerPublic: 1.25, privateShare: 0.5 });
+  expect(report.coverage).toMatchObject({ reported: 10, read: 10, complete: true });
+  expect(report.coverage.types.Image).toEqual({ reported: 5, read: 5 });
+  expect(calls).toContain("Image:created_at_asc:3");
+  expect(calls.some(call => call.endsWith("created_at_desc:1"))).toBe(false);
 });
 
-test("private and both rules count the block shared by a private and a public channel differently", async () => {
-  const privateRule = await collectRatio(stubSource(), { overlap: "private" });
-  expect(privateRule.blocks).toEqual({ private: 5, closed: 0, public: 1, total: 6 });
-  const both = await collectRatio(stubSource(), { overlap: "both" });
-  expect(both.blocks).toEqual({ private: 5, closed: 1, public: 2, total: 6 });
-  expect(both.blocks.private + both.blocks.closed + both.blocks.public).toBeGreaterThan(both.blocks.total);
-});
-
-test("placements rule sums listed counts and reads no channel contents", async () => {
+test("a listing refused past its search window is finished newest first", async () => {
   const calls: string[] = [];
-  const report = await collectRatio(stubSource({ calls }), { overlap: "placements" });
-  expect(report.unit).toBe("placements");
-  expect(report.blocks).toEqual({ private: 6, closed: 2, public: 2, total: 10 });
-  expect(report.scan).toBeUndefined();
-  expect(calls.every(call => call.startsWith("channels:"))).toBe(true);
+  const report = await collectRatio(stubSource({ window: 4, calls }));
+  expect(report.coverage).toMatchObject({ reported: 10, read: 10, complete: true });
+  expect(report.blocks).toEqual({ private: 5, public: 4, orphan: 1, other: 0, total: 10 });
+  expect(calls).toContain("Image:created_at_asc:3");
+  expect(calls).toContain("Image:created_at_desc:1");
+  expect(calls).not.toContain("Image:created_at_desc:2");
+  expect(calls.some(call => call.startsWith("Text:created_at_desc"))).toBe(false);
 });
 
-test("rate limits are retried and other failures stop the count", async () => {
-  const retried = await collectRatio(stubSource({ failures: { 2: ["arena-block returned 429"] } }), { overlap: "public", retryDelays: [0] });
-  expect(retried.blocks.total).toBe(6);
-  await expect(collectRatio(stubSource({ failures: { 2: ["Invalid channel response"] } }), { overlap: "public", retryDelays: [0] })).rejects.toThrow("Invalid channel response");
+test("a listing still short after both directions is reported instead of filled in", async () => {
+  const image = blocks(200, "public", "private", "orphan", "private", "public", "private", "public");
+  const report = await collectRatio(stubSource({ window: 2, types: { ...library, Image: image } }));
+  expect(report.coverage.complete).toBe(false);
+  expect(report.coverage.types.Image).toEqual({ reported: 7, read: 4 });
+  expect(report.blocks.total).toBe(9);
+  expect(formatRatioReport(report)).toContain("Read 9 of the 12 blocks Are.na reports; listings stopped short for Image 4 of 7.");
 });
 
-test("a listed count that differs from the entries read is reported", async () => {
-  const source = stubSource();
-  const mismatched: RatioSource = { ...source, channels: async (page) => {
-    const response = await source.channels(page);
-    return { ...response, channels: response.channels.map(value => value.id === 1 ? { ...value, count: 9 } : value) };
-  } };
-  expect((await collectRatio(mismatched, { overlap: "public" })).scan?.countMismatches).toBe(1);
+test("rate limits are retried and a failed first page stops the count", async () => {
+  const retried = await collectRatio(stubSource({ failures: ["arena-block returned 429"] }), { retryDelays: [0] });
+  expect(retried.blocks.total).toBe(10);
+  await expect(collectRatio(stubSource({ failures: ["Invalid block catalog response"] }), { retryDelays: [0] })).rejects.toThrow("Invalid block catalog response");
 });
 
-test("text report states the rule and ratios, and prints n/a without a public denominator", async () => {
-  const report = await collectRatio(stubSource(), { overlap: "public", now: () => new Date("2026-10-14T12:00:00Z") });
-  const text = formatRatioReport(report);
-  expect(text).toContain("Block rule (public): a block in several channels counts once, as the most open visibility");
-  expect(text).toContain("blocks, private per public: 1.50");
-  const onlyPrivate = await collectRatio({ channels: async () => ({ accountId: 1, channels: [channel(1, "private", 1)], nextPage: null }),
-    channelBlocks: async () => ({ blockIds: [1], channelEntries: 0, nextPage: null }) }, { overlap: "public" });
-  expect(formatRatioReport(onlyPrivate)).toContain("private per public: n/a");
-  expect(onlyPrivate.channelRatios.privatePerPublic).toBeNull();
+test("text report lists both tables, the ratios and the coverage", async () => {
+  const text = formatRatioReport(await collectRatio(stubSource(), { now: () => new Date("2026-10-28T12:00:00Z") }));
+  expect(text).toContain("Account 17, 2026-10-28T12:00:00.000Z, channel list live");
+  expect(text).toContain("Channels: 1.50 private per closed or public, 60.0% private.");
+  expect(text).toContain("Blocks: 1.25 private per public, 50.0% private.");
+  expect(text).toContain("Read all 10 blocks Are.na reports for this account.");
+  expect(text).not.toContain("other");
+  const odd = { ...library, Text: blocks(100, "private", "unlisted"), Image: [], Link: [], Embed: [] };
+  const privateOnly = await collectRatio(stubSource({ types: { ...odd, Text: blocks(100, "private") } }));
+  expect(formatRatioReport(privateOnly)).toContain("Blocks: n/a private per public, 100.0% private.");
+  expect(formatRatioReport(await collectRatio(stubSource({ types: odd })))).toMatch(/other\s+1/);
 });
 
-test("daemon block route is authenticated, bounded, account-scoped and reads only block IDs", async () => {
+test("daemon block route is authenticated, bounded, account-scoped and returns IDs with visibility", async () => {
   const directory = await mkdtemp(join(tmpdir(), "arena-ratio-route-")); directories.push(directory);
-  const requests: Array<[number, number]> = [];
+  const requests: Array<[number, string, string, number]> = [];
   const client = {
     me: async () => ({ id: 17 }),
-    channelBlockPage: async (id: number, page: number) => {
-      requests.push([id, page]);
-      return { blockIds: [5, 6], channelEntries: 1, meta: { next_page: page + 1, has_more_pages: true } };
+    ownedBlockPage: async (accountId: number, type: string, sort: string, page: number) => {
+      requests.push([accountId, type, sort, page]);
+      return { blocks: [{ id: 5, visibility: "private" }], total: 40_000, meta: { next_page: page + 1, has_more_pages: true } };
     },
   } as unknown as ArenaClient;
   const service = createService({ host: "localhost", port: 8790, publicBaseUrl: "https://engine.invalid", stateDirectory: directory,
     mediaDirectory: directory, accessToken: "test-access", arenaToken: "unused", credential: { schemaVersion: 1, profile: "shared", arenaTokenEnv: "ARENA_WRITE_ACCESS_TOKEN", expectedAccountId: 17 } }, { client });
   const call = (path: string, authorized = true, method = "GET") => service.handler(new Request("https://engine.invalid" + path, { method, headers: authorized ? { authorization: "Bearer test-access" } : {} }));
   try {
-    expect((await call("/v1/channels/9/blocks", false)).status).toBe(401);
-    expect((await call("/v1/channels/9/blocks?page=101")).status).toBe(400);
-    expect((await call("/v1/channels/0/blocks")).status).toBe(404);
-    expect((await call("/v1/channels/9/blocks", true, "POST")).status).toBe(404);
+    expect((await call("/v1/account/blocks", false)).status).toBe(401);
+    expect((await call("/v1/account/blocks?page=1001")).status).toBe(400);
+    expect((await call("/v1/account/blocks?type=Channel")).status).toBe(400);
+    expect((await call("/v1/account/blocks?sort=updated_at_desc")).status).toBe(400);
+    expect((await call("/v1/account/blocks", true, "POST")).status).toBe(404);
     expect(requests).toEqual([]);
-    expect(await (await call("/v1/channels/9/blocks?page=3")).json()).toEqual({ channelId: 9, blockIds: [5, 6], channelEntries: 1, nextPage: 4 });
-    expect(requests).toEqual([[9, 3]]);
+    expect(await (await call("/v1/account/blocks?type=Image&sort=created_at_desc&page=150")).json())
+      .toEqual({ accountId: 17, type: "Image", blocks: [{ id: 5, visibility: "private" }], total: 40_000, nextPage: 151 });
+    expect(requests).toEqual([[17, "Image", "created_at_desc", 150]]);
   } finally { await service.close(); }
 });
 
@@ -135,10 +128,14 @@ test("CLI ratio reads a stubbed daemon with GET requests only and never prints t
     seen.push(`${request.method} ${url.pathname}`);
     if (request.headers.get("authorization") !== `Bearer ${token}`) return Response.json({ error: "denied" }, { status: 401 });
     if (url.pathname === "/v1/channels") return Response.json({ accountId: 17, nextPage: null, channels: [
-      { id: 1, title: "a", slug: "a", visibility: "private", owner: { name: "J", slug: "josh" }, count: 2 },
-      { id: 2, title: "b", slug: "b", visibility: "public", owner: { name: "J", slug: "josh" }, count: 1 }] });
-    const match = url.pathname.match(/^\/v1\/channels\/(\d+)\/blocks$/);
-    if (match) return Response.json({ channelId: Number(match[1]), blockIds: match[1] === "1" ? [7, 8] : [7], channelEntries: 0, nextPage: null });
+      { id: 1, title: "a", slug: "a", visibility: "private", owner: { name: "J", slug: "josh" } },
+      { id: 2, title: "b", slug: "b", visibility: "public", owner: { name: "J", slug: "josh" } }] });
+    if (url.pathname === "/v1/account/blocks") {
+      const type = url.searchParams.get("type");
+      const rows = type === "Block" ? [{ id: 7, visibility: "private" }, { id: 8, visibility: "public" }]
+        : type === "Text" ? [{ id: 7, visibility: "private" }] : type === "Image" ? [{ id: 8, visibility: "public" }] : [];
+      return Response.json({ accountId: 17, type, blocks: rows, total: rows.length, nextPage: null });
+    }
     return Response.json({ error: "Not found" }, { status: 404 });
   } });
   const run = async (...args: string[]) => {
@@ -150,12 +147,11 @@ test("CLI ratio reads a stubbed daemon with GET requests only and never prints t
   try {
     const json = await run("ratio", "--json");
     expect(json.code).toBe(0);
-    expect(JSON.parse(json.out)).toMatchObject({ accountId: 17, overlap: "public", channels: { private: 1, public: 1, total: 2 }, blocks: { private: 1, public: 1, total: 2 } });
-    const both = JSON.parse((await run("ratio", "--overlap", "both", "--json")).out);
-    expect(both.blocks).toMatchObject({ private: 2, public: 1, total: 2 });
-    const text = await run("ratio", "--overlap", "private");
-    expect(text.out).toContain("Block rule (private)");
-    expect((await run("ratio", "--overlap", "sometimes")).code).toBe(1);
+    expect(JSON.parse(json.out)).toMatchObject({ accountId: 17, channels: { private: 1, public: 1, total: 2 },
+      blocks: { private: 1, public: 1, total: 2 }, coverage: { reported: 2, read: 2, complete: true } });
+    const text = await run("ratio");
+    expect(text.out).toContain("Read all 2 blocks Are.na reports for this account.");
+    expect((await run("ratio", "--overlap", "both")).code).toBe(1);
     for (const output of [json.out, json.err, text.out, text.err]) expect(output).not.toContain(token);
     expect(seen.every(line => line.startsWith("GET "))).toBe(true);
   } finally { server.stop(true); }

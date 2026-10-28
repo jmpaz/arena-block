@@ -26,7 +26,7 @@ import { loadUserConfig } from "./config.ts";
 import { initiatorSchema, prepareSaveIntent, writeSaveIntent, writeSaveResult, saveSnapshotSchema } from "./save-intent.ts";
 import { formatHumanReceipt, receiptOutputMode } from "./receipt-format.ts";
 import { formatArenaBlockMetadata } from "./metadata.ts";
-import { collectRatio, formatRatioReport, overlapRules, type OverlapRule, type RatioSource } from "./visibility-ratio.ts";
+import { collectRatio, formatRatioReport, type RatioSource } from "./visibility-ratio.ts";
 
 type Options = {
   media?: string;
@@ -505,24 +505,23 @@ program.command("metadata").description("Read block and channel metadata")
     console.log(options.json ? JSON.stringify(result, null, 2) : formatArenaBlockMetadata(result));
   });
 
-program.command("ratio").description("Report private, closed and public channels and blocks without writes")
-  .option("--overlap <rule>", `how a block in several channels counts: ${overlapRules.join(", ")}`, "public")
+program.command("ratio").description("Count channels and blocks by visibility without writes")
   .option("--cached", "list channels from the daemon's saved channel index")
   .option("--json", "print exact structured JSON")
-  .action(async (options: { overlap: string; cached?: boolean; json?: boolean }) => {
-    if (!(overlapRules as readonly string[]).includes(options.overlap)) throw new Error(`--overlap must be one of ${overlapRules.join(", ")}`);
+  .action(async (options: { cached?: boolean; json?: boolean }) => {
     const daemon = client();
     const index = options.cached ? await daemon.channelIndex() : undefined;
     if (index && !index.completeAt) throw new Error("The daemon's channel index is incomplete; run without --cached to read the account again");
     const source: RatioSource = {
       channels: index ? async () => ({ accountId: index.accountId, channels: index.channels, nextPage: null }) : (page, signal) => daemon.channels(page, signal),
-      channelBlocks: (id, page, signal) => daemon.channelBlocks(id, page, signal),
+      blocks: (type, sort, page, signal) => daemon.accountBlocks(type, sort, page, signal),
     };
-    const progress = (done: number, total: number) => {
-      if (process.stderr.isTTY) process.stderr.write(`\rReading channels ${done}/${total}`);
-      else if (done % 100 === 0 || done === total) process.stderr.write(`Read channels ${done}/${total}\n`);
+    let reportedAt = 0;
+    const progress = (read: number, reported: number) => {
+      if (process.stderr.isTTY) process.stderr.write(`\rReading blocks ${read}/${reported}`);
+      else if (read - reportedAt >= 5000 || read === reported) { reportedAt = read; process.stderr.write(`Read blocks ${read}/${reported}\n`); }
     };
-    const report = await collectRatio(source, { overlap: options.overlap as OverlapRule, progress, listing: index ? `cached ${index.completeAt}` : "live" });
+    const report = await collectRatio(source, { progress, listing: index ? `cached ${index.completeAt}` : "live" });
     if (process.stderr.isTTY) process.stderr.write("\r\x1b[K");
     console.log(options.json ? JSON.stringify(report, null, 2) : formatRatioReport(report));
   });
