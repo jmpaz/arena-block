@@ -1,29 +1,27 @@
 # Quoted author links
 
-Link a quoted author's label to the quoted post, or display the name alone. In Capture, open **Quoted author**. In the browser extension, open **Edit sources**, **Capture options**, then **Composition** and **Quoted authors**.
+You can link a quoted author's name to the quoted post, or show the name alone. In the iOS app, open **Quoted author**. In the browser extension, open **Edit sources**, **Capture options**, then **Composition** and **Quoted authors**.
 
-| Choice | Generated credit |
+| Choice | Result |
 |---|---|
-| Keep current style | Use the platform's existing presentation: linked Substack credits, plain x.com, Bluesky and Delvetown credits |
-| Link to quoted post | Link the author label to the quoted post's source URL |
-| Name only | Display the author label without a link |
+| Keep current style | Each site's usual style: linked names for Substack, plain names for x.com, Bluesky and Delvetown |
+| Link to quoted post | The author's name links to the quoted post |
+| Name only | The author's name appears without a link |
 
-For a quoted x.com post:
+A quoted x.com post with **Link to quoted post**:
 
 ```markdown
 > [`@quoted`](<https://x.com/quoted/status/2>) (2026-10-15T12:00:00Z)
 > Complete quoted prose.
 ```
 
-With Name only:
+With **Name only**:
 
 ```markdown
 > `@quoted` (2026-10-15T12:00:00Z)
 > Complete quoted prose.
 ```
 
-The composer applies the choice to included quotes, using their retained authors and source URLs. Native and browser previews display those links. Changing the choice recomposes retained sources while keeping manually edited writing. Draft restoration retains the setting, and submission freezes it with the plan.
+The composer applies the choice to every included quote, using the author and URL saved with it. The app and extension previews show the resulting links. Changing the choice rebuilds the text from the saved sources and keeps your manual edits. A restored draft keeps the setting, and a submitted save keeps the setting it had when you submitted it.
 
-In the CLI, use [`--quote-author-link source|plain`](cli-quote-options.md). The optional `policy.quoteAuthorLink` field records an explicit choice. Helpers and receivers check for `quote-author-links-v1` before accepting it. Plans without that field retain their existing presentation and hashes.
-
-Frozen two-level fixtures cover Substack, x.com, Bluesky and Delvetown. Tests compare generated credits, source identities, media, saved hashes and receiver rejection of missing or altered policy fields. Native runtime and UI receiving use separate checks.
+In the CLI, use [`--quote-author-link source|plain`](cli-quote-options.md). The plan records an explicit choice in `policy.quoteAuthorLink`. Helpers and receivers check for `quote-author-links-v1` before accepting it. Plans without the field keep their existing style and hash.

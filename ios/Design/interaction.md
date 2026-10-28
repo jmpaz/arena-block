@@ -16,15 +16,15 @@ The picker shows the current capture preview and selected channel names. Its che
 
 ## Submitted work
 
-A valid Save stores the approved input and UUID before resolution starts. During that operation, source, block and media edits remain disabled. Once the block has been verified, Add to channels is available while its placements are still connecting. Apply updates the original capture; it does not add another History item. The UI shows observed stages and complete confirmed destination counts.
+A valid Save stores the approved input and UUID before resolution starts. While it runs, source, block and media edits stay disabled. Once the block is verified, Add to channels becomes available, even while placements are still connecting. Apply updates the same capture in History. The UI shows observed stages and confirmed destination counts.
 
-If a create response is ambiguous, keep the attempt visible and inspect its status. A new save would use a new UUID. History shows active saves first, followed by unsubmitted drafts and saved or canceled captures. Its badge counts active saves.
+If a create response is ambiguous, keep the attempt visible and check its status. A new save would get a new UUID. History lists active saves first, then unsubmitted drafts, then saved and canceled captures. Its badge counts active saves.
 
-Swipe an active, paused or interrupted save to cancel it. Cancellation moves the same capture to History and stops further attempts. A block or connection already created remains in Are.na. The canceled detail retains confirmed placements and identifies any request whose remote outcome remains unknown. A late response can update those observations without restarting the save.
+Swipe an active, paused or interrupted save to cancel it. The capture moves to History and the app stops trying. Blocks and connections already created stay in Are.na. The canceled capture shows its confirmed placements, along with any request still waiting on an outcome. A late response can update those details without restarting the save.
 
-Continue names the exact remaining destinations before accepting another attempt. A missing connection that was previously confirmed is not restored automatically. Readback can reconcile an existing block and its present connections without creating another block.
+Continue lists the remaining destinations before starting another attempt. If a connection confirmed earlier has gone missing, it stays missing until you choose that channel again. Reading the block back can match an existing block and its connections, so a retry reuses them.
 
-Add to channels uses the stored block ID. An open picker and its baseline survive relaunch. Apply merges its changes with newer choices; Cancel discards them. Sent or confirmed channels stay selected and can be disconnected in Are.na. Unsent choices can be removed locally. Choose up to 20 new channels per amendment; existing placements do not use those slots. Each accepted amendment and completed receipt is retained for audit under the same logical capture. Later cycles do not automatically restore connections removed in Are.na; choosing that channel again authorizes one new attempt. Older placement entries without a parent identity remain separate; the app does not guess which historical captures to merge.
+Add to channels uses the stored block ID. An open picker and its starting state survive a relaunch. Apply merges your changes with newer ones, and Cancel discards them. Channels already sent or confirmed stay selected, and you can disconnect them in Are.na. Unsent choices can be removed in the app. Each change can add up to 20 new channels, with existing placements counted separately. The app keeps each accepted change and completed receipt under the same capture. If you removed a connection in Are.na, it stays removed until you choose that channel again, which allows a new attempt. Older placement entries without a parent ID stay separate, since the app has no record of which capture they belong to.
 
 ## Testing
 

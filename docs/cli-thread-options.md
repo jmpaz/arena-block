@@ -1,27 +1,14 @@
 # CLI thread expansion
 
-New CLI compositions capture only the explicitly supplied posts by default. Add
-`-t` or `--thread-expansion` to request a bounded supported thread or author chain:
+By default, the CLI captures only the posts you list. Add `-t` or `--thread-expansion` to include the thread or author chain around them, on sites with thread support:
 
 ```sh
 arena-block plan 'https://x.com/writer/status/123' -t --json
 arena-block 'https://bsky.app/profile/writer.example/post/abc' --thread-expansion
 ```
 
-The flag takes no value. CLI composition has no `auto` mode. Provider validation
-and existing thread bounds still apply; the flag does not promise that a complete
-thread is publicly available. The separate `thread` command continues to create
-its own explicit local conversation draft, and `resolve` continues to read the
-requested provider records without composing a thread.
+The flag takes no value. The usual limits on thread size still apply, and a site can return only part of a public thread. Two other commands work separately from this flag: `thread` writes a local conversation draft, and `resolve` reads the listed posts as they are.
 
-Existing scripts using `--thread-expansion on` or `--thread-expansion off`
-(including `=on` and `=off`) continue to work with a deprecation warning on stderr.
-Replace `on` with the presence-only flag and remove the flag entirely for `off`.
-Legacy `auto` is rejected before acquisition. Repeated explicit choices use the
-last value within the same command; a subcommand's explicit choice takes priority
-over an inherited root flag.
+Older scripts can keep passing `--thread-expansion on` or `off`, including the `=on` and `=off` forms. The CLI accepts them with a deprecation warning on stderr. Replace `on` with the bare flag, and drop the flag where a script passes `off`. The CLI rejects `auto` before reading any source. When a command repeats the option, the last value wins. A value given to a subcommand overrides one given before it.
 
-These defaults apply only when the CLI creates a new composition. `render
---plan` and `publish --plan` keep the frozen plan, its policy and its hash. Native
-Capture, browser intake, retained save recovery and shared protocol defaults are
-unchanged.
+These defaults cover new plans created by the CLI. `render --plan` and `publish --plan` use the plan as saved, with its policy and hash. The iOS app, the browser extension, save recovery and the shared protocol keep their own defaults.

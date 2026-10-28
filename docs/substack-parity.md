@@ -2,74 +2,47 @@
 
 | Material | Capture behavior |
 |---|---|
-| Public Notes | Reads the complete authored body from the public page. Safari Share and the invoked browser tab can supply the same source record. |
-| Public articles | Reads complete freely public articles, including identified custom-domain pages. Unidentified pages remain ordinary Links. |
-| Quotes and restacks | Opens each quoted Note at its own link and keeps its author separate from the outer Note. Quote controls determine how much to include. Unavailable quotes retain their link and missing-text notice. |
-| Article cards | Includes the title, independent author and preview or selected excerpt. |
-| Reply expansion | With `threadExpansion: on`, follows a verified same-author linear chain. Other authors, branches and incomplete reply sets are excluded or stop expansion. |
-| Rich text | Preserves authored HTML in the source record and converts it to Markdown. Relative links resolve against their containing source. |
-| Shortened URL labels | Verifies host/path abbreviations against the observed HTTPS link target when comparing complete source text. Custom authored labels remain literal. |
-| Original images | Uses shared media selection, ordering and rendering. |
-| Images inside quoted Notes | Select quoted images explicitly. Each image keeps its quoted source and author. Preview images remain previews. |
-| Image-only Notes | Verifies empty authored text and the original images against the public Note record. Camera placeholders stay out of the saved text. |
-| External link cards | Retains the observed title, URL and labelled preview separately from authored prose and quoted Notes. The public record must agree with the visible card. HTTP links remain links; Capture does not fetch their destination. |
-| Multiple sources | Preserves explicit source order and deduplicates Note aliases by ID. Media extras use the common composer. |
-| Publication dates | Retains explicit-offset timestamps and offset-free display labels. Quote dates use source dates; acquisition times remain in source records. |
-| Drafts and saves | Retains source records in browser and native drafts, save snapshots, helper requests and receiver plans. |
-| Public article video and audio | Checks that the upload belongs to the complete public article and its publication. When the source supplies a preview image, video over ten minutes uses that frame. One original audio file can be copied without conversion, up to 250 MiB. |
-| Native Note video | Checks the upload against its Note and author. Videos inside included quotes use the same selection, framing and soundtrack controls as outer videos. |
-| Podcast audio players in Notes | Checks the card's upload, article, publication and byline against the complete freely public article. Captures one original audio file with the Note's prose and independent article attribution. Selected article excerpts remain excerpts. |
-| Inline article video | Checks the upload against its article and publication. Unsupported players or captions that cannot be preserved stop capture. |
-| External players | Keeps the observed link and title when available. |
+| Public Notes | Reads the full text from the public page. Safari Share and the browser tab produce the same record. |
+| Public articles | Reads free public articles in full, including custom-domain pages marked as Substack articles. Other pages become ordinary Links. |
+| Quotes and restacks | Opens each quoted Note at its own link and keeps its author apart from the outer Note. Quote options decide how much to include. A quote that failed to load keeps its link and a notice. |
+| Article cards | Includes the title, the article's author and a preview or selected excerpt. |
+| Reply expansion | With thread expansion on, follows a chain of Notes by the same author. Notes by other authors stay out. Branches and incomplete reply sets stop expansion. |
+| Rich text | Keeps the authored HTML in the source record and converts it to Markdown. Relative links resolve against the page they appear on. |
+| Shortened URL labels | Compares a shortened host and path label with the HTTPS link behind it. Labels written by the author stay as written. |
+| Original images | Go through the shared media selection, ordering and rendering. |
+| Images inside quoted Notes | Need selecting by hand. Each image keeps its quoted source and author. Preview images stay labeled as previews. |
+| Image-only Notes | Checks the empty text and the original images against the public Note record. The camera placeholder stays out of the saved text. |
+| External link cards | Keeps the card's title, URL and labeled preview apart from the Note's text and quoted Notes. The public record must match the visible card. HTTP links stay as links, unfetched. |
+| Multiple sources | Keeps the order you listed and merges Note aliases with the same ID. Media from `--extra` goes through the shared composer. |
+| Publication dates | Keeps timestamps with offsets, and display labels without them. Quote dates come from the sources. Fetch times stay in the source records. |
+| Drafts and saves | Keeps source records through browser and app drafts, saves, helper requests and receiver plans. |
+| Public article video and audio | Checks that the upload belongs to the full public article and its publication. A video over ten minutes uses the preview image when one exists. Copies a single original audio file without conversion, up to 250 MiB. |
+| Native Note video | Checks the upload against its Note and author. Video inside included quotes has the same selection, frame and soundtrack options as video in the outer Note. |
+| Podcast audio players in Notes | Checks the card's upload, article, publication and byline against the full public article. Saves the original audio with the Note's text and credits the article's author separately. Selected excerpts stay labeled as excerpts. |
+| Inline article video | Checks the upload against its article and publication. Players or captions the capture can't preserve stop capture. |
+| External players | Keep their link, and their title when available. |
 
-Public reads depend on source availability. Identity disagreements, challenges,
-collapsed bodies, partial or paid articles and unsupported native media produce
-errors. An embedded preview cannot substitute for the missing full text of a
-quoted Note. Imported records are checked for consistent supplied data; validation
-cannot authenticate the claimed observation.
+Public reads depend on the source staying up. Mismatched IDs, challenges, collapsed bodies, partial or paid articles and unsupported native media all produce errors. An embedded preview can't stand in for the full text of a quoted Note. Imported records get checked for consistency, but the check can't verify when or how someone collected them.
 
 ## Implementation limits
 
-Original images, videos and verified original audio are selectable inside quotes.
-A selected audio file is saved alone without conversion; it cannot be mixed with
-visual media or another standalone audio file. Video soundtracks use Auto, Mix or
-a selected video. Frame choices use the observed poster and carry no audio.
+You can select original images, videos and checked original audio inside quotes. A selected audio file goes in a block by itself, unconverted, without visual media or a second audio file. The video soundtrack can be Auto, Mix or a chosen video. A frame choice uses the source's poster image, which carries no audio.
 
-Media follow source order: the outer post, its quoted descendants, then the next
-chosen post. Quoted media have distinct references within the outer post's
-namespace, such as `1.2`. Quote depth controls both writing and quoted media, up
-to eight levels. Hiding a quote keeps explicit media choices for when it is shown
-again. The native and browser pickers identify the quoted media's author.
+Media follows source order: the outer post, then its quoted posts, then the next post you listed. Quoted media gets references under the outer post, such as `1.2`. Quote depth limits both quoted text and quoted media, up to eight levels. Hiding a quote keeps its media choices for when you show it again. The app and extension pickers show who posted each quoted item.
 
-Existing queued plans retain their original references and selection. Read the
-source again to include quoted media in an older plan. New quoted-image plans
-require `quoted-image-media-v1`; quoted video/audio selections, frame choices and
-retained soundtrack references require `quoted-video-audio-v1` on the receiving
-helper and daemon. Original source records remain unchanged by these choices.
+Queued plans keep their original references and selections. To add quoted media to an older plan, read the source again. Newer plans need these capabilities on the receiving helper and daemon:
 
-Article reads use `/api/v1/posts/{slug}`. Note chain discovery uses
-`/api/v1/reader/comment/{id}` and `/replies`, checking ancestors, user IDs,
-pagination and reported reply coverage. Reads omit credentials and reject changed
-API endpoints. Each response is limited to 2 MiB; thread discovery permits at most
-64 pages, 8 MiB aggregate, 2,000 identities and 32 selected sources. HTML redirects
-stay within the same HTTPS Note ID and stop after three hops.
+- Quoted images: `quoted-image-media-v1`
+- Quoted video and audio, frame choices and saved soundtrack references: `quoted-video-audio-v1`
 
-Inline video discovery reads at most 32 placeholders and 4 MiB of metadata within
-60 seconds. Before download, original media duration, dimensions and source URL
-must agree with the complete source record. The downloaded file's container and
-duration are checked before rendering or attachment.
+These choices leave the original source records unchanged.
 
-Receiver capability names and retained-record limits are listed in
-[Substack captures](substack-notes.md#retained-records-and-compatibility).
+Articles come from `/api/v1/posts/{slug}`. Note chains come from `/api/v1/reader/comment/{id}` and `/replies`, with checks on parents, user IDs, pagination and the reply counts Substack reports. Requests carry no credentials and stop if redirected to a different API endpoint. Each response can be up to 2 MiB. Thread discovery reads at most 64 pages, 8 MiB in total, 2,000 IDs and 32 selected sources. HTML redirects must keep the same HTTPS Note ID, for up to three hops.
 
-The observed native Note attachment contract supports images, video and article
-cards. A podcast article card can expose original audio. Capture retains the
-article's identity, byline, audio metadata and a digest of its verified public
-body; it does not include the article's full prose in the Note. Capture checks up to eight distinct articles within sixty seconds per Note tree. Old queued
-card-only captures retain their existing selection. New podcast-card records
-require `substack-note-podcast-audio-v1` on the helper and receiver.
+Inline video discovery reads up to 32 placeholders and 4 MiB of metadata within 60 seconds. Before downloading, the capture checks that the media's duration, dimensions and URL match the full source record. After downloading, it checks the file's container and duration before rendering or attaching it.
 
-A separate native audio-upload Note attachment has not been verified. External
-audio and video players remain links; their URLs are not promoted to native
-attachments. Cards with `mediaClip`, `clipInfo` or image-selection data remain
-unsupported.
+[Substack captures](substack-notes.md#saved-records-and-compatibility) lists the receiver capabilities and record limits.
+
+Native Note attachments come as images, video and article cards. A podcast article card can carry original audio. For these cards, the capture keeps the article's ID, byline, audio details and a digest of its public body, while leaving the article's full text out of the Note. It checks up to eight articles per Note tree, within sixty seconds. Queued captures from before this support keep their card-only selection. New podcast card records need `substack-note-podcast-audio-v1` on the helper and receiver.
+
+Notes with a standalone native audio upload are untested. External audio and video players stay as links. Cards with `mediaClip`, `clipInfo` or image selection data are unsupported.
