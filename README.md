@@ -37,7 +37,7 @@ arena-block ratio
 arena-block ratio --overlap both --json
 ```
 
-`ratio` reads your channels through the daemon, then the block IDs in each channel. It prints how many channels and blocks are private, closed and public, with the ratio of private to public. It only reads, using GET requests.
+`ratio` reads the account's channels through the daemon, then the block IDs in each channel. It prints how many channels and blocks are private, closed and public, with the ratio of private to public. It only reads, using GET requests.
 
 `--overlap` sets how to count a block that appears in several channels:
 
