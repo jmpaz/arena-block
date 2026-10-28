@@ -22,6 +22,6 @@ With **Name only**:
 > Complete quoted prose.
 ```
 
-The composer applies the choice to every included quote, using the author and URL saved with it. The app and extension previews show the resulting links. Changing the choice rebuilds the text from the saved sources and keeps manual edits. A restored draft keeps the setting, and a submitted save keeps the setting it had at submission.
+The composer applies the choice to every included quote, using the author and URL saved with it, and the app and extension previews show the resulting links. Changing the choice rebuilds the text from the saved sources and keeps manual edits; restored drafts and submitted saves keep their setting.
 
-The CLI takes [`--quote-author-link source|plain`](cli-quote-options.md). The plan records an explicit choice in `policy.quoteAuthorLink`. Helpers and receivers check for `quote-author-links-v1` before accepting it. Plans without the field keep their existing style and hash.
+The CLI takes [`--quote-author-link source|plain`](cli-quote-options.md) and records an explicit choice in `policy.quoteAuthorLink`, which helpers and receivers accept only with `quote-author-links-v1`. Plans without the field keep their existing style and hash.

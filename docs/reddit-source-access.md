@@ -1,8 +1,15 @@
 # Reddit source access
 
-The CLI and iOS app read Reddit links through the shared HTTP provider. A share link resolves to its post or comment through a HEAD request with a redirect limit. Safari Share passes along the page URL. The provider checks Reddit's public JSON before building a block.
+The CLI and iOS app read Reddit links through the shared HTTP provider, with Safari Share passing along the page URL. A share link resolves to its post or comment through a bounded HEAD redirect, and the provider checks Reddit's public JSON before building a block.
 
-A post needs an ID, title, author, date, permalink and body field. The body can be empty. A gallery also needs its entries in order, with media URLs, and keeps captions when present. Native video needs a stream with audio, or a silent stream when Reddit reports `has_audio: false`. A cross-post needs its parent record with a matching ID. When required media or parent data is missing, capture stops. Reading a post uses the post listing, without the comment tree.
+Each kind of post needs certain fields, and capture stops when any are missing:
+
+- a post: ID, title, author, date, permalink and body field, though the body can be empty
+- a gallery: its entries in order, with media URLs; captions stay when present
+- native video: a stream with audio, or a silent stream when Reddit reports `has_audio: false`
+- a cross-post: its parent record, with a matching ID
+
+Reading a post uses the post listing, without the comment tree.
 
 A comment capture includes the comment's text and the parent post's title, without the rest of the discussion or the parent's attachments.
 

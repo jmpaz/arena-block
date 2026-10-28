@@ -26,7 +26,9 @@ The Add to row opens channel selection. Save records the draft, chosen destinati
 
 After remote creation, the delivery coordinator records the block ID and checks placements. The UI reports confirmed destinations from a complete server scan. A lost response keeps the attempt for reconciliation. History retains pending, failed and completed operations. Add placements uses a known block and checks the requested additions.
 
-The app saves a SoundCloud track as an MP3 attachment. Settings holds the HTTPS address and access token of an arena-block media service with SoundCloud MP3 support. On save, the app reads its details from SoundCloud, asks the service for the MP3 while preparing media, checks the file, then uploads it to Are.na. The Share extension uses the same address, and the token from the keychain. Text-only media saves the track URL alone. A playlist block lists its tracks in order, with the playlist artwork.
+The app saves a SoundCloud track as an MP3 attachment, fetched from an arena-block media service with SoundCloud MP3 support; Settings holds the service's HTTPS address and access token, and the Share extension reads the same address and the token from the keychain. On save, the app reads the track's details from SoundCloud, asks the service for the MP3, checks the file, then uploads it to Are.na.
+
+Text-only media saves the track URL alone. A playlist block lists its tracks in order, with the playlist artwork.
 
 Use New for another capture. Delete, Clear Drafts, Undo and Deleted Drafts recovery operate on unsubmitted drafts. During a queued save, the editor keeps the submitted values fixed. Clipboard import is opt-in and respects the system paste permission.
 
@@ -46,4 +48,4 @@ Run simulator tests through the generated `CaptureUITests` target. The backgroun
 
 The app takes public post and comment URLs, pasted or shared from Safari, and reads them through the shared HTTP provider and stops on HTTP 401, 403 or 429. See [source access](../docs/reddit-source-access.md).
 
-Drafts and saves still open Reddit records from earlier versions. Validation checks the data in a record. It can't verify when someone collected the record, or whether the post is still up. The app writes a replacement snapshot before showing it, and keeps the selected draft and its input across reloads.
+Drafts and saves still open Reddit records from earlier versions, and the app writes a replacement snapshot before showing it, keeping the selected draft and its input across reloads. Validation checks the data in a record, though it can't verify when someone collected the record, or whether the post is still up.

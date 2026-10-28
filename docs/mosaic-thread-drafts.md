@@ -8,7 +8,7 @@ The `thread` command saves API responses alongside normalized records. Its Markd
 
 When a fetched parent post is excluded, the exporter keeps its link beside the reply and marks it as excluded.
 
-`writeThreadDraft` takes the posts for the draft's text in `selectedIds`. Quote IDs in `referenceOnlyQuoteIds` keep their links without their text or media. The manifest records those quotes with their original URLs and any CIDs. Each post goes in one list or the other. Quote expansion carries on through the rest of the fetched posts.
+`writeThreadDraft` takes the posts for the draft's text in `selectedIds`, and quotes to keep as bare links in `referenceOnlyQuoteIds`; each post goes in one list or the other. The manifest records those quotes with their original URLs and any CIDs, and quote expansion carries on through the rest of the fetched posts.
 
 For x.com, provide exact known post URLs when the returned author chain is insufficient. For Bluesky, choose `chain` or bounded `tree` traversal and configure request, depth and post limits. Returned replies can omit other branches. Read the coverage report before describing the selection.
 

@@ -22,13 +22,13 @@
 | Inline article video | Checks the upload against its article and publication. Players or captions the capture can't preserve stop capture. |
 | External players | Keep their link, and their title when available. |
 
-Public reads depend on the source staying up. Mismatched IDs, challenges, collapsed bodies, partial or paid articles and unsupported native media all produce errors. An embedded preview can't stand in for the full text of a quoted Note. Imported records get checked for consistency, but the check can't verify when or how someone collected them.
+Mismatched IDs, challenges, collapsed bodies, partial or paid articles and unsupported native media all produce errors, and an embedded preview can't stand in for the full text of a quoted Note. Imported records get checked for consistency, though the check can't verify when or how someone collected them.
 
 ## Implementation limits
 
-Original images, videos and checked original audio inside quotes are all selectable. A selected audio file goes in a block by itself, unconverted, without visual media or a second audio file. The video soundtrack can be Auto, Mix or a chosen video. A frame choice uses the source's poster image, which carries no audio.
+Original images, videos and checked original audio inside quotes are all selectable. A selected audio file goes in a block by itself, unconverted; the video soundtrack can be Auto, Mix or a chosen video, and a frame choice uses the source's silent poster image.
 
-Media follows source order: the outer post, then its quoted posts, then the next listed post. Quoted media gets references under the outer post, such as `1.2`. Quote depth limits both quoted text and quoted media, up to eight levels. Hiding a quote keeps its media choices for when it shows again. The app and extension pickers show who posted each quoted item.
+Media follows source order: the outer post, then its quoted posts, then the next listed post. Quoted media gets references under the outer post, such as `1.2`, and quote depth limits it along with quoted text, up to eight levels. Hiding a quote keeps its media choices for when it shows again, and the app and extension pickers show who posted each quoted item.
 
 Queued plans keep their original references and selections. Quoted media in an older plan takes a fresh read of the source. Newer plans need these capabilities on the receiving helper and daemon:
 
@@ -37,12 +37,14 @@ Queued plans keep their original references and selections. Quoted media in an o
 
 These choices leave the original source records unchanged.
 
-Articles come from `/api/v1/posts/{slug}`. Note chains come from `/api/v1/reader/comment/{id}` and `/replies`, with checks on parents, user IDs, pagination and the reply counts Substack reports. Requests carry no credentials and stop if redirected to a different API endpoint. Each response can be up to 2 MiB. Thread discovery reads at most 64 pages, 8 MiB in total, 2,000 IDs and 32 selected sources. HTML redirects must keep the same HTTPS Note ID, for up to three hops.
+Articles come from `/api/v1/posts/{slug}`, and Note chains from `/api/v1/reader/comment/{id}` and `/replies`, with checks on parents, user IDs, pagination and the reply counts Substack reports. Requests carry no credentials and stop if redirected to a different API endpoint; HTML redirects must keep the same HTTPS Note ID, for up to three hops. Each response can be up to 2 MiB, and thread discovery reads at most 64 pages, 8 MiB in total, 2,000 IDs and 32 selected sources.
 
 Inline video discovery reads up to 32 placeholders and 4 MiB of metadata within 60 seconds. Before downloading, the capture checks that the media's duration, dimensions and URL match the full source record. After downloading, it checks the file's container and duration before rendering or attaching it.
 
 [Substack captures](substack-notes.md#saved-records-and-compatibility) lists the receiver capabilities and record limits.
 
-Native Note attachments come as images, video and article cards. A podcast article card can carry original audio. For these cards, the capture keeps the article's ID, byline, audio details and a digest of its public body, while leaving the article's full text out of the Note. It checks up to eight articles per Note tree, within sixty seconds. Queued captures from before this support keep their card-only selection. New podcast card records need `substack-note-podcast-audio-v1` on the helper and receiver.
+Native Note attachments come as images, video and article cards, and a podcast article card can carry original audio. For podcast cards, the capture keeps the article's ID, byline, audio details and a digest of its public body, while leaving the article's full text out of the Note; it checks up to eight articles per Note tree, within sixty seconds.
+
+Queued captures from before this support keep their card-only selection. New podcast card records need `substack-note-podcast-audio-v1` on the helper and receiver.
 
 Notes with a standalone native audio upload are untested. External audio and video players stay as links. Cards with `mediaClip`, `clipInfo` or image selection data are unsupported.
