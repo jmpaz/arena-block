@@ -111,9 +111,6 @@ final class CapturePreparation {
             let frame = plan["block"]?["frameMedia"]?.array.first { $0["ref"]?.string == ref }
             let kind = frame == nil ? originalKind : "image"
             let address = frame?["url"]?.string ?? originalAddress
-            if kind == "video", case .number(let duration) = asset["durationSeconds"], duration > 600 {
-                throw CaptureError.message("This video exceeds the 10-minute composition limit. Choose its Frame or capture text instead.")
-            }
             try Task.checkCancellation()
             let soundCloudDownload: SoundCloudAudioDownload?
             let helper: SoundCloudAudioService?

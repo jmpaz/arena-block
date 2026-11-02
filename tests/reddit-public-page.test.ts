@@ -111,7 +111,7 @@ test("native host refuses a receiver that would strip public-page evidence befor
     await expect(handle({ id: "public", action: "resolve", input: planInputSchema.parse({ refs: [post.sourceUrl], redditCaptures: [post] }) }, (async url => {
       paths.push(new URL(String(url)).pathname);
       return Response.json({ version: "0.1.0", revision: null, sourceId: "fixture", platform: "fixture", schemaVersion: 1, packagePath: null,
-        planCapabilities: ["reddit-browser-records-v1"] });
+        planCapabilities: ["video-representation-v2", "reddit-browser-records-v1"] });
     }) as typeof fetch)).rejects.toThrow("cannot retain Reddit public page");
     expect(paths).toEqual(["/v1/version"]);
   } finally { if (before === undefined) delete process.env.ARENA_BLOCK_ACCESS_TOKEN; else process.env.ARENA_BLOCK_ACCESS_TOKEN = before; }

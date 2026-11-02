@@ -46,7 +46,7 @@ struct PreviewFixtures {
             if mode == "video-frame" {
                 return .object(["ref": .string("1.\(index + 1)"), "kind": .string("video"),
                                 "url": .string("https://fixture.invalid/clip.mp4"), "posterUrl": .string("https://fixture.invalid/observed-frame.jpg"),
-                                "durationSeconds": .number(90), "alt": .string("Recorded clip"),
+                                "durationSeconds": .number(Double(ProcessInfo.processInfo.environment["CAPTURE_UI_VIDEO_DURATION"] ?? "90") ?? 90), "alt": .string("Recorded clip"),
                                 "width": .number(800), "height": .number(500)])
             }
             return .object(["ref": .string("1.\(index + 1)"), "kind": .string("image"), "url": .string(url.absoluteString),
@@ -132,6 +132,7 @@ struct PreviewFixtures {
         sample.phase = .ready; sample.previewSnapshot = preview; sample.renderPath = ["long-text", "media-selection", "quoted", "soundcloud-playlist", "multi-post", "multi-post-extra", "multi-post-long", "video-frame"].contains(mode) ? nil : imageURL.path
         if mode == "multi-post-extra" { sample.sourceRoles = [.primary, .extra] }
         if mode == "media-selection" || mode == "video-frame" { sample.media = .none }
+        if mode == "video-frame", ProcessInfo.processInfo.environment["CAPTURE_UI_VIDEO_DURATION"] != nil { sample.media = .auto; sample.videoFrameThresholdSeconds = CaptureVideoDefaults.frameThresholdSeconds }
         sample.titleOverride = ["soundcloud-playlist", "multi-post", "multi-post-extra", "multi-post-long"].contains(mode) ? nil : "A study in shape"
         sample.descriptionOverride = ["soundcloud-playlist", "multi-post", "multi-post-extra", "multi-post-long"].contains(mode) ? nil : "A small collection of things worth looking at again."
         var saved = sample

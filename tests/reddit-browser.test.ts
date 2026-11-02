@@ -179,9 +179,9 @@ test("local-helper acquisition checks capabilities and refuses a stripped browse
   const calls: string[] = [];
   let returned = plan;
   const native = async (action: string) => { calls.push(action); return action === "ping" ? { planCapabilities: capabilities } : returned; };
-  await expect(resolveWithNative(input, native)).rejects.toThrow("matching local helper");
+  await expect(resolveWithNative(input, native)).rejects.toThrow("Update the local helper and receiver");
   expect(calls).toEqual(["ping"]);
-  calls.length = 0; capabilities = ["reddit-browser-records-v1"];
+  calls.length = 0; capabilities = ["video-representation-v2", "reddit-browser-records-v1"];
   returned = structuredClone(plan); delete returned.sources[0]!.redditCapture;
   await expect(resolveWithNative(input, native)).rejects.toThrow("did not retain");
   returned = plan;

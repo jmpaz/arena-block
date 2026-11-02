@@ -61,7 +61,7 @@ test("an older receiver strips the explicit presentation field and invalidates t
   for (const mode of ["source", "plain"] as const) {
     const input = { policy: { quoteAuthorLink: mode } };
     const plan = composePlan(legacy.sources, { ...legacy.policy, ...input.policy });
-    expect(requiredCompositionCapabilities(input)).toEqual(["quote-author-links-v1"]);
+    expect(requiredCompositionCapabilities(input)).toEqual(["video-representation-v2", "quote-author-links-v1"]);
     const stripped = oldReceiverSchema.parse(plan) as unknown as BlockPlan;
     expect(stripped.policy).not.toHaveProperty("quoteAuthorLink");
     expect(() => requireRetainedCompositionPolicy(input, stripped)).toThrow("did not retain");
@@ -86,7 +86,7 @@ test("client resolves and publishes explicit styles only with a matching receive
     await expect(client.plan(refs, { quoteAuthorLink: mode })).rejects.toThrow("No source read or save");
     await expect(client.publish(plan, ["fixture-channel"])).rejects.toThrow("No save was submitted");
     expect(paths).toEqual(["GET /v1/version", "GET /v1/version"]);
-    capabilities = ["quote-author-links-v1"];
+    capabilities = ["video-representation-v2", "quote-author-links-v1"];
     expect(await client.plan(refs, { quoteAuthorLink: mode })).toEqual(plan);
     returned = legacy;
     await expect(client.plan(refs, { quoteAuthorLink: mode })).rejects.toThrow("did not retain");
@@ -109,7 +109,7 @@ test("browser-to-helper and helper-to-receiver resolution reject an old or strip
       }) as typeof fetch;
       await expect(handle({ id: "quote-style", action: "resolve", input }, fetcher)).rejects.toThrow("Update the local helper");
       expect(calls).toEqual(["GET /v1/version"]);
-      capabilities = ["quote-author-links-v1"];
+      capabilities = ["video-representation-v2", "quote-author-links-v1"];
       expect(await handle({ id: "quote-style", action: "resolve", input }, fetcher)).toEqual(plan);
       returned = legacy;
       await expect(handle({ id: "quote-style", action: "resolve", input }, fetcher)).rejects.toThrow("did not retain");

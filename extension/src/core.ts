@@ -25,7 +25,7 @@ export type CaptureInput = { primary: string[]; extras: string[]; policy: Partia
 export function mediaSelectionPolicy(plan: BlockPlan, ref: string, selected: boolean): Partial<CompositionPolicy> {
   const available = planMedia(plan), asset = available.find(asset => asset.ref === ref);
   if (!asset) throw new Error("Selected media is not available in this quote scope");
-  if (selected && asset.kind === "audio") return { media: "selected", selectedMedia: [ref], mediaOrder: [ref], videoFrames: [], audio: "auto" };
+  if (selected && asset.kind === "audio") return { media: "selected", selectedMedia: [ref], mediaOrder: [ref], videoFrames: [], videoMotion: [], audio: "auto" };
   const refs = new Set(plan.policy.media === "selected" ? plan.policy.selectedMedia : plan.block.selectedMedia);
   const audio = plan.policy.audio;
   if (audio && !["auto", "mix"].includes(audio) && !available.some(asset => asset.ref === audio)
@@ -38,6 +38,7 @@ export function mediaSelectionPolicy(plan: BlockPlan, ref: string, selected: boo
   for (const value of refs) if (!order.includes(value)) order.push(value);
   return { media: "selected", selectedMedia: [...refs], mediaOrder: order,
     videoFrames: (plan.policy.videoFrames ?? []).filter(value => refs.has(value)),
+    ...(plan.policy.videoMotion !== undefined ? { videoMotion: plan.policy.videoMotion.filter(value => refs.has(value)) } : {}),
     ...(!selected && audio === ref ? { audio: "auto" } : {}) };
 }
 

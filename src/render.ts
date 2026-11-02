@@ -22,7 +22,6 @@ const VIDEO_LIMIT_HEADROOM = 0.9;
 const VIDEO_BUFFER_SECONDS = 2;
 const VIDEO_CRF = 20;
 const VIDEO_PRESET = "medium";
-const VIDEO_MAX_COMPOSE_SECONDS = 600;
 const VIDEO_MAX_SOURCE_BYTES = 750 * 1024 * 1024;
 export class MediaBudgetError extends Error { readonly code = "media_budget"; }
 export class MediaInspectionError extends Error {
@@ -191,11 +190,10 @@ export function checkVideoInputBudget(ref: string, duration: number, bytes: numb
 }
 
 function checkKnownVideoBudget(ref: string, duration?: number, bytes?: number): void {
-  if ((duration !== undefined && Number.isFinite(duration) && duration > VIDEO_MAX_COMPOSE_SECONDS)
-      || (bytes !== undefined && Number.isFinite(bytes) && bytes > VIDEO_MAX_SOURCE_BYTES)) {
+  if (bytes !== undefined && Number.isFinite(bytes) && bytes > VIDEO_MAX_SOURCE_BYTES) {
     const details = [duration && Number.isFinite(duration) ? `${Math.round(duration / 60)} minutes` : undefined,
       bytes && Number.isFinite(bytes) ? `${(bytes / (1024 ** 3)).toFixed(2)} GiB` : undefined].filter(Boolean).join(" / ");
-    throw new MediaBudgetError(`Selected video ${ref} is ${details}; a media mosaic is bounded to 10 minutes and 750 MiB per video. Select a smaller clip or use text-only capture; no block creation was attempted.`);
+    throw new MediaBudgetError(`Selected video ${ref} is ${details}; video inputs are bounded to 750 MiB per video. Select a smaller file or use a frame; no block creation was attempted.`);
   }
 }
 
@@ -349,16 +347,14 @@ async function renderVideo(plan: BlockPlan, directory: string, options: RenderOp
     checkKnownVideoBudget(item.ref, item.durationSeconds, bytes);
     return preflightVideo(item, bytes, bounded, options.signal);
   }));
-  if (videoInputs.reduce((sum, item) => sum + item.duration, 0) > VIDEO_MAX_COMPOSE_SECONDS
-    || videoInputs.reduce((sum, item) => sum + item.bytes, 0) > VIDEO_MAX_SOURCE_BYTES)
-    throw new MediaBudgetError("Selected videos together exceed 10 minutes or 750 MiB; choose fewer clips or use text-only capture");
+  if (videoInputs.reduce((sum, item) => sum + item.bytes, 0) > VIDEO_MAX_SOURCE_BYTES)
+    throw new MediaBudgetError("Selected video inputs together exceed 750 MiB; choose fewer clips or use a frame");
   const layout: LayoutNode = plan.block.layout ?? { kind: "media", ref: selected[0]!.ref };
   const staging = join(directory, ".staging", crypto.randomUUID());
   await mkdir(staging, { recursive: true });
   try {
     const staged: Staged[] = [];
     let stagedBytes = 0;
-    let stagedVideoSeconds = 0;
     for (const item of selected) {
       const next = await stage(item, staging, options);
       const size = (await stat(next.path)).size;
@@ -368,9 +364,6 @@ async function renderVideo(plan: BlockPlan, directory: string, options: RenderOp
         // Provider duration and HTTP length are hints. Enforce the budget from
         // the staged bytes and the actual local probe before encoding.
         checkVideoInputBudget(item.ref, next.probe.duration, size);
-        stagedVideoSeconds += next.probe.duration;
-        if (stagedVideoSeconds > VIDEO_MAX_COMPOSE_SECONDS)
-          throw new MediaBudgetError("Staged videos together exceed 10 minutes; choose fewer clips or use text-only capture; no block creation was attempted");
       }
       staged.push(next);
     }
@@ -387,6 +380,10 @@ async function renderVideo(plan: BlockPlan, directory: string, options: RenderOp
     };
     const output = join(staging, "mosaic.mp4");
     await run([FFMPEG, ...mosaicArguments(mosaic, output)], options.signal);
+    const verified = await probe(output, options.signal);
+    if (Math.abs(verified.duration - mosaic.duration) > Math.max(0.25, 2 / mosaic.fps) || (mosaic.audio?.length && !verified.audio)) {
+      throw new Error("The video export did not preserve the complete duration or selected audio; no block was created");
+    }
     const bytes = new Uint8Array(await Bun.file(output).arrayBuffer());
     if (bytes.byteLength > VIDEO_LIMIT_BYTES) {
       throw new Error(`Normalized video is ${bytes.byteLength} bytes, above Are.na's ${VIDEO_LIMIT_BYTES} byte attachment limit`);

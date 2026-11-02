@@ -27,7 +27,7 @@ test("native public podcast retains stable originals and external linked video d
   expect(video!.posterUrl).toEndWith("transcoded-00001.png");
   expect(audio).toMatchObject({kind:"audio", url:fixture.podcast_url, acquisition:"substack-public-original"});
   expect(post.article).not.toContain("Linked video"); expect(post.article).toContain("https://www.youtube.com/watch?v=pJNM1z9l5mU");
-  const automatic = composePlan([post]); expect(automatic.block.selectedMedia).toEqual(["1.1"]); expect(automatic.block.frameMedia?.[0]?.url).toBe(video!.posterUrl);
+  const automatic = composePlan([post]); expect(automatic.block.selectedMedia).toEqual(["1.1"]); expect(automatic.block.kind).toBe("video"); expect(automatic.block.frameMedia).toBeUndefined();
   const plan = composePlan([post],{media:"audio"}); expect(plan.block.kind).toBe("audio"); expect(plan.block.layout).toBeUndefined(); expect(blockPlanSchema.parse(plan)).toEqual(plan);
   expect(composePlan([post],{media:"selected", selectedMedia:["1.2"]}).block.kind).toBe("audio");
   expect(composePlan([{...post,media:[audio!]}]).block.kind).toBe("audio");
@@ -37,7 +37,7 @@ test("native public podcast retains stable originals and external linked video d
 test("ordered sources and media extras automatically prefer podcast visuals over alternate audio", async () => {
   const note: ResolvedPost = {provider:"substack",id:"42",canonicalUrl:"https://substack.com/note/c-42",author:{handle:"writer"},text:"Note",media:[]};
   const podcast = assignMediaRefs(await resolve(),1);
-  for (const policy of [{media:"auto" as const},{media:"auto" as const,mediaOnlyPosts:[2]}]) { const plan=composePlan([note,podcast],policy); expect(plan.block.selectedMedia).toEqual(["2.1"]); expect(plan.block.frameMedia).toHaveLength(1); }
+  for (const policy of [{media:"auto" as const},{media:"auto" as const,mediaOnlyPosts:[2]}]) { const plan=composePlan([note,podcast],policy); expect(plan.block.selectedMedia).toEqual(["2.1"]); expect(plan.block.kind).toBe("video"); expect(plan.block.frameMedia).toBeUndefined(); }
 });
 test("paid, preview, mismatched and unverified native uploads cannot be promoted to originals", async () => {
   for (const value of [{...fixture,audience:"only_paid"},{...fixture,videoUpload:{...fixture.videoUpload,is_free_preview:true}},{...fixture,videoUpload:{...fixture.videoUpload,post_id:1}},{...fixture,podcast_url:fixture.podcast_url+"?token=account"},{...fixture,videoUpload:null}]) await expect(resolve(value)).rejects.toThrow();

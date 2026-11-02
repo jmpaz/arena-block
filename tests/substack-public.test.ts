@@ -155,7 +155,7 @@ test("reply pagination follows opaque cursors and rejects missing, conflicting, 
 test("article and Note thread requests preflight the new receiver contract", async () => {
   for (const input of [{ refs: [articleURL], extraRefs: [], refresh: false }, { refs: [url(100)], extraRefs: [], refresh: false, policy: { threadExpansion: "on" as const } }]) {
     const actions: string[] = [];
-    await expect(resolveWithNative(input, async action => { actions.push(action); return { planCapabilities: ["substack-browser-records-v1"] }; })).rejects.toThrow("Update the local helper and receiver to read this source.");
+    await expect(resolveWithNative(input, async action => { actions.push(action); return { planCapabilities: ["video-representation-v2", "substack-browser-records-v1"] }; })).rejects.toThrow("Update the local helper and receiver to read this source.");
     expect(actions).toEqual(["ping"]);
   }
 });
@@ -167,7 +167,7 @@ test("helper replies and edits retain required article evidence instead of silen
   expect(edited.sources[0]?.substackArticle).toEqual(plan.sources[0]?.substackArticle);
   expect(requiredPlanCapabilities(edited)).toContain("substack-public-sources-v2");
   const stripped = structuredClone(plan); delete stripped.sources[0]!.substackArticle;
-  await expect(resolveWithNative(input, async action => action === "ping" ? { planCapabilities: ["substack-public-sources-v2"] } : stripped)).rejects.toThrow("complete source record");
+  await expect(resolveWithNative(input, async action => action === "ping" ? { planCapabilities: ["video-representation-v2", "substack-public-sources-v2"] } : stripped)).rejects.toThrow("complete source record");
   const mutated = structuredClone(plan); mutated.sources[0]!.article += "changed";
   try { requireSubstackPublicResult(input, mutated); throw new Error("Expected rejection"); }
   catch (error) {

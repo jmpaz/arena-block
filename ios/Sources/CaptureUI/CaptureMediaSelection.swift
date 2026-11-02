@@ -42,6 +42,25 @@ struct CaptureMediaSelection: View {
         return session.preview?.plan?["block"]?["frameMedia"]?.array.contains { $0["ref"]?.string == ref } == true
     }
 
+    private func automaticFrame(_ asset: MediaChoice) -> Bool {
+        session.draft?.videoMotion?.contains(asset.id) != true && asset.posterURL != nil && (asset.durationSeconds.map { $0 > Double(session.draft?.videoFrameThresholdSeconds ?? CaptureVideoDefaults.frameThresholdSeconds) } ?? false)
+    }
+
+    private func durationLabel(_ seconds: Double) -> String {
+        guard seconds.isFinite, seconds >= 0, seconds < Double(Int.max) else { return "long" }
+        let total = Int(seconds.rounded(.down))
+        return "\(total / 60):\(String(format: "%02d", total % 60))"
+    }
+
+    private func frameExplanation(_ asset: MediaChoice) -> String? {
+        guard asset.kind == "video", session.includedMediaRefs.contains(asset.id) else { return nil }
+        if automaticFrame(asset), let duration = asset.durationSeconds {
+            let threshold = session.draft?.videoFrameThresholdSeconds ?? CaptureVideoDefaults.frameThresholdSeconds
+            return "This \(durationLabel(duration)) video defaults to a frame above \(durationLabel(Double(threshold))). Choose Video to keep motion and sound, or Frame to save a still image."
+        }
+        return usesFrame(asset.id) ? "A still frame will be saved without motion or sound. Choose Video to keep the video." : nil
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             if sourceIndex == nil && assets.count == 1, let asset = assets.first {
@@ -114,15 +133,14 @@ struct CaptureMediaSelection: View {
                                     .frame(width: thumbnailSize).fixedSize(horizontal: false, vertical: true)
                             }
                             if asset.kind == "video" {
-                                let forced = asset.posterURL != nil &&
-                                    (asset.durationSeconds.map { $0 > Double(session.draft?.videoFrameThresholdSeconds ?? 600) } ?? false)
+                                let forced = automaticFrame(asset)
                                 Menu {
                                     Button("None", systemImage: included ? "circle" : "checkmark") {
                                         session.chooseVideo(asset.id, as: .none)
                                     }
                                     Button("Video", systemImage: included && !usesFrame(asset.id) ? "checkmark" : "play.rectangle") {
                                         session.chooseVideo(asset.id, as: .video)
-                                    }.disabled(forced)
+                                    }
                                     if asset.posterURL != nil {
                                         Button("Frame from video", systemImage: included && usesFrame(asset.id) ? "checkmark" : "photo") {
                                             session.chooseVideo(asset.id, as: .frame)
@@ -149,6 +167,15 @@ struct CaptureMediaSelection: View {
                 }
             }
             }
+            ForEach(assets) { asset in
+                if let explanation = frameExplanation(asset) {
+                    Text(assets.count > 1 ? "\(asset.label): \(explanation)" : explanation)
+                        .font(.footnote).foregroundStyle(.secondary)
+                        .lineLimit(nil).fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .accessibilityIdentifier("capture.media.frame-explanation.\(asset.id)")
+                }
+            }
         }
         .disabled(locked)
         .sensoryFeedback(.selection, trigger: session.includedMediaRefs)
@@ -174,8 +201,7 @@ struct CaptureMediaSelection: View {
     @ViewBuilder
     private func singleAssetControls(_ asset: MediaChoice) -> some View {
         let included = session.includedMediaRefs.contains(asset.id)
-        let usesAutomaticFrame = asset.posterURL != nil &&
-            (asset.durationSeconds.map { $0 > Double(session.draft?.videoFrameThresholdSeconds ?? 600) } ?? false)
+        let usesAutomaticFrame = automaticFrame(asset)
         if asset.kind == "video" {
             Text(asset.ownershipLabel.map { "Video · \($0)" } ?? "Video from post").font(.caption).foregroundStyle(.secondary)
             if session.renderURL == nil {
@@ -192,7 +218,7 @@ struct CaptureMediaSelection: View {
                 get: { !included ? .none : (usesAutomaticFrame || usesFrame(asset.id) ? .frame : .video) },
                 set: { session.chooseVideo(asset.id, as: $0) })) {
                 Text("None").tag(CaptureVideoChoice.none)
-                if !usesAutomaticFrame { Text("Video").tag(CaptureVideoChoice.video) }
+                Text("Video").tag(CaptureVideoChoice.video)
                 if asset.posterURL != nil { Text("Frame").tag(CaptureVideoChoice.frame) }
             }
             .pickerStyle(.segmented)

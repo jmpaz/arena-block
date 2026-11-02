@@ -157,6 +157,7 @@ public struct CaptureDraft: Codable, Identifiable, Sendable {
     public var media: MediaPolicy
     public var selectedMedia: [String]?
     public var videoFrames: [String]?
+    public var videoMotion: [String]?
     /// Video soundtrack policy: auto, mix, or a selected moving video's ref.
     public var audio: String?
     public var videoFrameThresholdSeconds: Int?

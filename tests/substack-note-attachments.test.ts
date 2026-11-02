@@ -50,22 +50,22 @@ test("automatically chosen preview cannot be labelled an intentional selected pa
 });
 test("older receiver cannot receive publication of Note attachment provenance",async()=>{
  const {ArenaBlockClient}=await import("../src/client.ts"),{post}=await capture("video"),paths:string[]=[];
- const fetcher=(async(input:RequestInfo|URL)=>{const path=new URL(String(input)).pathname;paths.push(path);return Response.json({version:"0.1.0",revision:"older",sourceId:"test",platform:"test",schemaVersion:1,packagePath:null,planCapabilities:["substack-browser-records-v1","substack-native-media-v1"]});})as typeof fetch;
+ const fetcher=(async(input:RequestInfo|URL)=>{const path=new URL(String(input)).pathname;paths.push(path);return Response.json({version:"0.1.0",revision:"older",sourceId:"test",platform:"test",schemaVersion:1,packagePath:null,planCapabilities:["video-representation-v2", "substack-browser-records-v1","substack-native-media-v1"]});})as typeof fetch;
  const client=new ArenaBlockClient("https://receiver.invalid","test-token",fetcher);
  await expect(client.publish(composePlan([post],{media:"none"}),["4622814"])).rejects.toThrow("No save was submitted");expect(paths).toEqual(["/v1/version"]);
 });
 test("normal Note helper resolution preflights acquisition before any source read and guards stripped results",async()=>{
  const {resolveWithNative}=await import("../extension/src/native-reddit.ts"),{requireSubstackPublicResult}=await import("../packages/core/substack-input-capabilities.ts");
  const {post}=await capture("video"),input={refs:[post.canonicalUrl],extraRefs:[],refresh:false,policy:{media:"none" as const}},calls:string[]=[];
- await expect(resolveWithNative(input,async action=>{calls.push(action);return {planCapabilities:["substack-browser-records-v1","substack-public-sources-v2","substack-native-media-v1"]};})).rejects.toThrow("Update the local helper and receiver to read this source.");expect(calls).toEqual(["ping"]);
- const plan=composePlan([post],{media:"none"});expect(await resolveWithNative(input,async action=>action==="ping"?{planCapabilities:["substack-note-attachments-v1","quoted-image-media-v1","quoted-video-audio-v1", "substack-note-podcast-audio-v1"]}:plan)).toEqual(plan);
+ await expect(resolveWithNative(input,async action=>{calls.push(action);return {planCapabilities:["video-representation-v2", "substack-browser-records-v1","substack-public-sources-v2","substack-native-media-v1"]};})).rejects.toThrow("Update the local helper and receiver to read this source.");expect(calls).toEqual(["ping"]);
+ const plan=composePlan([post],{media:"none"});expect(await resolveWithNative(input,async action=>action==="ping"?{planCapabilities:["video-representation-v2", "substack-note-attachments-v1","quoted-image-media-v1","quoted-video-audio-v1", "substack-note-podcast-audio-v1"]}:plan)).toEqual(plan);
  const stripped=structuredClone(plan);delete stripped.sources[0]!.substackCapture!.note.attachmentEvidence;
  expect(()=>requireSubstackPublicResult(input,stripped)).toThrow("incomplete capture");
 });
 test("native host stops an ordinary Note URL at a version read against an older daemon",async()=>{
  const {handle}=await import("../extension/native-host.ts"),{post}=await capture("video"),oldToken=process.env.ARENA_BLOCK_ACCESS_TOKEN,oldEndpoint=process.env.ARENA_BLOCK_ENDPOINT,paths:string[]=[];
  process.env.ARENA_BLOCK_ACCESS_TOKEN="test-token";process.env.ARENA_BLOCK_ENDPOINT="http://127.0.0.1:8790";
- const fetcher=(async(input:RequestInfo|URL)=>{paths.push(new URL(String(input)).pathname);return Response.json({version:"0.1.0",revision:null,sourceId:"test",platform:"test",schemaVersion:1,packagePath:null,planCapabilities:["substack-browser-records-v1","substack-public-sources-v2"]});})as typeof fetch;
+ const fetcher=(async(input:RequestInfo|URL)=>{paths.push(new URL(String(input)).pathname);return Response.json({version:"0.1.0",revision:null,sourceId:"test",platform:"test",schemaVersion:1,packagePath:null,planCapabilities:["video-representation-v2", "substack-browser-records-v1","substack-public-sources-v2"]});})as typeof fetch;
  try {await expect(handle({id:"test",action:"resolve",input:planInputSchema.parse({refs:[post.canonicalUrl]})},fetcher)).rejects.toThrow("Update the local helper and receiver to read this source.");expect(paths).toEqual(["/v1/version"]);}
  finally {if(oldToken===undefined)delete process.env.ARENA_BLOCK_ACCESS_TOKEN;else process.env.ARENA_BLOCK_ACCESS_TOKEN=oldToken;if(oldEndpoint===undefined)delete process.env.ARENA_BLOCK_ENDPOINT;else process.env.ARENA_BLOCK_ENDPOINT=oldEndpoint;}
 });
@@ -74,7 +74,7 @@ test("captured thread seed still requires the current descendant Note reader",as
  const record=await Bun.file(new URL("./fixtures/substack-browser-capture.json",import.meta.url)).json();
  const input={refs:[record.sourceUrl],extraRefs:[],refresh:false,substackCaptures:[record],policy:{threadExpansion:"on" as const}},calls:string[]=[];
  expect(requiredSubstackResolutionCapabilities(input)).toContain("substack-note-attachments-v1");
- await expect(resolveWithNative(input,async action=>{calls.push(action);return {planCapabilities:["substack-browser-records-v1","substack-public-sources-v2"]};})).rejects.toThrow("Update the local helper and receiver to read this source.");expect(calls).toEqual(["ping"]);
+ await expect(resolveWithNative(input,async action=>{calls.push(action);return {planCapabilities:["video-representation-v2", "substack-browser-records-v1","substack-public-sources-v2"]};})).rejects.toThrow("Update the local helper and receiver to read this source.");expect(calls).toEqual(["ping"]);
 });
 test("thread capability and evidence guards share resolver deduplication and legacy primary roles",async()=>{
  const {requiredSubstackResolutionCapabilities,needsSubstackPublicV2,requireSubstackPublicResult}=await import("../packages/core/substack-input-capabilities.ts");

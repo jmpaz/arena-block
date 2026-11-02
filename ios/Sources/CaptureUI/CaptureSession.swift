@@ -28,7 +28,7 @@ public final class CaptureSession {
     var problem: String?
     var progress = ""
     var automaticPaste = false
-    var autoFrameThresholdSeconds = 600
+    var autoFrameThresholdSeconds = CaptureVideoDefaults.frameThresholdSeconds
     var incomingLinks: [String] = []
     public private(set) var receivingShareInput = false
     var busy = false
@@ -142,7 +142,7 @@ public final class CaptureSession {
             container = directory
             defaults = UserDefaults(suiteName: directory.lastPathComponent)!
             automaticPaste = defaults.bool(forKey: "automaticPaste.\(fixture.account.id)")
-            autoFrameThresholdSeconds = defaults.object(forKey: "autoFrameThreshold.\(fixture.account.id)") as? Int ?? 600
+            autoFrameThresholdSeconds = defaults.object(forKey: "autoFrameThreshold.\(fixture.account.id)") as? Int ?? CaptureVideoDefaults.frameThresholdSeconds
             credentials = CredentialStore(accessGroup: nil)
             clientID = ""; callbackScheme = "capture-fixture"
             store = try CaptureStore(url: directory.appendingPathComponent("capture.sqlite"))
@@ -272,7 +272,7 @@ public final class CaptureSession {
             recent = try store.values(Channel.self, account: saved.id, kind: "recent")
             cached = try store.values(Channel.self, account: saved.id, kind: "channel", limit: 500)
             automaticPaste = defaults.bool(forKey: "automaticPaste.\(saved.id)")
-            autoFrameThresholdSeconds = defaults.object(forKey: "autoFrameThreshold.\(saved.id)") as? Int ?? 600
+            autoFrameThresholdSeconds = defaults.object(forKey: "autoFrameThreshold.\(saved.id)") as? Int ?? CaptureVideoDefaults.frameThresholdSeconds
             if draft?.accountID != saved.id { draft = nil; preview = nil; retainedResult = nil }
             if let current = draft, !isAddingPlacements,
                try store.value(DeletedCapture.self, account: saved.id, kind: "deletedDraft", id: current.id.uuidString) != nil {
@@ -292,7 +292,7 @@ public final class CaptureSession {
             }
             if !freshShare { try restorePlacementEdit() }
             restoreInvalidSourceFailure()
-        } else { account = nil; api = nil; draft = nil; preview = nil; retainedResult = nil; recent = []; cached = []; defaultChannel = nil; defaultPolicy = DefaultChannelPolicy(); autoFrameThresholdSeconds = 600 }
+        } else { account = nil; api = nil; draft = nil; preview = nil; retainedResult = nil; recent = []; cached = []; defaultChannel = nil; defaultPolicy = DefaultChannelPolicy(); autoFrameThresholdSeconds = CaptureVideoDefaults.frameThresholdSeconds }
     }
 
     func connect(token: String) async {
@@ -549,7 +549,7 @@ public final class CaptureSession {
         draft?.renderPath = nil; draft?.previewSnapshot = nil
         if !preservingChoices {
             draft?.titleOverride = nil; draft?.descriptionOverride = nil
-            draft?.selectedMedia = nil; draft?.videoFrames = nil; draft?.audio = nil; draft?.quoteDepth = nil; draft?.parentDepth = nil; draft?.parentStyle = nil
+            draft?.selectedMedia = nil; draft?.videoFrames = nil; draft?.videoMotion = nil; draft?.audio = nil; draft?.quoteDepth = nil; draft?.parentDepth = nil; draft?.parentStyle = nil
             draft?.pendingMediaChoices = nil
         }
         if !keepingExpansion {
@@ -594,7 +594,7 @@ public final class CaptureSession {
     /// asset identities before positional refs can move during expansion.
     private func retainMediaChoicesForSourceOptions() -> Bool {
         guard let current = draft, current.pendingMediaChoices == nil else { return true }
-        guard current.media == .selected || current.videoFrames?.isEmpty == false || current.audio.map({ !["auto", "mix"].contains($0) }) == true else { return true }
+        guard current.media == .selected || current.videoFrames?.isEmpty == false || current.videoMotion?.isEmpty == false || current.audio.map({ !["auto", "mix"].contains($0) }) == true else { return true }
         guard let oldPreview = preview ?? current.previewSnapshot else {
             problem = "Load the source before changing media options."
             return false
@@ -603,7 +603,7 @@ public final class CaptureSession {
             draft?.pendingMediaChoices = try CaptureMediaChoiceAnchors.capture(
                 preview: oldPreview,
                 selected: current.media == .selected ? current.selectedMedia ?? [] : nil,
-                frames: current.videoFrames, audio: current.audio)
+                frames: current.videoFrames, motion: current.videoMotion, audio: current.audio)
             return true
         } catch { problem = error.localizedDescription; return false }
     }
@@ -617,6 +617,7 @@ public final class CaptureSession {
         guard draft?.pendingMediaChoices != nil else { return }
         if draft?.media == .selected { draft?.selectedMedia = policy["selectedMedia"]?.array.compactMap(\.string) ?? [] }
         draft?.videoFrames = policy["videoFrames"]?.array.compactMap(\.string)
+        draft?.videoMotion = policy["videoMotion"]?.array.compactMap(\.string)
         draft?.audio = policy["audio"]?.string
         draft?.pendingMediaChoices = nil
     }
@@ -748,7 +749,7 @@ public final class CaptureSession {
 
     func setMedia(_ media: MediaPolicy) {
         guard !busy, draft?.blockID == nil, [.editing, .preparing, .ready, .failed].contains(draft?.phase ?? .saved) else { return }
-        draft?.media = media; draft?.selectedMedia = nil; draft?.videoFrames = nil; draft?.audio = nil; draft?.phase = .editing
+        draft?.media = media; draft?.selectedMedia = nil; draft?.videoFrames = nil; draft?.videoMotion = nil; draft?.audio = nil; draft?.phase = .editing
         persistOrReport(); resolve()
     }
 
@@ -782,6 +783,7 @@ public final class CaptureSession {
         refs.removeAll { $0 == ref }
         if enabled { refs.append(ref) }
         draft?.videoFrames = refs
+        var moving = draft?.videoMotion ?? []; moving.removeAll { $0 == ref }; if !enabled { moving.append(ref) }; draft?.videoMotion = moving
         if enabled, draft?.audio == ref { draft?.audio = nil }
         let selectedRefs = includedMediaRefs
         if !selectedRefs.contains(ref) { draft?.selectMedia(selectedRefs + [ref], in: preview) }
@@ -806,12 +808,13 @@ public final class CaptureSession {
         if choice != .video, draft?.audio == ref { draft?.audio = nil }
         draft?.selectMedia(selected, in: preview)
         draft?.videoFrames = frames
+        var moving = draft?.videoMotion ?? []; moving.removeAll { $0 == ref }; if choice == .video { moving.append(ref) }; draft?.videoMotion = moving
         draft?.phase = .editing
         persistOrReport(); resolve()
     }
 
     func setAutoFrameThreshold(_ seconds: Int) {
-        guard [60, 120, 300, 600].contains(seconds), let account else { return }
+        guard [60, 120, 300, 600, 1500].contains(seconds), let account else { return }
         autoFrameThresholdSeconds = seconds
         defaults.set(seconds, forKey: "autoFrameThreshold.\(account.id)")
         // Apply the preference when creating a draft; retain existing draft choices.
@@ -1456,7 +1459,7 @@ public final class CaptureSession {
             var next: CaptureDraft
             if input.isEmpty, let previous, !previous.hasDraftContent {
                 next = previous
-                next.input = ""; next.originalLinkOnly = nil; next.redditCapturesJSON = nil; next.substackCapturesJSON = nil; next.media = .auto; next.selectedMedia = nil; next.videoFrames = nil; next.audio = nil; next.quoteDepth = nil; next.parentDepth = nil; next.parentStyle = nil; next.quoteAuthorLink = nil; next.phase = .editing; next.problem = nil
+                next.input = ""; next.originalLinkOnly = nil; next.redditCapturesJSON = nil; next.substackCapturesJSON = nil; next.media = .auto; next.selectedMedia = nil; next.videoFrames = nil; next.videoMotion = nil; next.audio = nil; next.quoteDepth = nil; next.parentDepth = nil; next.parentStyle = nil; next.quoteAuthorLink = nil; next.phase = .editing; next.problem = nil
                 next.selection = DestinationSelection(defaultChannel: defaultChannel)
             } else { next = CaptureDraft(accountID: account.id, defaultChannel: defaultChannel, input: input) }
             next.videoFrameThresholdSeconds = autoFrameThresholdSeconds

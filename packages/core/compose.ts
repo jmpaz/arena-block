@@ -6,7 +6,7 @@ import type {
   MediaAsset,
   ResolvedPost,
 } from "./types.ts";
-import { compositionPolicySchema, DEFAULT_QUOTE_DEPTH, MAX_EXPANDED_SOURCE_POSTS, MAX_QUOTE_DEPTH, SCHEMA_VERSION } from "./types.ts";
+import { compositionPolicySchema, DEFAULT_QUOTE_DEPTH, DEFAULT_VIDEO_FRAME_THRESHOLD_SECONDS, MAX_EXPANDED_SOURCE_POSTS, MAX_QUOTE_DEPTH, SCHEMA_VERSION } from "./types.ts";
 import { combineAspects, explicitAudio, mediaAspect, tileRects, IMAGE_RECIPE_LONG_EDGE, IMAGE_RECIPE_MIN_TILE, VIDEO_RECIPE_LONG_EDGE, VIDEO_RECIPE_MIN_TILE, even } from "./render-recipe.ts";
 import { atprotoMarkdown } from "./providers/atproto-post.ts";
 import { availableQuoteNodes, quoteDateLabel, renderedQuoteDepth } from "./quote-policy.ts";
@@ -221,7 +221,7 @@ function selectedMedia(posts: ResolvedPost[], policy: CompositionPolicy): MediaA
   // Auto keeps root-post media. Retain quoted assets only when an existing
   // order, frame or soundtrack choice names them explicitly.
   const audioRef = explicitAudio(policy);
-  const explicitRefs = new Set([...(policy.mediaOrder ?? []), ...(policy.videoFrames ?? []), ...(audioRef ? [audioRef] : [])]);
+  const explicitRefs = new Set([...(policy.mediaOrder ?? []), ...(policy.videoFrames ?? []), ...(policy.videoMotion ?? []), ...(audioRef ? [audioRef] : [])]);
   const nodes = mediaSources(posts, renderedQuoteDepth(policy));
   const quotedMedia = nodes.filter(node => node.quoteDepth > 0)
     .flatMap(node => node.media).filter(item => explicitRefs.has(item.ref));
@@ -466,13 +466,19 @@ export function composePlan(
     chosen = order.map(ref => assets.get(ref)!);
   }
   const explicitFrames = new Set(policy.videoFrames ?? []);
+  const explicitMotion = new Set(policy.videoMotion ?? []);
+  if ([...explicitMotion].some(ref => explicitFrames.has(ref))) throw new Error("Choose either Video or Frame for each video reference");
+  if ([...explicitMotion].some(ref => !allKnown.some(item => item.ref === ref && item.kind === "video"
+    && (hiddenQuotes.has(ref) || chosen.some(selected => selected.ref === ref))))) {
+    throw new Error("A chosen moving video must name an available selected video; no block was created");
+  }
   if ([...explicitFrames].some(ref => !allKnown.some(item => item.ref === ref && item.kind === "video" && item.posterUrl
     && (hiddenQuotes.has(ref) || chosen.some(selected => selected.ref === ref))))) {
     throw new Error("A chosen video frame needs its selected source video and an observed poster; no block was created");
   }
-  const frameThreshold = policy.videoFrameThresholdSeconds ?? 600;
+  const frameThreshold = policy.videoFrameThresholdSeconds ?? DEFAULT_VIDEO_FRAME_THRESHOLD_SECONDS;
   const frames = chosen.filter(item => item.kind === "video" && item.posterUrl
-    && (explicitFrames.has(item.ref) || (item.durationSeconds ?? 0) > frameThreshold));
+    && (explicitFrames.has(item.ref) || !explicitMotion.has(item.ref) && (item.durationSeconds ?? 0) > frameThreshold));
   const frameMedia = frames.map(item => ({ ref: item.ref, url: item.posterUrl! }));
   const frameByRef = new Map(frameMedia.map(item => [item.ref, item.url]));
   const effective = chosen.map(item => frameByRef.has(item.ref)

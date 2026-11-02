@@ -32,6 +32,7 @@ type Options = {
   media?: string;
   mediaOrder?: string;
   frame?: string;
+  video?: string;
   videoFrameThreshold?: string;
   quoteDepth?: string;
   parentDepth?: string;
@@ -90,6 +91,7 @@ function policy(options: Options, postCount: number): Partial<CompositionPolicy>
   return {
     media: selectedMedia.length ? "selected" : media as CompositionPolicy["media"],
     selectedMedia,
+    ...(options.video ? { videoMotion: options.video.split(",").map(value => value.trim()) } : {}),
     ...(options.frame ? { videoFrames: options.frame.split(",").map(value => value.trim()) } : {}),
     ...(options.videoFrameThreshold ? { videoFrameThresholdSeconds: Number(options.videoFrameThreshold) } : {}),
     ...(options.mediaOrder !== undefined ? { mediaOrder: options.mediaOrder.split(",").map(value => value.trim()) } : {}),
@@ -174,7 +176,8 @@ function addCompositionOptions(command: Command, extras = true): Command {
     .option("--reddit-capture <path>", "read a retained Reddit source record; repeatable", (value, values: string[]) => [...values, value], [])
     .option("--media <mode>", "auto, none, all, images, video, audio, indexes (1+4) or refs (1.1,1.4); all/types exclude quote-only media", "auto")
     .option("--frame <refs>", "use source poster frames for video refs, such as 1.1,2.1")
-    .option("--video-frame-threshold <seconds>", "use source posters above this duration; 1-600 seconds, default 600")
+    .option("--video <refs>", "keep moving video for refs regardless of the frame default, such as 1.1,2.1")
+    .option("--video-frame-threshold <seconds>", "default to frames above this duration; 1-86400 seconds, default 1500; --video overrides it")
     .addOption(new Option("-t, --thread-expansion", "include available x.com, Bluesky, Delvetown or Substack chains, or Forum Magnum replies").default(false, "off"))
     .addOption(new Option("--no-thread-expansion").hideHelp())
     .option("--media-order <refs>", "set the complete tile order with refs, such as 2.1,1.2,1.1")
@@ -240,7 +243,7 @@ program.enablePositionalOptions();
 // choice unless the subcommand supplies its own choice.
 program.hook("preAction", (root, command) => {
   if (command === root) return;
-  for (const key of ["threadExpansion", "quoteAuthorLink", "parentDepth", "parentStyle"] as const) {
+  for (const key of ["threadExpansion", "quoteAuthorLink", "parentDepth", "parentStyle", "video", "frame", "videoFrameThreshold"] as const) {
     const source = command.getOptionValueSource(key);
     if (root.getOptionValueSource(key) === "cli" && (source === undefined || source === "default")
       && command.options.some(option => option.attributeName() === key)) {

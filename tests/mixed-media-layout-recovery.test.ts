@@ -158,7 +158,7 @@ test.each([false, true])("a dense publishing failure gives a usable replanning c
 test("help uses ASCII ranges, x.com and Delvetown without promising publish layout options", async () => {
   const result = await cli(["publish", "--help"]);
   expect(result.code).toBe(0); expect(result.stdout).toContain("Delvetown"); expect(result.stdout).toContain("x.com");
-  expect(result.stdout).toContain("1-600"); expect(result.stdout).toContain("0-8"); expect(result.stdout).not.toContain("--layout");
+  expect(result.stdout).toContain("1-86400"); expect(result.stdout).toContain("0-8"); expect(result.stdout).not.toContain("--layout");
   expect(result.stdout).not.toMatch(/[–�]/);
 });
 

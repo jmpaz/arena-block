@@ -106,7 +106,7 @@ test("schema bounds and identity reject unrelated or repeated context and invali
 test("old receivers and stripped options fail before source read or publication; matching plans retain their hash", async () => {
   const { post } = await hnPost(), policy = { parentDepth: 2, parentStyle: "flat" } as const;
   const plan = composePlan([post], policy), paths: string[] = [];
-  expect(requiredPlanCapabilities(plan)).toContain("comment-parent-context-v1"); expect(requiredCompositionCapabilities({ policy })).toEqual(["comment-parent-context-v1"]);
+  expect(requiredPlanCapabilities(plan)).toContain("comment-parent-context-v1"); expect(requiredCompositionCapabilities({ policy })).toEqual(["video-representation-v2", "comment-parent-context-v1"]);
   requireRetainedCompositionPolicy({ policy }, plan);
   expect(() => requireRetainedCompositionPolicy({ policy }, composePlan([post]))).toThrow("retain parent");
   const { hash, ...content } = plan; expect(planHash(content)).toBe(hash);

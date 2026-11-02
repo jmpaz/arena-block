@@ -34,7 +34,7 @@ describe("LinkedIn public video posts", () => {
       media: [{ ref: "1.1", kind: "video", url: record.contentUrl, posterUrl: record.thumbnailUrl, durationSeconds: 42 }] });
     expect(plan.block).toMatchObject({ kind: "video", title: "Post by @fixture", markdown: record.description, canonicalSource: url, selectedMedia: ["1.1"] });
     expect(composePlan(resolved.posts, { media: "none" }).block.markdown).toEndWith("*[video]*");
-    expect(requiredPlanCapabilities(plan)).toEqual(["linkedin-posts-v1"]);
+    expect(requiredPlanCapabilities(plan)).toEqual(["video-representation-v2", "linkedin-posts-v1"]);
   });
   test("keeps a leading hashtag literal in Are.na Markdown while retaining source text", () => {
     const post = linkedInPostFromPage(source, page({ ...record, description: "Caption\n\n#Example #Design" }));

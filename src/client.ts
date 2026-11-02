@@ -124,7 +124,7 @@ export class ArenaBlockClient {
     if (required.length) {
       const serving = buildInfoSchema.parse(await this.request("/v1/version", undefined, signal));
       if (required.some(capability => !serving.planCapabilities?.includes(capability)))
-        throw new PublicationError("Update the receiver before choosing this context or quoted-author style. No source read or save was submitted.");
+        throw new PublicationError("Update the receiver before using the current capture defaults and options. No source read or save was submitted.");
     }
     const plan = blockPlanSchema.parse(await this.request("/v1/plans", input, signal));
     requireRetainedCompositionPolicy(input, plan);

@@ -246,6 +246,16 @@ public enum NativeMediaRenderer {
         do {
             if recipe.kind == "video" { try await renderVideo(recipe: recipe, assets: assets, file: file) }
             else { try renderImage(recipe: recipe, assets: assets, file: file) }
+            if recipe.kind == "video" {
+                let output = try await inspect(ref: "output", kind: "video", file: file)
+                let track = try await AVURLAsset(url: file).loadTracks(withMediaType: .video).first
+                let videoDuration = try await track?.load(.timeRange).duration.seconds ?? 0
+                guard abs(output.duration - recipe.duration) <= max(0.25, 2 / recipe.fps),
+                      abs(videoDuration - recipe.duration) <= max(0.25, 2 / recipe.fps),
+                      recipe.audioRefs.isEmpty || output.hasAudio else {
+                    throw CaptureError.message("The video export did not preserve the complete duration or selected audio. No block was created. Choose a frame or try a smaller composition.")
+                }
+            }
             let bytes = try file.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
             guard bytes > 0, bytes <= recipe.maximumBytes else { throw CaptureError.message("The media exceeds Are.na's upload limit. Choose fewer items.") }
             return NativeRenderedMedia(fileURL: file, contentType: recipe.kind == "video" ? "video/mp4" : "image/jpeg", byteCount: bytes)

@@ -8,6 +8,8 @@ import { planMedia } from "./media-tree.ts";
 import { parentContextSchema, type ParentContext } from "./parent-context.ts";
 
 export const SCHEMA_VERSION = 1 as const;
+export const DEFAULT_VIDEO_FRAME_THRESHOLD_SECONDS = 1500;
+export const MAX_VIDEO_FRAME_THRESHOLD_SECONDS = 86400;
 
 export const mediaKindSchema = z.enum(["image", "video", "audio"]);
 export type MediaKind = z.infer<typeof mediaKindSchema>;
@@ -253,7 +255,8 @@ export const compositionPolicySchema = z.object({
   audio: z.union([z.enum(["auto", "mix"]), z.string().regex(/^\d+\.\d+$/)]).optional(),
   selectedMedia: z.array(z.string().regex(/^\d+\.\d+$/)).default([]),
   videoFrames: z.array(z.string().regex(/^\d+\.\d+$/)).max(100).optional(),
-  videoFrameThresholdSeconds: z.number().int().min(1).max(600).optional(),
+  videoMotion: z.array(z.string().regex(/^\d+\.\d+$/)).max(100).optional(),
+  videoFrameThresholdSeconds: z.number().int().min(1).max(MAX_VIDEO_FRAME_THRESHOLD_SECONDS).optional(),
   // Stable source refs in the complete desired tile order; inclusion stays independent.
   mediaOrder: z.array(z.string().regex(/^\d+\.\d+$/)).max(100).optional(),
   mediaOnlyPosts: z.array(z.number().int().min(2)).optional(),
@@ -316,6 +319,12 @@ export const blockPlanSchema = z.object({
       dateUncertainty: z.array(z.enum(["same_day", "missing_or_incomparable_source_days"])).optional() })).optional(),
   }),
 }).superRefine((plan, context) => {
+  for (const ref of plan.policy.videoMotion ?? []) {
+    if (plan.block.selectedMedia.includes(ref) && !planMedia(plan).some(asset => asset.ref === ref && asset.kind === "video"))
+      context.addIssue({ code: "custom", message: "Video choice requires an observed video source", path: ["policy", "videoMotion"] });
+    if (plan.block.selectedMedia.includes(ref) && (plan.block.kind !== "video" || plan.block.frameMedia?.some(frame => frame.ref === ref)))
+      context.addIssue({ code: "custom", message: "A selected Video choice cannot be represented as a frame", path: ["block", "frameMedia"] });
+  }
   const refs = new Set<string>();
   for (const frame of plan.block.frameMedia ?? []) {
     const original = planMedia(plan).find(asset => asset.ref === frame.ref);

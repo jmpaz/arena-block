@@ -116,15 +116,16 @@ struct SettingsView: View {
                     Text("Unedited drafts move to Deleted captures. Edited drafts stay until you delete them.")
                 }
                 Section {
-                    Picker("Use a frame for videos over", selection: Binding(
+                    Picker("Default to a frame for videos over", selection: Binding(
                         get: { session.autoFrameThresholdSeconds }, set: session.setAutoFrameThreshold)) {
                         Text("1 min").tag(60)
                         Text("2 min").tag(120)
                         Text("5 min").tag(300)
                         Text("10 min").tag(600)
+                        Text("25 min").tag(1500)
                     }
                     .accessibilityIdentifier("settings.auto-frame-threshold")
-                } header: { Text("Video defaults") }
+                } header: { Text("Video defaults") } footer: { Text("This sets the starting choice. You can choose Video or Frame for each video.") }
                 Section {
                     TextField("HTTPS service address", text: $soundCloudServiceAddress)
                         .textInputAutocapitalization(.never).autocorrectionDisabled().keyboardType(.URL)

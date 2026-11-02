@@ -328,14 +328,16 @@ function renderMedia(): void {
       frame.type = "checkbox";
       frame.setAttribute("aria-label", `Use poster frame from video ${asset.ref}`);
       frame.title = "Use poster frame";
-      frame.checked = plan?.policy.videoFrames?.includes(asset.ref) ?? false;
+      frame.checked = plan?.block.frameMedia?.some(item => item.ref === asset.ref) ?? false;
       frame.disabled = !check.checked;
       frame.addEventListener("change", () => {
         if (!plan) return;
         resolutionGuard.changed();
         const refs = new Set(plan.policy.videoFrames ?? []);
+        const moving = new Set(plan.policy.videoMotion ?? []);
+        if (frame.checked) moving.delete(asset.ref); else moving.add(asset.ref);
         if (frame.checked) refs.add(asset.ref); else refs.delete(asset.ref);
-        plan = revisePlan(plan, { policy: { videoFrames: [...refs], ...(frame.checked && plan.policy.audio === asset.ref ? { audio: "auto" } : {}) }, title: title.value,
+        plan = revisePlan(plan, { policy: { videoFrames: [...refs], videoMotion: [...moving], ...(frame.checked && plan.policy.audio === asset.ref ? { audio: "auto" } : {}) }, title: title.value,
           markdown: writing.value, description: description.value });
         renderPlanKeepingMediaFocus();
       });

@@ -149,5 +149,7 @@ export function captureRenderRecipe(plan: import("./types.ts").BlockPlan, probes
 }
 
 export function videoBitrate(duration: number): number {
-  return Math.floor((250 * 1024 * 1024 * 0.9 * 8 - 192_000 * duration) / (duration + 2));
+  const bitrate = Math.floor((250 * 1024 * 1024 * 0.9 * 8 - 192_000 * duration) / (duration + 2));
+  if (!Number.isFinite(bitrate) || bitrate <= 0) throw new Error("This encoding cannot fit the 250 MiB output budget at the current audio bitrate. Choose a frame or a smaller source; no block was created.");
+  return bitrate;
 }
