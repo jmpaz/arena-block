@@ -78,24 +78,28 @@ test("browser resolver retains the reviewed four-post public x.com sequence and 
   expect(plan.block.markdown).toContain("11 squares");
 });
 
-test("browser resolver expands the reviewed ATProto author thread without losing coverage", async () => {
+test("browser resolver preserves an explicit descendant branch and its coverage", async () => {
   const fixture = await Bun.file(new URL("./fixtures/bluesky-op-thread.json", import.meta.url)).json() as
-    { source: string; thread: unknown; authorFeed: unknown };
+    { source: string; thread: any; authorFeed: any };
+  const member = fixture.authorFeed.feed.find((entry: any) => entry.opThreadPostIndex === 2).post;
+  const id = member.uri.split("/").at(-1);
+  const selected = fixture.thread.thread.replies.find((node: any) => node.post?.uri === member.uri);
+  const ref = fixture.source.replace(/post\/[^/]+$/, `post/${id}`);
   const fetcher = (async (input: RequestInfo | URL, init?: RequestInit) => {
     expect(init?.credentials).toBe("omit");
     const url = new URL(String(input));
     expect(url.origin).toBe("https://public.api.bsky.app");
-    if (url.pathname.endsWith("getPostThread")) return Response.json(fixture.thread);
+    if (url.pathname.endsWith("getPostThread")) return Response.json(url.searchParams.get("uri")!.endsWith(`/${id}`) ? { thread: { ...selected, parent: fixture.thread.thread } } : fixture.thread);
     if (url.pathname.endsWith("getAuthorFeed")) return Response.json(fixture.authorFeed);
     throw new Error(`Unexpected ATProto request ${url.pathname}`);
   }) as typeof fetch;
-  const plan = await resolveCapture({ primary: [fixture.source], extras: [],
+  const plan = await resolveCapture({ primary: [ref], extras: [],
     policy: { threadExpansion: "on", media: "all" } }, undefined, fetcher);
   expect(plan.sources.map(source => source.id)).toEqual([
     "3mxjzbrinf22d", "3mxjzmgx6sc2d", "3mxk2eqkcks2d", "3mxk2iwcjec2a",
   ]);
   expect(plan.sources.map(source => source.selection?.origin)).toEqual([
-    "explicit", "expanded", "expanded", "expanded",
+    "expanded", "explicit", "expanded", "expanded",
   ]);
   expect(plan.sources[0]?.threadCoverage?.scope).toBe("author-chain");
 });

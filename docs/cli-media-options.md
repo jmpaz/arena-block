@@ -4,6 +4,8 @@
 
 Media inside a quoted post stays unselected, while the quote's text and attribution still appear. A post listed directly, or reached through thread expansion, contributes its media as its own, even when another post in the plan quotes it. Each item appears once.
 
+`--media all+quotes` also includes attachments from acquired quotes within the chosen quote depth. It keeps each attachment with its original source and does not discover unrelated quoted threads.
+
 `arena-block plan URL --json` prints the available media references, including `sources[].quote.media`. Exact references select media from quoted posts:
 
 ```sh
@@ -13,7 +15,7 @@ arena-block plan URL -t --media images --json
 arena-block plan URL --media 1.1,1.2 --json
 ```
 
-A reference given to `--media-order`, `--frame` or `--audio` also selects that item, as long as it matches the chosen media type. A saved plan keeps its media choices. These commands only plan, without saving a block.
+A reference given to `--media-order`, `--video`, `--frame` or `--audio` also selects that item, as long as it matches the chosen media type. A saved plan keeps its media choices. These commands only plan, without saving a block.
 
 New mosaics default to **Balanced**. It keeps an existing compact arrangement when every tile has a reasonable share of the picture. For uneven arrangements, it compares rows and columns that retain every selected item, preserve aspect ratios and meet the existing tile-size limits. Moving video gets a modest area preference, so it can remain visible without always becoming the largest tile. Explicit media orders and selected quote media use rows to keep their reading order.
 

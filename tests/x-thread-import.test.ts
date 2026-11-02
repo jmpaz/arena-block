@@ -109,7 +109,9 @@ test("the observed 21-post Argon thread keeps every ordered image and its root q
   const compact = composePlan(queued.sources, { ...queued.policy, mosaicLayout: "compact" });
   const { mosaicLayout: _choice, ...policy } = compact.policy;
   const { hash: _hash, ...body } = compact;
-  expect({ ...body, policy, hash: planHash({ ...body, policy }) }).toEqual(queued);
+  expect(compact.block.title).toBe("Thread by @skalskip92");
+  const legacyTitle = { ...body, policy, block: { ...body.block, title: queued.block.title } };
+  expect({ ...legacyTitle, hash: planHash(legacyTitle) }).toEqual(queued);
 });
 
 test("x.com thread failures identify access, discovery, pagination, source mismatch, and genuine cap", async () => {

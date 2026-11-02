@@ -38,12 +38,13 @@ test("the exact retained QR thread keeps its hash and still fails its frozen lay
 
 test("new mixed-media plans retain all 17 posts, 14 images, the animation, writing, quotes and policy", () => {
   const before = JSON.stringify(original), next = replan(), recipe = captureRenderRecipe(next, probes)!;
-  expect(next.hash).toBe("266c0cfa0c9ccc972c9042702a2c56a4bb59b7be546ea58e75e23dce2c2868c8");
+  expect(next.hash).toBe("225ddd640afdcb81de7a8504faf5674ae2e55ea90ffbe49077da36dd2b05ace7");
   expect(next.sources).toEqual(original.sources); expect(next.policy).toEqual(original.policy);
   expect(next.sources).toHaveLength(17);
   expect(next.block.selectedMedia).toEqual(original.block.selectedMedia);
   const { layout: _old, ...oldBlock } = original.block, { layout: _new, ...newBlock } = next.block;
-  expect(newBlock).toEqual(oldBlock);
+  expect(next.block.title).toBe("Thread by @DanHollick");
+  expect({ ...newBlock, title: original.block.title }).toEqual(oldBlock);
   expect(recipe).toMatchObject({ width: 1920, height: 1612, duration: 13.73, audio: [] });
   expect(recipe.tiles.filter(tile => tile.kind === "image")).toHaveLength(14);
   expect(recipe.tiles.filter(tile => tile.kind === "video")).toHaveLength(1);
@@ -116,13 +117,18 @@ test("replan-save reads only the retained source snapshot, creates a private new
   const path = join(directory, "recovered.json"), before = JSON.stringify(retained);
   const result = await cli(["replan-save", id, "--output", path]);
   expect(result.code).toBe(0);
-  expect(JSON.parse(result.stdout)).toMatchObject({ originalSaveId: id, originalPlanHash: original.hash, planHash: replan().hash, published: false, destinations: ["901"] });
-  expect(await Bun.file(path).json()).toEqual(replan());
+  expect(JSON.parse(result.stdout)).toMatchObject({ originalSaveId: id, originalPlanHash: original.hash, planHash: "266c0cfa0c9ccc972c9042702a2c56a4bb59b7be546ea58e75e23dce2c2868c8", published: false, destinations: ["901"] });
+  const recovered = blockPlanSchema.parse(await Bun.file(path).json());
+  expect(recovered.sources).toEqual(original.sources);
+  expect(recovered.policy).toEqual(original.policy);
+  expect(recovered.block).toEqual({ ...original.block, layout: replan().block.layout });
+  const { hash, ...body } = recovered;
+  expect(planHash(body)).toBe(hash);
   expect((await stat(path)).mode & 0o777).toBe(0o600);
   expect(result.calls).toEqual([{path:`/v1/saves/${id}`,method:"GET"},{path:`/v1/saves/${id}/intent`,method:"GET"},{path:`/v1/saves/${id}`,method:"GET"}]);
   expect(result.stderr).toContain("new save UUID"); expect(JSON.stringify(retained)).toBe(before);
   const again = await cli(["replan-save", id, "--output", path]); expect(again.code).toBe(1);
-  expect(await Bun.file(path).json()).toEqual(replan());
+  expect(await Bun.file(path).json()).toEqual(recovered);
 });
 
 test.each(["unsafe", "active", "race", "redacted", "unchanged", "tampered", "adapter", "selection"])("replan-save refuses %s recovery without writing or publishing", async scenario => {

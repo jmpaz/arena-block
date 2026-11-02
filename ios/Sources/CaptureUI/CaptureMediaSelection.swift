@@ -261,7 +261,7 @@ struct CaptureMosaicLayoutSelection: View {
                 Picker("Mosaic layout", selection: Binding(
                     get: { session.draft?.mosaicLayout ?? session.preview?.plan?["policy"]?["mosaicLayout"]?.string.flatMap(CaptureMosaicLayout.init(rawValue:)) },
                     set: { if let value = $0 { session.setMosaicLayout(value) } })) {
-                    Text("Current layout").tag(Optional<CaptureMosaicLayout>.none)
+                    Text("Current layout").tag(Optional<CaptureMosaicLayout>.none).disabled(true)
                     ForEach(CaptureMosaicLayout.allCases, id: \.self) { style in
                         Text(style.title).tag(Optional(style))
                     }

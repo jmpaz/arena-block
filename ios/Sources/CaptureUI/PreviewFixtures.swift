@@ -22,7 +22,7 @@ struct PreviewFixtures {
             Channel(id: id, title: "Reference study \(id - 100)", slug: "reference-\(id)",
                     visibility: id.isMultiple(of: 2) ? "private" : "closed", owner: baseChannels[0].owner, can: .init(addTo: true))
         } : baseChannels
-        let imageURLs = try (0..<(mode == "media-selection" ? 3 : ["multi-post", "multi-post-extra", "multi-post-long"].contains(mode) ? 2 : 1)).map { index -> URL in
+        let imageURLs = try (0..<(mode == "media-selection" ? 3 : ["multi-post", "multi-post-extra", "multi-post-long", "mosaic-video"].contains(mode) ? 2 : 1)).map { index -> URL in
             let url = directory.appendingPathComponent("fixture-\(index).jpg")
             let image = UIGraphicsImageRenderer(size: CGSize(width: 800, height: 500)).image { context in
                 UIColor(white: 0.9 - Double(index) * 0.1, alpha: 1).setFill()
@@ -43,7 +43,7 @@ struct PreviewFixtures {
         }
         let text = mode == "long-text" ? "Beginning of the retained text. This first paragraph introduces an idea that needs more than six lines to read on a phone. The next part gives enough detail to distinguish the collapsed and expanded states during an interaction test. A third sentence continues the original post without changing it. A fourth sentence makes the excerpt long enough on wider devices too. Another paragraph follows with enough original wording to keep the expansion meaningful on a larger screen. It describes an image, a saved fragment, and a conversation that should remain in its original order. The author then adds a note about returning to the same source later, and why the full text matters when placing it into a channel. The end of the retained text is visible only after expansion." : "A small collection of things worth looking at again."
         let media: [JSONValue] = mode == "long-text" || mode == "quoted" ? [] : imageURLs.enumerated().filter { !["multi-post", "multi-post-extra"].contains(mode) || $0.offset == 0 }.map { index, url in
-            if mode == "video-frame" {
+            if mode == "video-frame" || mode == "mosaic-video" && index == 0 {
                 return .object(["ref": .string("1.\(index + 1)"), "kind": .string("video"),
                                 "url": .string("https://fixture.invalid/clip.mp4"), "posterUrl": .string("https://fixture.invalid/observed-frame.jpg"),
                                 "durationSeconds": .number(Double(ProcessInfo.processInfo.environment["CAPTURE_UI_VIDEO_DURATION"] ?? "90") ?? 90), "alt": .string("Recorded clip"),
@@ -122,16 +122,17 @@ struct PreviewFixtures {
             }
         }
         let postJSON = String(decoding: try JSONEncoder().encode(JSONValue.array(sources)), as: UTF8.self)
-        let initialPolicy = mode == "media-selection" ? "{\"media\":\"none\"}" :
+        let initialPolicy = mode == "mosaic-video" ? "{\"media\":\"all\"}" : mode == "media-selection" ? "{\"media\":\"none\"}" :
             mode == "multi-post-extra" ? "{\"mediaOnlyPosts\":[2]}" : "{}"
         let composed = try JSONDecoder().decode(JSONValue.self, from: Data(runtime.compose(postsJSON: postJSON, policyJSON: initialPolicy).utf8))
         preview = CapturePreview(kind: "social", url: sources.first?["canonicalUrl"]?.string ?? "https://x.com/example/status/123", plan: composed["plan"])
         let imageURL = imageURLs[0]
         let multiPostInput = sources.compactMap { $0["canonicalUrl"]?.string }.joined(separator: "\n")
         var sample = CaptureDraft(accountID: account.id, defaultChannel: mode == "no-default" ? nil : channels[0], input: ["multi-post", "multi-post-extra", "multi-post-long"].contains(mode) ? multiPostInput : preview.url)
-        sample.phase = .ready; sample.previewSnapshot = preview; sample.renderPath = ["long-text", "media-selection", "quoted", "soundcloud-playlist", "multi-post", "multi-post-extra", "multi-post-long", "video-frame"].contains(mode) ? nil : imageURL.path
+        sample.phase = .ready; sample.previewSnapshot = preview; sample.renderPath = ["long-text", "media-selection", "quoted", "soundcloud-playlist", "multi-post", "multi-post-extra", "multi-post-long", "video-frame", "mosaic-video"].contains(mode) ? nil : imageURL.path
         if mode == "multi-post-extra" { sample.sourceRoles = [.primary, .extra] }
         if mode == "media-selection" || mode == "video-frame" { sample.media = .none }
+        if mode == "mosaic-video" { sample.media = .all }
         if mode == "video-frame", ProcessInfo.processInfo.environment["CAPTURE_UI_VIDEO_DURATION"] != nil { sample.media = .auto; sample.videoFrameThresholdSeconds = CaptureVideoDefaults.frameThresholdSeconds }
         sample.titleOverride = ["soundcloud-playlist", "multi-post", "multi-post-extra", "multi-post-long"].contains(mode) ? nil : "A study in shape"
         sample.descriptionOverride = ["soundcloud-playlist", "multi-post", "multi-post-extra", "multi-post-long"].contains(mode) ? nil : "A small collection of things worth looking at again."
