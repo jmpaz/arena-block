@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { chmod, mkdtemp, mkdir, readdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { composePlan } from "../packages/core/compose.ts";
+import { composePlan, planHash } from "../packages/core/compose.ts";
 import { publicationFields, publicationPayload, publicationPayloadForMedia } from "../packages/core/capture.ts";
 import { verifyPublication } from "../packages/core/verification.ts";
 import { blockPlanSchema } from "../packages/core/types.ts";
@@ -102,6 +102,21 @@ describe("SoundCloud source identity", () => {
 });
 
 describe("SoundCloud track adapter", () => {
+  const jsonCases = ["original", "playback"].flatMap(acquisition =>
+    [false, true].flatMap(dated => ["all", "audio", "none"].map(media => ({ acquisition, dated, media }))));
+  test.each(jsonCases)("fresh $acquisition JSON identity with dated=$dated and media=$media", async ({ acquisition, dated, media }) => {
+    const info = trackInfo(acquisition === "original" ? undefined : streamFormats, dated ? { timestamp: 1700000000 } : {});
+    const post = await provider(info).resolve(parseSource(trackURL));
+    expect(Object.hasOwn(post, "postedAt")).toBe(dated);
+    expect(post.postedAt).toBe(dated ? "2023-11-14T22:13:20.000Z" : undefined);
+    const plan = composePlan([post], { media: media as "all" | "audio" | "none" });
+    const serialized = JSON.stringify(plan), transported = blockPlanSchema.parse(JSON.parse(serialized));
+    expect(transported).toEqual(plan);
+    const { hash, ...content } = transported;
+    expect(planHash(content)).toBe(hash);
+    expect(JSON.stringify(plan)).toBe(serialized);
+  });
+
   test("retains track identity, exact description, credits, duration and artwork without comment/like data", async () => {
     const calls: string[][] = [];
     const soundcloud = provider(trackInfo(), calls);
