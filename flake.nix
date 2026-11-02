@@ -20,7 +20,7 @@
         };
         nodeModulesHash = {
           x86_64-linux = "sha256-cSAYJujhrxf+6WOAewcLORvybdhbqW6VSkDh2hGNOwo=";
-          aarch64-darwin = "sha256-wzbQ9vnDvaRV5nMzcOYMjqJE8A2eORsSj7k+t6zzYsI=";
+          aarch64-darwin = "sha256-r9glPHmSPVZDnF6DnPYeoeKam22uwLLu1LZNd1m1VwA=";
         }.${system};
         nodeModules = pkgs.stdenvNoCC.mkDerivation {
           pname = "arena-block-node-modules";
