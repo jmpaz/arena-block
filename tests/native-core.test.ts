@@ -220,15 +220,28 @@ test("bundled provider resolves through native transport and retains HTML Markdo
 });
 
 test("native cancellation cancels HTTP and rejects resolution", async () => {
-  let id = 0;
+  let id = 0, started!: () => void;
+  const reading = new Promise<void>(resolve => { started = resolve; });
   let complete!: (error: string) => void;
   const result = new Promise<string>(resolve => { complete = resolve; });
   const canceled: number[] = [];
-  const context = runtime({ nativeHTTP: (request: number) => { id = request; }, nativeCancelHTTP: (request: number) => canceled.push(request), nativeResolveComplete: (_: string, _result: string, error: string) => complete(error) });
+  const context = runtime({ nativeHTTP: (request: number) => { id = request; started(); }, nativeCancelHTTP: (request: number) => canceled.push(request), nativeResolveComplete: (_: string, _result: string, error: string) => complete(error) });
   context.captureResolve("job", JSON.stringify([post.canonicalUrl]), "{}");
+  await reading;
   context.captureCancel("job");
   expect(await result).toContain("aborted");
   expect(canceled).toEqual([id]);
+});
+
+test("cancelling during source preflight starts no HTTP request", async () => {
+  let complete!: (error: string) => void, requests = 0, cancels = 0;
+  const result = new Promise<string>(resolve => { complete = resolve; });
+  const context = runtime({ nativeHTTP: () => { requests++; }, nativeCancelHTTP: () => { cancels++; },
+    nativeResolveComplete: (_: string, _result: string, error: string) => complete(error) });
+  context.captureResolve("before-http", JSON.stringify([post.canonicalUrl]), "{}");
+  context.captureCancel("before-http");
+  expect(await result).toContain("aborted");
+  expect(requests).toBe(0); expect(cancels).toBe(0);
 });
 
 test("native quote depth expands a cached prefix and subsequently recomposes without HTTP requests", async () => {
@@ -263,16 +276,18 @@ test("native quote depth expands a cached prefix and subsequently recomposes wit
 });
 
 test("replacing a native source job cancels and suppresses its late callback", async () => {
-  let firstID = 0;
+  let firstID = 0, started!: () => void;
+  const reading = new Promise<void>(resolve => { started = resolve; });
   const canceled: number[] = [], results: Array<{ id: string; value: string; error: string }> = [];
   let complete!: () => void;
   const done = new Promise<void>(resolve => { complete = resolve; });
   const context = runtime({ nativeHTTP: (id: number, request: string) => {
     const url = JSON.parse(request).url;
-    if (url.endsWith("/100")) { firstID = id; return; }
+    if (url.endsWith("/100")) { firstID = id; started(); return; }
     queueMicrotask(() => context.captureHTTPComplete(id, JSON.stringify({ status: 200, headers: {}, body: JSON.stringify({ tweet: { id: "200", author: { screen_name: "new" }, text: "Current" } }), url })));
   }, nativeCancelHTTP: (id: number) => canceled.push(id), nativeResolveComplete: (id: string, value: string, error: string) => { results.push({ id, value, error }); complete(); } });
   context.captureResolve("same", JSON.stringify(["https://x.com/old/status/100"]), "{}");
+  await reading;
   context.captureResolve("same", JSON.stringify(["https://x.com/new/status/200"]), "{}");
   await done;
   context.captureHTTPComplete(firstID, JSON.stringify({ status: 200, headers: {}, body: JSON.stringify({ tweet: { id: "100", author: { screen_name: "old" }, text: "Stale" } }), url: "https://api.fxtwitter.com/old/status/100" }));
