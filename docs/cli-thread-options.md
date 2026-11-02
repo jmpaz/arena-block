@@ -13,4 +13,4 @@ The older forms `--thread-expansion on` and `off`, including `=on` and `=off`, s
 
 When a command repeats the option, the last value wins, and a value given to a subcommand overrides one given before it.
 
-These defaults cover new plans created by the CLI. `render --plan` and `publish --plan` use the plan as saved, with its policy and hash. The iOS app, the browser extension, save recovery and the shared protocol keep their own defaults.
+These defaults cover new plans created by the CLI. `render --plan` and `publish --plan` use the plan as saved, with its policy and hash; an explicit `--mosaic-layout` derives a new layout without changing the original file. The iOS app, the browser extension, save recovery and the shared protocol keep their own thread defaults.

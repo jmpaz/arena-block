@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { composePlan } from "../src/compose.ts";
+import { composePlan, planHash } from "../src/compose.ts";
 import { SocialResolver } from "../src/providers/index.ts";
 import { XProvider } from "../src/providers/x.ts";
 import { blockPlanSchema, MAX_EXPANDED_SOURCE_POSTS } from "../src/types.ts";
@@ -103,7 +103,13 @@ test("the observed 21-post Argon thread keeps every ordered image and its root q
   expect(images.block.selectedMedia).toEqual(photoRefs);
   const queued = await Bun.file(new URL("./fixtures/x-argon-thread-image-queued-plan.json", import.meta.url)).json();
   expect(queued.hash).toBe("99d148a18238be969afd19676488860cf5d17d81d74ece4ebfdc1d4f1cc920a9");
-  expect(composePlan(queued.sources, queued.policy)).toEqual(queued);
+  const { hash, ...content } = blockPlanSchema.parse(queued);
+  expect(planHash(content)).toBe(hash);
+  expect(captureRenderRecipe(queued)!.tiles.map(tile => tile.ref)).toEqual(photoRefs);
+  const compact = composePlan(queued.sources, { ...queued.policy, mosaicLayout: "compact" });
+  const { mosaicLayout: _choice, ...policy } = compact.policy;
+  const { hash: _hash, ...body } = compact;
+  expect({ ...body, policy, hash: planHash({ ...body, policy }) }).toEqual(queued);
 });
 
 test("x.com thread failures identify access, discovery, pagination, source mismatch, and genuine cap", async () => {

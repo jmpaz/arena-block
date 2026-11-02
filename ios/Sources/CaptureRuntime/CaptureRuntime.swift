@@ -121,6 +121,12 @@ public final class CaptureRuntime {
     public func arenaMediaPost(blockJSON: String, blockID: Int) throws -> String {
         try invoke("captureArenaMediaPost", [blockJSON, String(blockID)])
     }
+    public func mosaicLayout(planJSON: String, mode: String) throws -> String {
+        try invoke("captureMosaicLayout", [planJSON, mode])
+    }
+    public func layoutPreview(planJSON: String) throws -> String {
+        try invoke("captureLayoutPreview", [planJSON])
+    }
     public func renderRecipe(planJSON: String, probesJSON: String = "{}") throws -> String {
         try invoke("captureRenderRecipe", [planJSON, probesJSON])
     }

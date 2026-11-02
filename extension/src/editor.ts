@@ -1,3 +1,5 @@
+import { reviseMosaicLayout } from "../../packages/core/compose.ts";
+import { renderLayoutPreview } from "./mosaic-preview.ts";
 import { mediaSources, planMedia, videoSoundtrackSources } from "../../packages/core/media-tree.ts";
 import { renderedQuoteDepth } from "../../packages/core/quote-policy.ts";
 import { normalizeSubstackCapture, substackCapturesSchema, substackSourceKey, type SubstackCapture } from "../../packages/core/substack-record.ts";
@@ -57,6 +59,8 @@ async function capturePermission(request: PermissionRequest): Promise<boolean> {
   }
   return allowed;
 }
+const mosaicLayout = $<HTMLSelectElement>("mosaic-layout");
+let mosaicChoice: CompositionPolicy["mosaicLayout"];
 const mediaPolicy = $<HTMLSelectElement>("media-policy");
 const threadPolicy = $<HTMLSelectElement>("thread-policy");
 const quotePolicy = $<HTMLSelectElement>("quote-policy");
@@ -128,6 +132,7 @@ function draft() {
   return { primary: primary.value, extras: extras.value, redditCaptures, substackCaptures, media: mediaPolicy.value,
     thread: threadPolicy.value, quote: quotePolicy.value, depth: quoteDepth.value,
     dates: quoteDates.value, separator: separatorPolicy.value,
+    ...(mosaicChoice !== undefined ? { mosaicLayout: mosaicChoice } : {}),
     ...(quoteAuthorLink.value ? { quoteAuthorLink: quoteAuthorChoice(quoteAuthorLink.value) } : {}),
     channel: channel.value, selectedChannels: [...picker.selected.values()],
     defaultChannel: defaultChannel.value, defaultMode: defaultMode.value, plan, pending, resolvedInput,
@@ -144,6 +149,7 @@ function inputSignature(authorChoice = quoteAuthorLink.value): string {
     quotePolicy.value, quoteDepth.value, quoteDates.value, separatorPolicy.value, redditCaptures, substackCaptures];
   // Preserve legacy unset signatures and frozen drafts byte for byte.
   if (authorChoice) values.push(authorChoice);
+  if (mosaicChoice !== undefined) values.push({ mosaicLayout: mosaicChoice });
   return JSON.stringify(values);
 }
 function destinationsFrozen(): boolean { return Boolean(pending || saveInFlight); }
@@ -152,7 +158,7 @@ function syncDestinationLock(): void {
   for (const id of ["choose-channel", "clear-channels", "add-channel", "default-channel", "default-mode",
     "primary", "extras", "media-policy", "thread-policy", "quote-policy", "quote-depth", "quote-dates", "quote-author-link",
     "separator-policy", "import-reddit", "reddit-file", "title", "writing", "description", "resolve-local", "add-current",
-    "single-media-toggle", "audio-choice"])
+    "single-media-toggle", "audio-choice", "mosaic-layout"])
     $(id).toggleAttribute("disabled", frozen);
   configureSubstackTabReading(manifest, $<HTMLButtonElement>("read-substack"), $("substack-tab-availability"), frozen || resolveInFlight);
   resolveButton.disabled = frozen || resolveInFlight;
@@ -259,6 +265,10 @@ function renderMedia(): void {
   list.replaceChildren();
   const assets = plan ? planMedia(plan) : [];
   section.hidden = assets.length === 0;
+  const multiple = (plan?.block.selectedMedia.length ?? 0) > 1;
+  mosaicLayout.hidden = $("mosaic-layout-label").hidden = !multiple;
+  mosaicLayout.value = mosaicChoice ?? plan?.policy.mosaicLayout ?? "";
+  renderLayoutPreview($("mosaic-layout-preview"), multiple ? plan : undefined);
   const singleImage = assets.length === 1 && assets[0]!.kind === "image" ? assets[0] : undefined;
   const singleSelected = Boolean(singleImage && plan?.block.selectedMedia.includes(singleImage.ref));
   const singleToggle = $<HTMLButtonElement>("single-media-toggle");
@@ -1027,6 +1037,7 @@ function chosenPolicy(): Partial<CompositionPolicy> {
     quoteDates: quoteDates.value as NonNullable<CompositionPolicy["quoteDates"]>,
     ...quoteAuthorPolicy(quoteAuthorChoice(quoteAuthorLink.value)),
     separator: separatorPolicy.value as CompositionPolicy["separator"],
+    ...(mosaicChoice !== undefined ? { mosaicLayout: mosaicChoice } : {}),
   };
 }
 
@@ -1183,6 +1194,22 @@ for (const field of [primary, extras, mediaPolicy, threadPolicy, quotePolicy, qu
   }
   intakeChanged();
 });
+mosaicLayout.addEventListener("change", () => {
+  if (destinationsFrozen()) { mosaicLayout.value = plan?.policy.mosaicLayout ?? ""; return; }
+  const current = plan && resolvedInput === inputSignature();
+  if (!["balanced", "source-order", "compact"].includes(mosaicLayout.value)) return;
+  mosaicChoice = mosaicLayout.value as NonNullable<CompositionPolicy["mosaicLayout"]>;
+  if (!current || !plan) { intakeChanged(); return; }
+  resolutionGuard.changed();
+  if (previewTimer) clearTimeout(previewTimer);
+  try {
+    plan = revisePlan(reviseMosaicLayout(plan, mosaicChoice), { title: title.value, markdown: writing.value, description: description.value });
+    resolvedInput = inputSignature(); renderPlan(false); message("");
+  } catch (error) {
+    mosaicChoice = plan.policy.mosaicLayout; mosaicLayout.value = mosaicChoice ?? "";
+    message(error instanceof Error ? error.message : "Could not update the mosaic layout.", true);
+  }
+});
 quoteAuthorLink.addEventListener("change", () => {
   if (destinationsFrozen()) {
     quoteAuthorLink.value = plan?.policy.quoteAuthorLink ?? "";
@@ -1311,6 +1338,7 @@ async function startNewCapture(): Promise<void> {
   quotePolicy.value = "block";
   quoteDepth.value = "2";
   quoteAuthorLink.value = "";
+  mosaicChoice = undefined; mosaicLayout.value = "";
   title.value = writing.value = description.value = "";
   picker.selected.clear();
   channel.value = "";
@@ -1442,6 +1470,9 @@ void (async () => {
         quoteDates.value = saved.dates ?? "auto";
         separatorPolicy.value = saved.separator ?? "auto";
         quoteAuthorLink.value = quoteAuthorChoice(saved.quoteAuthorLink, saved.plan);
+        const storedLayout = saved.mosaicLayout ?? saved.plan?.policy?.mosaicLayout;
+        mosaicChoice = typeof storedLayout === "string" && ["balanced", "source-order", "compact"].includes(storedLayout) ? storedLayout as NonNullable<CompositionPolicy["mosaicLayout"]> : undefined;
+        mosaicLayout.value = mosaicChoice ?? "";
         picker.restore(saved.selectedChannels);
         if (!saved.selectedChannels && saved.channel) {
           try { picker.add(saved.channel); } catch { /* Ignore an invalid old typed destination. */ }

@@ -187,3 +187,7 @@ details[open] > summary { margin-bottom: 7px; }
   .header-action:hover { background: #354035; }
   button.primary { background: #6d966f; border-color: #6d966f; color: #101d12; }
 }
+
+.mosaic-layout-preview { position: relative; width: 100%; background: #e8ebe6; }
+.mosaic-layout-tile { position: absolute; overflow: hidden; font-size: 10px; }
+.mosaic-layout-tile img { width: 100%; height: 100%; object-fit: contain; display: block; }

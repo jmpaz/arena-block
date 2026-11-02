@@ -2,6 +2,17 @@ import Foundation
 
 public enum CaptureVideoDefaults { public static let frameThresholdSeconds = 1500 }
 
+public enum CaptureMosaicLayout: String, Codable, CaseIterable, Hashable, Sendable {
+    case balanced, sourceOrder = "source-order", compact
+    public var title: String {
+        switch self {
+        case .balanced: "Balanced"
+        case .sourceOrder: "Source order"
+        case .compact: "Compact"
+        }
+    }
+}
+
 public enum CaptureQuoteDepth: Hashable, Codable, Sendable {
     case levels(Int)
     case full
@@ -200,6 +211,7 @@ public extension CaptureDraft {
         if let videoFrames, !videoFrames.isEmpty { policy["videoFrames"] = .array(videoFrames.map(JSONValue.string)) }
         if let videoMotion, !videoMotion.isEmpty { policy["videoMotion"] = .array(videoMotion.map(JSONValue.string)) }
         if let audio { policy["audio"] = .string(audio) }
+        if let mosaicLayout { policy["mosaicLayout"] = .string(mosaicLayout.rawValue) }
         if let videoFrameThresholdSeconds { policy["videoFrameThresholdSeconds"] = .number(Double(videoFrameThresholdSeconds)) }
         if let quoteDepth { policy["quoteDepth"] = quoteDepth.jsonValue }
         if let parentDepth { policy["parentDepth"] = parentDepth.jsonValue }

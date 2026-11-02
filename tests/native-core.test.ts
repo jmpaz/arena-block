@@ -76,8 +76,11 @@ test("native image layout fallback matches the shared core and retains every inc
   const recipe = JSON.parse(context.captureRenderRecipe(JSON.stringify(plan), "{}"));
   expect(recipe).toEqual(captureRenderRecipe(plan));
   expect(recipe.tiles.map((tile: { ref: string }) => tile.ref)).toEqual(mosaicIncident.images.map(item => item.ref));
-  expect(recipe.width).toBe(4096); expect(recipe.height).toBe(3500);
-  expect(Math.min(...recipe.tiles.map((tile: { rect: { width: number; height: number } }) => Math.min(tile.rect.width, tile.rect.height)))).toBe(314);
+  expect(Math.max(recipe.width, recipe.height)).toBe(4096);
+  expect(Math.min(...recipe.tiles.map((tile: { rect: { width: number; height: number } }) => Math.min(tile.rect.width, tile.rect.height)))).toBeGreaterThanOrEqual(256);
+  const compact = composePlan(sources, { ...policy, mosaicLayout: "compact" });
+  const retained = captureRenderRecipe(compact)!;
+  expect(retained.width).toBe(4096); expect(retained.height).toBe(3500);
 });
 
 test("bundled native core uses an observed video frame without a video tile", () => {

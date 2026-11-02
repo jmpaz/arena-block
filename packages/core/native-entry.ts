@@ -5,14 +5,14 @@ import { RedditProvider } from "./providers/reddit.ts";
 import { bindRedditCaptures, normalizeRedditCapture, redditCapturesSchema } from "./reddit-record.ts";
 import { resolveMediaURL, resolveMediaSources } from "./media-acquisition.ts";
 import { verifyPublication, arenaImageUrl } from "./verification.ts";
-import { composePlan, planHash } from "./compose.ts";
+import { composePlan, planHash, reviseMosaicLayout } from "./compose.ts";
 import { publicationFields, publicationPayload, publicationPayloadForMedia, captureSource } from "./capture.ts";
 import { SocialResolver } from "./providers/index.ts";
 import { BlueskyProvider } from "./providers/bluesky.ts";
 import { NativeSoundCloudProvider } from "./providers/soundcloud-native.ts";
 import { arenaMediaPost } from "./providers/arena-media.ts";
 import { blockPlanSchema, compositionPolicySchema, resolvedPostSchema } from "./types.ts";
-import { captureRenderRecipe } from "./render-recipe.ts";
+import { captureRenderRecipe, captureLayoutPreview } from "./render-recipe.ts";
 const host = globalThis as any;
 const jobs = new Map<string, AbortController>();
 function nativeResolver(captures = redditCapturesSchema.parse([]), substack = substackCapturesSchema.parse([])) { return new SocialResolver({ substack: new SubstackProvider(substack), reddit: new RedditProvider(undefined, captures), soundcloud: new NativeSoundCloudProvider(),
@@ -52,6 +52,8 @@ host.captureRedditImport = (value: string) => JSON.stringify(normalizeRedditCapt
 host.captureSource = (value: string) => JSON.stringify(captureSource(value));
 host.captureArenaMediaPost = (block: string, blockID: string) => JSON.stringify(arenaMediaPost(JSON.parse(block), blockID));
 host.captureFields = (value: string) => JSON.stringify(publicationFields(blockPlanSchema.parse(JSON.parse(value))));
+host.captureMosaicLayout = (plan: string, mode: string) => JSON.stringify(reviseMosaicLayout(blockPlanSchema.parse(JSON.parse(plan)), compositionPolicySchema.shape.mosaicLayout.unwrap().parse(mode)));
+host.captureLayoutPreview = (plan: string) => JSON.stringify(captureLayoutPreview(blockPlanSchema.parse(JSON.parse(plan))));
 host.captureRenderRecipe = (plan: string, probes: string) => JSON.stringify(captureRenderRecipe(blockPlanSchema.parse(JSON.parse(plan)), JSON.parse(probes)));
 host.capturePayload = (plan: string, publicBase: string, media: string, channels: string) => JSON.stringify(publicationPayload(blockPlanSchema.parse(JSON.parse(plan)), publicBase, JSON.parse(media), JSON.parse(channels)));
 

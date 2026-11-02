@@ -14,3 +14,16 @@ arena-block plan URL --media 1.1,1.2 --json
 ```
 
 A reference given to `--media-order`, `--frame` or `--audio` also selects that item, as long as it matches the chosen media type. A saved plan keeps its media choices. These commands only plan, without saving a block.
+
+New mosaics default to **Balanced**. It keeps an existing compact arrangement when every tile has a reasonable share of the picture. For uneven arrangements, it compares rows and columns that retain every selected item, preserve aspect ratios and meet the existing tile-size limits. Moving video gets a modest area preference, so it can remain visible without always becoming the largest tile. Explicit media orders and selected quote media use rows to keep their reading order.
+
+Choose an alternative with `--mosaic-layout balanced|source-order|compact`. **Source order** always arranges contiguous items in rows, read left to right and top to bottom. **Compact** uses the previous arrangement strategy, including its tile-size fallback. The app and browser editor offer the same three choices and a still preview; videos appear as posters. This preview uses reported source dimensions, so decoded media can differ. Check the rendered output for motion and small text.
+
+An editor shows **Current layout** until you make an explicit choice. This lets you apply Balanced to an older retained plan as well as choose another arrangement.
+
+```sh
+arena-block plan URL --media all --mosaic-layout source-order --json
+arena-block render --plan ./plan.json --mosaic-layout compact -o ./comparison.mp4
+```
+
+With `--plan`, an explicit mosaic choice derives a new plan in memory for rendering or publishing. It preserves the retained writing, source snapshots, selection, frame choices and soundtrack, and leaves the original file untouched. Omit the option to use the saved layout and hash unchanged. No automatic migration changes existing saved plans.

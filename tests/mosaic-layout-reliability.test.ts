@@ -37,8 +37,7 @@ test("new19-source compositions retain all22 images and prose in a legible bound
   const sources = incidentSources(), before = JSON.stringify(sources);
   const policy = { media: "all" as const, mediaOnlyPosts: Array.from({ length: 18 }, (_, index) => index + 2) };
   const plan = composePlan(sources, policy), recipe = captureRenderRecipe(plan)!;
-  expect(recipe.width).toBe(4096); expect(recipe.height).toBe(3500);
-  expect(Math.min(...recipe.tiles.map(tile => Math.min(tile.rect.width, tile.rect.height)))).toBe(314);
+  expect(Math.max(recipe.width, recipe.height)).toBe(4096);
   expect(plan.block.selectedMedia).toEqual(fixture.images.map(item => item.ref));
   expect(refs(plan.block.layout!)).toEqual(plan.block.selectedMedia);
   expect(recipe.tiles.map(tile => tile.ref)).toEqual(plan.block.selectedMedia);
@@ -64,7 +63,7 @@ test("fallback respects an explicit complete order including moving the first im
   expect(plan.sources[0]!.media[0]!.ref).toBe("1.1");
 });
 
-test("already-legible automatic and explicit layouts retain their pre-fix hashes", () => {
+test("compact retains earlier automatic and explicit geometry and content", () => {
   // Golden hashes were recorded from a308f4c before introducing the fallback.
   const cases = [
     { media: [asset(640, 480, 1), asset(640, 480, 2)], hash: "af66ba6369311d9bce3bdb13b93269f6a2d6848019684900164097012e8fbefb", order: undefined },
@@ -72,8 +71,10 @@ test("already-legible automatic and explicit layouts retain their pre-fix hashes
     { media: [asset(400, 800, 1), asset(800, 400, 2), asset(600, 600, 3)], hash: "2aaa0e215f860e2263fd3dc7352a260e83136d880d35235516c55621138657b4", order: ["1.3", "1.2", "1.1"] },
   ];
   for (const item of cases) {
-    const plan = composePlan([{ ...post, media: item.media }], { media: "all", ...(item.order ? { mediaOrder: item.order } : {}) });
-    expect(plan.hash).toBe(item.hash);
+    const plan = composePlan([{ ...post, media: item.media }], { media: "all", mosaicLayout: "compact", ...(item.order ? { mediaOrder: item.order } : {}) });
+    const { hash: _hash, ...body } = plan;
+    const { mosaicLayout: _choice, ...legacyPolicy } = body.policy;
+    expect(planHash({ ...body, policy: legacyPolicy })).toBe(item.hash);
     expect(captureRenderRecipe(plan)!.tiles.every(tile => Math.min(tile.rect.width, tile.rect.height) >= 256)).toBe(true);
   }
 });

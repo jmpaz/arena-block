@@ -289,6 +289,8 @@ public struct CaptureRootView: View {
                             CaptureMediaSelection(session: session, locked: locked)
                                 .listRowSeparator(.hidden)
                         }
+                        CaptureMosaicLayoutSelection(session: session).disabled(locked)
+                            .listRowSeparator(.hidden)
                         if soundtrackChoices.count > 1 {
                             Picker("Audio", selection: Binding(get: { effectiveSoundtrackChoice }, set: session.setAudio)) {
                                 Text("Auto").tag("auto")

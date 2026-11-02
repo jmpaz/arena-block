@@ -252,6 +252,56 @@ struct CaptureMediaSelection: View {
     }
 }
 
+struct CaptureMosaicLayoutSelection: View {
+    @Bindable var session: CaptureSession
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if session.includedMediaRefs.count > 1 {
+                Picker("Mosaic layout", selection: Binding(
+                    get: { session.draft?.mosaicLayout ?? session.preview?.plan?["policy"]?["mosaicLayout"]?.string.flatMap(CaptureMosaicLayout.init(rawValue:)) },
+                    set: { if let value = $0 { session.setMosaicLayout(value) } })) {
+                    Text("Current layout").tag(Optional<CaptureMosaicLayout>.none)
+                    ForEach(CaptureMosaicLayout.allCases, id: \.self) { style in
+                        Text(style.title).tag(Optional(style))
+                    }
+                }.pickerStyle(.menu).disabled(session.draft?.phase != .ready)
+                    .accessibilityIdentifier("capture.mosaic-layout")
+                if let layout = session.mosaicLayoutPreview(), let width = layout["width"]?.int,
+                   let height = layout["height"]?.int, width > 0, height > 0 {
+                    Text((layout["tiles"]?.array.contains { $0["kind"]?.string == "video" } ?? false)
+                         ? "Layout preview · videos shown as posters" : "Layout preview")
+                        .font(.caption).foregroundStyle(.secondary)
+                    GeometryReader { geometry in
+                        ZStack(alignment: .topLeading) {
+                            Color(uiColor: .secondarySystemBackground)
+                            ForEach(Array((layout["tiles"]?.array ?? []).enumerated()), id: \.offset) { index, tile in
+                                if let rect = tile["rect"], let x = rect["x"]?.int, let y = rect["y"]?.int,
+                                   let tileWidth = rect["width"]?.int, let tileHeight = rect["height"]?.int,
+                                   let choice = MediaChoice(.object([
+                                    "ref": tile["ref"] ?? .string(""), "kind": tile["kind"] ?? .string("image"),
+                                    "url": tile["url"] ?? .null, "posterUrl": tile["url"] ?? .null
+                                   ]), position: index) {
+                                    MediaThumbnail(asset: choice, usesFrame: false, fit: true)
+                                        .frame(width: geometry.size.width * Double(tileWidth) / Double(width),
+                                               height: geometry.size.height * Double(tileHeight) / Double(height))
+                                        .clipped()
+                                        .offset(x: geometry.size.width * Double(x) / Double(width),
+                                                y: geometry.size.height * Double(y) / Double(height))
+                                }
+                            }
+                        }
+                    }.aspectRatio(Double(width) / Double(height), contentMode: .fit)
+                        .frame(maxHeight: 360)
+                        .accessibilityIdentifier("capture.mosaic-layout-preview")
+                } else if session.draft?.phase == .ready {
+                    Text("Layout preview unavailable for this selection.").font(.caption).foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+}
+
 private struct MediaChoice: Identifiable {
     let id: String
     let kind: String
@@ -288,12 +338,16 @@ private struct MediaChoice: Identifiable {
 private struct MediaThumbnail: View {
     let asset: MediaChoice
     let usesFrame: Bool
+    var fit = false
     var maxPixel = 240
     @State private var localImage: UIImage?
 
     var body: some View {
         Group {
-            if let localImage { Image(uiImage: localImage).resizable().scaledToFill() }
+            if let localImage {
+                if fit { Image(uiImage: localImage).resizable().scaledToFit() }
+                else { Image(uiImage: localImage).resizable().scaledToFill() }
+            }
             else { placeholder }
         }
         .overlay {

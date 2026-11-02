@@ -4,6 +4,7 @@ import { mediaSources } from "../packages/core/media-tree.ts";
 /** Collect the receiver capabilities needed before submitting a publication capsule. */
 export function requiredPlanCapabilities(plan: BlockPlan): string[] {
   const required = new Set<string>();
+  if (plan.policy.mosaicLayout !== undefined) required.add("mosaic-layout-v1");
   if (plan.policy.videoMotion !== undefined || (plan.policy.videoFrameThresholdSeconds ?? 0) > 600
     || plan.block.kind === "video" && mediaSources(plan.sources).some(node => node.media.some(asset => plan.block.selectedMedia.includes(asset.ref) && (asset.durationSeconds ?? 0) > 600))) required.add("video-representation-v2");
   if (plan.policy.parentDepth !== undefined || plan.policy.parentStyle !== undefined || plan.sources.some(post => post.parentContext)) required.add("comment-parent-context-v1");

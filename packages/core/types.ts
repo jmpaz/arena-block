@@ -259,6 +259,7 @@ export const compositionPolicySchema = z.object({
   videoFrameThresholdSeconds: z.number().int().min(1).max(MAX_VIDEO_FRAME_THRESHOLD_SECONDS).optional(),
   // Stable source refs in the complete desired tile order; inclusion stays independent.
   mediaOrder: z.array(z.string().regex(/^\d+\.\d+$/)).max(100).optional(),
+  mosaicLayout: z.enum(["balanced", "source-order", "compact"]).optional(),
   mediaOnlyPosts: z.array(z.number().int().min(2)).optional(),
   threadExpansion: z.enum(["auto", "off", "on"]).optional(),
   quote: z.enum(["block", "sequence", "omit"]).default("block"),

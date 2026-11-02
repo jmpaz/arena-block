@@ -1,3 +1,4 @@
+import { balancedMosaicLayout } from "./mosaic-layout.ts";
 import { createHash } from "node:crypto";
 import type {
   BlockPlan,
@@ -12,7 +13,7 @@ import { atprotoMarkdown } from "./providers/atproto-post.ts";
 import { availableQuoteNodes, quoteDateLabel, renderedQuoteDepth } from "./quote-policy.ts";
 import { soundCloudPlaylistText } from "./soundcloud.ts";
 import { isInstagramReel, parseSource } from "./url.ts";
-import { mediaSources, selectableMedia } from "./media-tree.ts";
+import { mediaSources, selectableMedia, planMedia } from "./media-tree.ts";
 import { renderedParentDepth, type ParentEntry } from "./parent-context.ts";
 import { selectionIdentity } from "./source-selection.ts";
 
@@ -349,7 +350,7 @@ function legibleMediaLayout(media: MediaAsset[], preferred: LayoutNode): LayoutN
   return rowArrangements(media).find(candidate => fits(candidate.node))?.node ?? preferred;
 }
 
-function layoutFor(posts: ResolvedPost[], media: MediaAsset[], ordered: boolean): LayoutNode | undefined {
+function compactLayoutFor(posts: ResolvedPost[], media: MediaAsset[], ordered: boolean): LayoutNode | undefined {
   if (ordered) {
     const preferred = orderedLayout(media);
     return preferred ? legibleMediaLayout(media, preferred) : undefined;
@@ -364,6 +365,31 @@ function layoutFor(posts: ResolvedPost[], media: MediaAsset[], ordered: boolean)
     return [squarest([...videos, ...(images ? [images] : [])])];
   });
   return groups.length ? legibleMediaLayout(media, squarest(groups).node) : undefined;
+}
+
+function layoutFor(posts: ResolvedPost[], media: MediaAsset[], ordered: boolean, mode: CompositionPolicy["mosaicLayout"]): LayoutNode | undefined {
+  const preferred = compactLayoutFor(posts, media, ordered);
+  return preferred ? balancedMosaicLayout(media, preferred, mode, ordered) : undefined;
+}
+
+export function reviseMosaicLayout(plan: BlockPlan, mode: NonNullable<CompositionPolicy["mosaicLayout"]>): BlockPlan {
+  const { hash, ...original } = plan;
+  if (planHash(original) !== hash) throw new Error("The retained plan hash does not match its content. No layout was changed.");
+  const policy = compositionPolicySchema.parse({ ...plan.policy, mosaicLayout: mode });
+  const frames = new Map((plan.block.frameMedia ?? []).map(item => [item.ref, item.url]));
+  const effective = (item: MediaAsset): MediaAsset => frames.has(item.ref)
+    ? { ...item, kind: "image", url: frames.get(item.ref)! } : item;
+  const assets = new Map(planMedia(plan).map(item => [item.ref, effective(item)]));
+  const media = plan.block.selectedMedia.map(ref => {
+    const item = assets.get(ref); if (!item) throw new Error(`Selected media ${ref} is missing from the retained plan`); return item;
+  });
+  const ordered = policy.mediaOrder !== undefined || mediaSources(plan.sources).some(node => node.quoteDepth > 0
+    && node.media.some(item => plan.block.selectedMedia.includes(item.ref)));
+  const layout = media.length > 1 && media.every(item => item.kind !== "audio")
+    ? layoutFor(plan.sources.map(post => ({ ...post, media: post.media.map(effective) })), media, ordered, mode) : plan.block.layout;
+  const { hash: _hash, ...body } = plan;
+  const base = { ...body, policy, block: { ...body.block, ...(layout ? { layout } : {}) } };
+  return { ...base, hash: planHash(base) };
 }
 
 function stable(value: unknown): string {
@@ -549,7 +575,7 @@ export function composePlan(
       selectedMedia: chosen.map((item) => item.ref),
       ...(frameMedia.length ? { frameMedia } : {}),
       ...(chosen.length && !soloVideo && !audioOnly ? { layout: layoutFor(renderPosts, effective,
-        policy.mediaOrder !== undefined || mediaSources(posts, renderedQuoteDepth(policy)).some(node => node.quoteDepth > 0 && node.media.some(asset => chosen.some(item => item.ref === asset.ref)))) } : {}),
+        policy.mediaOrder !== undefined || mediaSources(posts, renderedQuoteDepth(policy)).some(node => node.quoteDepth > 0 && node.media.some(asset => chosen.some(item => item.ref === asset.ref))), policy.mosaicLayout) } : {}),
       ...(quoteCoverage.length ? { quoteCoverage } : {}),
     },
   };

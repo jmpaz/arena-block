@@ -758,6 +758,24 @@ public final class CaptureSession {
         return draft.includedMedia(in: preview)
     }
 
+    func setMosaicLayout(_ value: CaptureMosaicLayout) {
+        guard !busy, draft?.blockID == nil, draft?.phase == .ready,
+              var result = preview, let plan = result.plan else { return }
+        do {
+            let raw = try core().mosaicLayout(planJSON: json(plan), mode: value.rawValue)
+            result.plan = try JSONDecoder().decode(JSONValue.self, from: Data(raw.utf8))
+            draft?.mosaicLayout = value; draft?.renderPath = nil
+            preview = result; draft?.previewSnapshot = result; draft?.problem = nil
+            persistOrReport()
+        } catch { problem = error.localizedDescription }
+    }
+
+    func mosaicLayoutPreview() -> JSONValue? {
+        guard draft?.phase == .ready, let plan = preview?.plan,
+              let raw = try? core().layoutPreview(planJSON: json(plan)) else { return nil }
+        return try? JSONDecoder().decode(JSONValue.self, from: Data(raw.utf8))
+    }
+
     func setAudio(_ value: String) {
         guard !busy, draft?.blockID == nil, let plan = preview?.plan,
               [.editing, .preparing, .ready, .failed].contains(draft?.phase ?? .saved) else { return }
@@ -1459,7 +1477,7 @@ public final class CaptureSession {
             var next: CaptureDraft
             if input.isEmpty, let previous, !previous.hasDraftContent {
                 next = previous
-                next.input = ""; next.originalLinkOnly = nil; next.redditCapturesJSON = nil; next.substackCapturesJSON = nil; next.media = .auto; next.selectedMedia = nil; next.videoFrames = nil; next.videoMotion = nil; next.audio = nil; next.quoteDepth = nil; next.parentDepth = nil; next.parentStyle = nil; next.quoteAuthorLink = nil; next.phase = .editing; next.problem = nil
+                next.input = ""; next.originalLinkOnly = nil; next.redditCapturesJSON = nil; next.substackCapturesJSON = nil; next.media = .auto; next.selectedMedia = nil; next.videoFrames = nil; next.videoMotion = nil; next.audio = nil; next.quoteDepth = nil; next.parentDepth = nil; next.parentStyle = nil; next.quoteAuthorLink = nil; next.mosaicLayout = nil; next.phase = .editing; next.problem = nil
                 next.selection = DestinationSelection(defaultChannel: defaultChannel)
             } else { next = CaptureDraft(accountID: account.id, defaultChannel: defaultChannel, input: input) }
             next.videoFrameThresholdSeconds = autoFrameThresholdSeconds

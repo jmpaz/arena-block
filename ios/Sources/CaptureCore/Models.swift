@@ -161,6 +161,7 @@ public struct CaptureDraft: Codable, Identifiable, Sendable {
     /// Video soundtrack policy: auto, mix, or a selected moving video's ref.
     public var audio: String?
     public var videoFrameThresholdSeconds: Int?
+    public var mosaicLayout: CaptureMosaicLayout?
     public var quoteDepth: CaptureQuoteDepth?
     public var parentDepth: CaptureQuoteDepth?
     public var parentStyle: CaptureParentStyle?

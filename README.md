@@ -72,7 +72,7 @@ By default the CLI reads only the listed posts. `-t` adds the surrounding thread
 
 `--media auto` selects media from the listed posts, leaving media inside quoted posts unselected. `--media all` selects every attachment from listed posts, thread posts and `--extra` sources, and `images`, `video` and `audio` filter that set; a reference such as `--media 1.2` selects a single item, including one from a quoted post. See [CLI media choices](docs/cli-media-options.md).
 
-Several images become a JPEG mosaic, and several videos an MP4 mosaic, with `--frame` and `--audio` picking poster frames and the soundtrack.
+Several images become a JPEG mosaic, and several videos an MP4 mosaic, with `--frame` and `--audio` picking poster frames and the soundtrack. New mosaics balance uneven tile areas with a modest preference for moving video. Choose Balanced, Source order or Compact in the editors, or use `--mosaic-layout`; see [media choices](docs/cli-media-options.md).
 
 The CLI saves a SoundCloud track as an audio attachment, using the artist's original file when offered. For other tracks, yt-dlp and FFmpeg convert the public stream to MP3, and `--media none` saves the track URL alone. A playlist block lists its tracks in order, with the playlist artwork.
 

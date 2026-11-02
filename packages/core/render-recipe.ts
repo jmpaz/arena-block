@@ -114,6 +114,27 @@ function soundtrack(policy: CompositionPolicy, videos: Array<Probe & { ref: stri
   return chosen.map(item => item.ref);
 }
 
+export function captureLayoutPreview(plan: import("./types.ts").BlockPlan) {
+  if (plan.block.selectedMedia.length < 2 || !plan.block.layout) return null;
+  const frames = new Map((plan.block.frameMedia ?? []).map(item => [item.ref, item.url]));
+  const assets = new Map(planMedia(plan).map(item => [item.ref, frames.has(item.ref)
+    ? { ...item, kind: "image" as const, url: frames.get(item.ref)! } : item]));
+  const selected = plan.block.selectedMedia.map(ref => assets.get(ref));
+  if (selected.some(item => !item || item.kind === "audio" || !item.width || !item.height)) return null;
+  const media = selected as MediaAsset[];
+  const video = plan.block.kind === "video";
+  const native = Math.max(...media.map(item => Math.max(item.width!, item.height!)));
+  const longEdge = video ? even(Math.min(VIDEO_RECIPE_LONG_EDGE, native)) : IMAGE_RECIPE_LONG_EDGE;
+  const geometry = tileRects(plan.block.layout, new Map(media.map(item => [item.ref, item])), longEdge,
+    video ? VIDEO_RECIPE_MIN_TILE : IMAGE_RECIPE_MIN_TILE);
+  return { ...geometry.size, tiles: media.map(item => {
+    const address = item.kind === "video" ? item.posterUrl : item.url;
+    let url: string | undefined;
+    if (address) { const parsed = new URL(address); if (parsed.protocol === "https:" && !parsed.username && !parsed.password) url = address; }
+    return { ref: item.ref, kind: item.kind, url, rect: geometry.rects.get(item.ref)! };
+  }) };
+}
+
 export function captureRenderRecipe(plan: import("./types.ts").BlockPlan, probes: Record<string, Probe> = {}) {
   const frames = new Map((plan.block.frameMedia ?? []).map(item => [item.ref, item.url]));
   const assets = new Map(planMedia(plan).map(asset => [asset.ref,

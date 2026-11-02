@@ -9,7 +9,7 @@ import { isDeepStrictEqual } from "node:util";
 import { Command, Option } from "commander";
 import { configureCliHelp } from "./cli-help.ts";
 import { ArenaBlockClient, PublicationError } from "./client.ts";
-import { composePlan, planHash } from "./compose.ts";
+import { composePlan, planHash, reviseMosaicLayout } from "./compose.ts";
 import { SocialResolver } from "./providers/index.ts";
 import { SubstackProvider } from "../packages/core/providers/substack.ts";
 import { bindSubstackCaptures, normalizeSubstackCapture, SUBSTACK_CAPTURE_MAX_BYTES } from "../packages/core/substack-record.ts";
@@ -31,6 +31,7 @@ import { collectRatio, formatRatioReport, type RatioSource } from "./visibility-
 type Options = {
   media?: string;
   mediaOrder?: string;
+  mosaicLayout?: CompositionPolicy["mosaicLayout"];
   frame?: string;
   video?: string;
   videoFrameThreshold?: string;
@@ -95,6 +96,7 @@ function policy(options: Options, postCount: number): Partial<CompositionPolicy>
     ...(options.frame ? { videoFrames: options.frame.split(",").map(value => value.trim()) } : {}),
     ...(options.videoFrameThreshold ? { videoFrameThresholdSeconds: Number(options.videoFrameThreshold) } : {}),
     ...(options.mediaOrder !== undefined ? { mediaOrder: options.mediaOrder.split(",").map(value => value.trim()) } : {}),
+    ...(options.mosaicLayout !== undefined ? { mosaicLayout: options.mosaicLayout } : {}),
     quote: options.quote ?? "block",
     ...(options.quoteDepth !== undefined ? { quoteDepth: options.quoteDepth === "full" ? "full" : Number(options.quoteDepth) } : {}),
     ...(options.parentDepth !== undefined ? { parentDepth: options.parentDepth === "full" ? "full" : Number(options.parentDepth) } : {}),
@@ -125,10 +127,11 @@ function displayPlan(plan: BlockPlan): string {
   ].join("\n");
 }
 
-async function readLocalPlan(path: string): Promise<BlockPlan> {
+async function readLocalPlan(path: string, layout?: CompositionPolicy["mosaicLayout"]): Promise<BlockPlan> {
   const file = Bun.file(path);
   if (file.size > 2 * 1024 * 1024) throw new Error("Local plan exceeds 2 MiB");
-  return blockPlanSchema.parse(await file.json());
+  const plan = blockPlanSchema.parse(await file.json());
+  return layout === undefined ? plan : reviseMosaicLayout(plan, layout);
 }
 
 async function captureInputs(values: string[], options: Options) {
@@ -180,6 +183,7 @@ function addCompositionOptions(command: Command, extras = true): Command {
     .option("--video-frame-threshold <seconds>", "default to frames above this duration; 1-86400 seconds, default 1500; --video overrides it")
     .addOption(new Option("-t, --thread-expansion", "include available x.com, Bluesky, Delvetown or Substack chains, or Forum Magnum replies").default(false, "off"))
     .addOption(new Option("--no-thread-expansion").hideHelp())
+    .addOption(new Option("--mosaic-layout <mode>", "balance uneven tiles (default), read in source-order rows, or keep the compact arrangement").choices(["balanced", "source-order", "compact"]))
     .option("--media-order <refs>", "set the complete tile order with refs, such as 2.1,1.2,1.1")
     .option("--audio <mode>", "choose a video soundtrack: auto, mix, index (2), or ref (1.2)")
     .option("--quote <mode>", "block, sequence, or omit", "block")
@@ -243,7 +247,7 @@ program.enablePositionalOptions();
 // choice unless the subcommand supplies its own choice.
 program.hook("preAction", (root, command) => {
   if (command === root) return;
-  for (const key of ["threadExpansion", "media", "quoteAuthorLink", "parentDepth", "parentStyle", "video", "frame", "videoFrameThreshold"] as const) {
+  for (const key of ["threadExpansion", "media", "quoteAuthorLink", "parentDepth", "parentStyle", "video", "frame", "videoFrameThreshold", "mosaicLayout"] as const) {
     const source = command.getOptionValueSource(key);
     if (root.getOptionValueSource(key) === "cli" && (source === undefined || source === "default")
       && command.options.some(option => option.attributeName() === key)) {
@@ -288,7 +292,7 @@ addCompositionOptions(program.command("render").description("Render a local medi
     if (options.layout === "wallpaper" && options.minScale) throw new Error("--min-scale applies to reading pages; wallpaper is an overview without a text-legibility guarantee");
     const match = options.canvas ? /^(\d+)x(\d+)$/.exec(options.canvas) : undefined;
     if (options.canvas && !match) throw new Error("--canvas must use WIDTHxHEIGHT");
-    const { plan } = options.plan ? { plan: await readLocalPlan(options.plan) } : await localPlan(refs, options);
+    const { plan } = options.plan ? { plan: await readLocalPlan(options.plan, options.mosaicLayout) } : await localPlan(refs, options);
     if (options.layout) {
       const { renderMosaicPreview } = await import("./mosaic-preview.ts");
       const controller = new AbortController();
@@ -324,7 +328,7 @@ addCompositionOptions(addReceiptOptions(program.command("publish").description("
     const display = receiptOutputMode(options, Boolean(process.stdout.isTTY));
     if (options.plan && (refs.length || options.extra?.length || options.redditCapture?.length || options.substackCapture?.length)) throw new Error("--plan cannot accompany source URLs, --extra, --reddit-capture, or --substack-capture");
     const planned = options.plan
-      ? { plan: await readLocalPlan(options.plan), destinations: options.to ?? [] }
+      ? { plan: await readLocalPlan(options.plan, options.mosaicLayout), destinations: options.to ?? [] }
       : await localPlan(refs, options);
     const config = await loadUserConfig(options.config ?? program.opts().config);
     const legacyDefaults = (process.env.ARENA_BLOCK_DEFAULT_CHANNELS ?? "").split(",").filter(Boolean);
