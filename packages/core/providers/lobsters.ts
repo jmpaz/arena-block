@@ -37,7 +37,8 @@ export class LobstersProvider implements SocialProvider {
       return { provider: "lobsters", id: source.id, canonicalUrl: source.canonicalUrl,
         author: { handle: story.submitter_user }, postTitle: story.title,
         text: storyBody(story.description_plain, story.url || undefined, story.submitter_user, `https://lobste.rs/u/${encodeURIComponent(story.submitter_user)}`),
-        postedAt: new Date(story.created_at).toISOString(), media: [] };
+        postedAt: new Date(story.created_at).toISOString(), media: [],
+        parentContext: { parents: [], stopped: "submission", submission: { id: source.id, canonicalUrl: source.canonicalUrl, title: story.title } } };
     }
     const comment = commentSchema.parse(await fetchJson(`${permalink(source.id)}.json`, this.fetcher, signal));
     if (comment.short_id !== source.id) throw new Error("Lobsters returned the wrong comment");

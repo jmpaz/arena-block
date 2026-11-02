@@ -44,6 +44,10 @@ describe("story and selected-comment dispatch", () => {
     expect(plan.sources[0]!.postedAt).toBe("2026-10-18T10:35:11.525Z");
     expect(plan.block.markdown).toBe(story.description_plain + "\n\nSubmitted by [writer](<https://lobste.rs/u/writer>)");
     expect(plan.block.markdown).not.toContain("UNSELECTED DISCUSSION");
+    for (const parentStyle of ["flat", "quote"] as const) {
+      const contextual = composePlan(resolved.posts, { ...resolved.policy, parentDepth: "full", parentStyle });
+      expect(contextual.block).toEqual(plan.block);
+    }
     const rendered = Bun.markdown.html(plan.block.markdown);
     expect(rendered).toContain("<strong>this</strong>"); expect(rendered).toContain('href="https://lobste.rs/u/writer"');
   });
@@ -74,6 +78,9 @@ describe("story and selected-comment dispatch", () => {
     expect(plan.sources[0]!.author.handle).toBe("writer");
     expect(plan.block.markdown).toContain(withBody ? "First\n\nA **complete** body" : "Link: <https://example.com/article>");
     expect(plan.block.markdown).toContain("Submitted by [writer](<https://news.ycombinator.com/user?id=writer>)");
+    for (const parentStyle of ["flat", "quote"] as const) {
+      expect(composePlan(posts, { media: "all", parentDepth: "full", parentStyle }).block).toEqual(plan.block);
+    }
   });
 
   test("unavailable HN stories and unsupported poll/job items return precise errors", async () => {

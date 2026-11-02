@@ -162,6 +162,9 @@ function renderParents(post: ResolvedPost, policy: CompositionPolicy, frameRefs:
     if (post.provider === "hackernews" || post.provider === "lobsters") throw new Error("This comment snapshot has no parent evidence. Read the source again before including parent context. No block was created.");
     return undefined;
   }
+  // A selected submission has no ancestors; a retained depth preference leaves it intact.
+  if (!context.parents.length && context.stopped === "submission"
+    && context.submission?.id === post.id && context.submission.canonicalUrl === post.canonicalUrl) return undefined;
   const parents = context.parents.slice(0, depth);
   const boundary = (depth > parents.length && context.stopped !== "submission") || (depth === MAX_QUOTE_DEPTH && context.stopped === "depth_limit")
     ? `*[Further parent context ${context.stopped.replaceAll("_", " ")}]${context.boundary ? `(<${context.boundary.canonicalUrl}>)` : ""}*` : "";

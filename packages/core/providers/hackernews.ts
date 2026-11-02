@@ -30,7 +30,8 @@ export class HackerNewsProvider implements SocialProvider {
       return { provider: "hackernews", id: source.id, canonicalUrl: source.canonicalUrl,
         author: { handle: comment.by }, postTitle: commentTitle(comment.title),
         text: storyBody(commentMarkdown(comment.text ?? ""), comment.url, comment.by, `https://news.ycombinator.com/user?id=${encodeURIComponent(comment.by)}`),
-        postedAt: new Date(comment.time * 1000).toISOString(), media: [] };
+        postedAt: new Date(comment.time * 1000).toISOString(), media: [],
+        parentContext: { parents: [], stopped: "submission", submission: { id: source.id, canonicalUrl: source.canonicalUrl, title: commentTitle(comment.title) } } };
     }
     if (comment.type !== "comment") throw new Error(`Hacker News ${comment.type ?? "unknown"} items are unsupported; choose a story or comment permalink`);
     if (!comment.by || !comment.text?.trim() || comment.time === undefined) throw new Error("Hacker News comment is missing author, text, or timestamp");
