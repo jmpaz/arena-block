@@ -1,0 +1,317 @@
+{
+  "version": 1,
+  "responses": [
+    {
+      "url": "https://substack.com/@norvidstudies/note/c-360829302",
+      "file": "360829302.html",
+      "contentType": "text/html",
+      "status": 200,
+      "sha256": "a301518182fdd53f38a4cdb63fbe68e3ad897e1bbf204bf6fc615e2d01b6959b",
+      "bytes": 11094,
+      "provenance": {
+        "inputFixture": "substack-note-public.html",
+        "inputSHA256": "c658c7db1fd057577d47f911588093aae5fb155d6d480c203c2595ad7a887f5f",
+        "originalResponseSHA256": null,
+        "observedAt": null,
+        "projection": "Exact selected permalink DOM and matching JSON-LD; unrelated bootstrap scripts/styles and event attributes removed. Original source bytes not reconstructed."
+      }
+    },
+    {
+      "url": "https://substack.com/@lamblog/note/c-359890078",
+      "file": "359890078.html",
+      "contentType": "text/html",
+      "status": 200,
+      "sha256": "dd31c0929c901d30eedd8e9534ecca3f3251cd1b61602dc0aa4fd61f0394b8cd",
+      "bytes": 14224,
+      "provenance": {
+        "inputFixture": "substack-quote-public.html",
+        "inputSHA256": "b28cf4aea88b0c596e74ba194a08744d634dd5215ac15a95827745b32b137a71",
+        "originalResponseSHA256": null,
+        "observedAt": null,
+        "projection": "Exact selected permalink DOM and matching JSON-LD; unrelated bootstrap scripts/styles and event attributes removed. Original source bytes not reconstructed."
+      }
+    },
+    {
+      "url": "https://substack.com/@norvidstudies/note/c-362104813",
+      "file": "362104813.html",
+      "contentType": "text/html",
+      "status": 200,
+      "sha256": "e45c90dd6a3a00bc19bffb398890f3ff175360c03158d20ba89b402f0ae5a0bc",
+      "bytes": 11566,
+      "provenance": {
+        "inputFixture": "substack-image-only-note-public.html",
+        "inputSHA256": "dd047ba8b1ebdb927f662b03d9dd7bf0ff6d129a5777deba1a29ec686b8c0545",
+        "originalResponseSHA256": "03bfe456763643c85bd9aa3f1dae5eb881268e4195fa1c49519f11f0889aceb5",
+        "observedAt": "2026-10-16T04:37:47.397Z",
+        "projection": "Exact selected permalink DOM and matching JSON-LD; unrelated bootstrap scripts/styles and event attributes removed. Original source bytes not reconstructed."
+      }
+    },
+    {
+      "url": "https://substack.com/@joodaloop/note/c-346876542",
+      "file": "346876542.html",
+      "contentType": "text/html",
+      "status": 200,
+      "sha256": "bc4dfe6e3a1e37be41854dd4e80fe486d0632df37c063205439ffbdb89146611",
+      "bytes": 8311,
+      "provenance": {
+        "inputFixture": "substack-contrast-346876542.html",
+        "inputSHA256": "2f0722811ed3d7d3f7fc819bfa26f8cb9f764c7ab4b11f82d67cb90bf6f8140c",
+        "originalResponseSHA256": "b89f47927df50234eb63b410a46261d9b904d47f2887959412e64f4c7feaea07",
+        "observedAt": "2026-10-16T04:43:29.957Z",
+        "projection": "Exact selected permalink DOM and matching JSON-LD; unrelated bootstrap scripts/styles and event attributes removed. Original source bytes not reconstructed."
+      }
+    },
+    {
+      "url": "https://substack.com/@joodaloop/note/c-347044458",
+      "file": "347044458.html",
+      "contentType": "text/html",
+      "status": 200,
+      "sha256": "508380a84a8e4049f113caf2036f0f11709c84778915364bb013b221d4c2f457",
+      "bytes": 20003,
+      "provenance": {
+        "inputFixture": "substack-contrast-347044458.html",
+        "inputSHA256": "cdac4ce842a829237ed51cbc4229539607bde543ae946e3d585b7a8f293ed6cb",
+        "originalResponseSHA256": "63bb18ff92ac8577ecb32023c5661bce81645b5b61515fee9994844cc5a9e114",
+        "observedAt": "2026-10-16T04:43:30.089Z",
+        "projection": "Exact selected permalink DOM and matching JSON-LD; unrelated bootstrap scripts/styles and event attributes removed. Original source bytes not reconstructed."
+      }
+    },
+    {
+      "url": "https://substack.com/@joodaloop/note/c-348712218",
+      "file": "348712218.html",
+      "contentType": "text/html",
+      "status": 200,
+      "sha256": "ea9ca0a9afac633d2ed50e71900886e8651815028fd6f8b5532d3e579b3a2cbe",
+      "bytes": 21245,
+      "provenance": {
+        "inputFixture": "substack-contrast-348712218.html",
+        "inputSHA256": "89c05b5ba2fa391746b54e901646c0417c2a85d0c90bd2617b0ab6c45c16a7a9",
+        "originalResponseSHA256": "74f579ea745f6e67fe726ba114259b8b59347de8000b50097fd553c117dcd7c5",
+        "observedAt": "2026-10-16T05:03:33.372Z",
+        "projection": "Exact selected permalink DOM and matching JSON-LD; unrelated bootstrap scripts/styles and event attributes removed. Original source bytes not reconstructed."
+      }
+    },
+    {
+      "url": "https://substack.com/@joodaloop/note/c-360337718",
+      "file": "360337718.html",
+      "contentType": "text/html",
+      "status": 200,
+      "sha256": "14a5749fa0827ed94d50477e1b6c8b820816101f85b96e85c98a52aca237fbb3",
+      "bytes": 24389,
+      "provenance": {
+        "inputFixture": "substack-http-link-360337718.html",
+        "inputSHA256": "80fea060ede7e6d3a7a39ffbe2366e44e3bce479aa936fdfd1fa759a1f46f219",
+        "originalResponseSHA256": "cd85c657b575e9f648ecfc629b2a88427bf5c32a500ed6537ccbdc2f1cc1ef1c",
+        "observedAt": null,
+        "projection": "Exact selected permalink DOM and matching JSON-LD; unrelated bootstrap scripts/styles and event attributes removed. Original source bytes not reconstructed.",
+        "originalResponseBytes": 118248,
+        "originalEvidenceFile": "joodaloop-1.html"
+      }
+    },
+    {
+      "url": "https://substack.com/@joodaloop/note/c-357819575",
+      "file": "357819575.html",
+      "contentType": "text/html",
+      "status": 200,
+      "sha256": "1b6b32a261973d8b2d8bf30861dfa0795d73a15e8bb778c792d284d0d5580867",
+      "bytes": 13177,
+      "provenance": {
+        "inputFixture": "substack-http-quote-357819575.html",
+        "inputSHA256": "abd7e398c554d7f931fde9c12a8aafec23fe39f1611037f03ce82a296f3f40bf",
+        "originalResponseSHA256": "abd7e398c554d7f931fde9c12a8aafec23fe39f1611037f03ce82a296f3f40bf",
+        "observedAt": null,
+        "projection": "Exact selected permalink DOM and matching JSON-LD; unrelated bootstrap scripts/styles and event attributes removed. Original source bytes not reconstructed.",
+        "originalResponseBytes": 103564,
+        "originalEvidenceFile": "joodaloop-2.html"
+      }
+    },
+    {
+      "url": "https://substack.com/@substack/note/c-359359118",
+      "file": "359359118.html",
+      "contentType": "text/html",
+      "status": 200,
+      "sha256": "338a151bb200f3c3388017753bf95b893d898ffad585be2cdc6978743852f0b4",
+      "bytes": 10934,
+      "provenance": {
+        "inputFixture": "substack-video-note-public.html",
+        "inputSHA256": "b9df1490c1b2999ce4e345e9ac792c563f45f470fb4d03cda46837f094c69e12",
+        "originalResponseSHA256": null,
+        "observedAt": null,
+        "projection": "Exact selected permalink DOM and matching JSON-LD; unrelated bootstrap scripts/styles and event attributes removed. Original source bytes not reconstructed."
+      }
+    },
+    {
+      "url": "https://substack.com/@oatmilkallison/note/c-337896966",
+      "file": "337896966.html",
+      "contentType": "text/html",
+      "status": 200,
+      "sha256": "c6ec551a12705d87ebbed53aa51811cb89aea52b6655bcd0b6284b852c77c28a",
+      "bytes": 14490,
+      "provenance": {
+        "inputFixture": "substack-selected-article-note-public.html",
+        "inputSHA256": "88d6bdbc07207d325b20f6d5e3e2e38b7fe1fa6ee4c1ed8c54d298f3043f8452",
+        "originalResponseSHA256": null,
+        "observedAt": null,
+        "projection": "Exact selected permalink DOM and matching JSON-LD; unrelated bootstrap scripts/styles and event attributes removed. Original source bytes not reconstructed."
+      }
+    },
+    {
+      "url": "https://substack.com/@evadmartain/note/c-311363713",
+      "file": "311363713.html",
+      "contentType": "text/html",
+      "status": 200,
+      "sha256": "131f0ecc6973e1e461982d99340c61cf16d7fd3d9904b9ca31f0744e5acc935b",
+      "bytes": 15168,
+      "provenance": {
+        "inputFixture": "substack-podcast-note-public.html",
+        "inputSHA256": "c12b3703c28ccfdacf64301f2a9c3afbdd32b39e67aacad799ac2bb5084e1392",
+        "originalResponseSHA256": "7fd9862d97a2b273839eea7350d4495b7c8aef24bf8c2c1e4e58d36920f46116",
+        "observedAt": null,
+        "projection": "Exact selected permalink DOM and matching JSON-LD; unrelated bootstrap scripts/styles and event attributes removed. Original source bytes not reconstructed.",
+        "originalResponseBytes": 133586,
+        "originalEvidenceFile": "actual-audio-note.html"
+      }
+    },
+    {
+      "url": "https://substack.com/api/v1/reader/comment/362104813",
+      "file": "362104813.json",
+      "contentType": "application/json",
+      "status": 200,
+      "sha256": "8d86db5b8df4dd3a279670a88f795e079cfa4ec32f5cbe6490f0797e59b9e86e",
+      "bytes": 572,
+      "provenance": {
+        "inputFixture": "substack-image-only-note-public.json",
+        "inputSHA256": "8d86db5b8df4dd3a279670a88f795e079cfa4ec32f5cbe6490f0797e59b9e86e",
+        "originalResponseSHA256": null,
+        "observedAt": null,
+        "projection": "Selected real public response fields previously retained by the acquisition owner; no credentials, unrelated user profile metadata or inferred fields added. Unknown original response metadata remains null."
+      }
+    },
+    {
+      "url": "https://substack.com/api/v1/reader/comment/346876542",
+      "file": "346876542.json",
+      "contentType": "application/json",
+      "status": 200,
+      "sha256": "40d763213564f38c83984ff4a819b344e133d750039cc2f4b69714ac9265a89e",
+      "bytes": 758,
+      "provenance": {
+        "inputFixture": "substack-contrast-346876542.json",
+        "inputSHA256": "40d763213564f38c83984ff4a819b344e133d750039cc2f4b69714ac9265a89e",
+        "originalResponseSHA256": "61d8f54b3d750c74c69b651eb4ddae5a96a6fe347359e1ba1fe681fd17d8e9fa",
+        "observedAt": "2026-10-16T04:43:30.034Z",
+        "projection": "Selected real public response fields previously retained by the acquisition owner; no credentials, unrelated user profile metadata or inferred fields added. Unknown original response metadata remains null."
+      }
+    },
+    {
+      "url": "https://substack.com/api/v1/reader/comment/347044458",
+      "file": "347044458.json",
+      "contentType": "application/json",
+      "status": 200,
+      "sha256": "8e5fd9373cbc2f29ea58540228610d998940ed8f10dca8aa6532ae266128e84c",
+      "bytes": 2349,
+      "provenance": {
+        "inputFixture": "substack-contrast-347044458.json",
+        "inputSHA256": "8e5fd9373cbc2f29ea58540228610d998940ed8f10dca8aa6532ae266128e84c",
+        "originalResponseSHA256": "05554d6510fe1e1927a8285166589856c46137523a773b035803dabcfe66a676",
+        "observedAt": "2026-10-16T04:43:30.210Z",
+        "projection": "Selected real public response fields previously retained by the acquisition owner; no credentials, unrelated user profile metadata or inferred fields added. Unknown original response metadata remains null."
+      }
+    },
+    {
+      "url": "https://substack.com/api/v1/reader/comment/348712218",
+      "file": "348712218.json",
+      "contentType": "application/json",
+      "status": 200,
+      "sha256": "8beff46ec9f0829b3c511084ce1f28186eb873a698705caa68a160b6da29f433",
+      "bytes": 1845,
+      "provenance": {
+        "inputFixture": "substack-contrast-348712218.json",
+        "inputSHA256": "8beff46ec9f0829b3c511084ce1f28186eb873a698705caa68a160b6da29f433",
+        "originalResponseSHA256": "91ac4897f787a3448acb6f396115e958d2fdd197274e97ebf33c836dbf4e109a",
+        "observedAt": null,
+        "projection": "Selected real public response fields previously retained by the acquisition owner; no credentials, unrelated user profile metadata or inferred fields added. Unknown original response metadata remains null."
+      }
+    },
+    {
+      "url": "https://substack.com/api/v1/reader/comment/359359118",
+      "file": "359359118.json",
+      "contentType": "application/json",
+      "status": 200,
+      "sha256": "ede6d96161a84b660b4ce93b0cfcc5bcb11cbee7fcb818f2ae2496481c99c536",
+      "bytes": 966,
+      "provenance": {
+        "inputFixture": "substack-video-note-public.json",
+        "inputSHA256": "ede6d96161a84b660b4ce93b0cfcc5bcb11cbee7fcb818f2ae2496481c99c536",
+        "originalResponseSHA256": null,
+        "observedAt": null,
+        "projection": "Selected real public response fields previously retained by the acquisition owner; no credentials, unrelated user profile metadata or inferred fields added. Unknown original response metadata remains null."
+      }
+    },
+    {
+      "url": "https://substack.com/api/v1/reader/comment/337896966",
+      "file": "337896966.json",
+      "contentType": "application/json",
+      "status": 200,
+      "sha256": "9757bd32f6aa6296671e48d650461036c8cf21e6619deef990bae67fd7356c1c",
+      "bytes": 1807,
+      "provenance": {
+        "inputFixture": "substack-selected-article-note-public.json",
+        "inputSHA256": "9757bd32f6aa6296671e48d650461036c8cf21e6619deef990bae67fd7356c1c",
+        "originalResponseSHA256": null,
+        "observedAt": null,
+        "projection": "Selected real public response fields previously retained by the acquisition owner; no credentials, unrelated user profile metadata or inferred fields added. Unknown original response metadata remains null."
+      }
+    },
+    {
+      "url": "https://substack.com/api/v1/reader/comment/311363713",
+      "file": "311363713.json",
+      "contentType": "application/json",
+      "status": 200,
+      "sha256": "767a3f5e0592975cd529ac9d5ea0023dcf596b4b03e9084d570fc1ab84c66449",
+      "bytes": 4931,
+      "provenance": {
+        "inputFixture": "substack-podcast-note-public.json",
+        "inputSHA256": "767a3f5e0592975cd529ac9d5ea0023dcf596b4b03e9084d570fc1ab84c66449",
+        "originalResponseSHA256": "54a3f92554d9f125e8adf5c7cd58e94a2ee60c1542525c40fa53cb1e0b148b4f",
+        "observedAt": null,
+        "projection": "Selected real public response fields previously retained by the acquisition owner; no credentials, unrelated user profile metadata or inferred fields added. Unknown original response metadata remains null.",
+        "originalResponseBytes": 54255,
+        "originalEvidenceFile": "actual-podcast-note.json"
+      }
+    },
+    {
+      "url": "https://on.substack.com/api/v1/posts/transcription",
+      "file": "podcast-article.json",
+      "contentType": "application/json",
+      "status": 200,
+      "sha256": "40c9e5a3e375a35d75005edcbd808551f0935ef719eb1cf17a54f2852fc7c52b",
+      "bytes": 27265,
+      "provenance": {
+        "inputFixture": "substack-note-podcast-article-public.json",
+        "inputSHA256": "c8f881cdcc648c22acf0f15fa5d2bb49b52ef476a8adbf3f623d76d83ec67b8f",
+        "originalResponseSHA256": "76de5a9cbf1020612986e399a96ae3024827f8ff7f41a8b912c1b9600f1b2096",
+        "observedAt": null,
+        "projection": "Selected real public response fields previously retained by the acquisition owner; no credentials, unrelated user profile metadata or inferred fields added. Unknown original response metadata remains null.",
+        "originalResponseBytes": 34077,
+        "originalEvidenceFile": "actual-podcast-article-api.json"
+      }
+    },
+    {
+      "url": "https://on.substack.com/api/v1/video/upload/ab191d8b-b513-4b5e-be9a-cf0a26445db5",
+      "file": "podcast-article-inline-video.json",
+      "contentType": "application/json",
+      "status": 200,
+      "sha256": "a6b23752d950c143b6b070d64ee9f91af27c37cb1bbfb8cce82f95c18c44b2dd",
+      "bytes": 252,
+      "provenance": {
+        "inputFixture": "substack-note-podcast-inline-public.json",
+        "inputSHA256": "a6b23752d950c143b6b070d64ee9f91af27c37cb1bbfb8cce82f95c18c44b2dd",
+        "originalResponseSHA256": "1f3ae83650e371c2e789a6a02148b29fd4308e06de32a04b0a595b4ddf93733b",
+        "observedAt": null,
+        "projection": "Selected real public response fields previously retained by the acquisition owner; no credentials, unrelated user profile metadata or inferred fields added. Unknown original response metadata remains null.",
+        "originalResponseBytes": 903,
+        "originalEvidenceFile": "actual-podcast-inline-video-api.json"
+      }
+    }
+  ]
+}

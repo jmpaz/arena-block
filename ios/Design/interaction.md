@@ -16,11 +16,19 @@ The picker shows the current capture preview and selected channel names. Its che
 
 ## Submitted work
 
-A valid Save stores the approved input and UUID before resolution starts. During that operation, source, block, media and destination edits remain disabled. The UI shows observed stages and complete confirmed destination counts.
+A valid Save stores the approved input and UUID before resolution starts, and source, block and media edits stay disabled while it runs; the UI shows observed stages and confirmed destination counts. Once the block is verified, Add to channels becomes available, even while placements are still connecting, and Apply updates the same capture in History.
 
-If a create response is ambiguous, keep the attempt visible and inspect its status. A new save would use a new UUID. History preserves the retained operation for checking and recovery.
+An ambiguous create response leaves the attempt visible for a status check, since a new save would get a new UUID. History lists active saves first, then unsubmitted drafts, then saved and canceled captures; its badge counts active saves.
 
-Add placements uses the stored block ID. The confirmation action creates a separate retained operation for the chosen additions. Cancelling the picker returns to the current capture.
+A swipe cancels an active, paused or interrupted save, moving the capture to History; blocks and connections already created stay in Are.na. The canceled capture shows its confirmed placements, along with any request still waiting on an outcome, and a late response can update those details without restarting the save.
+
+Continue lists the remaining destinations before starting another attempt. If a connection confirmed earlier has gone missing, it stays missing until that channel is chosen again. Reading the block back can match an existing block and its connections, so a retry reuses them.
+
+Add to channels uses the stored block ID, and an open picker and its starting state survive a relaunch. Apply merges the picker's changes with newer ones, and Cancel discards them.
+
+Channels already sent or confirmed stay selected, with disconnection left to Are.na; unsent choices can be removed in the app. Each change can add up to 20 new channels, with existing placements counted separately.
+
+The app keeps each accepted change and completed receipt under the same capture. A connection removed in Are.na stays removed until that channel is chosen again, and older placement entries without a parent ID stay separate, since the app has no record of their capture.
 
 ## Testing
 

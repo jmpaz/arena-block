@@ -40,6 +40,7 @@ final class CaptureUITests: XCTestCase {
 
     func testEmptyCaptureKeepsPasteAndDestinationVisible() {
         let app = launch("empty")
+        XCTAssertFalse(app.buttons["Import browser capture"].exists)
         XCTAssertTrue(app.descendants(matching: .any)["capture.source.1"].firstMatch.exists)
         XCTAssertTrue(app.buttons["capture.destinations"].exists)
         XCTAssertFalse(app.navigationBars.buttons["Save"].isEnabled)
@@ -587,6 +588,36 @@ final class CaptureUITests: XCTestCase {
         let collapsed = NSPredicate { _, _ in abs(body.frame.height - collapsedHeight) <= 2 }
         expectation(for: collapsed, evaluatedWith: body)
         waitForExpectations(timeout: 3)
+    }
+
+    func testRetainedPublicNotePreviewShowsQuoteAndOuterWriting() throws {
+        guard let capture = ProcessInfo.processInfo.environment["CAPTURE_REVIEW_NOTE_CAPTURE"] else {
+            throw XCTSkip("Supply the retained public Note fixture to inspect its native preview without saving.")
+        }
+        let app = XCUIApplication()
+        app.launchEnvironment = ["CAPTURE_UI_FIXTURE": "empty", "CAPTURE_UI_STORE_ID": UUID().uuidString,
+            "CAPTURE_UI_LIVE_SOURCE": "1", "CAPTURE_UI_REDDIT_CAPTURE": capture,
+            "CAPTURE_UI_CLIPBOARD": "", "CAPTURE_UI_CLIPBOARD_URL": "", "CAPTURE_UI_STYLE": "light"]
+        app.launch()
+        let title = app.textFields["capture.title"]
+        XCTAssertTrue(title.waitForExistence(timeout: 20))
+        let loaded = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "Note by @norvidstudies"), object: title)
+        XCTAssertEqual(XCTWaiter.wait(for: [loaded], timeout: 20), .completed)
+        let control = app.buttons["capture.text.expansion"]
+        for _ in 0..<5 where !control.isHittable { app.swipeUp() }
+        XCTAssertTrue(control.isHittable)
+        screenshot("native-note-quote-collapsed", app: app)
+        control.tap()
+        XCTAssertEqual(control.label, "show less")
+        let quote = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Interesting debate with Hanson")).firstMatch
+        XCTAssertTrue(quote.exists)
+        XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "> @lamblog")).firstMatch.exists)
+        screenshot("native-note-quote-expanded", app: app)
+        let outer = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "most video/audio content is relatively hidden")).firstMatch
+        for _ in 0..<15 where !outer.isHittable { app.swipeUp() }
+        XCTAssertTrue(outer.isHittable)
+        screenshot("native-note-root-expanded", app: app)
+        app.terminate()
     }
 
     func testQueuedAndLargeDarkLayout() {

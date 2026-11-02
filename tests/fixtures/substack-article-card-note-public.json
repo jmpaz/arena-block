@@ -1,0 +1,40 @@
+{
+  "item": {
+    "comment": {
+      "id": 359051079,
+      "user_id": 81309935,
+      "handle": "substack",
+      "name": "Substack",
+      "type": "feed",
+      "post_id": null,
+      "body": "\"Sometimes it’s going to be about historically unprecedented power-grab of the Silicon Valley overlords, and sometimes it’s going to be about Sydney Sweeney’s rack. Look, it is what it is.\"\n\n@Marina Hyde's weekly columns at the Guardian for more than two decades made her one of the best-loved columnists in the UK. And her hit podcast, The Rest is Entertainment, reaches millions of listeners each month.\n\nNow, with the launch of her new multimedia venture Always On, she'll share a window into the stories grabbing her attention—from culture, to politics, to her personal obsessions.\n\nPowered by Goalhanger, a new-generation media brand with a slate of top shows, Always On will give audiences more ways to spend time with one of Britain's funniest and fiercest minds.\n\nRead the first missive from Marina, and sign up for free to read all her writing on Substack: https://www.marinahyde.com/p/welcome-to-always-on",
+      "attachments": [
+        {
+          "id": "198c42cf-5828-4bfb-b5d1-aa1757ebe473",
+          "type": "post",
+          "publication": {
+            "id": 8383871
+          },
+          "post": {
+            "id": 219602148,
+            "publication_id": 8383871,
+            "canonical_url": "https://www.marinahyde.com/p/welcome-to-always-on",
+            "title": "Welcome to Always On ",
+            "subtitle": "",
+            "publishedBylines": [
+              {
+                "id": 7911898,
+                "name": "Marina Hyde",
+                "handle": "marinahyde"
+              }
+            ]
+          },
+          "postSelection": null,
+          "postImageSelection": null,
+          "clipInfo": null,
+          "mediaClip": null
+        }
+      ]
+    }
+  }
+}

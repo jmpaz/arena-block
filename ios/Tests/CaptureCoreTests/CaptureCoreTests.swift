@@ -366,3 +366,16 @@ final class CaptureCoreTests: XCTestCase {
         XCTAssertEqual(ChannelSearch.matches([first, second], query: "owner prediction").first?.id, 2)
     }
 }
+
+extension CaptureCoreTests {
+    func testLinkedInIdentityAndAccessFallback() throws {
+        let a = URL(string: "https://www.linkedin.com/posts/example_test-activity-1234567890123456789-abcd?tracking=1")!
+        let b = URL(string: "https://linkedin.com/posts/other_test-activity-1234567890123456789-efgh")!
+        XCTAssertEqual(CaptureInput.canonicalSourceIdentity(a), CaptureInput.canonicalSourceIdentity(b))
+        let denied = "LinkedIn source page is unavailable or redirected (HTTP 403); use the original link"
+        XCTAssertTrue(CaptureSourceAccess.denied(denied))
+        XCTAssertTrue(CaptureSourceAccess.originalLinkAvailable(denied))
+        XCTAssertTrue(CaptureSourceAccess.originalLinkAvailable("LinkedIn post has incomplete author, text, video or poster metadata; use the original link"))
+        XCTAssertFalse(CaptureSourceAccess.denied("LinkedIn post has incomplete author, text, video or poster metadata; use the original link"))
+    }
+}

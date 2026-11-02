@@ -1,9 +1,11 @@
 import { createHash } from "node:crypto";
-import { mkdir, readdir, rm, stat } from "node:fs/promises";
+import { mkdir, readdir, rm, stat, copyFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { createCanvas, loadImage, type Image } from "@napi-rs/canvas";
-import type { BlockPlan, LayoutNode, MediaAsset, MediaKind } from "./types.ts";
+import type { BlockPlan, LayoutNode, MediaAsset, MediaKind, ResolvedPost } from "./types.ts";
 import { parseSource } from "../packages/core/url.ts";
+import { mediaSources, planMedia } from "../packages/core/media-tree.ts";
+import { blockPlanSchema } from "./types.ts";
 import { runYtDlp, type YtDlpRunner } from "./providers/soundcloud.ts";
 
 const FFMPEG = "ffmpeg";
@@ -20,7 +22,6 @@ const VIDEO_LIMIT_HEADROOM = 0.9;
 const VIDEO_BUFFER_SECONDS = 2;
 const VIDEO_CRF = 20;
 const VIDEO_PRESET = "medium";
-const VIDEO_MAX_COMPOSE_SECONDS = 600;
 const VIDEO_MAX_SOURCE_BYTES = 750 * 1024 * 1024;
 export class MediaBudgetError extends Error { readonly code = "media_budget"; }
 export class MediaInspectionError extends Error {
@@ -37,7 +38,7 @@ export type RenderedMedia = {
   size: number;
 };
 
-export type RenderOptions = { signal?: AbortSignal; downloadTimeoutMs?: number; ytDlp?: YtDlpRunner };
+export type RenderOptions = { signal?: AbortSignal; downloadTimeoutMs?: number; ytDlp?: YtDlpRunner; fetcher?: typeof fetch; maximumAudioBytes?: number };
 
 function abortable<T>(operation: Promise<T>, signal: AbortSignal): Promise<T> {
   if (signal.aborted) { void operation.catch(() => {}); return Promise.reject(signal.reason); }
@@ -56,7 +57,7 @@ export { tileRects, even, canvasSize } from "../packages/core/render-recipe.ts";
 
 function assetMap(plan: BlockPlan): Map<string, MediaAsset> {
   const frames = new Map((plan.block.frameMedia ?? []).map(item => [item.ref, item.url]));
-  return new Map(plan.sources.flatMap((post) => post.media).map((item) => [item.ref,
+  return new Map(planMedia(plan).map((item) => [item.ref,
     frames.has(item.ref) ? { ...item, kind: "image" as const, url: frames.get(item.ref)! } : item]));
 }
 
@@ -189,11 +190,10 @@ export function checkVideoInputBudget(ref: string, duration: number, bytes: numb
 }
 
 function checkKnownVideoBudget(ref: string, duration?: number, bytes?: number): void {
-  if ((duration !== undefined && Number.isFinite(duration) && duration > VIDEO_MAX_COMPOSE_SECONDS)
-      || (bytes !== undefined && Number.isFinite(bytes) && bytes > VIDEO_MAX_SOURCE_BYTES)) {
+  if (bytes !== undefined && Number.isFinite(bytes) && bytes > VIDEO_MAX_SOURCE_BYTES) {
     const details = [duration && Number.isFinite(duration) ? `${Math.round(duration / 60)} minutes` : undefined,
       bytes && Number.isFinite(bytes) ? `${(bytes / (1024 ** 3)).toFixed(2)} GiB` : undefined].filter(Boolean).join(" / ");
-    throw new MediaBudgetError(`Selected video ${ref} is ${details}; a media mosaic is bounded to 10 minutes and 750 MiB per video. Select a smaller clip or use text-only capture; no block creation was attempted.`);
+    throw new MediaBudgetError(`Selected video ${ref} is ${details}; video inputs are bounded to 750 MiB per video. Select a smaller file or use a frame; no block creation was attempted.`);
   }
 }
 
@@ -246,7 +246,13 @@ async function stage(item: MediaAsset, directory: string, options: RenderOptions
     FFMPEG, "-nostdin", "-loglevel", "error",
     "-i", item.url, "-c", "copy", "-sn", "-dn", "-movflags", "+faststart", "-y", path,
   ], options.signal, { path, bytes: VIDEO_MAX_SOURCE_BYTES, ref: item.ref });
-  return { item, path, probe: await probe(path, options.signal) };
+  const result = await probe(path, options.signal);
+  if (item.acquisition === "substack-public-original") verifyOriginalDuration(item.durationSeconds, result.duration);
+  return { item, path, probe: result };
+}
+
+function verifyOriginalDuration(expected: number | undefined, actual: number): void {
+  if (!(expected && expected > 0) || Math.abs(actual - expected) > Math.max(1, expected * 0.02)) throw new Error("Substack original media duration disagrees with its complete public source; no preview was saved");
 }
 
 export { videoBitrate } from "../packages/core/render-recipe.ts";
@@ -298,10 +304,13 @@ async function renderImages(plan: BlockPlan, directory: string, options: RenderO
     return writeContentAddressed(directory, "jpg", await canvas.encode("jpeg", 92));
   }
   if (!plan.block.layout) throw new Error("Image plan has no layout");
-  const { size, rects } = tileRects(plan.block.layout, assets, IMAGE_LONG_EDGE, IMAGE_MIN_TILE);
   const images = new Map<string, Image>();
   await Promise.all(selected.map(async (item) => images.set(item.ref, await loadImage(await fetchBytes(item.url, options)))));
   options.signal?.throwIfAborted();
+  // Match native preparation: source metadata can omit image dimensions, so
+  // compute tile geometry from the decoded originals before drawing covers.
+  for (const [ref, image] of images) assets.set(ref, { ...assets.get(ref)!, width: image.width, height: image.height });
+  const { size, rects } = tileRects(plan.block.layout, assets, IMAGE_LONG_EDGE, IMAGE_MIN_TILE);
   const canvas = createCanvas(size.width, size.height);
   const context = canvas.getContext("2d");
   for (const [ref, rect] of rects) {
@@ -338,16 +347,14 @@ async function renderVideo(plan: BlockPlan, directory: string, options: RenderOp
     checkKnownVideoBudget(item.ref, item.durationSeconds, bytes);
     return preflightVideo(item, bytes, bounded, options.signal);
   }));
-  if (videoInputs.reduce((sum, item) => sum + item.duration, 0) > VIDEO_MAX_COMPOSE_SECONDS
-    || videoInputs.reduce((sum, item) => sum + item.bytes, 0) > VIDEO_MAX_SOURCE_BYTES)
-    throw new MediaBudgetError("Selected videos together exceed 10 minutes or 750 MiB; choose fewer clips or use text-only capture");
+  if (videoInputs.reduce((sum, item) => sum + item.bytes, 0) > VIDEO_MAX_SOURCE_BYTES)
+    throw new MediaBudgetError("Selected video inputs together exceed 750 MiB; choose fewer clips or use a frame");
   const layout: LayoutNode = plan.block.layout ?? { kind: "media", ref: selected[0]!.ref };
   const staging = join(directory, ".staging", crypto.randomUUID());
   await mkdir(staging, { recursive: true });
   try {
     const staged: Staged[] = [];
     let stagedBytes = 0;
-    let stagedVideoSeconds = 0;
     for (const item of selected) {
       const next = await stage(item, staging, options);
       const size = (await stat(next.path)).size;
@@ -357,9 +364,6 @@ async function renderVideo(plan: BlockPlan, directory: string, options: RenderOp
         // Provider duration and HTTP length are hints. Enforce the budget from
         // the staged bytes and the actual local probe before encoding.
         checkVideoInputBudget(item.ref, next.probe.duration, size);
-        stagedVideoSeconds += next.probe.duration;
-        if (stagedVideoSeconds > VIDEO_MAX_COMPOSE_SECONDS)
-          throw new MediaBudgetError("Staged videos together exceed 10 minutes; choose fewer clips or use text-only capture; no block creation was attempted");
       }
       staged.push(next);
     }
@@ -376,6 +380,10 @@ async function renderVideo(plan: BlockPlan, directory: string, options: RenderOp
     };
     const output = join(staging, "mosaic.mp4");
     await run([FFMPEG, ...mosaicArguments(mosaic, output)], options.signal);
+    const verified = await probe(output, options.signal);
+    if (Math.abs(verified.duration - mosaic.duration) > Math.max(0.25, 2 / mosaic.fps) || (mosaic.audio?.length && !verified.audio)) {
+      throw new Error("The video export did not preserve the complete duration or selected audio; no block was created");
+    }
     const bytes = new Uint8Array(await Bun.file(output).arrayBuffer());
     if (bytes.byteLength > VIDEO_LIMIT_BYTES) {
       throw new Error(`Normalized video is ${bytes.byteLength} bytes, above Are.na's ${VIDEO_LIMIT_BYTES} byte attachment limit`);
@@ -388,49 +396,130 @@ async function renderVideo(plan: BlockPlan, directory: string, options: RenderOp
 }
 
 async function renderSoundCloudAudio(plan: BlockPlan, directory: string, options: RenderOptions): Promise<RenderedMedia> {
-  if (plan.sources.length !== 1 || plan.sources[0]!.provider !== "soundcloud" || plan.sources[0]!.soundcloud?.kind !== "track"
-    || !plan.sources[0]!.soundcloud.originalDownloadAvailable) throw new Error("Audio plan does not identify a publicly downloadable SoundCloud track");
-  const source = parseSource(plan.block.canonicalSource);
-  if (source.provider !== "soundcloud" || source.kind !== "track" || source.canonicalUrl !== plan.block.canonicalSource) throw new Error("Audio source is not a canonical public SoundCloud track URL");
-  const assets = selectedAssets(plan);
-  if (assets.length !== 1 || assets[0]!.kind !== "audio" || assets[0]!.acquisition !== "soundcloud-original-download" || assets[0]!.url !== source.canonicalUrl) {
-    throw new Error("Audio plan must select exactly one original SoundCloud download");
+  const owner = selectedAudioSource(plan);
+  if (plan.sources.length !== 1 || owner?.provider !== "soundcloud" || owner.soundcloud?.kind !== "track") {
+    throw new Error("Audio plan does not identify a public SoundCloud track");
   }
+  const source = parseSource(owner.canonicalUrl);
+  if (source.provider !== "soundcloud" || source.kind !== "track" || source.canonicalUrl !== owner.canonicalUrl) throw new Error("Audio source is not a canonical public SoundCloud track URL");
+  const assets = selectedAssets(plan);
+  if (assets.length !== 1 || assets[0]!.kind !== "audio"
+    || !["soundcloud-original-download", "soundcloud-mp3"].includes(assets[0]!.acquisition ?? "") || assets[0]!.url !== source.canonicalUrl) {
+    throw new Error("Audio plan must select a SoundCloud track download");
+  }
+  const mp3 = assets[0]!.acquisition === "soundcloud-mp3";
+  if (!mp3 && !owner.soundcloud.originalDownloadAvailable) {
+    throw new Error("SoundCloud original download is unavailable for this retained plan");
+  }
+  const signal = AbortSignal.any([...(options.signal ? [options.signal] : []), AbortSignal.timeout(options.downloadTimeoutMs ?? 600_000)]);
+  const maximumBytes = Math.min(VIDEO_LIMIT_BYTES, Math.max(1, options.maximumAudioBytes ?? VIDEO_LIMIT_BYTES));
   const staging = join(directory, ".staging", crypto.randomUUID());
   await mkdir(staging, { recursive: true });
   try {
     const output = join(staging, "original.%(ext)s");
     const runDownload = options.ytDlp ?? runYtDlp;
-    await runDownload(["--no-playlist", "--format", "download", "--max-filesize", "250M", "--output", output, "--", source.canonicalUrl], options.signal);
-    const allowed = new Set(["mp3", "m4a", "wav", "flac", "ogg", "opus", "aac"]);
+    const formatArgs = mp3
+      ? ["--format", "bestaudio[ext=mp3]/bestaudio", "--extract-audio", "--audio-format", "mp3", "--audio-quality", "0", "--print", "after_move:%(id)s"]
+      : ["--format", "download"];
+    const downloaded = await runDownload(["--no-playlist", ...formatArgs, "--max-filesize", "250M", "--output", output, "--", source.canonicalUrl], signal);
+    signal.throwIfAborted();
+    if (mp3 && downloaded.stdout.trim() !== owner.soundcloud.trackId) throw new Error("SoundCloud downloaded a different track than the prepared source");
+    const allowed = new Set(mp3 ? ["mp3"] : ["mp3", "m4a", "wav", "flac", "ogg", "opus", "aac"]);
     const candidates = (await readdir(staging)).filter(name => name.startsWith("original.") && allowed.has(name.slice("original.".length)));
-    if (candidates.length !== 1) throw new Error("yt-dlp did not produce exactly one supported original audio file");
+    if (candidates.length !== 1) throw new Error("yt-dlp did not produce the requested SoundCloud audio file");
     const path = join(staging, candidates[0]!);
     const details = await stat(path);
     if (!details.isFile() || details.size === 0) throw new Error("yt-dlp produced an empty SoundCloud audio file");
-    if (details.size > VIDEO_LIMIT_BYTES) throw new MediaBudgetError("Original SoundCloud audio exceeds the 250 MiB Are.na attachment limit");
+    if (details.size > maximumBytes) throw new MediaBudgetError("SoundCloud audio exceeds the attachment size limit");
     const extension = candidates[0]!.slice("original.".length) as RenderedMedia["extension"];
-    if (extension !== plan.sources[0]!.soundcloud.originalDownloadExtension) {
+    if (!mp3 && extension !== owner.soundcloud.originalDownloadExtension) {
       throw new Error("SoundCloud original download format changed since the plan was prepared");
     }
-    const probe = JSON.parse(await run([FFPROBE, "-v", "error", "-show_streams", "-show_format", "-of", "json", path], options.signal)) as {
-      format?: { format_name?: string }; streams?: Array<{ codec_type?: string; codec_name?: string; disposition?: { attached_pic?: number } }>;
+    const probe = JSON.parse(await run([FFPROBE, "-v", "error", "-show_streams", "-show_format", "-of", "json", path], signal)) as {
+      format?: { format_name?: string; duration?: string }; streams?: Array<{ codec_type?: string; codec_name?: string; disposition?: { attached_pic?: number } }>;
     };
     const streams = probe.streams ?? [];
     if (!streams.some(stream => stream.codec_type === "audio") || streams.some(stream => stream.codec_type === "video" && stream.disposition?.attached_pic !== 1)) {
-      throw new Error("SoundCloud original download is not an audio-only media file");
+      throw new Error("SoundCloud download is not an audio-only media file");
     }
     const formats = new Set(probe.format?.format_name?.split(",") ?? []);
     const expected: Record<string, string> = { mp3: "mp3", m4a: "m4a", wav: "wav", flac: "flac", ogg: "ogg", opus: "ogg", aac: "aac" };
     if (!formats.has(expected[extension]!) || (extension === "opus" && !streams.some(stream => stream.codec_type === "audio" && stream.codec_name === "opus"))) {
-      throw new Error(`SoundCloud original audio content does not match its .${extension} file extension`);
+      throw new Error(`SoundCloud audio content does not match its .${extension} file extension`);
+    }
+    if (mp3) {
+      const duration = Number(probe.format?.duration), expectedDuration = assets[0]!.durationSeconds;
+      if (!streams.some(stream => stream.codec_type === "audio" && stream.codec_name === "mp3") || !(duration > 0)) {
+        throw new Error("SoundCloud download is not a valid MP3 audio file");
+      }
+      if (expectedDuration && Math.abs(duration - expectedDuration) > Math.max(1, expectedDuration * 0.02)) {
+        throw new Error("SoundCloud audio duration does not match the selected track");
+      }
     }
     const bytes = new Uint8Array(await Bun.file(path).arrayBuffer());
-    options.signal?.throwIfAborted();
+    signal.throwIfAborted();
     return writeContentAddressed(directory, extension, bytes);
   } finally {
     await rm(staging, { recursive: true, force: true });
   }
+}
+
+async function renderSubstackAudio(plan: BlockPlan, directory: string, options: RenderOptions): Promise<RenderedMedia> {
+  const assets = selectedAssets(plan), source = selectedAudioSource(plan), asset = assets[0];
+  let original=source?.substackArticle?.nativeMedia?.find(item=>item.kind==="audio"&&item.url===asset?.url);
+  if(asset?.sourceAttribution){
+    const node=mediaSources(plan.sources).find(node=>node.media.some(item=>item.ref===asset.ref));
+    let note=source?.substackCapture?.note;
+    if(!note){
+      note=node&&plan.sources[node.rootIndex]?.substackCapture?.note;
+      for(let depth=0;note&&depth<(node?.quoteDepth??0);depth++)note=note.quote?.expanded;
+    }
+    const attachment=note?.attachmentEvidence?.attachments.find(item=>item.id===asset.sourceAttribution!.attachmentId);
+    original=attachment?.kind==="article"?attachment.podcast?.article?.audio:undefined;
+  }
+  if (plan.sources.length !== 1 || assets.length !== 1 || asset?.kind !== "audio" || asset.acquisition !== "substack-public-original"
+    || !original || original.kind!=="audio" || original.url!==asset.url
+      || original.durationSeconds!==asset.durationSeconds) throw new Error("Original Substack audio is missing consistent complete public source evidence");
+  try { blockPlanSchema.parse(plan); }
+  catch { throw new Error("Original Substack audio is missing consistent complete public source evidence"); }
+  const signal = AbortSignal.any([...(options.signal ? [options.signal] : []), AbortSignal.timeout(options.downloadTimeoutMs ?? 60_000)]);
+  const staging = join(directory, ".staging", crypto.randomUUID()); await mkdir(staging, { recursive: true });
+  const path = join(staging, "original-audio");
+  const limit = Math.min(VIDEO_LIMIT_BYTES, Math.max(1, options.maximumAudioBytes ?? VIDEO_LIMIT_BYTES));
+  try {
+    const response = await abortable((options.fetcher ?? fetch)(asset.url, { credentials: "omit", signal, headers: { accept: "audio/*" } }), signal);
+    if (!response.ok || !response.body) throw new Error(`Public Substack audio download returned HTTP ${response.status}`);
+    if (Number(response.headers.get("content-length")) > limit) { void response.body.cancel(); throw new MediaBudgetError("Original audio exceeds the attachment limit"); }
+    const writer = Bun.file(path).writer(), reader = response.body.getReader(); let size = 0;
+    try {
+      while (true) {
+        const { done, value } = await abortable(reader.read(), signal); if (done) break;
+        if ((size += value.byteLength) > limit) throw new MediaBudgetError("Original audio exceeds the attachment limit");
+        writer.write(value);
+      }
+    } finally { await writer.end(); void reader.cancel().catch(() => {}); }
+    signal.throwIfAborted();
+    if (!size) throw new Error("Public Substack audio was empty");
+    const report = JSON.parse(await run([FFPROBE, "-v", "error", "-show_entries", "format=format_name,duration:stream=codec_type,codec_name:stream_disposition=attached_pic", "-of", "json", path], signal));
+    const streams: Array<{ codec_type: string; codec_name?: string; disposition?: { attached_pic?: number } }> = report.streams ?? [];
+    if (!streams.some(item => item.codec_type === "audio") || streams.some(item => item.codec_type === "video" && item.disposition?.attached_pic !== 1) || !(Number(report.format?.duration) > 0)) throw new Error("The public Substack original is not a valid audio-only attachment");
+    verifyOriginalDuration(asset.durationSeconds, Number(report.format.duration));
+    const formats = String(report.format?.format_name ?? "").split(",");
+    const extension = formats.includes("mp3") ? "mp3" : formats.includes("wav") ? "wav" : formats.includes("flac") ? "flac"
+      : formats.includes("ogg") ? "ogg" : formats.includes("aac") ? "aac" : formats.includes("m4a") || formats.includes("mp4") ? "m4a" : undefined;
+    if (!extension) throw new Error("This public audio format is not supported without conversion");
+    const hash = createHash("sha256"); for await (const chunk of Bun.file(path).stream()) { signal.throwIfAborted(); hash.update(chunk); }
+    signal.throwIfAborted();
+    const digest = hash.digest("hex"), output = join(directory, digest.slice(0, 2), `${digest}.${extension}`);
+    await mkdir(dirname(output), { recursive: true }); signal.throwIfAborted(); await copyFile(path, output);
+    if (signal.aborted) { await rm(output, { force: true }); signal.throwIfAborted(); }
+    return { path: output, hash: digest, extension, mimeType: FORMAT_MIME[extension], size };
+  } finally { await rm(staging, { recursive: true, force: true }); }
+}
+
+function selectedAudioSource(plan: BlockPlan): ResolvedPost | undefined {
+  const ref = plan.block.selectedMedia[0];
+  return mediaSources(plan.sources).find(node => node.media.some(asset => asset.ref === ref && asset.kind === "audio"))?.source;
 }
 
 export async function renderPlan(plan: BlockPlan, directory: string, options: RenderOptions = {}): Promise<RenderedMedia | undefined> {
@@ -441,7 +530,7 @@ export async function renderPlan(plan: BlockPlan, directory: string, options: Re
   try {
     return await (plan.block.kind === "image" ? renderPlaylistArtwork(plan, directory, { ...options, signal })
       : plan.block.kind === "video" ? renderVideo(plan, directory, { ...options, signal })
-      : plan.block.kind === "audio" ? renderSoundCloudAudio(plan, directory, { ...options, signal })
+      : plan.block.kind === "audio" ? (selectedAudioSource(plan)?.provider === "substack" ? renderSubstackAudio(plan, directory, { ...options, signal }) : renderSoundCloudAudio(plan, directory, { ...options, signal }))
         : renderImages(plan, directory, { ...options, signal }));
   } catch (error) {
     controller.abort(error); // Stop other selected downloads after a partial failure.

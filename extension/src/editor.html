@@ -11,12 +11,20 @@
   <main class="shell">
     <header class="topbar"><span class="brand"><span class="mark" aria-hidden="true">a.</span><span>Capture</span></span><button id="new-capture" class="header-action" type="button" aria-label="New capture" title="New capture">New</button><button id="back-to-capture" class="back-button" type="button" hidden>Done</button></header>
     <div class="viewport">
+      <details id="capture-access" class="intake"><summary>Capture access</summary>
+        <p class="hint">Read supported source sites and the current page. Connect to the local helper to prepare blocks and save them to your chosen Are.na channels.</p>
+        <button id="allow-capture-access" class="quiet" type="button">Allow capture access</button>
+        <p id="capture-access-status" class="hint" role="status" aria-live="polite"></p>
+        <p id="capture-access-unavailable" class="hint" hidden></p>
+        <details><summary>Sites included</summary><pre id="capture-access-origins" class="hint"></pre></details>
+      </details>
       <div id="capture-view">
         <section id="capture-preview" class="capture-preview" aria-label="Source preview">
           <img id="capture-preview-image" alt="" referrerpolicy="no-referrer" hidden>
           <div class="capture-preview-copy"><span id="capture-preview-meta"></span><h1 id="capture-preview-title">Add a source</h1><p id="capture-preview-excerpt"></p><button id="preview-source" class="quiet" type="button" hidden>Preview</button></div>
         </section>
         <p id="status" class="status" role="status" aria-live="polite"></p>
+        <details id="block-preview" class="block-preview" open hidden><summary>Block text preview</summary><div id="block-text-preview" class="markdown-preview" dir="auto" tabindex="0" aria-label="Formatted block text"></div></details>
         <details id="earlier-saves" class="intake" hidden><summary>Earlier saves <span id="earlier-count"></span></summary><div id="earlier-save-list"></div></details>
         <section class="destination" aria-labelledby="save-heading"><div class="section-head"><h2 id="save-heading">Add to</h2><button id="choose-channel" class="quiet" type="button">Choose channels</button></div><div id="selected-channels" class="selected-channels" aria-label="Selected channels"></div><span id="selected-count" class="visually-hidden">0 / 20</span></section>
         <details id="composition" class="composition" hidden>
@@ -35,6 +43,9 @@
           <label for="primary" class="visually-hidden">Source links, one per line</label>
           <textarea id="primary" rows="3" spellcheck="false" placeholder="Paste a link"></textarea>
           <div class="source-actions"><button id="resolve" class="quiet" type="button">Preview</button><button id="resolve-local" class="quiet" type="button" hidden>Try local helper</button></div>
+          <div class="source-actions"><button id="read-substack" class="quiet" type="button">Read Substack tab</button><button id="import-reddit" class="quiet" type="button">Import saved record</button><select id="reddit-export-choice" aria-label="Saved record to export" hidden></select><button id="export-reddit" class="quiet" type="button" hidden>Export saved record</button><input id="reddit-file" type="file" accept=".json,application/json" hidden></div>
+          <p id="substack-tab-availability" class="hint" hidden></p>
+          <p id="reddit-observation" class="hint" hidden></p>
           <details id="extra-details"><summary>Add posts for media</summary><label for="extras" class="visually-hidden">Links used only for media</label><textarea id="extras" rows="3" spellcheck="false" placeholder="One link per line"></textarea></details>
           <details id="capture-options"><summary>Capture options</summary><div class="options">
             <label for="media-policy">Media</label><select id="media-policy"><option value="auto">Auto</option><option value="all">All</option><option value="images">Images</option><option value="video">Video</option><option value="audio">Audio</option><option value="none">None</option></select>
@@ -43,8 +54,9 @@
             <label for="quote-policy">Quotes</label><select id="quote-policy"><option value="block">In block</option><option value="sequence">In sequence</option><option value="omit">Omit</option></select>
             <label for="quote-depth">Quote depth</label><select id="quote-depth"><option value="2">2</option><option value="0">0</option><option value="1">1</option><option value="3">3</option><option value="4">4</option><option value="full">Full</option></select>
             <label for="quote-dates">Quote dates</label><select id="quote-dates"><option value="auto">Auto</option><option value="source">Source</option><option value="none">None</option></select>
+            <label for="quote-author-link">Quoted authors</label><select id="quote-author-link" aria-describedby="quote-author-hint"><option value="">Keep current style</option><option value="source">Link to quoted post</option><option value="plain">Name only</option></select>
             <label for="separator-policy">Post separators</label><select id="separator-policy"><option value="auto">Auto</option><option value="always">Always</option><option value="never">Never</option></select>
-          </div></details></details>
+          </div><p id="quote-author-hint" class="hint">Links open quoted posts. Edited text is kept.</p></details></details>
         </details>
       </div>
       <section id="channel-view" class="channel-view" aria-label="Choose channels" hidden>

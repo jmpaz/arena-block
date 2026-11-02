@@ -1,3 +1,7 @@
+import { bindSubstackCaptures } from "../packages/core/substack-record.ts";
+import { SubstackProvider } from "../packages/core/providers/substack.ts";
+import { RedditProvider } from "../packages/core/providers/reddit.ts";
+import { bindRedditCaptures } from "../packages/core/reddit-record.ts";
 import { join } from "node:path";
 import { z } from "zod";
 import { openSync, readSync, closeSync } from "node:fs";
@@ -56,10 +60,10 @@ function pickerChannels(entries: unknown): ChannelRecord[] {
   });
 }
 
-function nextChannelPage(meta: unknown, page: number): number | null {
+function nextChannelPage(meta: unknown, page: number, limit = 100): number | null {
   const value = meta && typeof meta === "object" && !Array.isArray(meta) ? meta as Record<string, unknown> : {};
-  if (Number.isSafeInteger(value.next_page) && (value.next_page as number) > page && (value.next_page as number) <= 100) return value.next_page as number;
-  return value.has_more_pages === true && page < 100 ? page + 1 : null;
+  if (Number.isSafeInteger(value.next_page) && (value.next_page as number) > page && (value.next_page as number) <= limit) return value.next_page as number;
+  return value.has_more_pages === true && page < limit ? page + 1 : null;
 }
 
 class AccountMismatchError extends Error {}
@@ -281,6 +285,15 @@ export function createService(config: ServiceConfig, dependencies: { client?: Ar
         channelIndex.recordPage(accountId, page, channels, nextPage);
         return json({ accountId, channels, nextPage });
       }
+      if (request.method === "GET" && url.pathname === "/v1/account/blocks") {
+        const type = url.searchParams.get("type") ?? "Block", sort = url.searchParams.get("sort") ?? "created_at_asc", rawPage = url.searchParams.get("page") ?? "1";
+        if (!["Block", "Text", "Image", "Link", "Attachment", "Embed"].includes(type) || !["created_at_asc", "created_at_desc"].includes(sort)
+          || !/^[1-9][0-9]{0,3}$/.test(rawPage) || Number(rawPage) > 1000) return json({ error: "Invalid block page" }, 400);
+        const accountId = await pickerAccount(request.signal);
+        const page = Number(rawPage);
+        const response = await client.ownedBlockPage(accountId, type, sort, page, request.signal);
+        return json({ accountId, type, blocks: response.blocks, total: response.total, nextPage: nextChannelPage(response.meta, page, 1000) });
+      }
       const saveRoot = url.pathname.startsWith("/v1/mcp-saves") ? "/v1/mcp-saves" : "/v1/saves";
       if (url.pathname === saveRoot || url.pathname.startsWith(`${saveRoot}/`)) {
         if (saveRoot === "/v1/mcp-saves" && !config.mcpPublishingEnabled) return json({ error: "MCP publishing is disabled on this daemon" }, 403);
@@ -337,20 +350,26 @@ export function createService(config: ServiceConfig, dependencies: { client?: Ar
       if (request.method === "POST" && url.pathname === "/v1/capture/prepare") {
         const plan = blockPlanSchema.parse(await request.json());
         store.savePlan(plan);
-        const media = await renderPlan(plan, config.mediaDirectory);
+        const media = await (dependencies.render ?? renderPlan)(plan, config.mediaDirectory, { signal: request.signal });
         const { channel_ids: _, ...payload } = publicationPayload(plan, config.publicBaseUrl, media, []);
         return json({ payload, update: publicationFields(plan) });
       }
       if (request.method === "POST" && url.pathname === "/v1/resolve") {
-        const input = planInputSchema.parse(await request.json());
-        if (input.refresh) resolver.clearSourceCache();
-        const resolved = await resolver.resolveComposition(input.refs, input.extraRefs, input.policy, request.signal);
+        const input = planInputSchema.parse(await boundedJson(request, 3 * 1024 * 1024, deadline(10_000, request.signal)));
+        const captures = bindRedditCaptures([...input.refs, ...input.extraRefs], input.redditCaptures);
+        const substack = bindSubstackCaptures([...input.refs, ...input.extraRefs], input.substackCaptures);
+        const requestResolver = captures.length || substack.length ? new SocialResolver({ reddit: new RedditProvider(undefined, captures), substack: new SubstackProvider(substack) }) : resolver;
+        if (input.refresh) requestResolver.clearSourceCache();
+        const resolved = await requestResolver.resolveComposition(input.refs, input.extraRefs, input.policy, request.signal);
         return json({ schemaVersion: 1, posts: resolved.posts, policy: resolved.policy });
       }
       if (request.method === "POST" && url.pathname === "/v1/plans") {
-        const input = planInputSchema.parse(await request.json());
-        if (input.refresh) resolver.clearSourceCache();
-        const resolved = await resolver.resolveComposition(input.refs, input.extraRefs, input.policy, request.signal);
+        const input = planInputSchema.parse(await boundedJson(request, 3 * 1024 * 1024, deadline(10_000, request.signal)));
+        const captures = bindRedditCaptures([...input.refs, ...input.extraRefs], input.redditCaptures);
+        const substack = bindSubstackCaptures([...input.refs, ...input.extraRefs], input.substackCaptures);
+        const requestResolver = captures.length || substack.length ? new SocialResolver({ reddit: new RedditProvider(undefined, captures), substack: new SubstackProvider(substack) }) : resolver;
+        if (input.refresh) requestResolver.clearSourceCache();
+        const resolved = await requestResolver.resolveComposition(input.refs, input.extraRefs, input.policy, request.signal);
         const plan = composePlan(resolved.posts, resolved.policy);
         store.savePlan(plan);
         return json(plan);
@@ -363,7 +382,7 @@ export function createService(config: ServiceConfig, dependencies: { client?: Ar
       if (request.method === "POST" && url.pathname === "/v1/render") {
         const plan = blockPlanSchema.parse(await request.json());
         store.savePlan(plan);
-        const media = await renderPlan(plan, config.mediaDirectory);
+        const media = await (dependencies.render ?? renderPlan)(plan, config.mediaDirectory, { signal: request.signal });
         return json({ plan, media: media ? { ...media, url: `${config.publicBaseUrl}/media/${media.hash}.${media.extension}` } : null });
       }
       if (request.method === "POST" && url.pathname === "/v1/publications") {

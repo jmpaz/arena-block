@@ -53,6 +53,38 @@ final class CaptureHistoryTests: XCTestCase {
         }
     }
 
+    func testLifecycleClassificationKeepsSubmittedAttentionActiveAndSourceFailuresInDrafts() {
+        var draft = CaptureDraft(accountID: 42, defaultChannel: nil, input: "https://example.test")
+        XCTAssertFalse(draft.isActiveCapture); XCTAssertTrue(draft.isDraftCapture)
+        for phase in [CapturePhase.queued, .creating, .checking, .uncertain] {
+            draft.phase = phase
+            XCTAssertTrue(draft.isActiveCapture)
+        }
+        draft.deliveryState = .init(operationID: draft.id, stage: .attention, stopRequested: true)
+        XCTAssertTrue(draft.isActiveCapture)
+        draft.deliveryState?.preparationFailureStage = .reading
+        XCTAssertFalse(draft.isActiveCapture); XCTAssertTrue(draft.isDraftCapture)
+        draft.phase = .saved; draft.deliveryState = .init(operationID: draft.id, stage: .done)
+        XCTAssertFalse(draft.isActiveCapture); XCTAssertFalse(draft.isDraftCapture)
+    }
+
+    @MainActor func testActiveFilteringPrecedesPaginationAndRemainsAccountScoped() throws {
+        try fixture { store, _ in
+            var active = CaptureDraft(accountID: 42, defaultChannel: nil, input: "https://example.test/active")
+            active.phase = .checking; active.updatedAt = .distantPast
+            try store.save(active, account: 42, kind: "draft", id: active.id.uuidString)
+            for index in 0..<120 {
+                var saved = CaptureDraft(accountID: 42, defaultChannel: nil, input: "https://example.test/saved/\(index)")
+                saved.phase = .saved
+                try store.save(saved, account: 42, kind: "draft", id: saved.id.uuidString)
+            }
+            XCTAssertEqual(try store.captureHistory(account: 42, activeOnly: true, limit: 1).map(\.id), [active.id])
+            XCTAssertEqual(try store.captureHistory(account: 42, activeOnly: false, limit: 100).count, 100)
+            XCTAssertEqual(try store.captureHistory(account: 42, activeOnly: false, limit: 200).count, 120)
+            XCTAssertEqual(try store.captureHistory(account: 99, activeOnly: true, limit: 100).count, 0)
+        }
+    }
+
     @MainActor
     private func fixture(_ body: (CaptureStore, URL) throws -> Void) throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("capture-history-" + UUID().uuidString)

@@ -1,0 +1,124 @@
+{
+  "schemaVersion": 1,
+  "sources": [
+    {
+      "provider": "substack",
+      "id": "359359118",
+      "canonicalUrl": "https://substack.com/@substack/note/c-359359118",
+      "author": {
+        "handle": "substack",
+        "name": "Substack"
+      },
+      "text": "[Rob Stephenson](<https://substack.com/profile/29432745-rob-stephenson>) photographs, writes about, and records every neighborhood in New York City for a living\n\n*[Substack Note source](<https://substack.com/@substack/note/c-359359118>) · Oct 12, 2026, 7:15 PM*",
+      "postTitle": "Substack Note by @substack",
+      "postedAt": "2026-10-12T19:15:09.000Z",
+      "media": [
+        {
+          "kind": "video",
+          "url": "https://substack.com/api/v1/video/upload/9681d26c-5e44-4f6e-bd53-679694ab6da6/src?type=mp4",
+          "durationSeconds": 69.69463,
+          "width": 1080,
+          "height": 1920,
+          "posterUrl": "https://substack-video.s3.amazonaws.com/video_upload/user/81309935/9681d26c-5e44-4f6e-bd53-679694ab6da6/transcoded-00001.png",
+          "acquisition": "substack-public-original",
+          "ref": "1.1",
+          "alt": "",
+          "sourceRole": "original"
+        }
+      ],
+      "substackCapture": {
+        "schema": "arena-block/substack-browser-capture",
+        "version": 1,
+        "sourceUrl": "https://substack.com/@substack/note/c-359359118",
+        "observedAt": "2026-10-15T15:48:18.824Z",
+        "method": "public-html",
+        "note": {
+          "acquisition": {
+            "method": "public-html",
+            "observedAt": "2026-10-15T15:48:18.824Z"
+          },
+          "url": "https://substack.com/@substack/note/c-359359118",
+          "author": {
+            "handle": "substack",
+            "name": "Substack",
+            "profileUrl": "https://substack.com/@substack"
+          },
+          "body": {
+            "status": "complete",
+            "html": "<p><span class=\"node-substack_mention\"><span style=\"min-width:0\" data-state=\"closed\"><a class=\"mention-LUD0tW\" href=\"https://substack.com/profile/29432745-rob-stephenson\">Rob Stephenson</a></span></span> photographs, writes about, and records every neighborhood in New York City for a living</p>"
+          },
+          "publishedLabel": "Oct 12, 2026, 7:15 PM",
+          "postedAt": "2026-10-12T19:15:09.000Z",
+          "links": [],
+          "attachmentEvidence": {
+            "method": "public-api",
+            "observedAt": "2026-10-15T15:48:18.821Z",
+            "commentId": 359359118,
+            "userId": 81309935,
+            "handle": "substack",
+            "bodyText": "@Rob Stephenson photographs, writes about, and records every neighborhood in New York City for a living",
+            "attachments": [
+              {
+                "kind": "video",
+                "id": "199db938-2d40-49ca-bdc3-7b6fe4ac5534",
+                "userId": 81309935,
+                "commentId": 359359118,
+                "upload": {
+                  "id": "9681d26c-5e44-4f6e-bd53-679694ab6da6",
+                  "userId": 81309935,
+                  "state": "transcoded",
+                  "postId": null,
+                  "publicationId": null,
+                  "durationSeconds": 69.69463,
+                  "width": 1080,
+                  "height": 1920,
+                  "thumbnailId": 1
+                }
+              }
+            ]
+          }
+        }
+      },
+      "quoteCoverage": {
+        "maxDepth": 8,
+        "actualDepth": 0,
+        "maxReached": false,
+        "truncated": false,
+        "stopped": "end",
+        "sourceIds": [
+          "359359118"
+        ],
+        "acquisitionDepth": 2,
+        "mayExpand": false
+      }
+    }
+  ],
+  "policy": {
+    "media": "none",
+    "selectedMedia": [],
+    "quote": "block",
+    "separator": "auto"
+  },
+  "block": {
+    "kind": "text",
+    "title": "Substack Note by @substack",
+    "markdown": "[Rob Stephenson](<https://substack.com/profile/29432745-rob-stephenson>) photographs, writes about, and records every neighborhood in New York City for a living\n\n*[Substack Note source](<https://substack.com/@substack/note/c-359359118>) · Oct 12, 2026, 7:15 PM*\n\n*[video]*",
+    "description": "Substack public HTML capture observed at: 2026-10-15T15:48:18.824Z. Full root prose; quoted Note availability and linked/preview/attachment roles retained in the source record. Displayed publication labels have no inferred timezone.",
+    "canonicalSource": "https://substack.com/@substack/note/c-359359118",
+    "selectedMedia": [],
+    "quoteCoverage": [
+      {
+        "sourceId": "359359118",
+        "availableDepth": 0,
+        "renderedDepth": 0,
+        "requestedDepth": 2,
+        "maxDepth": 8,
+        "maxReached": false,
+        "truncated": false,
+        "stopped": "end",
+        "mayExpand": false
+      }
+    ]
+  },
+  "hash": "b96066f9d6f5c6e6db5f2ccb01016cf74eaa997bd27777907f58fdcc52ca8398"
+}

@@ -1,0 +1,18 @@
+[
+  {
+    "file": "345777657-retained.json",
+    "inputFixture": "substack-quoted-video-public-plan.json",
+    "inputSHA256": "747b4ddc0733502a069d15bc149469b49082303aca9cc46a5345a1b1e4344e1e",
+    "captureObservedAt": "2026-10-16T06:28:17.749Z",
+    "originalResponseSHA256": null,
+    "projection": "Exact retained actual-source capture; no reconstructed or invented public DOM."
+  },
+  {
+    "file": "353698796-retained.json",
+    "inputFixture": "substack-quoted-mixed-public-plan.json",
+    "inputSHA256": "da482a89dceb74f69a5d1488d7efd4727f631e12a6f35067cb6be00e9b27b121",
+    "captureObservedAt": "2026-10-16T06:28:18.512Z",
+    "originalResponseSHA256": null,
+    "projection": "Exact retained actual-source capture; no reconstructed or invented public DOM."
+  }
+]

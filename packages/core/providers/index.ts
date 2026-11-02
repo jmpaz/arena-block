@@ -1,4 +1,5 @@
-import { compositionPolicySchema, MAX_EXPANDED_SOURCE_POSTS, type CompositionPolicy, type ResolvedPost } from "../types.ts";
+import { compositionPolicySchema, DEFAULT_VIDEO_FRAME_THRESHOLD_SECONDS, MAX_EXPANDED_SOURCE_POSTS, type CompositionPolicy, type ResolvedPost } from "../types.ts";
+import { mediaSources } from "../media-tree.ts";
 import { parseSource } from "../url.ts";
 import { explicitSelections, selectionIdentity } from "../source-selection.ts";
 import { DelveProvider } from "./delve.ts";
@@ -9,6 +10,8 @@ import { HackerNewsProvider } from "./hackernews.ts";
 import { LobstersProvider } from "./lobsters.ts";
 import { MastodonProvider } from "./mastodon.ts";
 
+import { LinkedInProvider } from "./linkedin.ts";
+import { SubstackProvider } from "./substack.ts";
 import { RedditProvider } from "./reddit.ts";
 import { ForumMagnumProvider } from "./forum-magnum.ts";
 import { AtmosphereProvider } from "./atmosphere.ts";
@@ -19,6 +22,8 @@ export class SocialResolver {
 
   constructor(providers?: Partial<Record<ReturnType<typeof parseSource>["provider"], SocialProvider>>) {
     this.providers = {
+      linkedin: providers?.linkedin ?? new LinkedInProvider(),
+      substack: providers?.substack ?? new SubstackProvider(),
       arena: providers?.arena ?? new ArenaMediaProvider(),
       reddit: providers?.reddit ?? new RedditProvider(),
       forum_magnum: providers?.forum_magnum ?? new ForumMagnumProvider(),
@@ -60,7 +65,16 @@ export class SocialResolver {
     const policy = compositionPolicySchema.parse(policyInput);
     const singleSource = primaries.length === 1 ? parseSource(primaries[0]!.ref) : undefined;
     let primaryPosts: ResolvedPost[];
-    if (primaries.length === 1 && parseSource(primaries[0]!.ref).provider === "x" && policy.threadExpansion === "on") {
+    if (singleSource?.provider === "substack" && !("kind" in singleSource) && policy.threadExpansion === "on") {
+      const provider = this.providers.substack;
+      if (!(provider instanceof SubstackProvider)) throw new Error("Substack author-chain discovery is unavailable; add exact Note permalinks");
+      const discovered = await provider.discoverLinear(singleSource, signal, policy);
+      primaryPosts = discovered.posts.map(post => ({ ...post, selection: {
+        role: "primary" as const, origin: post.id === discovered.seedId ? "explicit" as const : "expanded" as const,
+        ...(post.id === discovered.seedId ? { declaredIndex: primaries[0]!.declaredIndex } : {}),
+        ...(post.replyTo ? { parentUri: `https://substack.com/note/c-${post.replyTo.id}` } : {}),
+      } }));
+    } else if (primaries.length === 1 && parseSource(primaries[0]!.ref).provider === "x" && policy.threadExpansion === "on") {
       const source = parseSource(primaries[0]!.ref);
       const provider = this.providers.x;
       if (source.provider !== "x" || !(provider instanceof XProvider)) throw new Error("x.com thread import is unavailable; add posts explicitly");
@@ -132,6 +146,7 @@ export class SocialResolver {
     });
     if (posts.length > MAX_EXPANDED_SOURCE_POSTS) throw new Error(`Expanded source selection exceeds ${MAX_EXPANDED_SOURCE_POSTS} posts; choose a smaller source set`);
     const effective = compositionPolicySchema.parse({ ...policy,
+      ...(policy.videoFrameThresholdSeconds === undefined && mediaSources(posts).some(node => node.media.some(asset => asset.kind === "video")) ? { videoFrameThresholdSeconds: DEFAULT_VIDEO_FRAME_THRESHOLD_SECONDS } : {}), ...(posts.length === 1 && posts[0]!.provider === "web" ? { media: "none" } : {}),
       ...(extraRefs.length || policyInput.mediaOnlyPosts?.length
         ? { mediaOnlyPosts: posts.flatMap((post, index) => post.selection?.role === "extra" ? [index + 1] : []) } : {}) });
     return { posts: posts.map(assignMediaRefs), policy: effective };

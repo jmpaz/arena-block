@@ -89,15 +89,21 @@ test("the observed 21-post Argon thread keeps every ordered image and its root q
   expect(plan.sources[0]?.quote?.author.handle).toBe("GeminiApp");
   expect(plan.sources[20]?.replyTo?.id).toBe(plan.sources[19]?.id);
   expect(plan.sources[20]?.selection?.parentUri).toBe(plan.sources[19]?.canonicalUrl);
-  expect(plan.block.selectedMedia).toEqual(Array.from({ length: 21 }, (_, index) => `${index + 1}.1`));
-  const recipe = captureRenderRecipe(plan, {})!;
+  const photoRefs = Array.from({ length: 21 }, (_, index) => `${index + 1}.1`);
+  expect(plan.block.selectedMedia).toEqual(["1.1", "1.2", ...photoRefs.slice(1)]);
+  const recipe = captureRenderRecipe(plan, { "1.2": { width: 1920, height: 1080, duration: 50.508, fps: 30, audio: true } })!;
   expect(recipe.tiles.map(tile => tile.ref)).toEqual(plan.block.selectedMedia);
-  expect(recipe.tiles.every(tile => tile.kind === "image")).toBe(true);
-  expect(Math.min(...recipe.tiles.map(tile => Math.min(tile.rect.width, tile.rect.height)))).toBeGreaterThanOrEqual(256);
+  expect(recipe.tiles.filter(tile => tile.kind === "image").map(tile => tile.ref)).toEqual(photoRefs);
+  expect(recipe.audio).toEqual(["1.2"]);
+  expect(Math.min(...recipe.tiles.map(tile => Math.min(tile.rect.width, tile.rect.height)))).toBeGreaterThanOrEqual(120);
   expect(plan.block.markdown).toContain("Argon is also 34% faster at high effort");
-  expect(plan.hash).toBe("99d148a18238be969afd19676488860cf5d17d81d74ece4ebfdc1d4f1cc920a9");
   expect(blockPlanSchema.parse(plan)).toEqual(plan);
-  expect(requiredPlanCapabilities(plan)).toEqual(["expanded-source-count-32-v1"]);
+  expect(requiredPlanCapabilities(plan)).toEqual(["quoted-video-audio-v1", "expanded-source-count-32-v1"]);
+  const images = composePlan(selected.posts, { ...selected.policy, media: "images" });
+  expect(images.block.selectedMedia).toEqual(photoRefs);
+  const queued = await Bun.file(new URL("./fixtures/x-argon-thread-image-queued-plan.json", import.meta.url)).json();
+  expect(queued.hash).toBe("99d148a18238be969afd19676488860cf5d17d81d74ece4ebfdc1d4f1cc920a9");
+  expect(composePlan(queued.sources, queued.policy)).toEqual(queued);
 });
 
 test("x.com thread failures identify access, discovery, pagination, source mismatch, and genuine cap", async () => {

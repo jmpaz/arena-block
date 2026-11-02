@@ -1,0 +1,45 @@
+{
+  "schema": "arena-block/reddit-browser-capture",
+  "version": 1,
+  "sourceUrl": "https://www.reddit.com/comments/abc1234/",
+  "observedAt": "2026-10-01T00:00:00Z",
+  "post": {
+    "id": "abc1234",
+    "title": "Example reference",
+    "author": "fixture-author",
+    "permalink": "/r/example/comments/abc1234/i_hated_the_audio_routing_landscape_in_linux_so/",
+    "created_utc": 1791222242,
+    "is_self": false,
+    "domain": "i.redd.it",
+    "post_hint": "image",
+    "url": "https://i.redd.it/fixtureimagea.png",
+    "url_overridden_by_dest": "https://i.redd.it/fixtureimagea.png",
+    "selftext": "Fictional body-image selection.\n\n![](https://preview.redd.it/fixtureimageb.png?width=1666&format=png&auto=webp&s=e4d181fd9eeb5a7ebe20e8e0dfabfec097e49f0e)",
+    "preview": {
+      "images": [
+        {
+          "id": "fixtureimagea",
+          "source": {
+            "url": "https://preview.redd.it/fixtureimagea.png?auto=webp&s=8011ef469893452bb4689b7e6c2fd739a94fcf29",
+            "width": 1890,
+            "height": 1029
+          }
+        }
+      ]
+    },
+    "media_metadata": {
+      "fixtureimageb": {
+        "status": "valid",
+        "e": "Image",
+        "m": "image/png",
+        "id": "fixtureimageb",
+        "s": {
+          "x": 1666,
+          "y": 937,
+          "u": "https://preview.redd.it/fixtureimageb.png?width=1666&format=png&auto=webp&s=e4d181fd9eeb5a7ebe20e8e0dfabfec097e49f0e"
+        }
+      }
+    },
+    "subreddit_type": "public"
+  }
+}

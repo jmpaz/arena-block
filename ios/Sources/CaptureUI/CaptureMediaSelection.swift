@@ -18,10 +18,14 @@ struct CaptureMediaSelection: View {
         let fixturePoster = ProcessInfo.processInfo.environment["CAPTURE_UI_FIXTURE"] == "video-frame"
             ? session.container.appendingPathComponent("fixture-0.jpg") : nil
         var position = 0
-        return (session.preview?.plan?["sources"]?.array ?? []).map { source in
-            (source["media"]?.array ?? []).compactMap { asset in
-                defer { position += 1 }
-                return MediaChoice(asset, position: position, localFixturePoster: fixturePoster)
+        guard let plan = session.preview?.plan else { return [] }
+        let nodes = CaptureMediaTree.sources(inPlan: plan)
+        return (plan["sources"]?.array ?? []).indices.map { index in
+            nodes.filter { $0.rootIndex == index }.flatMap { node in
+                node.media.compactMap { asset in
+                    defer { position += 1 }
+                    return MediaChoice(asset, position: position, localFixturePoster: fixturePoster, ownershipLabel: node.ownershipLabel)
+                }
             }
         }
     }
@@ -36,6 +40,25 @@ struct CaptureMediaSelection: View {
     private func usesFrame(_ ref: String) -> Bool {
         if let chosen = session.draft?.videoFrames { return chosen.contains(ref) }
         return session.preview?.plan?["block"]?["frameMedia"]?.array.contains { $0["ref"]?.string == ref } == true
+    }
+
+    private func automaticFrame(_ asset: MediaChoice) -> Bool {
+        session.draft?.videoMotion?.contains(asset.id) != true && asset.posterURL != nil && (asset.durationSeconds.map { $0 > Double(session.draft?.videoFrameThresholdSeconds ?? CaptureVideoDefaults.frameThresholdSeconds) } ?? false)
+    }
+
+    private func durationLabel(_ seconds: Double) -> String {
+        guard seconds.isFinite, seconds >= 0, seconds < Double(Int.max) else { return "long" }
+        let total = Int(seconds.rounded(.down))
+        return "\(total / 60):\(String(format: "%02d", total % 60))"
+    }
+
+    private func frameExplanation(_ asset: MediaChoice) -> String? {
+        guard asset.kind == "video", session.includedMediaRefs.contains(asset.id) else { return nil }
+        if automaticFrame(asset), let duration = asset.durationSeconds {
+            let threshold = session.draft?.videoFrameThresholdSeconds ?? CaptureVideoDefaults.frameThresholdSeconds
+            return "This \(durationLabel(duration)) video defaults to a frame above \(durationLabel(Double(threshold))). Choose Video to keep motion and sound, or Frame to save a still image."
+        }
+        return usesFrame(asset.id) ? "A still frame will be saved without motion or sound. Choose Video to keep the video." : nil
     }
 
     var body: some View {
@@ -98,23 +121,26 @@ struct CaptureMediaSelection: View {
                                     }
                             }
                             .buttonStyle(MediaChoiceButtonStyle())
-                            .accessibilityLabel(asset.label)
+                            .accessibilityLabel([asset.label, asset.ownershipLabel].compactMap { $0 }.joined(separator: ", "))
                             .accessibilityValue((included ? "Included" : "Excluded") + (usesFrame(asset.id) ? ", video frame" : "") + (asset.isPreview ? ", preview" : ""))
                             .accessibilityHint(included ? "Exclude this media" : "Include this media")
                             .accessibilityIdentifier("capture.media.asset.\(asset.id)")
                             .contextMenu {
                                 Button("Preview", systemImage: "arrow.up.left.and.arrow.down.right") { inspected = asset }
                             }
+                            if let label = asset.ownershipLabel {
+                                Text(label).font(.caption2).foregroundStyle(.secondary)
+                                    .frame(width: thumbnailSize).fixedSize(horizontal: false, vertical: true)
+                            }
                             if asset.kind == "video" {
-                                let forced = asset.posterURL != nil &&
-                                    (asset.durationSeconds.map { $0 > Double(session.draft?.videoFrameThresholdSeconds ?? 600) } ?? false)
+                                let forced = automaticFrame(asset)
                                 Menu {
                                     Button("None", systemImage: included ? "circle" : "checkmark") {
                                         session.chooseVideo(asset.id, as: .none)
                                     }
                                     Button("Video", systemImage: included && !usesFrame(asset.id) ? "checkmark" : "play.rectangle") {
                                         session.chooseVideo(asset.id, as: .video)
-                                    }.disabled(forced)
+                                    }
                                     if asset.posterURL != nil {
                                         Button("Frame from video", systemImage: included && usesFrame(asset.id) ? "checkmark" : "photo") {
                                             session.chooseVideo(asset.id, as: .frame)
@@ -141,13 +167,22 @@ struct CaptureMediaSelection: View {
                 }
             }
             }
+            ForEach(assets) { asset in
+                if let explanation = frameExplanation(asset) {
+                    Text(assets.count > 1 ? "\(asset.label): \(explanation)" : explanation)
+                        .font(.footnote).foregroundStyle(.secondary)
+                        .lineLimit(nil).fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .accessibilityIdentifier("capture.media.frame-explanation.\(asset.id)")
+                }
+            }
         }
         .disabled(locked)
         .sensoryFeedback(.selection, trigger: session.includedMediaRefs)
         .sheet(item: $inspected) { asset in
             NavigationStack {
                 Group {
-                    if let url = asset.url { CaptureMediaView(url: url, isVideo: asset.kind == "video") }
+                    if let url = asset.url { CaptureMediaView(url: url, isVideo: asset.kind == "video", isAudio: asset.kind == "audio") }
                     else { ContentUnavailableView("Preview unavailable", systemImage: "photo") }
                 }
                 .navigationTitle(asset.label).navigationBarTitleDisplayMode(.inline)
@@ -166,10 +201,9 @@ struct CaptureMediaSelection: View {
     @ViewBuilder
     private func singleAssetControls(_ asset: MediaChoice) -> some View {
         let included = session.includedMediaRefs.contains(asset.id)
-        let usesAutomaticFrame = asset.posterURL != nil &&
-            (asset.durationSeconds.map { $0 > Double(session.draft?.videoFrameThresholdSeconds ?? 600) } ?? false)
+        let usesAutomaticFrame = automaticFrame(asset)
         if asset.kind == "video" {
-            Text("Video from post").font(.caption).foregroundStyle(.secondary)
+            Text(asset.ownershipLabel.map { "Video · \($0)" } ?? "Video from post").font(.caption).foregroundStyle(.secondary)
             if session.renderURL == nil {
                 Button { inspected = asset } label: {
                     MediaThumbnail(asset: asset, usesFrame: usesFrame(asset.id), maxPixel: 1200)
@@ -184,7 +218,7 @@ struct CaptureMediaSelection: View {
                 get: { !included ? .none : (usesAutomaticFrame || usesFrame(asset.id) ? .frame : .video) },
                 set: { session.chooseVideo(asset.id, as: $0) })) {
                 Text("None").tag(CaptureVideoChoice.none)
-                if !usesAutomaticFrame { Text("Video").tag(CaptureVideoChoice.video) }
+                Text("Video").tag(CaptureVideoChoice.video)
                 if asset.posterURL != nil { Text("Frame").tag(CaptureVideoChoice.frame) }
             }
             .pickerStyle(.segmented)
@@ -194,7 +228,14 @@ struct CaptureMediaSelection: View {
                     .font(.footnote).foregroundStyle(.secondary)
             }
         } else {
+            if asset.canPreviewAudio {
+                Button("Preview audio", systemImage: "play.circle") { inspected = asset }
+                    .accessibilityIdentifier("capture.audio-preview.open")
+            }
             HStack {
+                if let label = asset.ownershipLabel {
+                    Text(label).font(.caption).foregroundStyle(.secondary)
+                }
                 Spacer()
                 Button {
                     session.toggleMedia(asset.id)
@@ -221,11 +262,17 @@ private struct MediaChoice: Identifiable {
     let label: String
     let position: Int
     let isPreview: Bool
+    let canPreviewAudio: Bool
+    let ownershipLabel: String?
 
-    init?(_ asset: JSONValue, position: Int, localFixturePoster: URL? = nil) {
+    init?(_ asset: JSONValue, position: Int, localFixturePoster: URL? = nil, ownershipLabel: String? = nil) {
         guard let ref = asset["ref"]?.string else { return nil }
         id = ref
+        let articleAuthors = asset["sourceAttribution"]?["authors"]?.array.compactMap(\.string).joined(separator: ", ")
+        let ownership = [ownershipLabel, articleAuthors.map { "Audio by \($0)" }].compactMap { $0 }.joined(separator: " · ")
+        self.ownershipLabel = ownership.isEmpty ? nil : ownership
         kind = asset["kind"]?.string ?? "image"
+        canPreviewAudio = kind == "audio" && asset["acquisition"]?.string == "substack-public-original"
         isPreview = asset["sourceRole"]?.string == "preview"
         self.position = position
         url = asset["url"]?.string.flatMap(URL.init(string:))
@@ -257,6 +304,7 @@ private struct MediaThumbnail: View {
         }
         .task(id: asset.kind == "video" ? asset.thumbnailURL ?? asset.url : asset.url) {
             localImage = nil
+            guard asset.kind != "audio" else { return }
             guard let url = asset.kind == "video" ? asset.thumbnailURL ?? asset.url : asset.url else { return }
             let loaded = await MediaThumbnailCache.shared.image(for: url, video: asset.kind == "video" && asset.posterURL == nil, maxPixel: maxPixel)
             guard !Task.isCancelled else { return }

@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "sources": [
+    {
+      "provider": "substack",
+      "id": "311363713",
+      "canonicalUrl": "https://substack.com/@evadmartain/note/c-311363713",
+      "author": {
+        "handle": "evadmartain",
+        "name": "Eva D'Martain"
+      },
+      "text": "AUDIO GRAM\n\n*Preview of [Introducing new audio transcription tools for Substack](<https://on.substack.com/p/transcription>), by Hamish McKenzie:*\n\n> Cutting-edge AI tools let you automatically generate transcripts and create social sharing assets",
+      "postTitle": "Note by @evadmartain",
+      "postedAt": "2026-08-09T17:47:26.000Z",
+      "media": [],
+      "substackCapture": {
+        "schema": "arena-block/substack-browser-capture",
+        "version": 1,
+        "sourceUrl": "https://substack.com/@evadmartain/note/c-311363713",
+        "observedAt": "2026-10-16T07:18:45.942Z",
+        "method": "public-html",
+        "note": {
+          "acquisition": {
+            "method": "public-html",
+            "observedAt": "2026-10-16T07:18:45.942Z"
+          },
+          "url": "https://substack.com/@evadmartain/note/c-311363713",
+          "author": {
+            "handle": "evadmartain",
+            "name": "Eva D'Martain",
+            "profileUrl": "https://substack.com/@evadmartain"
+          },
+          "body": {
+            "status": "complete",
+            "html": "<p>AUDIO GRAM</p>"
+          },
+          "publishedLabel": "Aug 9, 2026, 5:47 PM",
+          "postedAt": "2026-08-09T17:47:26.000Z",
+          "links": [],
+          "attachmentEvidence": {
+            "method": "public-api",
+            "observedAt": "2026-10-16T07:18:45.940Z",
+            "commentId": 311363713,
+            "userId": 411462987,
+            "handle": "evadmartain",
+            "bodyText": "AUDIO GRAM",
+            "attachments": [
+              {
+                "kind": "article",
+                "id": "006e0046-914d-4324-96ca-11ba9501ca1c",
+                "postId": 136544895,
+                "publicationId": 1,
+                "url": "https://on.substack.com/p/transcription",
+                "title": "Introducing new audio transcription tools for Substack",
+                "previewText": "Cutting-edge AI tools let you automatically generate transcripts and create social sharing assets",
+                "authors": [
+                  {
+                    "id": 3567,
+                    "name": "Hamish McKenzie",
+                    "handle": "hamish"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "quoteCoverage": {
+        "maxDepth": 8,
+        "actualDepth": 0,
+        "maxReached": false,
+        "truncated": false,
+        "stopped": "end",
+        "sourceIds": [
+          "311363713"
+        ],
+        "acquisitionDepth": 2,
+        "mayExpand": false
+      },
+      "selection": {
+        "role": "primary",
+        "origin": "explicit",
+        "declaredIndex": 1
+      }
+    }
+  ],
+  "policy": {
+    "media": "audio",
+    "selectedMedia": [],
+    "quote": "block",
+    "separator": "auto"
+  },
+  "block": {
+    "kind": "text",
+    "title": "Note by @evadmartain",
+    "markdown": "AUDIO GRAM\n\n*Preview of [Introducing new audio transcription tools for Substack](<https://on.substack.com/p/transcription>), by Hamish McKenzie:*\n\n> Cutting-edge AI tools let you automatically generate transcripts and create social sharing assets",
+    "canonicalSource": "https://substack.com/@evadmartain/note/c-311363713",
+    "selectedMedia": [],
+    "quoteCoverage": [
+      {
+        "sourceId": "311363713",
+        "availableDepth": 0,
+        "renderedDepth": 0,
+        "requestedDepth": 2,
+        "maxDepth": 8,
+        "maxReached": false,
+        "truncated": false,
+        "stopped": "end",
+        "mayExpand": false
+      }
+    ]
+  },
+  "hash": "05aebf4cee1d41b56e0aee05f96185b694176f99d79d1d490bb1b00b049863e6"
+}

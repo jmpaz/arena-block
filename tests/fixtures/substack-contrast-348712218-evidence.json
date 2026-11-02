@@ -1,0 +1,14 @@
+{
+  "url": "https://substack.com/@joodaloop/note/c-348712218",
+  "projection": "Selected public Note DOM/JSON-LD and relevant public Note record fields only.",
+  "sourceHTMLSHA256": "74f579ea745f6e67fe726ba114259b8b59347de8000b50097fd553c117dcd7c5",
+  "sourceAPISHA256": "91ac4897f787a3448acb6f396115e958d2fdd197274e97ebf33c836dbf4e109a",
+  "fixtureSHA256": "89c05b5ba2fa391746b54e901646c0417c2a85d0c90bd2617b0ab6c45c16a7a9",
+  "sourceMetadata": {
+    "url": "https://substack.com/@joodaloop/note/c-348712218",
+    "status": 200,
+    "observedAt": "2026-10-16T05:03:33.372Z",
+    "bytes": 114222,
+    "credentials": "omit"
+  }
+}

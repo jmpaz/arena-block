@@ -10,111 +10,108 @@ Arena Block captures social posts as editable Are.na blocks.
 
 Available as a [CLI](docs/development.md), [iOS app](ios/README.md) and [browser extension](extension/README.md).
 
-## Development
-
-Install Bun, then run:
+## CLI
 
 ```sh
 bun install --frozen-lockfile
-bun run typecheck
-bun test
 bun run src/cli.ts --help
-```
-
-The project includes Nix packages and optional Home Manager modules. See [development](docs/development.md) for the source layout, build commands and tests, or [UI development](docs/design.md) for editor code and fixtures.
-
-## Plans and saves
-
-```sh
 bun run src/cli.ts plan 'https://x.com/example/status/123' --media none --json
-bun run src/cli.ts plan 'https://soundcloud.com/example/track' --media audio --json
 bun run src/cli.ts publish --plan ./plan.json --to your-channel --dry-run
 ```
 
-During planning, the resolver reads the selected source and creates normalized posts. The composer selects text and media, formats the block, then calculates the plan hash. A saved plan includes source URLs, authors, timestamps, quote relationships and media references. Editing those fields requires a new composition and hash.
+`plan` reads each source, composes the block and prints its title, text, selected media and plan hash. `publish` sends a plan to the daemon, which creates the block on Are.na; with `--dry-run`, it prints the save and its destinations and stops there.
 
-During publication, the client checks the destinations and acquires the selected media. The save journal records the attempt and any returned block ID. After checking the block and requested channel placements, the client reports the confirmed result. A lost create response leaves an uncertain attempt for inspection before another creation request.
-
-Use `resolve`, `plan`, `publish`, `save`, `status`, `cancel` or `retry` as shown in `--help`. `publish --plan` reads a retained plan. `--dry-run` reviews routing without creating a block. The `save-intent` command records local input for a later approved save. Existing submitted attempts keep their original content, policy, destinations and UUID.
-
-## Source providers
-
-| Provider | Accepted sources | Acquisition |
-|---|---|---|
-| x.com | Post permalinks and article posts | Public FxTwitter responses |
-| Bluesky | Profile post permalinks, `at://.../app.bsky.feed.post/...` | Public AT Protocol AppView responses |
-| [Delvetown](https://delve.town) | Profile post permalinks, `at://.../town.delve.feed.post/...` | Delvetown AppView and repository records |
-| Mastodon | Public HTTPS post permalinks | The instance's public status API |
-| Reddit | Posts, comments, galleries, share links | Public JSON, with bounded fallback for specified availability failures |
-| LessWrong, Alignment Forum, EA Forum | Post and comment permalinks | Each site's public GraphQL API |
-| TikTok, Instagram | Supported post, video and share permalinks | FxEmbed Atmosphere responses |
-| SoundCloud | Public track and playlist pages | Public page data and available download metadata |
-| Hacker News, Lobsters | Comment permalinks | Public comment APIs |
-
-Bluesky and Delvetown use separate record collections and facet vocabularies. The renderer expands a shortened URL label after checking its facet destination, preserves meaningful link labels, keeps mention wording and leaves tags as text. It checks UTF-8 ranges before generating Markdown. Plans retain the original text and record data. Refresh an older cached Bluesky source to acquire facets discarded by an older resolver.
-
-Supported AT Protocol plans include observed record URI, CID and author DID. Before submitting them, a client checks the daemon's `atproto-post-records-v1` capability. Delvetown also requires `delve-posts-v1`. Native conversation-coverage data requires `bluesky-thread-coverage-v1`. An older receiver returns a compatibility error before submission.
-
-Mastodon boosts resolve to the original post. Content warnings and attachment descriptions remain available in the result. Link previews stay separate from attachments. Audio and unsupported attachment types appear as links.
-
-For x.com articles, the composer places the article Markdown in the block and uses the accompanying post text as its description. Article images remain in reading order. Embedded videos and posts remain links. Incomplete article responses produce an error.
-
-Reddit post titles become block titles. Body Markdown and gallery captions become text content or media descriptions. Cross-posts retain the quoting post and expose the original attachments. Reddit-hosted video uses HLS for audio. HTTP 403 and 429 stop acquisition. Specified temporary availability failures may use the bounded Arctic Shift fallback; archive responses can omit recent edits. Comment capture uses the selected comment and its parent title. It excludes surrounding replies and parent attachments.
-
-TikTok and Instagram carousels preserve source order. Photo mosaics omit soundtracks. Video mosaics use the selected soundtrack. Public provider access and media URLs can become unavailable, so refresh a stale plan before another acquisition attempt.
-
-Hacker News links must identify comments. Lobsters accepts `/c/ID` and story links ending in `#c_ID`. Comment capture preserves paragraphs and formatting, uses the source URL field and records the UTC creation time in the description. Unavailable comments return an error.
-
-For a Quick Take or Shortform entry, copy its comment permalink. A bare Shortform container has no body to capture. Use `?commentId=ID`, a comment path, or a comment hash. GreaterWrong links resolve through LessWrong's public API. The resulting plan includes the selected comment's author, date, formatting, links, quotes and image references. Embedded frames appear as links.
-
-For a single comment URL, the default expansion follows up to six available parents. Use `--thread-expansion off` to capture only the selected comment. Use `on` to include up to eight direct replies and bounded same-author continuations. When you list several comment URLs, the result follows your order. Deleted, private and unavailable content returns an error.
-
-Before submitting a Forum Magnum plan, the client checks the receiver for `forum-magnum-posts-v1`. You can plan and render locally without a receiver.
-
-For SoundCloud, planning preserves track or playlist metadata. Original-download availability depends on the public source. An unavailable verified file URL remains a source link.
-
-## Composition and media
-
-Supply primary URLs in the required reading order. Equivalent links are included once. Each primary contributes text and root attachments. `--extra` adds supplementary media while the primary sources continue to determine the writing and authors.
-
-Use `--media auto|none|images|video|audio|all`, or explicit media references, according to command help. Selected images form an ordered JPEG mosaic. Selected videos form an MP4 mosaic. Video framing and soundtrack choices remain explicit. During acquisition, the renderer checks source bytes, decoded pixels, media dimensions, duration and output limits before creating the final file.
-
-The title identifies the first author. A speaker change adds that author's label. `--separator auto|always|never` controls dividers between contributions. Quote depth, dates and inclusion follow the composition policy. Each quoted post retains its own author and source information.
-
-For Bluesky and Delvetown, thread expansion follows the returned author and reply relationships. For x.com, import an observed author chain or enter exact post links. The client accepts up to 32 posts from an observed expanded thread and up to 20 explicit links. Before submitting a plan with more than 20 posts, it checks the receiver for `expanded-source-count-32-v1`. If a provider omits replies or branches, the result describes the scope it returned.
-
-For local image previews:
+Help text wraps to the terminal width, or to 80 columns when piped; `COLUMNS` sets another width, and `NO_COLOR=1` turns off color.
 
 ```sh
-bun run src/cli.ts render --plan ./plan.json --layout reading --output-dir ./previews
-bun run src/cli.ts render --plan ./plan.json --layout wallpaper --canvas 2510x4096 --output-dir ./previews
+arena-block render --plan ./plan.json --layout reading --output-dir ./previews
+arena-block thread 'https://bsky.app/profile/example.com/post/first' --scope chain --output-dir ./drafts
 ```
 
-Reading pages preserve source scale when the image fits the configured canvas. Wallpaper mode creates an ordered overview. Dense selections may need separate reading pages. Each successful render creates a fresh directory.
+`render` writes local image previews, either as reading pages at source scale or as a single wallpaper overview. `thread` writes a conversation draft with the source responses, Markdown, HTML and a coverage report. See [previews and drafts](docs/mosaic-thread-drafts.md).
 
-## Thread drafts
+## Visibility ratio
 
 ```sh
-bun run src/cli.ts thread 'https://bsky.app/profile/example.com/post/first' --scope chain --output-dir ./drafts
-bun run src/cli.ts thread 'https://x.com/example/status/123' --manifest ./post-urls.json --output-dir ./drafts
+arena-block ratio
+arena-block ratio --json
 ```
 
-A draft includes original responses, normalized posts, Markdown, HTML and a coverage report. A supplied x.com manifest lists exact known post URLs. Bluesky `chain` reads the selected post and ancestors; `tree` follows bounded replies. Configure post, request and depth limits for the intended selection. Image descriptions require pixel review, with source alt text attributed separately. See [local drafts](docs/mosaic-thread-drafts.md).
+`ratio` counts the account's channels as private, closed or public, and every block the account created as private, public or orphan, an orphan being a block in no channel. Block counts come from the visibility Are.na assigns each block, and the command only sends GET requests.
 
-## Destinations and service
+Are.na lists blocks through search, which can refuse pages deep into a large account; when a listing stops short, `ratio` reads it again newest first and reports any blocks it still couldn't reach. `--cached` takes the channel list from the daemon's saved channel index.
 
-Configure a default channel with [the generic example](config.default-channel.example.json). Fallback mode uses it when no explicit destination is supplied. Always mode adds it alongside selected destinations. The client checks the account and destination permissions before creation. Legacy `remoteInbox` configuration remains accepted for migration. See [routing and saved input](docs/default-channel-provenance.md).
+## Sources
+
+| Provider | Supported input |
+|---|---|
+| x.com | Post permalinks, public articles and author threads, read through FxTwitter |
+| Bluesky, [Delvetown](https://delve.town) | Post links or `at://` post URIs, read through public AppViews |
+| Mastodon | Public HTTPS post permalinks, read through the instance's status API; a boost resolves to the original post |
+| Reddit\* | Public posts and comments, read as JSON |
+| LessWrong, Alignment Forum, EA Forum | Post and comment permalinks, read through each site's GraphQL API |
+| Substack | Public Notes, free public articles, original media and article cards |
+| TikTok, Instagram | Post, video and share permalinks, read through FxEmbed Atmosphere |
+| SoundCloud | Public tracks and playlists, with track audio saved as an attachment |
+| LinkedIn | Public post permalinks with video; unsupported or incomplete post content returns an error |
+| Hacker News, Lobsters | Comment permalinks, read through public APIs |
+
+A Substack Note gets the title **Note by @handle**, and each quoted Note keeps its own author. Article previews and excerpts carry labels separating them from the Note's text. See [Substack captures](docs/substack-notes.md), [support and limits](docs/substack-parity.md) and [source checks](docs/substack-contract-checks.md).
+
+\* Reddit capture is unreliable: Reddit refuses many unauthenticated reads, and the CLI stops on HTTP 401, 403, 429 or 503. Reddit records saved by earlier versions still open. See [Reddit source access](docs/reddit-source-access.md).
+
+An Instagram Reel gets the title **Reel by @handle**, and other Instagram posts get **Post by @handle**. TikTok and Instagram carousels keep their source order; their media URLs expire after a while, and planning again fetches fresh ones.
+
+Forum Magnum Quick Takes and Shortform entries resolve from their comment permalinks, since a Shortform container page holds no text of its own; GreaterWrong links resolve through LessWrong. Hacker News and Lobsters links resolve to a single comment.
+
+## Text and media
+
+The CLI composes posts in the order given, taking the block's text and author labels from them. `--extra` adds media from another post without its text. A plan holds up to 20 listed links, or up to 32 posts from an expanded thread.
+
+By default the CLI reads only the listed posts. `-t` adds the surrounding thread or author chain, as far as the site's returned replies reach; the iOS editor turns thread import on for new single-post captures and keeps the choice. See [CLI thread options](docs/cli-thread-options.md).
+
+`--media auto` selects media from the listed posts, leaving media inside quoted posts unselected. `--media all` selects every attachment from listed posts, thread posts and `--extra` sources, and `images`, `video` and `audio` filter that set; a reference such as `--media 1.2` selects a single item, including one from a quoted post. See [CLI media choices](docs/cli-media-options.md).
+
+Several images become a JPEG mosaic, and several videos an MP4 mosaic, with `--frame` and `--audio` picking poster frames and the soundtrack.
+
+The CLI saves a SoundCloud track as an audio attachment, using the artist's original file when offered. For other tracks, yt-dlp and FFmpeg convert the public stream to MP3, and `--media none` saves the track URL alone. A playlist block lists its tracks in order, with the playlist artwork.
+
+LinkedIn video capture requires matching public post and video identities, author, caption, video and poster. It stops on denied or incomplete pages. Other LinkedIn post types are not yet supported; the iOS original-link choice saves only the URL. Media links can expire, so resolve again before saving.
+
+The iOS app gets SoundCloud audio as MP3 from an arena-block media service, configured in Settings with its HTTPS address and access token; it checks the file before uploading it to Are.na, and the Share extension uses the same settings. Without the service, text-only capture saves the track URL. Substack article audio uploads as the original file, in a block of its own.
+
+`--quote-author-link source` links each quoted author to the quoted post, and `plain` shows the name alone. See [quote options](docs/cli-quote-options.md) and [quoted author links](docs/quoted-author-links.md).
+
+Each plan keeps the source URLs, authors, dates and original records, with fetch notes kept apart from the block text. Bluesky and Delvetown links and mentions come from the post's facets, checked against its text; for an x.com article, the article goes in the block text and the post text in the description. When a source lacks data the block needs, the CLI stops with an error.
+
+## Saving and recovery
+
+Before creating a block, the client checks channel access and records the save's UUID and plan; afterward, it reads back the block and its channel placements. When a create response gets lost, the client marks the attempt as uncertain and holds off on creating another block.
+
+Commands for existing saves:
+
+- `save-status` reads a save by UUID
+- `status` and `inspect` read a receipt
+- `attempt` reads an uncertain attempt
+- `retry-save` and `resume` continue a save from its stored plan
+- `cancel-save` stops further work, leaving finished blocks and placements in Are.na
+
+A [default channel](config.default-channel.example.json) receives saves that name no channel, or joins every save. See [routing and saved input](docs/default-channel-provenance.md).
+
+The daemon keeps its state in `$XDG_DATA_HOME/arena-block` or `~/.local/share/arena-block`, and reads credentials from a private configuration file or environment variables.
 
 ```sh
 ARENA_BLOCK_HOST=127.0.0.1 ARENA_BLOCK_PORT=8790 bun run src/cli.ts serve
 ```
 
-The service stores state under `$XDG_DATA_HOME/arena-block` or `~/.local/share/arena-block`. Configure its credential through environment references or a private configuration file. The project does not include account credentials.
+The local channel picker, MCP server and browser helper all go through the daemon, checking its capabilities before accepting a plan.
 
-The desktop `picker` command opens a loopback editor through a matching daemon. Its local session token provides access to that editor. Channel browsing requires the daemon's matching channel/web-plan routes. See command help before configuring the service or enabling private MCP publication.
+## Development
 
-## Native and browser clients
+```sh
+bun run typecheck
+bun run extension:typecheck
+bun test
+```
 
-The [iOS client](ios/README.md) uses SwiftUI, JavaScriptCore and native media rendering. The [browser extension](extension/README.md) uses the shared core with browser fetch/media adapters. Both preserve draft choices before Save and show confirmed placement results after verification.
-
-In the iOS channel picker, Reset to default restores the configured default channel. Manual deselection can leave the draft without a destination. Without a configured default, Clear empties the selection.
+[Development](docs/development.md) covers dependencies, Nix packaging and native checks; [UI development](docs/design.md) covers editors and fixtures, and [Capture storage](docs/capture-storage.md) covers how the iOS app stores data.

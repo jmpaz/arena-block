@@ -1,0 +1,856 @@
+{
+  "schemaVersion": 1,
+  "sources": [
+    {
+      "provider": "x",
+      "id": "2110057814215291370",
+      "canonicalUrl": "https://x.com/skalskip92/status/2110057814215291370",
+      "author": {
+        "handle": "skalskip92",
+        "name": "SkalskiP"
+      },
+      "text": "Astra dethroned\n\nGemini 4 Argon is the best \"vision\" model\n\n#1 for detection:\n\n- tight, precise boxes\n- dense scenes\n\n#1 for text extraction:\n\n- small text\n- handwritten text\n- complex tables\n- rotated text\n\n4× cheaper than Astra at high",
+      "postedAt": "Tue Oct 13 17:19:20 +0000 2026",
+      "media": [
+        {
+          "ref": "1.1",
+          "kind": "image",
+          "url": "https://pbs.twimg.com/media/HUhuYmcXsAAAZ1S.jpg?name=orig",
+          "id": "2110057794338533376",
+          "width": 1199,
+          "height": 675,
+          "alt": ""
+        }
+      ],
+      "quote": {
+        "provider": "x",
+        "id": "2110039322229649783",
+        "canonicalUrl": "https://x.com/GeminiApp/status/2110039322229649783",
+        "author": {
+          "handle": "GeminiApp",
+          "name": "Google Gemini"
+        },
+        "text": "The moment you've been waiting 4…\n\nOur new frontier model, Gemini 4 Argon, is rolling out now in the Gemini app to bring your most complex ideas into reality.\n\nSee how Gemini 4 Argon and our latest updates across the Gemini app help you get the most out of every prompt. 🧵",
+        "postedAt": "Tue Oct 13 16:05:51 +0000 2026",
+        "media": [
+          {
+            "ref": "quote.1",
+            "kind": "video",
+            "url": "https://video.twimg.com/amplify_video/2110030301850464258/vid/avc1/1920x1080/BESSxs1gvmRctFZz.mp4?tag=29",
+            "id": "2110030301850464258",
+            "width": 1920,
+            "height": 1080,
+            "durationSeconds": 50.508,
+            "posterUrl": "https://pbs.twimg.com/amplify_video_thumb/2110030301850464258/img/ACnBh1STl5tUgf5g.jpg",
+            "alt": ""
+          }
+        ]
+      },
+      "quoteCoverage": {
+        "maxDepth": 8,
+        "actualDepth": 1,
+        "acquisitionDepth": 2,
+        "mayExpand": false,
+        "maxReached": false,
+        "truncated": false,
+        "stopped": "end",
+        "sourceIds": [
+          "2110057814215291370",
+          "2110039322229649783"
+        ]
+      },
+      "selection": {
+        "role": "primary",
+        "origin": "explicit",
+        "declaredIndex": 1
+      }
+    },
+    {
+      "provider": "x",
+      "id": "2110057823002661051",
+      "canonicalUrl": "https://x.com/skalskip92/status/2110057823002661051",
+      "author": {
+        "handle": "skalskip92",
+        "name": "SkalskiP"
+      },
+      "text": "Object Detection\n\n#1 for high and low efforts\n\nhigh:\n\n- Argon 85.1%\n- Astra 83.6%\n\nlow:\n\n- Argon 82.5%\n- Astra 82.1%\n\nlink: https://playground.roboflow.com/evals/object-detection",
+      "replyTo": {
+        "id": "2110057814215291370",
+        "authorHandle": "skalskip92"
+      },
+      "postedAt": "Tue Oct 13 17:19:22 +0000 2026",
+      "media": [
+        {
+          "ref": "2.1",
+          "kind": "image",
+          "url": "https://pbs.twimg.com/media/HUhuZ5dWQAACaYx.jpg?name=orig",
+          "id": "2110057816622776320",
+          "width": 1200,
+          "height": 807,
+          "alt": ""
+        }
+      ],
+      "selection": {
+        "role": "primary",
+        "origin": "expanded",
+        "parentUri": "https://x.com/skalskip92/status/2110057814215291370"
+      }
+    },
+    {
+      "provider": "x",
+      "id": "2110057831877751000",
+      "canonicalUrl": "https://x.com/skalskip92/status/2110057831877751000",
+      "author": {
+        "handle": "skalskip92",
+        "name": "SkalskiP"
+      },
+      "text": "lego pieces\n\ntry Astra vs Argon in playground: https://playground.roboflow.com/share/39a9ef79-142a-423c-925e-1d79dbcfe09a",
+      "replyTo": {
+        "id": "2110057823002661051",
+        "authorHandle": "skalskip92"
+      },
+      "postedAt": "Tue Oct 13 17:19:24 +0000 2026",
+      "media": [
+        {
+          "ref": "3.1",
+          "kind": "image",
+          "url": "https://pbs.twimg.com/media/HUhuadjWYAA8Jm6.jpg?name=orig",
+          "id": "2110057826311626752",
+          "width": 1199,
+          "height": 675,
+          "alt": ""
+        }
+      ],
+      "selection": {
+        "role": "primary",
+        "origin": "expanded",
+        "parentUri": "https://x.com/skalskip92/status/2110057823002661051"
+      }
+    },
+    {
+      "provider": "x",
+      "id": "2110057841373626441",
+      "canonicalUrl": "https://x.com/skalskip92/status/2110057841373626441",
+      "author": {
+        "handle": "skalskip92",
+        "name": "SkalskiP"
+      },
+      "text": "bottle caps",
+      "replyTo": {
+        "id": "2110057831877751000",
+        "authorHandle": "skalskip92"
+      },
+      "postedAt": "Tue Oct 13 17:19:27 +0000 2026",
+      "media": [
+        {
+          "ref": "4.1",
+          "kind": "image",
+          "url": "https://pbs.twimg.com/media/HUhua-6XIAErVPq.jpg?name=orig",
+          "id": "2110057835266514945",
+          "width": 1199,
+          "height": 675,
+          "alt": ""
+        }
+      ],
+      "selection": {
+        "role": "primary",
+        "origin": "expanded",
+        "parentUri": "https://x.com/skalskip92/status/2110057831877751000"
+      }
+    },
+    {
+      "provider": "x",
+      "id": "2110057852144660552",
+      "canonicalUrl": "https://x.com/skalskip92/status/2110057852144660552",
+      "author": {
+        "handle": "skalskip92",
+        "name": "SkalskiP"
+      },
+      "text": "carrots",
+      "replyTo": {
+        "id": "2110057841373626441",
+        "authorHandle": "skalskip92"
+      },
+      "postedAt": "Tue Oct 13 17:19:29 +0000 2026",
+      "media": [
+        {
+          "ref": "5.1",
+          "kind": "image",
+          "url": "https://pbs.twimg.com/media/HUhubfvWUAEbjrQ.jpg?name=orig",
+          "id": "2110057844078694401",
+          "width": 1199,
+          "height": 675,
+          "alt": ""
+        }
+      ],
+      "selection": {
+        "role": "primary",
+        "origin": "expanded",
+        "parentUri": "https://x.com/skalskip92/status/2110057841373626441"
+      }
+    },
+    {
+      "provider": "x",
+      "id": "2110057860189044917",
+      "canonicalUrl": "https://x.com/skalskip92/status/2110057860189044917",
+      "author": {
+        "handle": "skalskip92",
+        "name": "SkalskiP"
+      },
+      "text": "Single String Extraction\n\n#1 for high and low efforts\n\nhigh:\n\n- Argon 80.0%\n- Claude Fable 5 72.2%\n\nlow:\n\n- Argon 78.3%\n- Gemini 3.7 Flash 74.8%\n\nlink: https://playground.roboflow.com/evals/ocr",
+      "replyTo": {
+        "id": "2110057852144660552",
+        "authorHandle": "skalskip92"
+      },
+      "postedAt": "Tue Oct 13 17:19:31 +0000 2026",
+      "media": [
+        {
+          "ref": "6.1",
+          "kind": "image",
+          "url": "https://pbs.twimg.com/media/HUhucGjXUAASn5F.jpg?name=orig",
+          "id": "2110057854497411072",
+          "width": 1200,
+          "height": 808,
+          "alt": ""
+        }
+      ],
+      "selection": {
+        "role": "primary",
+        "origin": "expanded",
+        "parentUri": "https://x.com/skalskip92/status/2110057852144660552"
+      }
+    },
+    {
+      "provider": "x",
+      "id": "2110057867000651909",
+      "canonicalUrl": "https://x.com/skalskip92/status/2110057867000651909",
+      "author": {
+        "handle": "skalskip92",
+        "name": "SkalskiP"
+      },
+      "text": "mechanical electricity meter",
+      "replyTo": {
+        "id": "2110057860189044917",
+        "authorHandle": "skalskip92"
+      },
+      "postedAt": "Tue Oct 13 17:19:33 +0000 2026",
+      "media": [
+        {
+          "ref": "7.1",
+          "kind": "image",
+          "url": "https://pbs.twimg.com/media/HUhucixW8AAIicp.jpg?name=orig",
+          "id": "2110057862072299520",
+          "width": 1199,
+          "height": 675,
+          "alt": ""
+        }
+      ],
+      "selection": {
+        "role": "primary",
+        "origin": "expanded",
+        "parentUri": "https://x.com/skalskip92/status/2110057860189044917"
+      }
+    },
+    {
+      "provider": "x",
+      "id": "2110057874743345371",
+      "canonicalUrl": "https://x.com/skalskip92/status/2110057874743345371",
+      "author": {
+        "handle": "skalskip92",
+        "name": "SkalskiP"
+      },
+      "text": "license plates at night",
+      "replyTo": {
+        "id": "2110057867000651909",
+        "authorHandle": "skalskip92"
+      },
+      "postedAt": "Tue Oct 13 17:19:34 +0000 2026",
+      "media": [
+        {
+          "ref": "8.1",
+          "kind": "image",
+          "url": "https://pbs.twimg.com/media/HUhuc9gWwAA3BIa.jpg?name=orig",
+          "id": "2110057869248741376",
+          "width": 1199,
+          "height": 675,
+          "alt": ""
+        }
+      ],
+      "selection": {
+        "role": "primary",
+        "origin": "expanded",
+        "parentUri": "https://x.com/skalskip92/status/2110057867000651909"
+      }
+    },
+    {
+      "provider": "x",
+      "id": "2110057881953296524",
+      "canonicalUrl": "https://x.com/skalskip92/status/2110057881953296524",
+      "author": {
+        "handle": "skalskip92",
+        "name": "SkalskiP"
+      },
+      "text": "digital scale upside down",
+      "replyTo": {
+        "id": "2110057874743345371",
+        "authorHandle": "skalskip92"
+      },
+      "postedAt": "Tue Oct 13 17:19:36 +0000 2026",
+      "media": [
+        {
+          "ref": "9.1",
+          "kind": "image",
+          "url": "https://pbs.twimg.com/media/HUhudZ3XUAEAOLD.jpg?name=orig",
+          "id": "2110057876861440001",
+          "width": 1199,
+          "height": 675,
+          "alt": ""
+        }
+      ],
+      "selection": {
+        "role": "primary",
+        "origin": "expanded",
+        "parentUri": "https://x.com/skalskip92/status/2110057874743345371"
+      }
+    },
+    {
+      "provider": "x",
+      "id": "2110057888974586181",
+      "canonicalUrl": "https://x.com/skalskip92/status/2110057888974586181",
+      "author": {
+        "handle": "skalskip92",
+        "name": "SkalskiP"
+      },
+      "text": "code engraved on worn metal",
+      "replyTo": {
+        "id": "2110057881953296524",
+        "authorHandle": "skalskip92"
+      },
+      "postedAt": "Tue Oct 13 17:19:38 +0000 2026",
+      "media": [
+        {
+          "ref": "10.1",
+          "kind": "image",
+          "url": "https://pbs.twimg.com/media/HUhudzyWQAErSHD.jpg?name=orig",
+          "id": "2110057883819720705",
+          "width": 1199,
+          "height": 675,
+          "alt": ""
+        }
+      ],
+      "selection": {
+        "role": "primary",
+        "origin": "expanded",
+        "parentUri": "https://x.com/skalskip92/status/2110057881953296524"
+      }
+    },
+    {
+      "provider": "x",
+      "id": "2110057895966470205",
+      "canonicalUrl": "https://x.com/skalskip92/status/2110057895966470205",
+      "author": {
+        "handle": "skalskip92",
+        "name": "SkalskiP"
+      },
+      "text": "Text Localization and Recognition\n\n#1 for high and low efforts\n\nhigh:\n\n- Argon 84.7%\n- Astra 76.8%\n\nlow:\n\n- Argon 81.6%\n- Astra 75.5%\n\nlink: https://playground.roboflow.com/evals/ocr",
+      "replyTo": {
+        "id": "2110057888974586181",
+        "authorHandle": "skalskip92"
+      },
+      "postedAt": "Tue Oct 13 17:19:40 +0000 2026",
+      "media": [
+        {
+          "ref": "11.1",
+          "kind": "image",
+          "url": "https://pbs.twimg.com/media/HUhueOMWgAAx0JC.jpg?name=orig",
+          "id": "2110057890908110848",
+          "width": 1200,
+          "height": 808,
+          "alt": ""
+        }
+      ],
+      "selection": {
+        "role": "primary",
+        "origin": "expanded",
+        "parentUri": "https://x.com/skalskip92/status/2110057888974586181"
+      }
+    },
+    {
+      "provider": "x",
+      "id": "2110057903306465474",
+      "canonicalUrl": "https://x.com/skalskip92/status/2110057903306465474",
+      "author": {
+        "handle": "skalskip92",
+        "name": "SkalskiP"
+      },
+      "text": "circuit board",
+      "replyTo": {
+        "id": "2110057895966470205",
+        "authorHandle": "skalskip92"
+      },
+      "postedAt": "Tue Oct 13 17:19:41 +0000 2026",
+      "media": [
+        {
+          "ref": "12.1",
+          "kind": "image",
+          "url": "https://pbs.twimg.com/media/HUhueo6WgAA5gw4.jpg?name=orig",
+          "id": "2110057898080370688",
+          "width": 1199,
+          "height": 675,
+          "alt": ""
+        }
+      ],
+      "selection": {
+        "role": "primary",
+        "origin": "expanded",
+        "parentUri": "https://x.com/skalskip92/status/2110057895966470205"
+      }
+    },
+    {
+      "provider": "x",
+      "id": "2110057913293136160",
+      "canonicalUrl": "https://x.com/skalskip92/status/2110057913293136160",
+      "author": {
+        "handle": "skalskip92",
+        "name": "SkalskiP"
+      },
+      "text": "technical drawing",
+      "replyTo": {
+        "id": "2110057903306465474",
+        "authorHandle": "skalskip92"
+      },
+      "postedAt": "Tue Oct 13 17:19:44 +0000 2026",
+      "media": [
+        {
+          "ref": "13.1",
+          "kind": "image",
+          "url": "https://pbs.twimg.com/media/HUhufEOXsAAwBJp.jpg?name=orig",
+          "id": "2110057905412091904",
+          "width": 1199,
+          "height": 675,
+          "alt": ""
+        }
+      ],
+      "selection": {
+        "role": "primary",
+        "origin": "expanded",
+        "parentUri": "https://x.com/skalskip92/status/2110057903306465474"
+      }
+    },
+    {
+      "provider": "x",
+      "id": "2110057920486309909",
+      "canonicalUrl": "https://x.com/skalskip92/status/2110057920486309909",
+      "author": {
+        "handle": "skalskip92",
+        "name": "SkalskiP"
+      },
+      "text": "JSON Extraction\n\n#1 for high and low efforts\n\nhigh:\n\n- Argon 94.8%\n- Astra 91.7%\n\nlow:\n\n- Argon 92.6%\n- Astra 91.8%\n\nlink: https://playground.roboflow.com/evals/ocr",
+      "replyTo": {
+        "id": "2110057913293136160",
+        "authorHandle": "skalskip92"
+      },
+      "postedAt": "Tue Oct 13 17:19:45 +0000 2026",
+      "media": [
+        {
+          "ref": "14.1",
+          "kind": "image",
+          "url": "https://pbs.twimg.com/media/HUhufpFW8AAT-nF.jpg?name=orig",
+          "id": "2110057915306405888",
+          "width": 1200,
+          "height": 808,
+          "alt": ""
+        }
+      ],
+      "selection": {
+        "role": "primary",
+        "origin": "expanded",
+        "parentUri": "https://x.com/skalskip92/status/2110057913293136160"
+      }
+    },
+    {
+      "provider": "x",
+      "id": "2110057928493301772",
+      "canonicalUrl": "https://x.com/skalskip92/status/2110057928493301772",
+      "author": {
+        "handle": "skalskip92",
+        "name": "SkalskiP"
+      },
+      "text": "handwritten weather table",
+      "replyTo": {
+        "id": "2110057920486309909",
+        "authorHandle": "skalskip92"
+      },
+      "postedAt": "Tue Oct 13 17:19:47 +0000 2026",
+      "media": [
+        {
+          "ref": "15.1",
+          "kind": "image",
+          "url": "https://pbs.twimg.com/media/HUhugFtXgAEG1Sc.jpg?name=orig",
+          "id": "2110057922990407681",
+          "width": 1199,
+          "height": 675,
+          "alt": ""
+        }
+      ],
+      "selection": {
+        "role": "primary",
+        "origin": "expanded",
+        "parentUri": "https://x.com/skalskip92/status/2110057920486309909"
+      }
+    },
+    {
+      "provider": "x",
+      "id": "2110057935279665565",
+      "canonicalUrl": "https://x.com/skalskip92/status/2110057935279665565",
+      "author": {
+        "handle": "skalskip92",
+        "name": "SkalskiP"
+      },
+      "text": "cheque",
+      "replyTo": {
+        "id": "2110057928493301772",
+        "authorHandle": "skalskip92"
+      },
+      "postedAt": "Tue Oct 13 17:19:49 +0000 2026",
+      "media": [
+        {
+          "ref": "16.1",
+          "kind": "image",
+          "url": "https://pbs.twimg.com/media/HUhughSWsAAxHlZ.jpg?name=orig",
+          "id": "2110057930393300992",
+          "width": 1199,
+          "height": 675,
+          "alt": ""
+        }
+      ],
+      "selection": {
+        "role": "primary",
+        "origin": "expanded",
+        "parentUri": "https://x.com/skalskip92/status/2110057928493301772"
+      }
+    },
+    {
+      "provider": "x",
+      "id": "2110057942099644751",
+      "canonicalUrl": "https://x.com/skalskip92/status/2110057942099644751",
+      "author": {
+        "handle": "skalskip92",
+        "name": "SkalskiP"
+      },
+      "text": "railway ticket",
+      "replyTo": {
+        "id": "2110057935279665565",
+        "authorHandle": "skalskip92"
+      },
+      "postedAt": "Tue Oct 13 17:19:51 +0000 2026",
+      "media": [
+        {
+          "ref": "17.1",
+          "kind": "image",
+          "url": "https://pbs.twimg.com/media/HUhug6OXEAARxRc.jpg?name=orig",
+          "id": "2110057937087434752",
+          "width": 1199,
+          "height": 675,
+          "alt": ""
+        }
+      ],
+      "selection": {
+        "role": "primary",
+        "origin": "expanded",
+        "parentUri": "https://x.com/skalskip92/status/2110057935279665565"
+      }
+    },
+    {
+      "provider": "x",
+      "id": "2110057950358478987",
+      "canonicalUrl": "https://x.com/skalskip92/status/2110057950358478987",
+      "author": {
+        "handle": "skalskip92",
+        "name": "SkalskiP"
+      },
+      "text": "sneaker label",
+      "replyTo": {
+        "id": "2110057942099644751",
+        "authorHandle": "skalskip92"
+      },
+      "postedAt": "Tue Oct 13 17:19:53 +0000 2026",
+      "media": [
+        {
+          "ref": "18.1",
+          "kind": "image",
+          "url": "https://pbs.twimg.com/media/HUhuhT_WcAABdqE.jpg?name=orig",
+          "id": "2110057944003801088",
+          "width": 1199,
+          "height": 675,
+          "alt": ""
+        }
+      ],
+      "selection": {
+        "role": "primary",
+        "origin": "expanded",
+        "parentUri": "https://x.com/skalskip92/status/2110057942099644751"
+      }
+    },
+    {
+      "provider": "x",
+      "id": "2110057957622706510",
+      "canonicalUrl": "https://x.com/skalskip92/status/2110057957622706510",
+      "author": {
+        "handle": "skalskip92",
+        "name": "SkalskiP"
+      },
+      "text": "scrabble words",
+      "replyTo": {
+        "id": "2110057950358478987",
+        "authorHandle": "skalskip92"
+      },
+      "postedAt": "Tue Oct 13 17:19:54 +0000 2026",
+      "media": [
+        {
+          "ref": "19.1",
+          "kind": "image",
+          "url": "https://pbs.twimg.com/media/HUhuhz9XgAA6UaQ.jpg?name=orig",
+          "id": "2110057952585416704",
+          "width": 1199,
+          "height": 675,
+          "alt": ""
+        }
+      ],
+      "selection": {
+        "role": "primary",
+        "origin": "expanded",
+        "parentUri": "https://x.com/skalskip92/status/2110057950358478987"
+      }
+    },
+    {
+      "provider": "x",
+      "id": "2110057966150013258",
+      "canonicalUrl": "https://x.com/skalskip92/status/2110057966150013258",
+      "author": {
+        "handle": "skalskip92",
+        "name": "SkalskiP"
+      },
+      "text": "better performance than Astra, 4× cheaper at high effort\n\nlink: https://playground.roboflow.com/evals",
+      "replyTo": {
+        "id": "2110057957622706510",
+        "authorHandle": "skalskip92"
+      },
+      "postedAt": "Tue Oct 13 17:19:56 +0000 2026",
+      "media": [
+        {
+          "ref": "20.1",
+          "kind": "image",
+          "url": "https://pbs.twimg.com/media/HUhuiOUWAAA_HLo.jpg?name=orig",
+          "id": "2110057959661109248",
+          "width": 1200,
+          "height": 808,
+          "alt": ""
+        }
+      ],
+      "selection": {
+        "role": "primary",
+        "origin": "expanded",
+        "parentUri": "https://x.com/skalskip92/status/2110057957622706510"
+      }
+    },
+    {
+      "provider": "x",
+      "id": "2110057974207307900",
+      "canonicalUrl": "https://x.com/skalskip92/status/2110057974207307900",
+      "author": {
+        "handle": "skalskip92",
+        "name": "SkalskiP"
+      },
+      "text": "Argon is also 34% faster at high effort\n\n- Argon: 19.6 s/image\n- Astra: 29.7 s/image\n\nlink: https://playground.roboflow.com/evals",
+      "replyTo": {
+        "id": "2110057966150013258",
+        "authorHandle": "skalskip92"
+      },
+      "postedAt": "Tue Oct 13 17:19:58 +0000 2026",
+      "media": [
+        {
+          "ref": "21.1",
+          "kind": "image",
+          "url": "https://pbs.twimg.com/media/HUhuivMXYAAXMVy.jpg?name=orig",
+          "id": "2110057968486014976",
+          "width": 1200,
+          "height": 808,
+          "alt": ""
+        }
+      ],
+      "selection": {
+        "role": "primary",
+        "origin": "expanded",
+        "parentUri": "https://x.com/skalskip92/status/2110057966150013258"
+      }
+    }
+  ],
+  "policy": {
+    "media": "all",
+    "selectedMedia": [],
+    "threadExpansion": "on",
+    "quote": "block",
+    "separator": "auto"
+  },
+  "block": {
+    "kind": "link",
+    "title": "Post by @skalskip92",
+    "markdown": "> `@GeminiApp`\n> The moment you've been waiting 4…\n>\n> Our new frontier model, Gemini 4 Argon, is rolling out now in the Gemini app to bring your most complex ideas into reality.\n>\n> See how Gemini 4 Argon and our latest updates across the Gemini app help you get the most out of every prompt. 🧵\n>\n> *[video]*\n\nAstra dethroned\n\nGemini 4 Argon is the best \"vision\" model\n\n#1 for detection:\n\n- tight, precise boxes\n- dense scenes\n\n#1 for text extraction:\n\n- small text\n- handwritten text\n- complex tables\n- rotated text\n\n4× cheaper than Astra at high\n\n*[image]*\n\n---\n\nObject Detection\n\n#1 for high and low efforts\n\nhigh:\n\n- Argon 85.1%\n- Astra 83.6%\n\nlow:\n\n- Argon 82.5%\n- Astra 82.1%\n\nlink: https://playground.roboflow.com/evals/object-detection\n\n*[image]*\n\n---\n\nlego pieces\n\ntry Astra vs Argon in playground: https://playground.roboflow.com/share/39a9ef79-142a-423c-925e-1d79dbcfe09a\n\n*[image]*\n\n---\n\nbottle caps\n\n*[image]*\n\n---\n\ncarrots\n\n*[image]*\n\n---\n\nSingle String Extraction\n\n#1 for high and low efforts\n\nhigh:\n\n- Argon 80.0%\n- Claude Fable 5 72.2%\n\nlow:\n\n- Argon 78.3%\n- Gemini 3.7 Flash 74.8%\n\nlink: https://playground.roboflow.com/evals/ocr\n\n*[image]*\n\n---\n\nmechanical electricity meter\n\n*[image]*\n\n---\n\nlicense plates at night\n\n*[image]*\n\n---\n\ndigital scale upside down\n\n*[image]*\n\n---\n\ncode engraved on worn metal\n\n*[image]*\n\n---\n\nText Localization and Recognition\n\n#1 for high and low efforts\n\nhigh:\n\n- Argon 84.7%\n- Astra 76.8%\n\nlow:\n\n- Argon 81.6%\n- Astra 75.5%\n\nlink: https://playground.roboflow.com/evals/ocr\n\n*[image]*\n\n---\n\ncircuit board\n\n*[image]*\n\n---\n\ntechnical drawing\n\n*[image]*\n\n---\n\nJSON Extraction\n\n#1 for high and low efforts\n\nhigh:\n\n- Argon 94.8%\n- Astra 91.7%\n\nlow:\n\n- Argon 92.6%\n- Astra 91.8%\n\nlink: https://playground.roboflow.com/evals/ocr\n\n*[image]*\n\n---\n\nhandwritten weather table\n\n*[image]*\n\n---\n\ncheque\n\n*[image]*\n\n---\n\nrailway ticket\n\n*[image]*\n\n---\n\nsneaker label\n\n*[image]*\n\n---\n\nscrabble words\n\n*[image]*\n\n---\n\nbetter performance than Astra, 4× cheaper at high effort\n\nlink: https://playground.roboflow.com/evals\n\n*[image]*\n\n---\n\nArgon is also 34% faster at high effort\n\n- Argon: 19.6 s/image\n- Astra: 29.7 s/image\n\nlink: https://playground.roboflow.com/evals\n\n*[image]*",
+    "canonicalSource": "https://x.com/skalskip92/status/2110057814215291370",
+    "selectedMedia": [
+      "1.1",
+      "2.1",
+      "3.1",
+      "4.1",
+      "5.1",
+      "6.1",
+      "7.1",
+      "8.1",
+      "9.1",
+      "10.1",
+      "11.1",
+      "12.1",
+      "13.1",
+      "14.1",
+      "15.1",
+      "16.1",
+      "17.1",
+      "18.1",
+      "19.1",
+      "20.1",
+      "21.1"
+    ],
+    "layout": {
+      "kind": "split",
+      "axis": "vertical",
+      "children": [
+        {
+          "kind": "split",
+          "axis": "horizontal",
+          "children": [
+            {
+              "kind": "media",
+              "ref": "1.1"
+            },
+            {
+              "kind": "media",
+              "ref": "2.1"
+            },
+            {
+              "kind": "media",
+              "ref": "3.1"
+            },
+            {
+              "kind": "media",
+              "ref": "4.1"
+            },
+            {
+              "kind": "media",
+              "ref": "5.1"
+            }
+          ]
+        },
+        {
+          "kind": "split",
+          "axis": "horizontal",
+          "children": [
+            {
+              "kind": "media",
+              "ref": "6.1"
+            },
+            {
+              "kind": "media",
+              "ref": "7.1"
+            },
+            {
+              "kind": "media",
+              "ref": "8.1"
+            },
+            {
+              "kind": "media",
+              "ref": "9.1"
+            },
+            {
+              "kind": "media",
+              "ref": "10.1"
+            }
+          ]
+        },
+        {
+          "kind": "split",
+          "axis": "horizontal",
+          "children": [
+            {
+              "kind": "media",
+              "ref": "11.1"
+            },
+            {
+              "kind": "media",
+              "ref": "12.1"
+            },
+            {
+              "kind": "media",
+              "ref": "13.1"
+            },
+            {
+              "kind": "media",
+              "ref": "14.1"
+            },
+            {
+              "kind": "media",
+              "ref": "15.1"
+            }
+          ]
+        },
+        {
+          "kind": "split",
+          "axis": "horizontal",
+          "children": [
+            {
+              "kind": "media",
+              "ref": "16.1"
+            },
+            {
+              "kind": "media",
+              "ref": "17.1"
+            },
+            {
+              "kind": "media",
+              "ref": "18.1"
+            },
+            {
+              "kind": "media",
+              "ref": "19.1"
+            },
+            {
+              "kind": "media",
+              "ref": "20.1"
+            }
+          ]
+        },
+        {
+          "kind": "media",
+          "ref": "21.1"
+        }
+      ]
+    },
+    "quoteCoverage": [
+      {
+        "sourceId": "2110057814215291370",
+        "availableDepth": 1,
+        "renderedDepth": 1,
+        "requestedDepth": 2,
+        "maxDepth": 8,
+        "maxReached": false,
+        "truncated": false,
+        "stopped": "end",
+        "mayExpand": false,
+        "dateUncertainty": [
+          "same_day"
+        ]
+      }
+    ]
+  },
+  "hash": "99d148a18238be969afd19676488860cf5d17d81d74ece4ebfdc1d4f1cc920a9"
+}

@@ -1,0 +1,55 @@
+{
+  "schema": "arena-block/substack-browser-capture",
+  "version": 1,
+  "sourceUrl": "https://substack.com/@norvidstudies/note/c-360829302",
+  "observedAt": "2026-10-15T14:17:48.314Z",
+  "method": "public-html",
+  "note": {
+    "acquisition": {
+      "method": "public-html",
+      "observedAt": "2026-10-15T14:17:48.167Z"
+    },
+    "url": "https://substack.com/@norvidstudies/note/c-360829302",
+    "author": {
+      "handle": "norvidstudies",
+      "name": "norvid_studies",
+      "profileUrl": "https://substack.com/@norvidstudies"
+    },
+    "body": {
+      "status": "complete",
+      "html": "<p>most video/audio content is relatively hidden and inaccessible, in the sense that almost no one will view or listen to some given 1 hour block of video/audio (not enough time in the day). so there\u2019s a lot of value in just condensing the main and best points, from any sufficiently dense block, and reposting it, basically \u201cliveblogging this good podcast episode I listened to\u201d. but I hardly ever see this in the wild, and also don\u2019t do it that much myself. anyway here\u2019s a good example</p>"
+    },
+    "publishedLabel": "Oct 14, 2026, 2:34 PM",
+    "postedAt": "2026-10-14T14:34:41.000Z",
+    "links": [],
+    "quote": {
+      "url": "https://substack.com/@lamblog/note/c-359890078",
+      "previewHtml": "<p>Interesting debate with Hanson and Krueger on AI Doom. I generally found Hanson\u2019s (anti-doom) arguments more compelling. The basic case for AI doom is probably still underrated among most people (how many have really thought about what happens when machines are smarter than people?), but the more I hear specific arguments for it being a \u2026</p>",
+      "expanded": {
+        "acquisition": {
+          "method": "public-html",
+          "observedAt": "2026-10-15T14:17:48.314Z"
+        },
+        "url": "https://substack.com/@lamblog/note/c-359890078",
+        "author": {
+          "handle": "lamblog",
+          "name": "Lam",
+          "profileUrl": "https://substack.com/@lamblog"
+        },
+        "body": {
+          "status": "complete",
+          "html": "<p>Interesting debate with Hanson and Krueger on AI Doom. I generally found Hanson\u2019s (anti-doom) arguments more compelling. The basic case for AI doom is probably still underrated among most people (how many have really thought about what happens when machines are smarter than people?), but the more I hear specific arguments for it being a large threat (or especially for it being a threat soon), the worse they seem. Many involve empirical claims and predictions which are not well supported by evidence, for example (following are not meant to be conjunctive or universal to all such arguments):</p><ul><li><p>That AI will soon revolutionize much of the economy soon in a trend-changing way, despite the fact that, for example, superforecasters, economists, and prediction markets all expect US GDP growth in ~2% range for the next decade, in line with official long-run estimates.</p></li><li><p>That there are many scary technologies such as advanced bioweapons just around the corner which will heavily favor offense, far more so than prior technologies -- despite no consensus that this is true, and several opposing theories such as the \"Wrench Hypothesis\". (and additionally that the key bottleneck to these is AI capabilities progress)</p></li><li><p>That we would see a sudden, large leaps in intelligence and thus that a single system could achieve an unprecedented level of autarky and become more powerful than the rest of the world quickly without the rest of the world being able to do much about it. note this is not a feature of all doom stories, but it is of most of the prominent ones, and leads to dubious claim that alignment will become a \"all or nothing\"/\"critical act\" problem, versus a more normal engineering/liability problem where we require a certain level of reliability and can respond to increased rates of risks as they emerge.</p></li><li><p>that our current methods of aligning and instilling human values into ai, which seem to be working well, will catastrophically fail to generalize in a way we can't adapt to, despite large commercial and political pressures to apply and extend these methods</p></li><li><p>that human institutions cannot handle more intelligent entities, despite a history of them evolving to be able to re-invent themselves to handle (imperfectly, but all things considered passably) smarter people, corporations, governments, etc.</p></li></ul><p>When I try to read the \u201cbasic cases\u201c for AI doom they all seem to be proving too much or to be too vague to apply to the real world (ex. analogies from evolution, or discussion of orthogonality and instrumental convergence).</p><p>In general AI existential risk seems to me like like the kind of thing some people should be thinking about, but not something that should be, e.g, be used as a justification for any particularly costly or unprecedented policies. There has been a lot of gloating by the doomer side about how the world has unfolded just as they have predicted, by for example pointing to some current harms -- but these current harms are still very small, and while perhaps increasing in absolute terms are not obviously increasing relative to benefits. And the path from current harms to doom still requires a variety of still-unobserved dramatic steps like those mentioned above.</p><p>In my view, the basic picture today is that we are observing AI systems increasing in capability diffusing throughout the economy, bringing large benefits, with <em>very</em> minor harm. We can see some new types of harms emerging, and we can and should be watching things closely and address them with targeted research and policy, but not much else is warranted by what we know now. One risk that <em>is</em> very clear (and precedented) and excessive concern among the public and policymakers leading to destructive policies that foreclose human potential.</p><p></p>"
+        },
+        "publishedLabel": "Oct 13, 2026, 12:46 PM",
+        "postedAt": "2026-10-13T12:46:12.000Z",
+        "links": [
+          {
+            "kind": "video",
+            "role": "linked",
+            "url": "https://www.youtube.com/watch?v=1u5qMZvd6ps"
+          }
+        ]
+      }
+    }
+  }
+}

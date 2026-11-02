@@ -83,9 +83,11 @@ describe("comment resolution", () => {
     }
   });
 
-  test("rejects cyclic HN ancestry", async () => {
+  test("retains selected writing and marks cyclic HN ancestry", async () => {
     const { fetcher } = api({ ...hnFixtures, "/v0/item/2.json": { id: 2, type: "comment", parent: 3 } });
-    await expect(new HackerNewsProvider(fetcher).resolve(parseSource(hnUrl))).rejects.toThrow("cycle");
+    const post = await new HackerNewsProvider(fetcher).resolve(parseSource(hnUrl));
+    expect(post.parentContext?.stopped).toBe("cycle");
+    expect(composePlan([post], { parentDepth: "full" }).block.markdown).toContain("parent context cycle");
   });
 
   test("rejects deleted or moderated Lobsters comments and unsafe story URLs", async () => {

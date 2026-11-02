@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise media edits and draft restoration with a fictional X post in Chrome."""
+"""Exercise media edits and draft restoration with a fictional x.com post in Chrome."""
 import argparse
 import json
 import shutil

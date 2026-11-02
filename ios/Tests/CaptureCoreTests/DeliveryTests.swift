@@ -251,7 +251,8 @@ final class DeliveryTests: XCTestCase {
         try withDelivery { delivery, _ in
             var job = makeJob(stage: .reconcile)
             job.draft.phase = .uncertain
-            let match = JSONValue.object(["id": .number(900), "metadata": .object(["arena_capture_id": .string(job.id.uuidString)])])
+            let match = JSONValue.object(["id": .number(900), "metadata": .object(["arena_capture_id": .string(job.id.uuidString)]),
+                "created_at": .string(ISO8601DateFormatter().string(from: job.createdAt)), "user": .object(["id": .number(Double(job.draft.accountID))])])
             delivery.consume(try response(.object([
                 "data": .array([match]),
                 "meta": .object(["has_more_pages": .bool(true), "next_page": .number(2)])
@@ -366,6 +367,7 @@ final class DeliveryTests: XCTestCase {
     func testReuseConnectsOnlyMissingChannelsAndReconcilesAmbiguousConnection() throws {
         try withDelivery { delivery, _ in
             var job = makeJob(stage: .connections, channels: [101, 102])
+            job.attemptedChannelIDs = []
             job.draft.blockID = 900
             job.reuseExisting = true
             delivery.consume(try response(.object([
@@ -520,13 +522,13 @@ final class DeliveryTests: XCTestCase {
             original.titleOverride = "Old approved title"; original.descriptionOverride = "My writing"
             original.media = .all; original.publicationKey = "original-plan"
             let next = try XCTUnwrap(original.addingPlacements())
-            XCTAssertNotEqual(next.id, original.id)
-            XCTAssertTrue(next.selection.channels.isEmpty)
+            XCTAssertEqual(next.id, original.id)
+            XCTAssertEqual(next.selection.channels, original.selection.channels)
             XCTAssertFalse(next.selection.implicitDefault)
             XCTAssertEqual(next.titleOverride, original.titleOverride)
             XCTAssertEqual(next.media, .all)
             XCTAssertNil(next.publicationKey)
-            var selected = next; selected.selection.toggle(original.selection.channels[0])
+            let selected = next
             _ = try delivery.persistSubmission(draft: selected, prepared: .init(payload: [:], update: [:]), media: nil, contentType: nil)
             var job = try XCTUnwrap(store.value(DeliveryJob.self, account: 0, kind: "delivery", id: selected.id.uuidString))
             delivery.consume(try response(.object(["can": .object(["add_to": .bool(true)])])), job: &job)
@@ -551,6 +553,7 @@ final class DeliveryTests: XCTestCase {
     func testVerifiedPartialRecoveryChecksMembershipBeforeAddingOnlyMissingPlacement() throws {
         try withDelivery { delivery, _ in
             var job = makeJob(stage: .attention, channels: [101, 102])
+            job.attemptedChannelIDs = [101]
             job.draft.blockID = 900; job.contentVerified = true; job.resumeStage = .connections
             job.connected = [101]; job.problem = "Pending destination"
             job.resumeAfterAttention()
@@ -604,8 +607,11 @@ final class DeliveryTests: XCTestCase {
             let body = try JSONDecoder().decode(JSONValue.self, from: XCTUnwrap(delivery.request(job, token: "fixture").body))
             XCTAssertNil(body["channel_ids"])
             XCTAssertNil(body["channels"]?.array[0]["metadata"])
-            XCTAssertEqual(body["channels"]?.array[1]["metadata"]?["ac_capture_id"], .string(job.id.uuidString))
-            XCTAssertEqual(body["channels"]?.array[1]["metadata"]?["ac_snapshot_complete"], .bool(false))
+            XCTAssertEqual(body["channels"]?.array.count, 1)
+            job.draft.blockID = 900; job.stage = .connect; job.connected = [101]
+            let addition = try JSONDecoder().decode(JSONValue.self, from: XCTUnwrap(delivery.request(job, token: "fixture").body))
+            XCTAssertEqual(addition["channels"]?.array[0]["metadata"]?["ac_capture_id"], .string(job.id.uuidString))
+            XCTAssertEqual(addition["channels"]?.array[0]["metadata"]?["ac_snapshot_complete"], .bool(false))
             XCTAssertNil(body["metadata"]?["ac_capture_id"])
             let original = try JSONDecoder().decode(JSONValue.self, from: Data(try XCTUnwrap(job.draft.provenanceSnapshotJSON).utf8))
             XCTAssertEqual(original["draft"]?["input"], .string(source.draft.input))

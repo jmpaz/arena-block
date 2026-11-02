@@ -1,0 +1,121 @@
+{
+  "item": {
+    "comment": {
+      "id": 311363713,
+      "type": "feed",
+      "post_id": null,
+      "user_id": 411462987,
+      "handle": "evadmartain",
+      "body": "AUDIO GRAM",
+      "attachments": [
+        {
+          "id": "006e0046-914d-4324-96ca-11ba9501ca1c",
+          "type": "post",
+          "publication": {
+            "id": 1
+          },
+          "postSelection": null,
+          "postImageSelection": null,
+          "clipInfo": null,
+          "mediaClip": null,
+          "post": {
+            "id": 136544895,
+            "publication_id": 1,
+            "canonical_url": "https://on.substack.com/p/transcription",
+            "title": "Introducing new audio transcription tools for Substack",
+            "subtitle": "Cutting-edge AI tools let you automatically generate transcripts and create social sharing assets",
+            "publishedBylines": [
+              {
+                "id": 3567,
+                "name": "Hamish McKenzie",
+                "handle": "hamish",
+                "photo_url": "https://substack-post-media.s3.amazonaws.com/public/images/46d05a58-6aa7-4896-bd79-5972793b5d4f_1179x1179.jpeg",
+                "bio": "Co-founder of Substack. Chief Writing Officer.",
+                "profile_set_up_at": "2022-03-30T21:52:47.674Z",
+                "reader_installed_at": "2022-08-22T04:18:19.728Z",
+                "publicationUsers": [
+                  {
+                    "id": 126704,
+                    "user_id": 3567,
+                    "publication_id": 35,
+                    "role": "admin",
+                    "public": true,
+                    "is_primary": true,
+                    "publication": {
+                      "id": 35,
+                      "name": "Disjointed",
+                      "subdomain": "hamish",
+                      "custom_domain": null,
+                      "custom_domain_optional": false,
+                      "hero_text": "Sometimes I feel like writing things, so this is where I write them. ",
+                      "logo_url": "https://bucketeer-e05bbc84-baa3-437e-9518-adb32be77984.s3.amazonaws.com/public/images/10760fa2-389a-4231-8401-39b2cf1f97e6_225x225.png",
+                      "author_id": 3567,
+                      "primary_user_id": 3567,
+                      "theme_var_background_pop": "#00786a",
+                      "created_at": "2018-03-05T05:16:39.828Z",
+                      "email_from_name": "Hamish McKenzie (Disjointed)",
+                      "copyright": "Hamish McKenzie",
+                      "founding_plan_name": null,
+                      "community_enabled": true,
+                      "invite_only": false,
+                      "payments_state": "disabled",
+                      "language": null,
+                      "explicit": false,
+                      "homepage_type": "newspaper",
+                      "is_personal_mode": false,
+                      "logo_url_wide": null
+                    }
+                  }
+                ],
+                "twitter_screen_name": "hamishmckenzie",
+                "is_guest": false,
+                "bestseller_tier": null,
+                "status": {
+                  "bestsellerTier": null,
+                  "subscriberTier": 10,
+                  "leaderboard": null,
+                  "vip": false,
+                  "badge": {
+                    "type": "subscriber",
+                    "tier": 10,
+                    "accent_colors": null
+                  },
+                  "subscriber": null
+                },
+                "primary_publication": {
+                  "id": 35,
+                  "subdomain": "hamish",
+                  "custom_domain_optional": false,
+                  "name": "Disjointed",
+                  "logo_url": "https://bucketeer-e05bbc84-baa3-437e-9518-adb32be77984.s3.amazonaws.com/public/images/10760fa2-389a-4231-8401-39b2cf1f97e6_225x225.png",
+                  "author_id": 3567,
+                  "primary_user_id": 3567,
+                  "user_id": 3567,
+                  "handles_enabled": false,
+                  "explicit": false,
+                  "is_personal_mode": false,
+                  "payments_state": "disabled",
+                  "pledges_enabled": false,
+                  "ios_app_payments_enabled": false,
+                  "has_reply_rules": false
+                }
+              }
+            ],
+            "podcast_url": "https://api.substack.com/api/v1/audio/upload/a6e8b591-be53-465a-9d43-1615c6594f26/src",
+            "videoUpload": null,
+            "podcastUpload": {
+              "id": "a6e8b591-be53-465a-9d43-1615c6594f26",
+              "state": "transcoded",
+              "post_id": 136544895,
+              "publication_id": 1,
+              "user_id": 34072171,
+              "duration": 241.42368,
+              "media_type": "audio",
+              "is_free_preview": false
+            }
+          }
+        }
+      ]
+    }
+  }
+}

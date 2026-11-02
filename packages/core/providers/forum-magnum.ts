@@ -6,6 +6,8 @@ import type { Fetcher } from "./comments.ts";
 import type { SocialProvider } from "./provider.ts";
 
 type ForumSource = Extract<ParsedSource, { provider: "forum_magnum" }>;
+const siteNames = { lesswrong: "LessWrong", alignment_forum: "Alignment Forum", ea_forum: "EA Forum" } as const;
+function siteName(source: ForumSource): string { return siteNames[source.site]; }
 const origins = {
   lesswrong: "https://www.lesswrong.com",
   alignment_forum: "https://www.alignmentforum.org",
@@ -112,7 +114,7 @@ function body(html: string, canonicalUrl: string): Pick<ResolvedPost, "text" | "
   });
   converter.addRule("forumCaption", {
     filter: "figcaption",
-    replacement: content => content.trim() ? `\n\n*Caption:* ${content.trim()}\n\n` : "",
+    replacement: content => content.trim() ? `\n\n${content.trim()}\n\n` : "",
   });
   converter.addRule("forumStrike", { filter: ["s", "del"], replacement: content => `~~${content}~~` });
   const text = converter.turndown(html).trim();
@@ -120,29 +122,29 @@ function body(html: string, canonicalUrl: string): Pick<ResolvedPost, "text" | "
 }
 
 function verifiedPost(value: unknown, source: ForumSource): ForumPost {
-  if (!value) throw new Error(`Forum Magnum post ${source.id} is unavailable or private`);
+  if (!value) throw new Error(`${siteName(source)} post is unavailable.`);
   const post = postSchema.parse(value);
-  if (post._id !== source.id) throw new Error("Forum Magnum returned a different post");
+  if (post._id !== source.id) throw new Error(`${siteName(source)} returned a different post.`);
   const permalink = parseSource(post.pageUrl);
   if (permalink.provider !== "forum_magnum" || permalink.site !== source.site || permalink.id !== source.id || permalink.commentId) {
-    throw new Error("Forum Magnum returned a mismatched post permalink");
+    throw new Error(`${siteName(source)} returned a different post link.`);
   }
-  if (post.status !== 2 || post.draft || post.isFuture || !post.user) throw new Error("Forum Magnum post is unavailable, private, or deleted");
-  if (!post.contents?.html?.trim() && post.shortform) throw new Error("This Shortform post is a container; choose a Quick Take comment permalink");
-  if (!post.contents?.html?.trim()) throw new Error("Forum Magnum post body is unavailable");
+  if (post.status !== 2 || post.draft || post.isFuture || !post.user) throw new Error(`${siteName(source)} post is unavailable.`);
+  if (!post.contents?.html?.trim() && post.shortform) throw new Error("This link opens a Shortform page. Copy the link to the Quick Take you want to capture.");
+  if (!post.contents?.html?.trim()) throw new Error(`${siteName(source)} post text is unavailable.`);
   return post;
 }
 
 function verifiedComment(value: unknown, source: ForumSource, expectedId: string): ForumComment {
-  if (!value) throw new Error(`Forum Magnum comment ${expectedId} is unavailable or private`);
+  if (!value) throw new Error(`${siteName(source)} comment is unavailable.`);
   const comment = commentSchema.parse(value);
-  if (comment._id !== expectedId || comment.postId !== source.id) throw new Error("Forum Magnum returned a comment from a different post");
+  if (comment._id !== expectedId || comment.postId !== source.id) throw new Error(`${siteName(source)} returned a comment from a different post.`);
   const permalink = parseSource(comment.pageUrl);
   if (permalink.provider !== "forum_magnum" || permalink.site !== source.site || permalink.id !== source.id || permalink.commentId !== expectedId) {
-    throw new Error("Forum Magnum returned a mismatched comment permalink");
+    throw new Error(`${siteName(source)} returned a different comment link.`);
   }
   if (comment.deleted || comment.deletedPublic || comment.draft || comment.rejected || !comment.user || !comment.contents?.html?.trim()) {
-    throw new Error(`Forum Magnum comment ${expectedId} is unavailable, private, or deleted`);
+    throw new Error(`${siteName(source)} comment is unavailable.`);
   }
   return comment;
 }
@@ -175,12 +177,13 @@ export class ForumMagnumProvider implements SocialProvider {
       body: JSON.stringify({ query, variables }), redirect: "error", credentials: "omit",
       signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(20_000)]) : AbortSignal.timeout(20_000),
     });
-    if (!response.ok || !response.headers.get("content-type")?.includes("application/json")) {
-      throw new Error(`Forum Magnum public API returned HTTP ${response.status}; current content cannot be verified`);
+    if (!response.ok) {
+      throw new Error(`${siteName(source)} returned HTTP ${response.status}. Capture could not read this link.`);
     }
+    if (!response.headers.get("content-type")?.includes("application/json")) throw new Error(`${siteName(source)} returned an unreadable response.`);
     const payload = await response.json();
     if (!payload || typeof payload !== "object" || Array.isArray(payload) || payload.errors?.length) {
-      throw new Error(`Forum Magnum public API did not return usable content${payload?.errors?.[0]?.message ? `: ${payload.errors[0].message}` : ""}`);
+      throw new Error(`${siteName(source)} returned an unreadable response.`);
     }
     return payload.data;
   }
@@ -203,27 +206,27 @@ export class ForumMagnumProvider implements SocialProvider {
   private async postForComment(source: ForumSource, signal?: AbortSignal): Promise<ForumPost> {
     // Shortform containers can have no post body. Their comments are the authored content.
     const value = (await this.query(source, postQuery, { id: source.id }, signal))?.post?.result;
-    if (!value) throw new Error(`Forum Magnum post ${source.id} is unavailable or private`);
+    if (!value) throw new Error(`${siteName(source)} post is unavailable.`);
     const post = postSchema.parse(value);
     if (post._id !== source.id || post.status !== 2 || post.draft || post.isFuture || !post.user) {
-      throw new Error("Forum Magnum post is unavailable, private, or deleted");
+      throw new Error(`${siteName(source)} post is unavailable.`);
     }
     const permalink = parseSource(post.pageUrl);
     if (permalink.provider !== "forum_magnum" || permalink.site !== source.site || permalink.id !== source.id || permalink.commentId) {
-      throw new Error("Forum Magnum returned a mismatched post permalink");
+      throw new Error(`${siteName(source)} returned a different post link.`);
     }
     return post;
   }
 
   /** Ancestors by default; opt-in adds only bounded direct replies and same-author continuations. */
   async discoverRelated(input: ForumSource, mode: "auto" | "on", signal?: AbortSignal): Promise<{ posts: ResolvedPost[]; seedId: string }> {
-    if (!input.commentId) throw new Error("Forum Magnum expansion needs a comment permalink");
+    if (!input.commentId) throw new Error("Copy a comment link to include its parents or replies.");
     const [post, seed] = await Promise.all([this.postForComment(input, signal), this.comment(input, input.commentId, signal)]);
     const ancestors: ForumComment[] = [];
     const visited = new Set([seed._id]);
     let parentId = seed.parentCommentId;
     for (let depth = 0; parentId && depth < 6; depth++) {
-      if (visited.has(parentId)) throw new Error("Forum Magnum comment ancestry contains a cycle");
+      if (visited.has(parentId)) throw new Error("The comment links form a cycle. Capture cannot determine their order.");
       visited.add(parentId);
       try {
         const parent = await this.comment(input, parentId, signal);
@@ -244,10 +247,10 @@ export class ForumMagnumProvider implements SocialProvider {
         const response = await this.query(input, repliesQuery,
           { terms: { view: "commentReplies", parentCommentId: parent._id, limit: depth ? 5 : 9 } }, signal);
         const raw = response?.comments?.results;
-        if (!Array.isArray(raw)) throw new Error("Forum Magnum replies response is incomplete");
+        if (!Array.isArray(raw)) throw new Error(`${siteName(input)} returned an incomplete set of replies.`);
         const replies = raw.map(value => {
           const item = commentSchema.parse(value);
-          if (item.parentCommentId !== parent._id) throw new Error("Forum Magnum returned an unrelated reply");
+          if (item.parentCommentId !== parent._id) throw new Error(`${siteName(input)} returned an unrelated reply.`);
           return item;
         }).filter(item => !item.deleted && !item.deletedPublic && !item.draft && !item.rejected && item.user && item.contents?.html?.trim())
           .slice(0, depth ? 4 : 8);

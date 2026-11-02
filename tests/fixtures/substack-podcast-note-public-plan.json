@@ -1,0 +1,166 @@
+{
+  "schemaVersion": 1,
+  "hash": "26082c84f07ba92b4ed0e432e8ab54e96c76266f8275378b669a96cc0fdca31a",
+  "sources": [
+    {
+      "provider": "substack",
+      "id": "311363713",
+      "canonicalUrl": "https://substack.com/@evadmartain/note/c-311363713",
+      "author": {
+        "handle": "evadmartain",
+        "name": "Eva D'Martain"
+      },
+      "text": "AUDIO GRAM\n\n*Preview of [Introducing new audio transcription tools for Substack](<https://on.substack.com/p/transcription>), by Hamish McKenzie:*\n\n> Cutting-edge AI tools let you automatically generate transcripts and create social sharing assets",
+      "postedAt": "2026-08-09T17:47:26.000Z",
+      "postTitle": "Note by @evadmartain",
+      "substackCapture": {
+        "schema": "arena-block/substack-browser-capture",
+        "version": 1,
+        "sourceUrl": "https://substack.com/@evadmartain/note/c-311363713",
+        "observedAt": "2026-10-16T07:37:50.361Z",
+        "method": "public-html",
+        "note": {
+          "acquisition": {
+            "method": "public-html",
+            "observedAt": "2026-10-16T07:37:50.361Z"
+          },
+          "url": "https://substack.com/@evadmartain/note/c-311363713",
+          "author": {
+            "handle": "evadmartain",
+            "name": "Eva D'Martain",
+            "profileUrl": "https://substack.com/@evadmartain"
+          },
+          "body": {
+            "status": "complete",
+            "html": "<p>AUDIO GRAM</p>"
+          },
+          "publishedLabel": "Aug 9, 2026, 5:47 PM",
+          "postedAt": "2026-08-09T17:47:26.000Z",
+          "links": [],
+          "attachmentEvidence": {
+            "method": "public-api",
+            "observedAt": "2026-10-16T07:37:50.358Z",
+            "commentId": 311363713,
+            "userId": 411462987,
+            "handle": "evadmartain",
+            "bodyText": "AUDIO GRAM",
+            "attachments": [
+              {
+                "kind": "article",
+                "id": "006e0046-914d-4324-96ca-11ba9501ca1c",
+                "postId": 136544895,
+                "publicationId": 1,
+                "url": "https://on.substack.com/p/transcription",
+                "title": "Introducing new audio transcription tools for Substack",
+                "previewText": "Cutting-edge AI tools let you automatically generate transcripts and create social sharing assets",
+                "authors": [
+                  {
+                    "id": 3567,
+                    "name": "Hamish McKenzie",
+                    "handle": "hamish"
+                  }
+                ],
+                "podcast": {
+                  "uploadId": "a6e8b591-be53-465a-9d43-1615c6594f26",
+                  "userId": 34072171,
+                  "postId": 136544895,
+                  "publicationId": 1,
+                  "durationSeconds": 241.42368,
+                  "article": {
+                    "version": 1,
+                    "id": 136544895,
+                    "publicationId": 1,
+                    "url": "https://on.substack.com/p/transcription",
+                    "title": "Introducing new audio transcription tools for Substack",
+                    "authors": [
+                      {
+                        "id": 3567,
+                        "name": "Hamish McKenzie",
+                        "handle": "hamish",
+                        "profileUrl": "https://substack.com/@hamish"
+                      }
+                    ],
+                    "observedAt": "2026-10-16T07:37:50.370Z",
+                    "method": "public-api",
+                    "audience": "everyone",
+                    "bodyEvidence": {
+                      "status": "complete",
+                      "sha256": "7d2253302fe279568d22fc9aa9e400e2c4021748e55a00396b6fbc1123678c19",
+                      "bytes": 23925
+                    },
+                    "audio": {
+                      "kind": "audio",
+                      "uploadId": "a6e8b591-be53-465a-9d43-1615c6594f26",
+                      "url": "https://api.substack.com/api/v1/audio/upload/a6e8b591-be53-465a-9d43-1615c6594f26/src",
+                      "durationSeconds": 241.42368
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "media": [
+        {
+          "ref": "1.1",
+          "kind": "audio",
+          "url": "https://api.substack.com/api/v1/audio/upload/a6e8b591-be53-465a-9d43-1615c6594f26/src",
+          "sourceRole": "original",
+          "durationSeconds": 241.42368,
+          "acquisition": "substack-public-original",
+          "sourceAttribution": {
+            "kind": "substack-podcast",
+            "attachmentId": "006e0046-914d-4324-96ca-11ba9501ca1c",
+            "url": "https://on.substack.com/p/transcription",
+            "title": "Introducing new audio transcription tools for Substack",
+            "authors": [
+              "Hamish McKenzie"
+            ]
+          },
+          "alt": ""
+        }
+      ],
+      "quoteCoverage": {
+        "maxDepth": 8,
+        "actualDepth": 0,
+        "maxReached": false,
+        "truncated": false,
+        "stopped": "end",
+        "sourceIds": [
+          "311363713"
+        ],
+        "acquisitionDepth": 2,
+        "mayExpand": false
+      }
+    }
+  ],
+  "policy": {
+    "media": "auto",
+    "selectedMedia": [],
+    "quote": "block",
+    "separator": "auto"
+  },
+  "block": {
+    "kind": "audio",
+    "title": "Note by @evadmartain",
+    "markdown": "AUDIO GRAM\n\n*Preview of [Introducing new audio transcription tools for Substack](<https://on.substack.com/p/transcription>), by Hamish McKenzie:*\n\n> Cutting-edge AI tools let you automatically generate transcripts and create social sharing assets\n\n*Audio from [Introducing new audio transcription tools for Substack](<https://on.substack.com/p/transcription>), by Hamish McKenzie*",
+    "canonicalSource": "https://substack.com/@evadmartain/note/c-311363713",
+    "selectedMedia": [
+      "1.1"
+    ],
+    "quoteCoverage": [
+      {
+        "sourceId": "311363713",
+        "availableDepth": 0,
+        "renderedDepth": 0,
+        "requestedDepth": 2,
+        "maxDepth": 8,
+        "maxReached": false,
+        "truncated": false,
+        "stopped": "end",
+        "mayExpand": false
+      }
+    ]
+  }
+}

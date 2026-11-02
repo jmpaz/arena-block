@@ -60,7 +60,7 @@ describe("draft thread capture", () => {
   test("renderers sanitize source text, retain meaningful reviewed description, and label missing review", async () => {
     const url = "https://cdn.test/image.jpg";
     const result = await captureThread(x(), { fetch: mock({ tweet: { id: "1", author: { screen_name: "person", name: "<script>alert(1)</script>" }, text: "# title\n<script>alert(1)</script>\n[click](javascript:alert(1))", media: { all: [{ type: "photo", url, alt: "<img onerror=evil>" }, { type: "photo", url: "https://cdn.test/missing.jpg" }] } } }), descriptions: { [url]: { text: "A diagram showing three connected rectangles.", basis: "pixels", evidence: "evidence/reviewed.png" } } });
-    const rendered = renderThreadHtml(result); expect(rendered).not.toContain("<script>"); expect(rendered).toContain("&lt;script&gt;"); expect(rendered).toContain("Content-Security-Policy"); expect(rendered).toContain("A diagram showing three connected rectangles"); expect(rendered).toContain("Pending image review");
+    const rendered = renderThreadHtml(result); expect(rendered).not.toContain("<script>"); expect(rendered).toContain("&lt;script&gt;"); expect(rendered).toContain("Content-Security-Policy"); expect(rendered).toContain("A diagram showing three connected rectangles"); expect(rendered).toContain("Image review pending");
     const markdown = renderThreadMarkdown(result); expect(markdown).not.toContain("<script>"); expect(markdown).toContain("# title"); expect(markdown).toContain("reviewed pixels"); expect(result.coverage.mediaWithoutDescriptions).toBe(1);
   });
   test("standalone x.com quote hydration recovers a third author missing from the embedded record", async () => {

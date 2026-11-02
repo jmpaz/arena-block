@@ -1,0 +1,322 @@
+[
+  {
+    "provider": "x",
+    "plan": {
+      "schemaVersion": 1,
+      "sources": [
+        {
+          "provider": "x",
+          "id": "3",
+          "canonicalUrl": "https://x.com/quoted/status/3",
+          "author": {
+            "handle": "root"
+          },
+          "text": "Authored root prose.",
+          "postedAt": "2026-10-16T12:00:00Z",
+          "media": [],
+          "quote": {
+            "provider": "x",
+            "id": "2",
+            "canonicalUrl": "https://x.com/quoted/status/2",
+            "author": {
+              "handle": "quoted",
+              "name": "Independent quoted author"
+            },
+            "text": "Complete quoted prose.",
+            "postedAt": "2026-10-15T12:00:00Z",
+            "media": [
+              {
+                "ref": "quote.1",
+                "kind": "image",
+                "url": "https://example.com/original.jpg",
+                "width": 800,
+                "height": 600,
+                "alt": "Original quoted image"
+              }
+            ],
+            "quote": {
+              "provider": "x",
+              "id": "1",
+              "canonicalUrl": "https://x.com/quoted/status/1",
+              "author": {
+                "handle": "earlier"
+              },
+              "text": "Earlier quoted prose.",
+              "postedAt": "2026-10-14T12:00:00Z",
+              "media": []
+            }
+          }
+        }
+      ],
+      "policy": {
+        "media": "none",
+        "selectedMedia": [],
+        "threadExpansion": "off",
+        "quote": "block",
+        "quoteDates": "source",
+        "separator": "auto"
+      },
+      "block": {
+        "kind": "text",
+        "title": "Post by @root",
+        "markdown": "> > `@earlier` (2026-10-14T12:00:00Z)\n> > Earlier quoted prose.\n>\n> `@quoted` (2026-10-15T12:00:00Z)\n> Complete quoted prose.\n>\n> *[image]*\n\nAuthored root prose.",
+        "canonicalSource": "https://x.com/quoted/status/3",
+        "selectedMedia": [],
+        "quoteCoverage": [
+          {
+            "sourceId": "3",
+            "availableDepth": 2,
+            "renderedDepth": 2,
+            "requestedDepth": 2,
+            "maxDepth": 8,
+            "maxReached": false,
+            "truncated": false,
+            "stopped": "end",
+            "mayExpand": false
+          }
+        ]
+      },
+      "hash": "82f887a57090fdb95e34ecf61f3773b8172245e49bea293369b8e577e9caf742"
+    }
+  },
+  {
+    "provider": "bluesky",
+    "plan": {
+      "schemaVersion": 1,
+      "sources": [
+        {
+          "provider": "bluesky",
+          "id": "3",
+          "canonicalUrl": "https://bsky.app/profile/quoted.test/post/3",
+          "author": {
+            "handle": "root"
+          },
+          "text": "Authored root prose.",
+          "postedAt": "2026-10-16T12:00:00Z",
+          "media": [],
+          "quote": {
+            "provider": "bluesky",
+            "id": "2",
+            "canonicalUrl": "https://bsky.app/profile/quoted.test/post/2",
+            "author": {
+              "handle": "quoted.test",
+              "name": "Independent quoted author"
+            },
+            "text": "Complete quoted prose.",
+            "postedAt": "2026-10-15T12:00:00Z",
+            "media": [
+              {
+                "ref": "quote.1",
+                "kind": "image",
+                "url": "https://example.com/original.jpg",
+                "width": 800,
+                "height": 600,
+                "alt": "Original quoted image"
+              }
+            ],
+            "quote": {
+              "provider": "bluesky",
+              "id": "1",
+              "canonicalUrl": "https://bsky.app/profile/quoted.test/post/1",
+              "author": {
+                "handle": "earlier"
+              },
+              "text": "Earlier quoted prose.",
+              "postedAt": "2026-10-14T12:00:00Z",
+              "media": []
+            }
+          }
+        }
+      ],
+      "policy": {
+        "media": "none",
+        "selectedMedia": [],
+        "threadExpansion": "off",
+        "quote": "block",
+        "quoteDates": "source",
+        "separator": "auto"
+      },
+      "block": {
+        "kind": "text",
+        "title": "Post by @root",
+        "markdown": "> > `@earlier` (2026-10-14T12:00:00Z)\n> > Earlier quoted prose.\n>\n> `@quoted.test` (2026-10-15T12:00:00Z)\n> Complete quoted prose.\n>\n> *[image]*\n\nAuthored root prose.",
+        "canonicalSource": "https://bsky.app/profile/quoted.test/post/3",
+        "selectedMedia": [],
+        "quoteCoverage": [
+          {
+            "sourceId": "3",
+            "availableDepth": 2,
+            "renderedDepth": 2,
+            "requestedDepth": 2,
+            "maxDepth": 8,
+            "maxReached": false,
+            "truncated": false,
+            "stopped": "end",
+            "mayExpand": false
+          }
+        ]
+      },
+      "hash": "d070601c0265bad7692b1a7e9524d8e3621ff6105f3895e47849ca097cebb8fa"
+    }
+  },
+  {
+    "provider": "delve",
+    "plan": {
+      "schemaVersion": 1,
+      "sources": [
+        {
+          "provider": "delve",
+          "id": "3",
+          "canonicalUrl": "https://delve.town/profile/quoted.delve.town/post/3",
+          "author": {
+            "handle": "root"
+          },
+          "text": "Authored root prose.",
+          "postedAt": "2026-10-16T12:00:00Z",
+          "media": [],
+          "quote": {
+            "provider": "delve",
+            "id": "2",
+            "canonicalUrl": "https://delve.town/profile/quoted.delve.town/post/2",
+            "author": {
+              "handle": "quoted.delve.town",
+              "name": "Independent quoted author"
+            },
+            "text": "Complete quoted prose.",
+            "postedAt": "2026-10-15T12:00:00Z",
+            "media": [
+              {
+                "ref": "quote.1",
+                "kind": "image",
+                "url": "https://example.com/original.jpg",
+                "width": 800,
+                "height": 600,
+                "alt": "Original quoted image"
+              }
+            ],
+            "quote": {
+              "provider": "delve",
+              "id": "1",
+              "canonicalUrl": "https://delve.town/profile/quoted.delve.town/post/1",
+              "author": {
+                "handle": "earlier"
+              },
+              "text": "Earlier quoted prose.",
+              "postedAt": "2026-10-14T12:00:00Z",
+              "media": []
+            }
+          }
+        }
+      ],
+      "policy": {
+        "media": "none",
+        "selectedMedia": [],
+        "threadExpansion": "off",
+        "quote": "block",
+        "quoteDates": "source",
+        "separator": "auto"
+      },
+      "block": {
+        "kind": "text",
+        "title": "Post by @root",
+        "markdown": "> > `@earlier` (2026-10-14T12:00:00Z)\n> > Earlier quoted prose.\n>\n> `@quoted.delve.town` (2026-10-15T12:00:00Z)\n> Complete quoted prose.\n>\n> *[image]*\n\nAuthored root prose.",
+        "canonicalSource": "https://delve.town/profile/quoted.delve.town/post/3",
+        "selectedMedia": [],
+        "quoteCoverage": [
+          {
+            "sourceId": "3",
+            "availableDepth": 2,
+            "renderedDepth": 2,
+            "requestedDepth": 2,
+            "maxDepth": 8,
+            "maxReached": false,
+            "truncated": false,
+            "stopped": "end",
+            "mayExpand": false
+          }
+        ]
+      },
+      "hash": "06b29026f4b1dc9f161a5c1623e44de07b497b2d3edd34313c2a732a521c6c7f"
+    }
+  },
+  {
+    "provider": "substack",
+    "plan": {
+      "schemaVersion": 1,
+      "sources": [
+        {
+          "provider": "substack",
+          "id": "c-3",
+          "canonicalUrl": "https://substack.com/@quoted/note/c-3",
+          "author": {
+            "handle": "root"
+          },
+          "text": "Authored root prose.",
+          "postedAt": "2026-10-16T12:00:00Z",
+          "media": [],
+          "quote": {
+            "provider": "substack",
+            "id": "c-2",
+            "canonicalUrl": "https://substack.com/@quoted/note/c-2",
+            "author": {
+              "handle": "quoted",
+              "name": "Independent quoted author"
+            },
+            "text": "Complete quoted prose.",
+            "postedAt": "2026-10-15T12:00:00Z",
+            "media": [
+              {
+                "ref": "quote.1",
+                "kind": "image",
+                "url": "https://example.com/original.jpg",
+                "width": 800,
+                "height": 600,
+                "alt": "Original quoted image"
+              }
+            ],
+            "quote": {
+              "provider": "substack",
+              "id": "c-1",
+              "canonicalUrl": "https://substack.com/@quoted/note/c-1",
+              "author": {
+                "handle": "earlier"
+              },
+              "text": "Earlier quoted prose.",
+              "postedAt": "2026-10-14T12:00:00Z",
+              "media": []
+            }
+          }
+        }
+      ],
+      "policy": {
+        "media": "none",
+        "selectedMedia": [],
+        "threadExpansion": "off",
+        "quote": "block",
+        "quoteDates": "source",
+        "separator": "auto"
+      },
+      "block": {
+        "kind": "text",
+        "title": "Post by @root",
+        "markdown": "> > [`@earlier`](<https://substack.com/@quoted/note/c-1>) (2026-10-14T12:00:00Z)\n> >\n> > Earlier quoted prose.\n>\n> [`@quoted`](<https://substack.com/@quoted/note/c-2>) (2026-10-15T12:00:00Z)\n>\n> Complete quoted prose.\n>\n> *[image]*\n\nAuthored root prose.",
+        "canonicalSource": "https://substack.com/@quoted/note/c-3",
+        "selectedMedia": [],
+        "quoteCoverage": [
+          {
+            "sourceId": "c-3",
+            "availableDepth": 2,
+            "renderedDepth": 2,
+            "requestedDepth": 2,
+            "maxDepth": 8,
+            "maxReached": false,
+            "truncated": false,
+            "stopped": "end",
+            "mayExpand": false
+          }
+        ]
+      },
+      "hash": "dc5f6e226df862ec8a1d15134354efd98c32161c28f34a25cf1581c173b4b479"
+    }
+  }
+]

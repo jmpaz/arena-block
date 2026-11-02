@@ -145,3 +145,11 @@ test("fresh faceted Bluesky plans require a receiver that retains their protocol
   expect(older.reads).toEqual([{ path: "/v1/version", method: "GET" }]);
   expect(retained.sources.map(source => source.id)).toEqual(["3mxjzbrinf22d", "3mxjzmgx6sc2d", "3mxk2eqkcks2d", "3mxk2iwcjec2a"]);
 });
+
+test("LinkedIn plans stop before submission to an older receiver", async () => {
+  const linkedIn = composePlan([{ provider: "linkedin", id: "1", canonicalUrl: "https://www.linkedin.com/posts/example-activity-1-abcd",
+    author: { handle: "example" }, text: "Fixture", media: [] }]);
+  const { daemon, reads } = client();
+  await expect(daemon.publish(linkedIn, ["channel"])).rejects.toThrow("No save was submitted");
+  expect(reads).toEqual([{ path: "/v1/version", method: "GET" }]);
+});

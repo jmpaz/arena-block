@@ -55,9 +55,9 @@ test("quote media retains unique descendant refs while root selections stay stab
   const { resolver } = fixture({ "100": { ...tweet(100, 99), media }, "99": { ...tweet(99, 98), media }, "98": { ...tweet(98), media } });
   const root = (await resolver.resolve(["https://x.com/author100/status/100"]))[0]!;
   expect(root.media[0]!.ref).toBe("1.1");
-  expect(root.quote!.media[0]!.ref).toBe("quote.1");
-  expect(root.quote!.quote!.media[0]!.ref).toBe("quote2.1");
-  expect(composePlan([root], { media: "all", quoteDepth: "full" }).block.selectedMedia).toEqual(["1.1"]);
+  expect(root.quote!.media[0]!.ref).toBe("1.2");
+  expect(root.quote!.quote!.media[0]!.ref).toBe("1.3");
+  expect(composePlan([root], { media: "all", quoteDepth: "full" }).block.selectedMedia).toEqual(["1.1", "1.2", "1.3"]);
 });
 
 test("available full stops at eight descendants and reports the omitted ninth reference", async () => {

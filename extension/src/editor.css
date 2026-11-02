@@ -27,7 +27,8 @@ textarea::placeholder, input::placeholder { color: #9aa198; }
 button { cursor: pointer; font: inherit; }
 button:disabled { opacity: .5; cursor: default; }
 button.quiet, .back-button { min-height: 29px; border: 0; background: transparent; color: #42614a; padding: 0; font-weight: 550; }
-button.quiet:hover, .back-button:hover { color: #1d4529; text-decoration: underline; }
+button.quiet:hover:not(:disabled), .back-button:hover:not(:disabled) { color: #1d4529; text-decoration: underline; }
+#capture-access-origins { white-space: pre-wrap; overflow-wrap: anywhere; }
 button.primary { width: 100%; height: 36px; border: 1px solid #283f30; border-radius: 7px; background: #283f30; color: white; font-weight: 600; }
 button.primary:hover { background: #1b3022; }
 .status { margin: 0; color: #687165; font-size: 11px; line-height: 1.4; }
@@ -49,6 +50,23 @@ details[open] > summary { margin-bottom: 7px; }
 #capture-preview-excerpt { margin: 7px 0 0; color: #596357; font-size: 11px; line-height: 1.4; overflow: hidden; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
 #preview-source { margin-top: 5px; }
 #capture-view > #status { margin-top: 7px; }
+.block-preview { margin: 10px 0 0; }
+.block-preview > summary { color: #42614a; font-weight: 550; }
+.markdown-preview { max-height: 240px; overflow: auto; padding: 10px 12px; border: 1px solid #e0e4dc; border-radius: 7px; background: #fff; line-height: 1.55; overflow-wrap: anywhere; }
+.markdown-preview:empty { display: none; }
+.markdown-preview p { margin: 0 0 .8em; white-space: pre-line; }
+.markdown-preview > :last-child { margin-bottom: 0; }
+.markdown-preview blockquote { margin: 0 0 .8em; padding-inline-start: 11px; border-inline-start: 2px solid #b3c4b2; }
+.markdown-preview ul, .markdown-preview ol { margin: 0 0 .8em; padding-inline-start: 22px; }
+.markdown-preview li { margin: .3em 0; }
+.markdown-preview li > p { margin: .3em 0; }
+.markdown-preview a { color: #315b3a; text-decoration: underline; }
+.markdown-preview code { font: .92em ui-monospace, SFMono-Regular, Consolas, monospace; white-space: pre-wrap; }
+.markdown-preview pre { max-width: 100%; overflow: auto; white-space: pre-wrap; }
+.markdown-preview h1, .markdown-preview h2, .markdown-preview h3, .markdown-preview h4, .markdown-preview h5, .markdown-preview h6 { margin: .8em 0 .4em; font-size: 1em; }
+.markdown-preview hr { border: 0; border-top: 1px solid #e0e4dc; margin: 12px 0; }
+.markdown-preview table { border-collapse: collapse; width: 100%; margin-bottom: .8em; }
+.markdown-preview th, .markdown-preview td { border: 1px solid #e0e4dc; padding: 4px; }
 .destination { margin-top: 10px; padding: 10px 2px 11px; border-bottom: 1px solid #e0e4dc; }
 .destination .selected-channels { max-height: 30px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-top: 6px; }
 .destination .selected-channels button { white-space: nowrap; }
@@ -135,6 +153,10 @@ details[open] > summary { margin-bottom: 7px; }
 .channel-default { flex: none; margin-top: 9px; }
 .channel-default input, .channel-default select { height: 32px; }
 @media (prefers-color-scheme: dark) {
+  .markdown-preview { background: #252c25; border-color: #424d42; }
+  .markdown-preview a, .block-preview > summary { color: #b5d7b8; }
+  .markdown-preview blockquote { border-color: #6f9472; }
+  .markdown-preview hr, .markdown-preview th, .markdown-preview td { border-color: #424d42; }
   :root { color-scheme: dark; color: #e8ece6; background: #1a1e1a; }
   .shell { background: #1a1e1a; }
   .topbar, .save-section { background: #202620; border-color: #374037; }
@@ -160,6 +182,7 @@ details[open] > summary { margin-bottom: 7px; }
   .composition-empty, .empty-selection, .status, .section-head span, .result-bar, summary,
   label, .channel-empty, .channel-list-footer { color: #b5beb1; }
   button.quiet, .back-button { color: #b5d7b8; }
+  button.quiet:hover:not(:disabled), .back-button:hover:not(:disabled) { color: #d9efdb; }
   .header-action { color: #b5d7b8; }
   .header-action:hover { background: #354035; }
   button.primary { background: #6d966f; border-color: #6d966f; color: #101d12; }

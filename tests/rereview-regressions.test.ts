@@ -133,7 +133,6 @@ test("CLI force cancellation observes its operation and suppresses old-block rec
  const child=Bun.spawn([Bun.which("bun")!,"--preload",preload,"src/cli.ts","publish","--force","--plan",planFile,"--to","new-target"],{env:{...process.env,HOME:dir,ARENA_BLOCK_ACCESS_TOKEN:"fixture-only",ARENA_BLOCK_ENDPOINT:"https://fixture.invalid"},stdout:"pipe",stderr:"pipe"});
  const [stdout,stderr,status]=await Promise.all([new Response(child.stdout).text(),new Response(child.stderr).text(),child.exited]);
  expect(status).toBe(1);expect(stdout).toBe("");expect(stderr).not.toContain("Block retained");expect(stderr).not.toContain("old-success");expect(stderr).not.toContain("arena-block resume");expect(stderr).toContain("arena-block attempt new-force-attempt");
- await Bun.write("../audit/rereview-force-cancel-after.txt",stderr);console.log("force-cancel-cli",JSON.stringify({status,stdout,stderr}));
 });
 test("CONTROL: independent placement intents survive restart and an unrelated placement",async()=>{
  const {dir,store,remote,publisher,config}=await fixture();const base=await publisher.publish(req());const connect=remote.connect.bind(remote);let partial=true;

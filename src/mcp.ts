@@ -29,18 +29,18 @@ export function createMcpSession(config: UserConfig, origin: Exclude<SaveOrigin,
   let client: { name: string; version: string; identityBasis: "declared" } | undefined;
   const active = new Map<string | number, { controller: AbortController; saveId?: string; cancelled: boolean }>();
   const tools = [
-    { name: "arena_block_preview_save", description: "Prepare the exact immutable save capsule and route. No source fetch, rendering, credential access or Are.na writes. Preserve snapshot and checksum for save/replay.",
+    { name: "arena_block_preview_save", description: "Prepare a save snapshot and destinations from a supplied plan. Keep the snapshot and checksum for saving or recovery.",
       inputSchema: z.toJSONSchema(previewInput), annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: false, openWorldHint: false } },
-    { name: "arena_block_policy", description: "Inspect explicit routing and credential-profile selection without credential values.",
+    { name: "arena_block_policy", description: "Read configured destinations and the selected account profile.",
       inputSchema: z.toJSONSchema(emptyInput), annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
     ...(options.metadataReader ? [
-      { name: "read_arena_block_metadata", description: "Read an Are.na block and its visible channel placements, keeping block metadata distinct from each connection's metadata. No Are.na writes.",
+      { name: "read_arena_block_metadata", description: "Read an Are.na block, its visible placements and their separate metadata.",
         inputSchema: z.toJSONSchema(metadataInput), annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true } },
     ] : []),
     ...(options.backend ? [
-      { name: "arena_block_save", description: "Publish a prepared capsule through the existing owner daemon and durable journal. Reuse its original UUID and checksum for recovery; uncertain outcomes never trigger a blind second create.", inputSchema: z.toJSONSchema(saveInput), annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true } },
-      { name: "arena_block_save_status", description: "Read journaled status by save UUID, retaining successful receipts and unknown/partial outcomes. No Are.na writes.", inputSchema: z.toJSONSchema(idInput), annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
-      { name: "arena_block_cancel_save", description: "Request cancellation by save UUID. This stops active work and retains committed blocks, connections and receipts; inspect status before replay.", inputSchema: z.toJSONSchema(idInput), annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
+      { name: "arena_block_save", description: "Save a prepared snapshot through the configured daemon. Keep its UUID and checksum when recovering an interrupted save.", inputSchema: z.toJSONSchema(saveInput), annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true } },
+      { name: "arena_block_save_status", description: "Read a retained save by UUID, including confirmed results and incomplete attempts.", inputSchema: z.toJSONSchema(idInput), annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
+      { name: "arena_block_cancel_save", description: "Stop active work by save UUID and retain completed blocks and placements. Inspect the result before retrying.", inputSchema: z.toJSONSchema(idInput), annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
     ] : []),
   ];
   return async function dispatch(input: unknown): Promise<Record<string, unknown> | undefined> {
@@ -71,7 +71,7 @@ export function createMcpSession(config: UserConfig, origin: Exclude<SaveOrigin,
       initialized = true;
       client = { name: init.data.clientInfo.name, version: init.data.clientInfo.version, identityBasis: "declared" };
       return result({ protocolVersion: "2025-11-25", capabilities: { tools: { listChanged: false } }, serverInfo: { name: "arena-block-private", version: "0.1.0" },
-        instructions: options.backend ? "Private owner publishing is enabled. Preview and preserve the capsule, then save. Cancellation retains committed work. Status and replay use the original save UUID." : "Preparation only. Publishing requires explicit client and daemon opt-in." });
+        instructions: options.backend ? "Saving is enabled. Prepare and review a snapshot, then submit it. Use the original save UUID for status and recovery." : "Preparation only. Publishing requires explicit client and daemon opt-in." });
     }
     if (!ready) return error(-32000, "Initialize the session before calling tools");
     if (method === "tools/list") return result({ tools });
@@ -105,7 +105,7 @@ export function createMcpSession(config: UserConfig, origin: Exclude<SaveOrigin,
         if (call.data.name === "arena_block_save") {
           const { intent } = saveInput.parse(args);
           entry.saveId = intent.snapshot.saveId;
-          if (intent.snapshot.origin !== origin || intent.snapshot.authentication.credentialProfile !== profile.name) throw new Error("Save capsule transport/profile does not match this adapter");
+          if (intent.snapshot.origin !== origin || intent.snapshot.authentication.credentialProfile !== profile.name) throw new Error("The save snapshot uses another client or account profile");
           if (!intent.snapshot.fidelity.originalPlanPreserved) throw new Error("Review and prepare a credential-free source plan before saving through MCP");
           const mode = config.provenance.remoteSnapshot !== "none" && snapshotDefaultChannel(intent.snapshot)?.included ? config.provenance.remoteSnapshot : undefined;
           value = await abortable(options.backend!.save({ plan: intent.snapshot.plan, snapshot: intent.snapshot, snapshotSha256: intent.snapshotSha256, ...(mode ? { remoteMode: mode } : {}) }, bounded), bounded);
@@ -119,7 +119,7 @@ export function createMcpSession(config: UserConfig, origin: Exclude<SaveOrigin,
     } catch (failure) {
       if (entry.cancelled) return;
       const status = failure && typeof failure === "object" && "saveStatus" in failure ? saveStatusSchema.safeParse(failure.saveStatus).data : undefined;
-      const message = failure instanceof z.ZodError ? "Invalid tool arguments or configuration" : entry.saveId ? "Save interrupted or rejected. Inspect its UUID; preserve the original capsule for recovery." : "Tool could not complete; inspect configuration and arguments.";
+      const message = failure instanceof z.ZodError ? "Invalid tool arguments or configuration" : entry.saveId ? "Save interrupted or rejected. Check its UUID and keep the original snapshot for recovery." : "Tool could not complete; inspect configuration and arguments.";
       const value = { error: message, ...(entry.saveId ? { saveId: entry.saveId } : {}), ...(status ? { status: redactProvenance(status).value } : {}) };
       return result({ content: [{ type: "text", text: JSON.stringify(value) }], structuredContent: value, isError: true });
     } finally { active.delete(id); }

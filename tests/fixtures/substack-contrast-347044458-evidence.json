@@ -1,0 +1,21 @@
+{
+  "url": "https://substack.com/@joodaloop/note/c-347044458",
+  "projection": "Selected public Note DOM and matching JSON-LD only; public API identity/body and attachment fields only. No unrelated timeline or session state.",
+  "htmlSource": {
+    "url": "https://substack.com/@joodaloop/note/c-347044458",
+    "status": 200,
+    "observedAt": "2026-10-16T04:43:30.089Z",
+    "credentials": "omit",
+    "bytes": 112402,
+    "sha256": "63bb18ff92ac8577ecb32023c5661bce81645b5b61515fee9994844cc5a9e114"
+  },
+  "apiSource": {
+    "url": "https://substack.com/api/v1/reader/comment/347044458",
+    "status": 200,
+    "observedAt": "2026-10-16T04:43:30.210Z",
+    "credentials": "omit",
+    "bytes": 7389,
+    "sha256": "05554d6510fe1e1927a8285166589856c46137523a773b035803dabcfe66a676"
+  },
+  "fixtureSHA256": "cdac4ce842a829237ed51cbc4229539607bde543ae946e3d585b7a8f293ed6cb"
+}

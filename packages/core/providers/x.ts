@@ -265,7 +265,7 @@ export class XProvider implements SocialProvider {
   }
 
   async resolve(source: ParsedSource, signal?: AbortSignal, policy: Partial<SourceResolutionPolicy> = {}): Promise<ResolvedPost> {
-    if (source.provider !== "x") throw new Error("XProvider received a non-x.com source");
+    if (source.provider !== "x") throw new Error("x.com provider received a non-x.com source");
     const acquisitionDepth = renderedQuoteDepth(compositionPolicySchema.parse(policy));
     const bounded = signal ? AbortSignal.any([signal, AbortSignal.timeout(60_000)]) : AbortSignal.timeout(60_000);
     let tweet = await this.read(source, bounded);
@@ -295,7 +295,7 @@ export class XProvider implements SocialProvider {
         if (!embedded || !reference.authorKnown || (typeof embedded.text !== "string" && !object(embedded.article) && !object(embedded.media))) {
           parent.quoteBoundary = { ...boundary, status }; stopped = status; break;
         }
-        // Retain observed embedded source bytes, while explicitly distinguishing failed standalone hydration.
+        // Keep the embedded quote and record the failed read of its own URL.
         tweet = embedded; snapshot = { basis: "embedded", hydration: status }; incomplete = status;
       }
       const quoted = postFromTweet(tweet, next);

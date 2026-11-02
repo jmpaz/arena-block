@@ -78,7 +78,7 @@ test("cancelling a stalled header read stops preflight without starting media wo
   } finally { globalThis.fetch = previous; await rm(directory, { recursive: true, force: true }); }
 });
 
-test("a staged probe overrides a stale short provider duration before encoding", async () => {
+test("a measured long video overrides stale duration and reaches encoding within byte budgets", async () => {
   const directory = await mkdtemp(join(tmpdir(), "arena-video-staged-"));
   const log = join(directory, "ffmpeg-calls.txt");
   try {
@@ -94,15 +94,15 @@ globalThis.fetch = (async () => new Response(null, { status: 200, headers: { "co
 const plan = composePlan([{ provider: "x", id: "1", canonicalUrl: "https://x.com/fixture/status/1",
   author: { handle: "fixture" }, text: "Source", media: [{ ref: "1.1", kind: "video", url: "https://video.example.test/1.mp4",
     width: 640, height: 360, durationSeconds: 30, alt: "" }] }], { media: "all" });
-try { await renderPlan(plan, ${JSON.stringify(join(directory, "media"))}); process.exitCode = 2; }
-catch (error) { if (!(error instanceof MediaBudgetError) || !error.message.includes("47 minutes")) { console.error(error); process.exitCode = 1; } }
+try { const output = await renderPlan(plan, ${JSON.stringify(join(directory, "media"))}); if (!output) process.exitCode = 2; }
+catch (error) { console.error(error); process.exitCode = 1; }
 `);
     const processUnderTest = Bun.spawn([process.execPath, child], { env: { ...process.env,
       PATH: `${directory}:${process.env.PATH ?? ""}`, ARENA_TEST_FFMPEG_LOG: log }, stdout: "pipe", stderr: "pipe" });
     const [exitCode, stderr] = await Promise.all([processUnderTest.exited, new Response(processUnderTest.stderr).text()]);
     expect(stderr).toBe("");
     expect(exitCode).toBe(0);
-    expect((await readFile(log, "utf8")).trim().split("\n")).toHaveLength(1); // staging only; no composition encode
+    expect((await readFile(log, "utf8")).trim().split("\n")).toHaveLength(2); // staging and full composition encode
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

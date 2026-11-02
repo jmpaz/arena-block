@@ -6,31 +6,119 @@ import SwiftUI
 import UIKit
 import OSLog
 
+private enum CaptureAppLaunchPolicy {
+    static var storageAuditOnly: Bool {
+        #if CAPTURE_STORAGE_AUDIT_BUILD
+        let forcedAuditBuild = true
+        #else
+        let forcedAuditBuild = false
+        #endif
+        return CaptureLaunchPolicy.storageAuditOnly(environment: ProcessInfo.processInfo.environment,
+                                                   forcedAuditBuild: forcedAuditBuild)
+    }
+}
+
 @main
 @MainActor
 struct CaptureApp: App {
     @UIApplicationDelegateAdaptor(CaptureApplicationDelegate.self) private var applicationDelegate
-    private let session: CaptureSession?
-    private let startupError: String?
-    init() {
-        do { let created = try CaptureApplicationDelegate.makeSession(); session = created; startupError = nil }
-        catch { session = nil; startupError = error.localizedDescription }
-    }
     var body: some Scene {
         WindowGroup {
-            if let session { CaptureRootView(session: session) }
-            else { ContentUnavailableView("Capture could not open", systemImage: "exclamationmark.triangle", description: Text(startupError ?? "Try opening the app again.")) }
+            CaptureApplicationView(owner: applicationDelegate)
         }
     }
 }
 
+private struct CaptureApplicationView: View {
+    @ObservedObject var owner: CaptureApplicationDelegate
+    var body: some View {
+        Group {
+            if CaptureAppLaunchPolicy.storageAuditOnly { CaptureStorageAuditView() }
+            else if owner.launchGate.isolatedReport {
+                CaptureStorageReportView(owner: owner)
+            } else if let session = owner.visibleSession {
+                CaptureRootView(session: session, storageReport: { owner.requestStorageReport() })
+                    .sheet(isPresented: Binding(get: { owner.launchGate.destination == .report }, set: { _ in })) {
+                        CaptureStorageReportView(owner: owner).interactiveDismissDisabled()
+                    }
+            } else if let problem = owner.startupError {
+                ContentUnavailableView("Capture could not open", systemImage: "exclamationmark.triangle", description: Text(problem))
+            } else { ProgressView("Opening Capture") }
+        }
+        .onOpenURL { url in owner.receive(url) }
+    }
+}
+
 @MainActor
-final class CaptureApplicationDelegate: NSObject, UIApplicationDelegate {
+final class CaptureApplicationDelegate: NSObject, UIApplicationDelegate, ObservableObject {
+    private static func trace(_ value: String) {
+        #if DEBUG && targetEnvironment(simulator)
+        if ProcessInfo.processInfo.environment["CAPTURE_UI_FIXTURE"] != nil {
+            Logger(subsystem: "org.arenacapture", category: "launch-qualification").notice("\(value, privacy: .public)")
+        }
+        #endif
+    }
+    private static var storageAuditOnly: Bool { CaptureAppLaunchPolicy.storageAuditOnly }
+    private static weak var current: CaptureApplicationDelegate?
+    private static var earlyLaunchGate = CaptureStorageLaunchGate()
+    @Published var launchGate = CaptureStorageLaunchGate()
+    @Published var visibleSession: CaptureSession?
+    @Published var startupError: String?
+    @Published var storageReportInterference = 0
+    private let deferredBackgroundEvents = CaptureStorageDeferredEvents()
     static var session: CaptureSession?
     private static var submissionTask = UIBackgroundTaskIdentifier.invalid
     private static var recoveryEarliestBeginDate: Date?
     @available(iOS 26.0, *) private static var continuedCoordinator: CaptureContinuedCoordinator?
     static var recoveryIdentifier: String { (Bundle.main.bundleIdentifier ?? "capture") + ".delivery-recovery" }
+    static var callbackScheme: String { Bundle.main.object(forInfoDictionaryKey: "CaptureCallbackScheme") as? String ?? "arena-capture" }
+
+    override init() {
+        super.init()
+        launchGate = Self.earlyLaunchGate
+        visibleSession = Self.session
+        Self.current = self
+    }
+
+    func receive(_ url: URL) {
+        Self.trace("receive report=\(CaptureLaunchPolicy.storageReportURL(url, scheme: Self.callbackScheme)) normal=\(launchGate.normalWorkAdmitted)")
+        if CaptureLaunchPolicy.storageReportURL(url, scheme: Self.callbackScheme) { requestStorageReport() }
+    }
+
+    func application(_ application: UIApplication, configurationForConnecting connectingSceneSession: UISceneSession,
+                     options: UIScene.ConnectionOptions) -> UISceneConfiguration {
+        Self.trace("configuration urls=\(options.urlContexts.count)")
+        let configuration = UISceneConfiguration(name: nil, sessionRole: connectingSceneSession.role)
+        configuration.delegateClass = CaptureSceneDelegate.self
+        return configuration
+    }
+
+    static func connectScene(options: UIScene.ConnectionOptions) {
+        trace("willConnect urls=\(options.urlContexts.count)")
+        guard let owner = current, !storageAuditOnly else { return }
+        let diagnostic = options.urlContexts.contains { CaptureLaunchPolicy.storageReportURL($0.url, scheme: Self.callbackScheme) }
+        if diagnostic { owner.requestStorageReport() }
+        owner.launchGate.connectScene(reportRequested: diagnostic)
+        if owner.launchGate.destination == .capture { owner.openCapture() }
+    }
+
+    func requestStorageReport() {
+        Self.trace("requestReport normal=\(launchGate.normalWorkAdmitted)")
+        Self.session?.holdForegroundForStorageReport()
+        launchGate.requestReport()
+    }
+
+    func openCapture(resumeForeground: Bool = false) {
+        guard !Self.storageAuditOnly else { return }
+        launchGate.requestCapture()
+        do {
+            visibleSession = try Self.makeSession()
+            deferredBackgroundEvents.drain { identifier, completion in handleBackground(identifier, completionHandler: completion) }
+            if resumeForeground, let session = visibleSession, let ticket = session.releaseForegroundAfterStorageReport() {
+                Task { await session.resumeForegroundAfterStorageReport(ifAdmitted: ticket) }
+            }
+        } catch { startupError = error.localizedDescription }
+    }
 
     private static func beginSubmission() {
         guard submissionTask == .invalid else { return }
@@ -46,28 +134,50 @@ final class CaptureApplicationDelegate: NSObject, UIApplicationDelegate {
         UIApplication.shared.endBackgroundTask(identifier)
     }
 
-    static func makeSession() throws -> CaptureSession {
+    static func makeSession(background: Bool = false) throws -> CaptureSession {
+        trace("makeSession background=\(background)")
+        guard !storageAuditOnly else { throw CaptureError.message("Read-only storage inspection is active.") }
+        let admitted: Bool
+        if let current { admitted = current.launchGate.admitNormalWork(background: background) }
+        else { admitted = earlyLaunchGate.admitNormalWork(background: background) }
+        guard admitted else {
+            throw CaptureError.message("A storage report is open. Choose Open Capture to continue existing saves.")
+        }
         if let session { return session }
         let created = try CaptureSession()
         created.scheduleRecovery = { scheduleRecovery() }
         created.beginSubmission = { beginSubmission() }
         if #available(iOS 26.0, *) {
-            let coordinator = CaptureContinuedCoordinator(session: created)
+            let coordinator = continuedCoordinator ?? CaptureContinuedCoordinator()
             continuedCoordinator = coordinator
+            coordinator.attach(created)
             created.startContinuedProcessing = { [weak coordinator] id in coordinator?.start(id) }
             created.cancelContinuedProcessing = { [weak coordinator] id in coordinator?.cancel(id) }
             created.deliveryDidChange = { [weak coordinator] in coordinator?.refresh() }
         }
         session = created
+        current?.visibleSession = created
         return created
     }
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        Self.trace("didFinish state=\(application.applicationState.rawValue) url=\(launchOptions?[.url] != nil)")
+        guard !Self.storageAuditOnly else { return true }
+        if let url = launchOptions?[.url] as? URL { receive(url) }
+        if #available(iOS 26.0, *) {
+            let coordinator = Self.continuedCoordinator ?? CaptureContinuedCoordinator()
+            Self.continuedCoordinator = coordinator
+            coordinator.registerPendingRequests()
+        }
         BGTaskScheduler.shared.register(forTaskWithIdentifier: Self.recoveryIdentifier, using: nil) { task in
             let work = Task { @MainActor in
+                guard Self.current?.launchGate.isolatedReport != true else {
+                    Self.current?.storageReportInterference += 1
+                    task.setTaskCompleted(success: false); return
+                }
                 Self.recoveryEarliestBeginDate = nil
                 do {
-                    let session = try Self.makeSession()
+                    let session = try Self.makeSession(background: true)
                     await session.resumeDelivery()
                     Self.scheduleRecovery()
                     session.releaseStoreForSuspension()
@@ -76,19 +186,25 @@ final class CaptureApplicationDelegate: NSObject, UIApplicationDelegate {
             }
             task.expirationHandler = { work.cancel() }
         }
-        if #available(iOS 26.0, *) { Self.continuedCoordinator?.registerPersisted() }
+        // A foreground URL launch can still report .background here. Admit a
+        // session from classified scene options or an actual background callback.
         return true
     }
 
+    static func sessionForContinuedTask() throws -> CaptureSession {
+        if current?.launchGate.destination == .report { current?.storageReportInterference += 1 }
+        return try makeSession(background: true)
+    }
+
     func applicationDidBecomeActive(_ application: UIApplication) {
-        // A user may have closed the app in the switcher. That cancels a
-        // continued task without a callback, so do not auto-submit its journal.
-        if let paused = try? Self.session?.pauseUnclaimedContinuedSaves(), #available(iOS 26.0, *) {
-            for id in paused { Self.continuedCoordinator?.cancel(id) }
-        }
+        guard !launchGate.isolatedReport else { return }
+        // A relaunched process has no proof that an unclaimed continued task
+        // still owns execution. Persist the fence without assuming why it ended.
+        try? Self.session?.prepareForegroundDelivery()
     }
 
     static func scheduleRecovery() {
+        guard current?.launchGate.isolatedReport != true else { return }
         guard session?.hasPendingDeliveries == true else {
             recoveryEarliestBeginDate = nil
             endSubmission()
@@ -107,17 +223,29 @@ final class CaptureApplicationDelegate: NSObject, UIApplicationDelegate {
     }
 
     func applicationDidEnterBackground(_ application: UIApplication) {
+        guard !launchGate.isolatedReport else { return }
         if Self.session?.hasPendingDeliveries == true { Self.beginSubmission() }
         Self.scheduleRecovery()
         Self.session?.releaseStoreForSuspension()
     }
 
     func applicationWillEnterForeground(_ application: UIApplication) {
+        guard !launchGate.isolatedReport else { return }
         Self.endSubmission()
     }
 
     func application(_ application: UIApplication, handleEventsForBackgroundURLSession identifier: String, completionHandler: @escaping () -> Void) {
-        guard let session = try? Self.makeSession() else { completionHandler(); return }
+        if launchGate.destination == .report { storageReportInterference += 1 }
+        if launchGate.isolatedReport {
+            // Do not reconnect a session or falsely acknowledge undrained events.
+            deferredBackgroundEvents.append(identifier, completion: completionHandler)
+            return
+        }
+        handleBackground(identifier, completionHandler: completionHandler)
+    }
+
+    private func handleBackground(_ identifier: String, completionHandler: @escaping () -> Void) {
+        guard let session = try? Self.makeSession(background: true) else { completionHandler(); return }
         if session.hasPendingDeliveries { Self.beginSubmission() }
         session.handleBackgroundEvents(identifier: identifier) {
             Task { @MainActor in
@@ -129,64 +257,155 @@ final class CaptureApplicationDelegate: NSObject, UIApplicationDelegate {
     }
 }
 
+/// A restored scene also receives connection options here. Scene configuration is
+/// requested only when UIKit creates a session, so it cannot own launch admission.
+@MainActor
+final class CaptureSceneDelegate: NSObject, UIWindowSceneDelegate {
+    func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
+        CaptureApplicationDelegate.connectScene(options: connectionOptions)
+    }
+}
+
+/// Internal diagnostic launch path. It deliberately bypasses CaptureSession and
+/// background recovery so inspecting storage cannot resume queued saves.
+private struct CaptureStorageAuditView: View {
+    @State private var status = "Reading storage"
+    private static func sharedContainer(main: URL) -> URL? {
+        #if DEBUG && targetEnvironment(simulator)
+        if ProcessInfo.processInfo.environment["CAPTURE_STORAGE_AUDIT_FIXTURE"] == "1" {
+            if let value = ProcessInfo.processInfo.environment["CAPTURE_STORAGE_AUDIT_FIXTURE_ID"], let id = UUID(uuidString: value) {
+                return main.appendingPathComponent("storage-audit-fixtures").appendingPathComponent(id.uuidString, isDirectory: true)
+            }
+            return main.appendingPathComponent("storage-audit-fixture", isDirectory: true)
+        }
+        #endif
+        guard let group = Bundle.main.object(forInfoDictionaryKey: "CaptureAppGroup") as? String else { return nil }
+        return FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: group)
+    }
+    var body: some View {
+        ScrollView { Text(status).font(.body.monospaced()).padding().textSelection(.enabled) }
+            .task {
+                let main = URL(fileURLWithPath: NSHomeDirectory(), isDirectory: true)
+                guard let shared = Self.sharedContainer(main: main) else {
+                    status = "The shared container is unavailable."; return
+                }
+                let reports = await Task.detached {
+                    ["main": CaptureStorageAudit.inspect(container: main),
+                     "shared": CaptureStorageAudit.inspect(container: shared, database: shared.appendingPathComponent("capture.sqlite"))]
+                }.value
+                do {
+                    let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]; encoder.dateEncodingStrategy = .iso8601
+                    let directory = main.appendingPathComponent("Documents/CaptureStorageAudit")
+                    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+                    let file = directory.appendingPathComponent(UUID().uuidString + ".json")
+                    try encoder.encode(reports).write(to: file, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+                    status = reports.keys.sorted().map { key in
+                        let report = reports[key]!
+                        return "\(key): \(report.logicalBytes) logical bytes\n" + report.categoryBytes.keys.sorted().map { "\($0): \(report.categoryBytes[$0]!)" }.joined(separator: "\n") + "\nProblems: \(report.problems.count)"
+                    }.joined(separator: "\n\n") + "\n\nNo cleanup or saves performed.\nReport: " + file.lastPathComponent
+                } catch { status = "The read-only report could not be exported: " + error.localizedDescription }
+            }
+    }
+}
+
 /// Request iOS 26 execution for a retained save and update its system progress display.
 /// Read confirmed remote completion from the save journal.
 @available(iOS 26.0, *)
 @MainActor
 private final class CaptureContinuedCoordinator {
     private weak var session: CaptureSession?
-    private var registered: Set<UUID> = []
-    private var submitted: Set<UUID> = []
+    private var registered: Set<String> = []
+    private var submitted: [UUID: UUID] = [:]
+    private var runningReceipts: [UUID: UUID] = [:]
     private var running: [UUID: BGContinuedProcessingTask] = [:]
+    private var displayed: [UUID: CaptureContinuedProgress] = [:]
     private let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Capture", category: "continued-save")
 
-    init(session: CaptureSession) { self.session = session }
+    func attach(_ session: CaptureSession) {
+        self.session = session
+        registerPersisted()
+    }
 
-    private func identifier(_ id: UUID) -> String {
-        (Bundle.main.bundleIdentifier ?? "capture") + ".save." + id.uuidString
+    func registerPendingRequests() {
+        // System request metadata is enough to restore launch handlers. Reading
+        // Capture's database here would admit a session before scene URL delivery.
+        BGTaskScheduler.shared.getPendingTaskRequests { [weak self] requests in
+            Task { @MainActor in
+                let bundle = Bundle.main.bundleIdentifier ?? "capture"
+                for request in requests {
+                    guard let identity = CaptureContinuedTaskIdentity(identifier: request.identifier, bundleIdentifier: bundle) else { continue }
+                    _ = self?.register(identity.operationID, receipt: identity.receiptID, retainedIdentifier: request.identifier)
+                }
+            }
+        }
+    }
+
+    private func identifier(_ id: UUID, receipt: UUID) -> String {
+        (Bundle.main.bundleIdentifier ?? "capture") + ".save." + id.uuidString + (receipt == id ? "" : "." + receipt.uuidString)
     }
 
     func registerPersisted() {
         for id in session?.continuedOperationIDs ?? [] {
-            if register(id) { submitted.insert(id) }
+            if let receipt = session?.continuedSaveReceiptID(id), register(id, receipt: receipt) { submitted[id] = receipt }
         }
     }
 
-    private func register(_ id: UUID) -> Bool {
-        guard !registered.contains(id) else { return true }
-        let accepted = BGTaskScheduler.shared.register(forTaskWithIdentifier: identifier(id), using: .main) { [weak self] raw in
+    private func register(_ id: UUID, receipt: UUID, retainedIdentifier: String? = nil) -> Bool {
+        let name = retainedIdentifier ?? identifier(id, receipt: receipt)
+        guard !registered.contains(name) else { return true }
+        let accepted = BGTaskScheduler.shared.register(forTaskWithIdentifier: name, using: .main) { [weak self] raw in
             MainActor.assumeIsolated {
                 guard let continued = raw as? BGContinuedProcessingTask else { raw.setTaskCompleted(success: false); return }
-                self?.handle(continued, id: id)
+                guard let self else { raw.setTaskCompleted(success: false); return }
+                do {
+                    if self.session == nil { _ = try CaptureApplicationDelegate.sessionForContinuedTask() }
+                    self.handle(continued, id: id, receipt: receipt)
+                } catch { raw.setTaskCompleted(success: false) }
             }
         }
-        if accepted { registered.insert(id) }
+        if accepted { registered.insert(name) }
         return accepted
     }
 
     func start(_ id: UUID) {
-        guard UIApplication.shared.applicationState == .active, let session, register(id) else { return }
+        guard UIApplication.shared.applicationState == .active, let session,
+              let receipt = session.continuedSaveReceiptID(id) else { return }
+        // Reusing a capture for placement edits must not submit or clear its
+        // existing continued task. Receipt identities fence later cycles.
+        guard submitted[id] != receipt, runningReceipts[id] != receipt else { return }
+        if let previous = submitted[id] { BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: identifier(id, receipt: previous)) }
+        if let task = running[id] { finish(task, id: id, success: false, releaseClaim: false) }
+        guard register(id, receipt: receipt) else { return }
         do {
-            guard try session.beginContinuedSave(id) else { return }
+            guard try session.beginContinuedSave(id, receiptID: receipt) else { return }
             let fact = session.continuedProgress(id)
-            let request = BGContinuedProcessingTaskRequest(identifier: identifier(id),
+            let request = BGContinuedProcessingTaskRequest(identifier: identifier(id, receipt: receipt),
                 title: fact?.title ?? "Saving to Are.na", subtitle: fact?.subtitle ?? "Checking save")
             request.strategy = .queue
             try BGTaskScheduler.shared.submit(request)
-            submitted.insert(id)
+            submitted[id] = receipt
         } catch {
-            try? session.endContinuedSave(id)
+            try? session.endContinuedSave(id, receiptID: receipt)
             log.error("Continued save could not start: \(error.localizedDescription, privacy: .public)")
         }
     }
 
-    private func handle(_ task: BGContinuedProcessingTask, id: UUID) {
-        guard let session, session.continuedOperationIDs.contains(id) else {
+    private func handle(_ task: BGContinuedProcessingTask, id: UUID, receipt: UUID) {
+        guard let session else {
             task.setTaskCompleted(success: false)
             return
         }
-        running[id] = task
-        submitted.insert(id)
+        if let fact = session.continuedProgress(id), fact.receiptID == receipt, fact.isTerminal {
+            task.progress.totalUnitCount = fact.activityTotalUnits
+            task.progress.completedUnitCount = fact.activityCompletedUnits
+            task.updateTitle(fact.title, subtitle: fact.subtitle)
+            submitted.removeValue(forKey: id)
+            task.setTaskCompleted(success: fact.isDone)
+            return
+        }
+        guard session.continuedSaveReceiptID(id) == receipt else { task.setTaskCompleted(success: false); return }
+        running[id] = task; runningReceipts[id] = receipt
+        submitted[id] = receipt
         task.expirationHandler = { [weak self, weak task] in
             let persistPause = {
                 MainActor.assumeIsolated {
@@ -199,59 +418,66 @@ private final class CaptureContinuedCoordinator {
             if Thread.isMainThread { persistPause() }
             else { DispatchQueue.main.sync(execute: persistPause) }
         }
-        session.activateContinuedSave(id)
+        session.activateContinuedSave(id, receiptID: receipt)
         refresh(id)
         Task { await session.resumeDelivery() }
     }
 
     func refresh() {
         for id in Array(running.keys) { refresh(id) }
-        for id in Array(submitted) where running[id] == nil {
+        for (id, receipt) in Array(submitted) where running[id] == nil {
             let fact = session?.continuedProgress(id)
-            if fact == nil || fact?.isDone == true || fact?.needsAttention == true {
-                BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: identifier(id))
-                submitted.remove(id)
-                try? session?.endContinuedSave(id)
+            if fact == nil || fact?.receiptID != receipt || fact?.isTerminal == true {
+                BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: identifier(id, receipt: receipt))
+                submitted.removeValue(forKey: id)
+                try? session?.endContinuedSave(id, receiptID: receipt)
             }
         }
     }
 
     private func refresh(_ id: UUID) {
-        guard let task = running[id] else { return }
+        guard let task = running[id], let receipt = runningReceipts[id] else { return }
         guard let fact = session?.continuedProgress(id) else { finish(task, id: id, success: false); return }
-        task.progress.totalUnitCount = fact.isQuantifiable ? fact.totalUnits : 0
-        task.progress.completedUnitCount = fact.completedUnits
-        task.updateTitle(fact.title, subtitle: fact.subtitle)
+        guard fact.receiptID == receipt else { finish(task, id: id, success: false, releaseClaim: false); return }
+        if displayed[id] != fact {
+            task.progress.totalUnitCount = fact.activityTotalUnits
+            task.progress.completedUnitCount = fact.activityCompletedUnits
+            task.updateTitle(fact.title, subtitle: fact.subtitle)
+            displayed[id] = fact
+        }
         if fact.isDone { finish(task, id: id, success: true) }
-        else if fact.needsAttention { finish(task, id: id, success: false) }
+        else if fact.isTerminal { finish(task, id: id, success: false) }
     }
 
     private func expire(_ task: BGContinuedProcessingTask, id: UUID) {
-        guard running[id] === task else { return }
+        guard running[id] === task, let receipt = runningReceipts[id] else { return }
         do {
-            try session?.pauseContinuedSave(id)
+            try session?.pauseContinuedSave(id, receiptID: receipt)
+            task.updateTitle("Save interrupted", subtitle: "Background task ended. Open Capture to review the retained save.")
             finish(task, id: id, success: false)
         } catch {
             // Retain the durable claim if SQLite could not record Stop. No
             // unowned continuation may issue another mutation.
-            session?.deactivateContinuedSave(id)
+            session?.deactivateContinuedSave(id, receiptID: receipt)
             log.error("Could not persist continued-save pause: \(error.localizedDescription, privacy: .public)")
             finish(task, id: id, success: false, releaseClaim: false)
         }
     }
 
     func cancel(_ id: UUID) {
-        BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: identifier(id))
-        submitted.remove(id)
+        if let receipt = submitted[id] { BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: identifier(id, receipt: receipt)) }
+        submitted.removeValue(forKey: id)
         if let task = running[id] { finish(task, id: id, success: false) }
     }
 
     private func finish(_ task: BGContinuedProcessingTask, id: UUID, success: Bool, releaseClaim: Bool = true) {
         guard running[id] === task else { return }
+        let receipt = runningReceipts.removeValue(forKey: id)
+        displayed.removeValue(forKey: id)
         running.removeValue(forKey: id)
-        submitted.remove(id)
+        submitted.removeValue(forKey: id)
         task.expirationHandler = nil
-        if releaseClaim { try? session?.endContinuedSave(id) }
+        if releaseClaim { try? session?.endContinuedSave(id, receiptID: receipt) }
         task.setTaskCompleted(success: success)
     }
 }
@@ -268,7 +494,7 @@ enum ShortcutCaptureMedia: String, AppEnum {
 
 struct SubmitCaptureIntent: AppIntent {
     static var title: LocalizedStringResource = "Save Link to Are.na"
-    static var description = IntentDescription("Save a link to Are.na. Check its progress in Capture's History.")
+    static var description = IntentDescription("Save a link to Are.na. Check its progress in Capture's History tab.")
     static var openAppWhenRun = false
     @Parameter(title: "URL") var url: URL
     @Parameter(title: "Title") var captureTitle: String?
@@ -277,8 +503,8 @@ struct SubmitCaptureIntent: AppIntent {
     @Parameter(title: "Channel IDs") var channelIDs: [Int]?
 
     @MainActor func perform() async throws -> some IntentResult & ReturnsValue<String> & ProvidesDialog {
-        let session = try CaptureApplicationDelegate.makeSession()
+        let session = try CaptureApplicationDelegate.makeSession(background: true)
         let id = try session.submitLink(url, title: captureTitle, description: captureDescription, media: media.policy, channelIDs: channelIDs ?? [])
-        return .result(value: id.uuidString, dialog: "Capture queued. Check History for progress.")
+        return .result(value: id.uuidString, dialog: "Capture queued. Open History to check progress.")
     }
 }

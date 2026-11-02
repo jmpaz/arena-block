@@ -1,4 +1,4 @@
-import { parseSource, type ParsedSource } from "./url.ts";
+import { isInstagramReel, parseSource, type ParsedSource } from "./url.ts";
 
 export type SourceSelection = {
   ref: string;
@@ -20,15 +20,21 @@ function identity(source: ParsedSource): string {
 export function explicitSelections(refs: string[], extraRefs: string[] = []): SourceSelection[] {
   if (!refs.length) throw new Error("At least one primary source is required");
   if (refs.length + extraRefs.length > 20) throw new Error("Use at most 20 source references");
-  const seen = new Set<string>();
+  const seen = new Map<string, SourceSelection>();
   const selected: SourceSelection[] = [];
   for (const [index, ref] of [...refs, ...extraRefs].entries()) {
     const source = parseSource(ref);
     const key = identity(source);
-    if (seen.has(key)) continue;
-    seen.add(key);
-    selected.push({ ref: source.canonicalUrl, role: index < refs.length ? "primary" : "extra",
-      origin: "explicit", declaredIndex: index + 1 });
+    const previous = seen.get(key);
+    if (previous) {
+      // Keep the first source's role and position while retaining an explicit Reel alias.
+      if (isInstagramReel(source.canonicalUrl)) previous.ref = source.canonicalUrl;
+      continue;
+    }
+    const item: SourceSelection = { ref: source.canonicalUrl, role: index < refs.length ? "primary" : "extra",
+      origin: "explicit", declaredIndex: index + 1 };
+    selected.push(item);
+    seen.set(key, item);
   }
   return selected;
 }

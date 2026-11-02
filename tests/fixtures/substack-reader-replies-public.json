@@ -1,0 +1,24 @@
+{
+  "moreBranches": 0,
+  "nextCursor": null,
+  "rootComment": {
+    "id": 360829302,
+    "user_id": 29445765,
+    "ancestor_path": "",
+    "type": "feed",
+    "post_id": null
+  },
+  "commentBranches": [
+    {
+      "comment": {
+        "id": 360836413,
+        "user_id": 232094179,
+        "ancestor_path": "360829302",
+        "children_count": 0,
+        "type": "feed",
+        "post_id": null
+      },
+      "descendantComments": []
+    }
+  ]
+}

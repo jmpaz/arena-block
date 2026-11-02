@@ -20,3 +20,10 @@ const result = await Bun.build({
 });
 if (!result.success) throw new Error(result.logs.join("\n"));
 console.log(`Bundled shared capture core (${result.outputs[0]!.size} bytes)`);
+
+const redditReader = await Bun.build({
+  entrypoints: [join(root, "ios/scripts/reddit-preprocessor.ts")],
+  outdir: join(root, "ios/ShareExtension"), naming: "RedditPreprocessor.js",
+  target: "browser", format: "iife", minify: false,
+});
+if (!redditReader.success) throw new Error(redditReader.logs.join("\n"));

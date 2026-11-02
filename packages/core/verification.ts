@@ -10,7 +10,8 @@ export function verifyPublication(plan: BlockPlan, block: Json, available: Json)
     const type = string(block.type);
     if (plan.block.kind === "text" && type !== "Text") throw new Error(`Expected Text block, received ${type}`);
     if (plan.block.kind === "image" && type !== "Image") throw new Error(`Expected Image block, received ${type}`);
-    if ((plan.block.kind === "link" || plan.block.kind === "url") && type !== "Link") throw new Error(`Expected Link block, received ${type}`);
+    if (plan.block.kind === "link" && type !== "Link") throw new Error(`Expected Link block, received ${type}`);
+    if (plan.block.kind === "url" && !["Link", "Embed"].includes(type ?? "")) throw new Error(`Expected Link or Embed block, received ${type}`);
     if (plan.block.kind === "video" && !["Attachment", "Embed"].includes(type ?? "")) {
       throw new Error(`Expected video Attachment or Embed block, received ${type}`);
     }

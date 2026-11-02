@@ -1,0 +1,134 @@
+[
+  {
+    "provider": "hackernews",
+    "observedAt": "2026-11-02T18:56:48.647660Z",
+    "plan": {
+      "schemaVersion": 1,
+      "sources": [
+        {
+          "provider": "hackernews",
+          "id": "50341020",
+          "canonicalUrl": "https://news.ycombinator.com/item?id=50341020",
+          "author": {
+            "handle": "themanmaran"
+          },
+          "text": "Yea in one of the further Ender's Game novels they talk about this tech a lot for characters silently mumbling to the AI.",
+          "postedAt": "2026-11-02T18:12:29.000Z",
+          "storyTitle": "Show HN: Subvocal – Talk to your computer without making noise",
+          "parentContext": {
+            "parents": [
+              {
+                "id": "50340809",
+                "canonicalUrl": "https://news.ycombinator.com/item?id=50340809",
+                "status": "available",
+                "author": {
+                  "handle": "sourpanda"
+                },
+                "text": "I think this is incredibly cool and straight out of a sci-fi novel! I think this is phenomenal for accessibility and for hands-free computing in general. I also agree with other comments that the website should have more detail on how it works, such as what you included in the post body. Amazing work guys!",
+                "postedAt": "2026-11-02T17:59:38.000Z"
+              }
+            ],
+            "stopped": "submission",
+            "submission": {
+              "id": "50340088",
+              "canonicalUrl": "https://news.ycombinator.com/item?id=50340088",
+              "title": "Show HN: Subvocal – Talk to your computer without making noise"
+            },
+            "boundary": {
+              "id": "50340088",
+              "canonicalUrl": "https://news.ycombinator.com/item?id=50340088"
+            }
+          },
+          "media": [],
+          "selection": {
+            "role": "primary",
+            "origin": "explicit",
+            "declaredIndex": 1
+          }
+        }
+      ],
+      "policy": {
+        "media": "auto",
+        "selectedMedia": [],
+        "threadExpansion": "off",
+        "quote": "block",
+        "parentDepth": "full",
+        "parentStyle": "flat",
+        "separator": "auto"
+      },
+      "block": {
+        "kind": "text",
+        "title": "Comment by themanmaran on “Show HN: Subvocal – Talk to your computer without making noise”",
+        "markdown": "`sourpanda`\nI think this is incredibly cool and straight out of a sci-fi novel! I think this is phenomenal for accessibility and for hands-free computing in general. I also agree with other comments that the website should have more detail on how it works, such as what you included in the post body. Amazing work guys!\n\n---\n\n`themanmaran`\nYea in one of the further Ender's Game novels they talk about this tech a lot for characters silently mumbling to the AI.",
+        "description": "Posted at: 2026-11-02T18:12:29.000Z",
+        "canonicalSource": "https://news.ycombinator.com/item?id=50341020",
+        "selectedMedia": []
+      },
+      "hash": "71d6aa1cdbbe2e6cb5f1a1b7eb28b60f884ec389d6ebe46e78183e53462eb2c2"
+    }
+  },
+  {
+    "provider": "lobsters",
+    "observedAt": "2026-11-02T18:56:48.447300Z",
+    "plan": {
+      "schemaVersion": 1,
+      "sources": [
+        {
+          "provider": "lobsters",
+          "id": "uyjo8l",
+          "canonicalUrl": "https://lobste.rs/c/uyjo8l",
+          "author": {
+            "handle": "sunshowers"
+          },
+          "text": "Certainly biased here, but seconded. Thanks so much for writing this, ~typesanitizer.",
+          "postedAt": "2026-11-01T21:14:34.879Z",
+          "storyTitle": "An outsider's perspective on Scion and Mononoke",
+          "parentContext": {
+            "parents": [
+              {
+                "id": "53217b",
+                "canonicalUrl": "https://lobste.rs/c/53217b",
+                "status": "available",
+                "author": {
+                  "handle": "kwas"
+                },
+                "text": "The matter aside, this post is really really well written.",
+                "postedAt": "2026-11-01T20:53:08.597Z"
+              }
+            ],
+            "stopped": "submission",
+            "submission": {
+              "id": "s2qeww",
+              "canonicalUrl": "https://lobste.rs/s/s2qeww",
+              "title": "An outsider's perspective on Scion and Mononoke"
+            }
+          },
+          "media": [],
+          "selection": {
+            "role": "primary",
+            "origin": "explicit",
+            "declaredIndex": 1
+          }
+        }
+      ],
+      "policy": {
+        "media": "auto",
+        "selectedMedia": [],
+        "threadExpansion": "off",
+        "quote": "block",
+        "parentDepth": "full",
+        "parentStyle": "quote",
+        "separator": "auto"
+      },
+      "block": {
+        "kind": "text",
+        "title": "Comment by sunshowers on “An outsider's perspective on Scion and Mononoke”",
+        "markdown": "> `@kwas`\n> The matter aside, this post is really really well written.\n\nCertainly biased here, but seconded. Thanks so much for writing this, ~typesanitizer.",
+        "description": "Posted at: 2026-11-01T21:14:34.879Z",
+        "canonicalSource": "https://lobste.rs/c/uyjo8l",
+        "selectedMedia": []
+      },
+      "hash": "6a7c1e775626fa0e97db70ff0b4e2bc665e970f5d6b47173e7de517371ddb247"
+    }
+  }
+]

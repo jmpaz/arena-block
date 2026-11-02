@@ -399,3 +399,26 @@ test("bundled Delve provider retains protocol metadata, Unicode facets and the t
   expect(JSON.parse(context.captureSource(uri))).toEqual({ kind: "social", url: normalized.canonicalUrl });
   expect(JSON.parse(context.captureCompose(JSON.stringify([normalized]), JSON.stringify({ threadExpansion: "off" })))).toEqual({ plan: expected, fields: publicationFields(expected) });
 });
+
+test("bundled LinkedIn provider resolves through native HTTP with the shared plan", async () => {
+  const ref = "https://www.linkedin.com/posts/fixture_caption-activity-1234567890123456789-AbCd";
+  const record = { "@type": "VideoObject", "@id": ref, creator: { name: "Fixture Company", url: "https://www.linkedin.com/company/fixture" },
+    description: "A full caption.\n\n#Fixture #Design", datePublished: "2022-01-24T16:24:39.137Z", duration: "PT42S",
+    contentUrl: "https://dms.licdn.com/video.mp4", thumbnailUrl: "https://media.licdn.com/poster.jpg",
+    embedUrl: "https://www.linkedin.com/embed/feed/update/urn:li:activity:1234567890123456789?compact=true" };
+  const html = `<script type="application/ld+json">${JSON.stringify(record)}</script>`;
+  let finish!: (value: string, error: string | null) => void;
+  const context = runtime({ nativeHTTP: (id: number, request: string) => {
+    const input = JSON.parse(request);
+    expect(input.url).toBe(ref);
+    queueMicrotask(() => context.captureHTTPComplete(id, JSON.stringify({ status: 200, headers: { "content-type": "text/html" }, body: html, url: ref })));
+  }, nativeResolveComplete: (_: string, value: string, error: string | null) => finish(value, error) });
+  const output = await new Promise<string>((resolve, reject) => {
+    finish = (value, error) => error ? reject(new Error(error)) : resolve(value);
+    context.captureResolve("linkedin-fixture", JSON.stringify([ref]), "{}");
+  });
+  const plan = JSON.parse(output).plan;
+  expect(plan.block).toMatchObject({ kind: "video", title: "Post by @fixture", markdown: "A full caption.\n\n\\#Fixture #Design", selectedMedia: ["1.1"] });
+  expect(plan.sources[0].text).toBe(record.description);
+  expect(plan.sources[0].media[0].posterUrl).toBe(record.thumbnailUrl);
+});

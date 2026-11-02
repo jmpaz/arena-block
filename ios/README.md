@@ -26,6 +26,10 @@ The Add to row opens channel selection. Save records the draft, chosen destinati
 
 After remote creation, the delivery coordinator records the block ID and checks placements. The UI reports confirmed destinations from a complete server scan. A lost response keeps the attempt for reconciliation. History retains pending, failed and completed operations. Add placements uses a known block and checks the requested additions.
 
+The app saves a SoundCloud track as an MP3 attachment, fetched from an arena-block media service with SoundCloud MP3 support; Settings holds the service's HTTPS address and access token, and the Share extension reads the same address and the token from the keychain. On save, the app reads the track's details from SoundCloud, asks the service for the MP3, checks the file, then uploads it to Are.na.
+
+Text-only media saves the track URL alone. A playlist block lists its tracks in order, with the playlist artwork.
+
 Use New for another capture. Delete, Clear Drafts, Undo and Deleted Drafts recovery operate on unsubmitted drafts. During a queued save, the editor keeps the submitted values fixed. Clipboard import is opt-in and respects the system paste permission.
 
 ## Background work
@@ -39,3 +43,9 @@ iOS controls scheduling. A force-quit, offline period or revoked account can def
 Read [the architecture](Design/architecture.md) and [interaction flow](Design/interaction.md) before changing the editor or picker. `CaptureView`, `ChannelPicker` and `CaptureSession` provide the main UI and state transitions. The browser design study provides a visual reference; the native source and fixture tests determine current behavior.
 
 Run simulator tests through the generated `CaptureUITests` target. The background transport probe uses `CAPTURE_BACKGROUND_URL` to contact a controlled fixture server. Without that setting, the probe is skipped.
+
+## Reddit links and saved records
+
+The app takes public post and comment URLs, pasted or shared from Safari, and reads them through the shared HTTP provider and stops on HTTP 401, 403 or 429. See [source access](../docs/reddit-source-access.md).
+
+Drafts and saves still open Reddit records from earlier versions, and the app writes a replacement snapshot before showing it, keeping the selected draft and its input across reloads. Validation checks the data in a record, though it can't verify when someone collected the record, or whether the post is still up.

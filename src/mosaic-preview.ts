@@ -3,6 +3,7 @@ import { mkdir, rename, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { createCanvas, loadImage, type Image } from "@napi-rs/canvas";
 import type { BlockPlan, MediaAsset } from "./types.ts";
+import { planMedia } from "../packages/core/media-tree.ts";
 import type { Rect, Size } from "../packages/core/render-recipe.ts";
 
 export type MosaicMode = "reading" | "wallpaper";
@@ -150,7 +151,7 @@ export function wallpaperPage(items: MediaAsset[], size: Size = { width: 1440, h
 
 export async function renderMosaicPreview(plan: BlockPlan, directory: string, options: PreviewOptions,
   acquire?: (asset: MediaAsset) => Promise<Uint8Array>): Promise<PreviewManifest> {
-  const assets = new Map(plan.sources.flatMap(post => post.media).map(asset => [asset.ref, asset]));
+  const assets = new Map(planMedia(plan).map(asset => [asset.ref, asset]));
   const selected = plan.block.selectedMedia.map(ref => {
     const item = assets.get(ref); if (!item) throw new Error(`Missing selected image ${ref}`); return item;
   });

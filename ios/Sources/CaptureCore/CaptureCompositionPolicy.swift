@@ -1,5 +1,7 @@
 import Foundation
 
+public enum CaptureVideoDefaults { public static let frameThresholdSeconds = 1500 }
+
 public enum CaptureQuoteDepth: Hashable, Codable, Sendable {
     case levels(Int)
     case full
@@ -36,6 +38,22 @@ public enum CaptureQuoteDepth: Hashable, Codable, Sendable {
     }
 }
 
+public enum CaptureParentStyle: String, Codable, Hashable, Sendable {
+    case flat, quote
+    public var title: String { self == .flat ? "Flat forum" : "Nested quotes" }
+}
+
+public enum CaptureQuoteAuthorLink: String, Codable, Hashable, Sendable {
+    case source, plain
+
+    public var title: String {
+        switch self {
+        case .source: "Link to quoted post"
+        case .plain: "Name only"
+        }
+    }
+}
+
 public extension CapturePreview {
     var mediaRefs: [String] {
         var seen = Set<String>()
@@ -45,6 +63,22 @@ public extension CapturePreview {
     func orderedMediaRefs(_ refs: [String]) -> [String] {
         let chosen = Set(refs)
         return mediaRefs.filter { chosen.contains($0) }
+    }
+
+    var hasParentContext: Bool {
+        plan?["sources"]?.array.contains { ["hackernews", "lobsters"].contains($0["provider"]?.string ?? "") } ?? false
+    }
+
+    var needsParentContextAcquisition: Bool {
+        plan?["sources"]?.array.contains { ["hackernews", "lobsters"].contains($0["provider"]?.string ?? "") && $0["parentContext"] == nil } ?? false
+    }
+
+    var parentContextNote: String? {
+        guard hasParentContext else { return nil }
+        let contexts = plan?["sources"]?.array.compactMap { $0["parentContext"] } ?? []
+        let incomplete = contexts.contains { !["submission", "depth_limit"].contains($0["stopped"]?.string ?? "") }
+        let deleted = contexts.contains { $0["parents"]?.array.contains { $0["status"]?.string != "available" } == true }
+        return "Oldest included parent first; selected comment last. Submission stays as story metadata. Up to eight ancestors." + (incomplete ? " Some parent context is unavailable; gaps are labeled." : "") + (deleted ? " Deleted or unavailable comments are labeled." : "")
     }
 
     var hasQuotes: Bool {
@@ -84,19 +118,27 @@ public struct CaptureMediaAnchor: Codable, Hashable, Sendable {
 public struct CaptureMediaChoiceAnchors: Codable, Sendable {
     public let selected: [CaptureMediaAnchor]?
     public let frames: [CaptureMediaAnchor]?
+    public let motion: [CaptureMediaAnchor]?
+    public let soundtrack: CaptureMediaAnchor?
 
     private static func indexes(in sources: JSONValue) throws ->
         (byRef: [String: CaptureMediaAnchor], byAnchor: [CaptureMediaAnchor: String]) {
         var byRef: [String: CaptureMediaAnchor] = [:]
         var byAnchor: [CaptureMediaAnchor: String] = [:]
         var occurrences: [String: Int] = [:]
-        for source in sources.array {
-            let media = source["media"]?.array ?? []
+        for node in CaptureMediaTree.sources(in: sources) {
+            let source = node.source
+            let media = node.media
             guard media.isEmpty || source["canonicalUrl"]?.string != nil else {
                 throw CaptureError.message("Couldn't identify the source for the selected media. No block was created.")
             }
             let sourceURL = source["canonicalUrl"]?.string ?? ""
-            let identity = URL(string: sourceURL).map(CaptureInput.canonicalSourceIdentity) ?? sourceURL
+            var identity = URL(string: sourceURL).map(CaptureInput.canonicalSourceIdentity) ?? sourceURL
+            if node.quoteDepth > 0 {
+                let rootURL = sources.array[node.rootIndex]["canonicalUrl"]?.string ?? ""
+                let rootIdentity = URL(string: rootURL).map(CaptureInput.canonicalSourceIdentity) ?? rootURL
+                identity = "\(rootIdentity)\u{1F}quoted:\(identity)"
+            }
             for asset in media {
                 guard let ref = asset["ref"]?.string, let url = asset["url"]?.string,
                       let kind = asset["kind"]?.string else {
@@ -115,7 +157,7 @@ public struct CaptureMediaChoiceAnchors: Codable, Sendable {
         return (byRef, byAnchor)
     }
 
-    public static func capture(preview: CapturePreview, selected: [String]?, frames: [String]?) throws -> Self {
+    public static func capture(preview: CapturePreview, selected: [String]?, frames: [String]?, motion: [String]? = nil, audio: String? = nil) throws -> Self {
         guard let sources = preview.plan?["sources"] else {
             throw CaptureError.message("Load the source before changing media or post options.")
         }
@@ -128,7 +170,8 @@ public struct CaptureMediaChoiceAnchors: Codable, Sendable {
                 return anchor
             }
         }
-        return try .init(selected: anchors(selected), frames: anchors(frames))
+        let audioRef = audio.flatMap { ["auto", "mix"].contains($0) ? nil : $0 }
+        return try .init(selected: anchors(selected), frames: anchors(frames), motion: anchors(motion), soundtrack: anchors(audioRef.map { [$0] })?.first)
     }
 
     public func applying(to policy: JSONValue, sources: JSONValue) throws -> JSONValue {
@@ -144,6 +187,8 @@ public struct CaptureMediaChoiceAnchors: Codable, Sendable {
         var object = policy.object
         if let selected { object["selectedMedia"] = .array(try refs(selected).map(JSONValue.string)) }
         if let frames { object["videoFrames"] = .array(try refs(frames).map(JSONValue.string)) }
+        if let motion { object["videoMotion"] = .array(try refs(motion).map(JSONValue.string)) }
+        if let soundtrack { object["audio"] = .string(try refs([soundtrack])[0]) }
         return .object(object)
     }
 }
@@ -153,8 +198,13 @@ public extension CaptureDraft {
         var policy: [String: JSONValue] = ["media": .string(media.rawValue)]
         if media == .selected { policy["selectedMedia"] = .array((selectedMedia ?? []).map(JSONValue.string)) }
         if let videoFrames, !videoFrames.isEmpty { policy["videoFrames"] = .array(videoFrames.map(JSONValue.string)) }
+        if let videoMotion, !videoMotion.isEmpty { policy["videoMotion"] = .array(videoMotion.map(JSONValue.string)) }
+        if let audio { policy["audio"] = .string(audio) }
         if let videoFrameThresholdSeconds { policy["videoFrameThresholdSeconds"] = .number(Double(videoFrameThresholdSeconds)) }
         if let quoteDepth { policy["quoteDepth"] = quoteDepth.jsonValue }
+        if let parentDepth { policy["parentDepth"] = parentDepth.jsonValue }
+        if let parentStyle { policy["parentStyle"] = .string(parentStyle.rawValue) }
+        if let quoteAuthorLink { policy["quoteAuthorLink"] = .string(quoteAuthorLink.rawValue) }
         if let threadExpansion { policy["threadExpansion"] = .string(threadExpansion.rawValue) }
         return .object(policy)
     }
@@ -169,15 +219,34 @@ public extension CaptureDraft {
     }
 
     mutating func selectMedia(_ refs: [String], in preview: CapturePreview) {
+        let visible = Set(preview.mediaRefs)
+        let allRefs = CaptureMediaTree.sources(in: preview.plan?["sources"] ?? .array([]))
+            .flatMap(\.media).compactMap { $0["ref"]?.string }
+        var hidden = media == .selected ? (selectedMedia ?? []).filter { !visible.contains($0) } : []
+        if let audio, !["auto", "mix"].contains(audio), !visible.contains(audio), allRefs.contains(audio) { hidden.append(audio) }
+        let chosen = Set(refs + hidden)
         media = .selected
-        selectedMedia = preview.orderedMediaRefs(refs)
+        selectedMedia = allRefs.filter { chosen.contains($0) }
+        if let audio, !["auto", "mix"].contains(audio), !chosen.contains(audio) { self.audio = nil }
     }
 
     mutating func toggleMedia(_ ref: String, in preview: CapturePreview) {
         guard preview.mediaRefs.contains(ref) else { return }
+        let kind = preview.media.first { $0["ref"]?.string == ref }?["kind"]?.string
         var selected = Set(includedMedia(in: preview))
+        if kind == "audio", !selected.contains(ref) {
+            media = .selected; selectedMedia = [ref]; videoFrames = nil; videoMotion = nil; audio = nil
+            return
+        }
+        if kind != "audio", !selected.contains(ref) {
+            let audioRefs = Set(CaptureMediaTree.sources(in: preview.plan?["sources"] ?? .array([]))
+                .flatMap(\.media).filter { $0["kind"]?.string == "audio" }.compactMap { $0["ref"]?.string })
+            selected.subtract(audioRefs)
+            selectedMedia?.removeAll { audioRefs.contains($0) }
+        }
         if !selected.insert(ref).inserted { selected.remove(ref) }
         videoFrames?.removeAll { $0 == ref }
+        videoMotion?.removeAll { $0 == ref }
         selectMedia(Array(selected), in: preview)
     }
 }

@@ -1,12 +1,20 @@
 #!/usr/bin/env bun
+import { planMedia } from "../packages/core/media-tree.ts";
+import { selectedPostMediaPolicy } from "./cli-media.ts";
+import { diagnoseSaveDestinations } from "./save-diagnostics.ts";
 import { snapshotDefaultChannel } from "./provenance-schema.ts";
 import { copyFile, open } from "node:fs/promises";
 import { join } from "node:path";
 import { isDeepStrictEqual } from "node:util";
-import { Command } from "commander";
+import { Command, Option } from "commander";
+import { configureCliHelp } from "./cli-help.ts";
 import { ArenaBlockClient, PublicationError } from "./client.ts";
 import { composePlan, planHash } from "./compose.ts";
 import { SocialResolver } from "./providers/index.ts";
+import { SubstackProvider } from "../packages/core/providers/substack.ts";
+import { bindSubstackCaptures, normalizeSubstackCapture, SUBSTACK_CAPTURE_MAX_BYTES } from "../packages/core/substack-record.ts";
+import { RedditProvider } from "../packages/core/providers/reddit.ts";
+import { bindRedditCaptures, normalizeRedditCapture, REDDIT_CAPTURE_MAX_BYTES } from "../packages/core/reddit-record.ts";
 import type { MosaicMode } from "./mosaic-preview.ts";
 import { buildInfo } from "./version.ts";
 import type { ThreadDescription } from "./thread-capture.ts";
@@ -18,24 +26,31 @@ import { loadUserConfig } from "./config.ts";
 import { initiatorSchema, prepareSaveIntent, writeSaveIntent, writeSaveResult, saveSnapshotSchema } from "./save-intent.ts";
 import { formatHumanReceipt, receiptOutputMode } from "./receipt-format.ts";
 import { formatArenaBlockMetadata } from "./metadata.ts";
+import { collectRatio, formatRatioReport, type RatioSource } from "./visibility-ratio.ts";
 
 type Options = {
   media?: string;
   mediaOrder?: string;
   frame?: string;
+  video?: string;
   videoFrameThreshold?: string;
   quoteDepth?: string;
+  parentDepth?: string;
+  parentStyle?: CompositionPolicy["parentStyle"];
   quoteDates?: CompositionPolicy["quoteDates"];
+  quoteAuthorLink?: CompositionPolicy["quoteAuthorLink"];
   audio?: string;
   quote?: CompositionPolicy["quote"];
   separator?: CompositionPolicy["separator"];
-  threadExpansion?: CompositionPolicy["threadExpansion"];
+  threadExpansion?: boolean;
   to?: string[];
   json?: boolean;
   output?: string;
   plan?: string;
   force?: boolean;
   extra?: string[];
+  substackCapture?: string[];
+  redditCapture?: string[];
   layout?: string;
   outputDir?: string;
   canvas?: string;
@@ -76,14 +91,18 @@ function policy(options: Options, postCount: number): Partial<CompositionPolicy>
   return {
     media: selectedMedia.length ? "selected" : media as CompositionPolicy["media"],
     selectedMedia,
+    ...(options.video ? { videoMotion: options.video.split(",").map(value => value.trim()) } : {}),
     ...(options.frame ? { videoFrames: options.frame.split(",").map(value => value.trim()) } : {}),
     ...(options.videoFrameThreshold ? { videoFrameThresholdSeconds: Number(options.videoFrameThreshold) } : {}),
     ...(options.mediaOrder !== undefined ? { mediaOrder: options.mediaOrder.split(",").map(value => value.trim()) } : {}),
     quote: options.quote ?? "block",
     ...(options.quoteDepth !== undefined ? { quoteDepth: options.quoteDepth === "full" ? "full" : Number(options.quoteDepth) } : {}),
+    ...(options.parentDepth !== undefined ? { parentDepth: options.parentDepth === "full" ? "full" : Number(options.parentDepth) } : {}),
+    ...(options.parentStyle !== undefined ? { parentStyle: options.parentStyle } : {}),
     ...(options.quoteDates !== undefined ? { quoteDates: options.quoteDates } : {}),
+    ...(options.quoteAuthorLink !== undefined ? { quoteAuthorLink: options.quoteAuthorLink } : {}),
     separator: options.separator ?? "auto",
-    ...(options.threadExpansion ? { threadExpansion: options.threadExpansion } : {}),
+    threadExpansion: options.threadExpansion ? "on" : "off",
     ...(options.audio ? { audio: audioSource(options.audio, postCount) } : {}),
   };
 }
@@ -93,7 +112,7 @@ function displayPlan(plan: BlockPlan): string {
     const role = source.selection?.role ?? (plan.policy.mediaOnlyPosts?.includes(index + 1) ? "extra" : "primary");
     const origin = source.selection?.origin === "expanded" ? " · expanded" : "";
     const chosen = plan.block.selectedMedia.filter(ref => ref.startsWith(`${index + 1}.`)).length;
-    return `  ${index + 1}. ${role}${origin} · @${source.author.handle.replace(/^@/, "")} · ${chosen}/${source.media.length} media · ${source.canonicalUrl}`;
+    return `  ${index + 1}. ${role}${origin} · @${source.author.handle.replace(/^@/, "")} · ${chosen}/${planMedia(plan).filter(asset => asset.ref.startsWith(`${index + 1}.`)).length} media · ${source.canonicalUrl}`;
   });
   return [
     `${plan.block.title} · ${plan.block.kind} · ${plan.hash.slice(0, 12)}`,
@@ -112,15 +131,34 @@ async function readLocalPlan(path: string): Promise<BlockPlan> {
   return blockPlanSchema.parse(await file.json());
 }
 
-async function localPlan(values: string[], options: Options): Promise<{ plan: BlockPlan; destinations: string[] }> {
+async function captureInputs(values: string[], options: Options) {
+  const captures = [];
+  for (const path of options.redditCapture ?? []) {
+    const file = Bun.file(path);
+    if (file.size > REDDIT_CAPTURE_MAX_BYTES) throw new Error("Reddit capture file exceeds 2 MiB");
+    captures.push(normalizeRedditCapture(await file.json()));
+  }
+  const substack = [];
+  for (const path of options.substackCapture ?? []) {
+    const file = Bun.file(path);
+    if (file.size > SUBSTACK_CAPTURE_MAX_BYTES) throw new Error("Substack capture file exceeds 2 MiB");
+    substack.push(normalizeSubstackCapture(await file.json()));
+  }
   const inputs = splitInputs(values, options.to);
+  if (!inputs.refs.length) inputs.refs = [...captures, ...substack].map(capture => capture.sourceUrl);
+  const normalized = bindRedditCaptures([...inputs.refs, ...(options.extra ?? [])], captures);
+  return { inputs, resolver: new SocialResolver({ reddit: new RedditProvider(undefined, normalized), substack: new SubstackProvider(bindSubstackCaptures([...inputs.refs, ...(options.extra ?? [])], substack)) }) };
+}
+
+async function localPlan(values: string[], options: Options): Promise<{ plan: BlockPlan; destinations: string[] }> {
+  const { inputs, resolver } = await captureInputs(values, options);
   if (!inputs.refs.length) throw new Error("At least one source post or non-text Are.na block URL is required");
   const extras = options.extra ?? [];
   const refs = [...inputs.refs, ...extras];
   if (refs.length > 20) throw new Error("At most 20 source posts are supported");
   const composition = policy(options, refs.length);
-  const resolved = await new SocialResolver().resolveComposition(inputs.refs, extras, composition);
-  const plan = composePlan(resolved.posts, resolved.policy);
+  const resolved = await resolver.resolveComposition(inputs.refs, extras, composition);
+  const plan = composePlan(resolved.posts, selectedPostMediaPolicy(resolved.posts, resolved.policy));
   return { plan, destinations: inputs.destinations };
 }
 
@@ -132,26 +170,33 @@ function client(): ArenaBlockClient {
 }
 
 function addCompositionOptions(command: Command, extras = true): Command {
-  if (extras) command.option("--extra <url>", "add media from a post or non-text Are.na block (repeatable); keep primary text", (value, values: string[]) => [...values, value], []);
+  if (extras) command.option("--extra <url>", "add supplementary media from a post or Are.na block; repeatable", (value, values: string[]) => [...values, value], []);
   return command
-    .option("--media <mode>", "auto, none, all, video, audio (SoundCloud original download), images, indexes (1+4), or refs (1.1,1.4)", "auto")
-    .option("--frame <refs>", "use observed source poster frames for selected video refs (1.1,2.1)")
-    .option("--video-frame-threshold <seconds>", "auto-use observed poster for videos longer than this (default 600; 1-600)")
-    .option("--thread-expansion <mode>", "auto (single Bluesky, Delvetown, or Forum Magnum comment seed), on (bounded x.com/AT Protocol threads or Forum Magnum replies), or off")
-    .option("--media-order <refs>", "complete tile order using stable source refs (2.1,1.2,1.1); includes the first item")
-    .option("--audio <mode>", "video-mosaic soundtrack: auto, mix, index (2), or post.media ref (1.2)")
+    .option("--substack-capture <path>", "read a retained Substack source record; repeatable", (value, values: string[]) => [...values, value], [])
+    .option("--reddit-capture <path>", "read a retained Reddit source record; repeatable", (value, values: string[]) => [...values, value], [])
+    .option("--media <mode>", "auto, none, all, images, video, audio, indexes (1+4) or refs (1.1,1.4); all/types exclude quote-only media", "auto")
+    .option("--frame <refs>", "use source poster frames for video refs, such as 1.1,2.1")
+    .option("--video <refs>", "keep moving video for refs regardless of the frame default, such as 1.1,2.1")
+    .option("--video-frame-threshold <seconds>", "default to frames above this duration; 1-86400 seconds, default 1500; --video overrides it")
+    .addOption(new Option("-t, --thread-expansion", "include available x.com, Bluesky, Delvetown or Substack chains, or Forum Magnum replies").default(false, "off"))
+    .addOption(new Option("--no-thread-expansion").hideHelp())
+    .option("--media-order <refs>", "set the complete tile order with refs, such as 2.1,1.2,1.1")
+    .option("--audio <mode>", "choose a video soundtrack: auto, mix, index (2), or ref (1.2)")
     .option("--quote <mode>", "block, sequence, or omit", "block")
-    .option("--quote-depth <depth>", "render 0-8 quote descendants (default 2), or full available chain bounded at 8")
-    .option("--quote-dates <mode>", "auto (earlier comparable source day), source (literal timestamp), or none")
+    .option("--quote-depth <depth>", "include 0-8 quote levels, or full (up to 8); default 2")
+    .option("--parent-depth <depth>", "include 0-8 HN/Lobsters comment ancestors, or full (up to 8); default 0")
+    .addOption(new Option("--parent-style <mode>", "flat forum entries or existing nested quote presentation").choices(["flat", "quote"]))
+    .option("--quote-dates <mode>", "auto (earlier source dates), source (literal timestamps), or none")
+    .addOption(new Option("--quote-author-link <mode>", "source links to the quoted post; plain uses an unlinked name. Omit to keep the platform style").choices(["source", "plain"]))
     .option("--separator <mode>", "auto, always, or never", "auto")
     .option("--to <channel>", "Are.na channel slug or URL", (value, values: string[]) => [...values, value], []);
 }
 
 function addReceiptOptions(command: Command): Command {
   return command
-    .option("--json", "print the complete machine-readable receipt, even in a terminal")
-    .option("--human", "print a concise receipt, even when output is piped")
-    .option("--verbose", "include receipt, save, block and connection IDs and the plan hash in human output");
+    .option("--json", "print the complete JSON receipt")
+    .option("--human", "print a text receipt, including when piped")
+    .option("--verbose", "include save IDs and the plan hash in the text receipt");
 }
 
 type ChannelDisplay = { channelNames?: Record<string, string>; channelIds?: Record<string, number>; channelSlugs?: Record<string, string> };
@@ -179,13 +224,13 @@ let activeReceiptOptions: Options | undefined;
 let activeSaveId: string | undefined;
 let activeProvenanceDirectory: string | undefined;
 const program = addCompositionOptions(new Command("arena-block"))
-  .description("Compose social posts into intentional Are.na blocks")
+  .description("Capture social posts as editable Are.na blocks")
   .version(`${cliBuild.version} (${cliBuild.sourceId})`)
   .argument("[refs...]", "supported social posts, comments, Bluesky at:// URIs, or non-text Are.na blocks")
   .option("--json", "print stable JSON")
-  .option("--config <path>", "private configuration file; never contains credential values")
+  .option("--config <path>", "read a private configuration file")
   .action(async (refs: string[], options: Options) => {
-    if (!refs.length && !options.extra?.length) {
+    if (!refs.length && !options.extra?.length && !options.redditCapture?.length && !options.substackCapture?.length) {
       console.log(program.helpInformation());
       return;
     }
@@ -194,34 +239,48 @@ const program = addCompositionOptions(new Command("arena-block"))
   });
 
 program.enablePositionalOptions();
+// Composition flags may precede a subcommand. Preserve an explicit parent
+// choice unless the subcommand supplies its own choice.
+program.hook("preAction", (root, command) => {
+  if (command === root) return;
+  for (const key of ["threadExpansion", "quoteAuthorLink", "parentDepth", "parentStyle", "video", "frame", "videoFrameThreshold"] as const) {
+    const source = command.getOptionValueSource(key);
+    if (root.getOptionValueSource(key) === "cli" && (source === undefined || source === "default")
+      && command.options.some(option => option.attributeName() === key)) {
+      command.setOptionValueWithSource(key, root.opts()[key], "cli");
+    }
+  }
+});
 
-program.command("version").description("Report this CLI build and optionally the daemon build")
+program.command("version").description("Report the CLI build")
   .option("--daemon", "include the configured daemon")
   .action(async (options: { daemon?: boolean }) => {
     console.log(JSON.stringify({ client: buildInfo(), ...(options.daemon ? { daemon: await client().version() } : {}) }, null, 2));
   });
 
-addCompositionOptions(program.command("resolve").description("Resolve provider-native post data").argument("<refs...>").option("--json", "print JSON"), false)
+addCompositionOptions(program.command("resolve").description("Read normalized source posts").argument("[refs...]").option("--json", "print JSON"), false)
   .action(async (refs: string[], options: Options) => {
-    const posts = await new SocialResolver().resolve(splitInputs(refs).refs, undefined, compositionPolicySchema.parse(policy(options, refs.length)));
+    const { inputs, resolver } = await captureInputs(refs, options);
+    if (!inputs.refs.length) throw new Error("At least one source URL or browser-capture file is required");
+    const posts = await resolver.resolve(inputs.refs, undefined, compositionPolicySchema.parse(policy(options, inputs.refs.length)));
     console.log(JSON.stringify(posts, null, options.json ? 2 : 0));
   });
 
-addCompositionOptions(program.command("plan").description("Create an immutable block plan").argument("<refs...>").option("--json", "print stable JSON"))
+addCompositionOptions(program.command("plan").description("Create a block plan for review").argument("[refs...]").option("--json", "print stable JSON"))
   .action(async (refs: string[], options: Options) => {
     const { plan } = await localPlan(refs, options);
     console.log(options.json ? JSON.stringify(plan, null, 2) : displayPlan(plan));
   });
 
 addCompositionOptions(program.command("render").description("Render a local media preview").argument("[refs...]")
-  .option("-o, --output <path>")
-  .option("--plan <path>", "render an existing local plan without resolving sources again")
-  .option("--layout <mode>", "reading (source-scale pages) or wallpaper (complete overview); local preview only")
-  .option("--output-dir <path>", "directory for explicit-layout pages and their coverage manifest")
-  .option("--canvas <width>x<height>", "explicit-layout canvas; reading defaults to 4096x4096, wallpaper to 1440x2560")
-  .option("--min-scale <number>", "reading-page minimum original pixel scale (default 1; smaller values explicitly allow downsampling)"))
+  .option("-o, --output <path>", "write rendered media to this file")
+  .option("--plan <path>", "render a saved local plan")
+  .option("--layout <mode>", "reading (pages) or wallpaper (overview)")
+  .option("--output-dir <path>", "write layout pages and their coverage report here")
+  .option("--canvas <width>x<height>", "canvas size; defaults: reading 4096x4096, wallpaper 1440x2560")
+  .option("--min-scale <number>", "minimum image scale for reading pages; default 1"))
   .action(async (refs: string[], options: Options) => {
-    if (options.plan && (refs.length || options.extra?.length)) throw new Error("--plan cannot accompany source URLs or --extra");
+    if (options.plan && (refs.length || options.extra?.length || options.redditCapture?.length || options.substackCapture?.length)) throw new Error("--plan cannot accompany source URLs, --extra, --reddit-capture, or --substack-capture");
     if (options.layout && !["reading", "wallpaper"].includes(options.layout)) throw new Error("--layout must be reading or wallpaper");
     if (options.layout ? (!options.outputDir || options.output) : (!options.output || options.outputDir || options.canvas || options.minScale)) {
       throw new Error("Normal rendering requires -o; --layout requires --output-dir and writes local preview pages");
@@ -255,15 +314,15 @@ addCompositionOptions(program.command("render").description("Render a local medi
     console.error(`${media.mimeType} ${media.size} bytes`);
   });
 
-addCompositionOptions(addReceiptOptions(program.command("publish").description("Publish an immutable plan through the daemon").argument("[refs...]").option("--plan <path>").option("--force"))
-  .option("--config <path>").option("--dry-run", "inspect routing and provenance without daemon requests or publishing")
-  .option("--profile <name>", "select an existing configured account profile; never fall back")
-  .option("--initiator <kind>", "human, agent, automation, or unknown; an origin assertion, not an account identity", "unknown")
-  .option("--agent <label>", "optional initiating agent or workflow label"))
+addCompositionOptions(addReceiptOptions(program.command("publish").description("Save a block through the daemon").argument("[refs...]").option("--plan <path>", "save an existing local plan").option("--force", "allow a new publication of an already saved plan"))
+  .option("--config <path>", "read a private configuration file").option("--dry-run", "print the proposed save and destinations locally")
+  .option("--profile <name>", "use this configured account profile")
+  .option("--initiator <kind>", "declare the initiator: human, agent, automation, or unknown", "unknown")
+  .option("--agent <label>", "record an agent or workflow label"))
   .action(async (refs: string[], options: Options) => {
     activeReceiptOptions = options;
     const display = receiptOutputMode(options, Boolean(process.stdout.isTTY));
-    if (options.plan && (refs.length || options.extra?.length)) throw new Error("--plan cannot accompany source URLs or --extra");
+    if (options.plan && (refs.length || options.extra?.length || options.redditCapture?.length || options.substackCapture?.length)) throw new Error("--plan cannot accompany source URLs, --extra, --reddit-capture, or --substack-capture");
     const planned = options.plan
       ? { plan: await readLocalPlan(options.plan), destinations: options.to ?? [] }
       : await localPlan(refs, options);
@@ -296,7 +355,7 @@ addCompositionOptions(addReceiptOptions(program.command("publish").description("
           try {
             await writeSaveResult(provenanceDirectory, { ...(error instanceof PublicationError && error.receipt ? { receipt: error.receipt } : {}),
               ...(error instanceof PublicationError && error.attempt ? { attempt: error.attempt } : {}), error: error instanceof Error ? error.message : String(error) });
-          } catch { console.error("Private result could not be recorded; the daemon's recovery state remains authoritative."); }
+          } catch { console.error("Could not record the local result. Check the retained save with save-status."); }
         }
         throw error;
       }
@@ -312,9 +371,9 @@ addCompositionOptions(addReceiptOptions(program.command("publish").description("
     } finally { if (!published && provenanceDirectory && display !== "human") console.error(`Private save snapshot: ${provenanceDirectory}`); }
   });
 
-program.command("replan-save").description("Create a new local plan from an unsaved capture; never publish or alter the original save")
+program.command("replan-save").description("Create a revised local plan from an unsaved capture")
   .argument("<id>", "original save UUID")
-  .requiredOption("-o, --output <path>", "new private plan file; must not exist")
+  .requiredOption("-o, --output <path>", "write to a new private plan file")
   .action(async (id: string, options: { output: string }) => {
     const daemon = client();
     const before = await daemon.saveStatus(id);
@@ -343,14 +402,14 @@ program.command("replan-save").description("Create a new local plan from an unsa
     console.error("Review the new plan, then publish it separately with --plan and the destinations above. This creates a new save UUID; the original save is unchanged.");
   });
 
-program.command("save-intent").description("Write a private, immutable save snapshot and proposed Remote Inbox metadata; never publish")
-  .requiredOption("--plan <path>", "existing immutable source plan")
-  .requiredOption("--output-dir <path>", "directory for a fresh private snapshot bundle")
-  .option("--config <path>")
-  .option("--profile <name>")
+program.command("save-intent").description("Write a private local save snapshot")
+  .requiredOption("--plan <path>", "read an existing source plan")
+  .requiredOption("--output-dir <path>", "write a new private snapshot bundle here")
+  .option("--config <path>", "read a private configuration file")
+  .option("--profile <name>", "use this configured account profile")
   .option("--to <channel>", "active destination (repeatable)", (value, values: string[]) => [...values, value], [])
   .option("--initiator <kind>", "human, agent, automation, or unknown", "unknown")
-  .option("--agent <label>")
+  .option("--agent <label>", "record an agent or workflow label")
   .action(async (options: Options & { plan: string; outputDir: string }) => {
     const config = await loadUserConfig(options.config ?? program.opts().config);
     const intent = prepareSaveIntent(await readLocalPlan(options.plan), config, {
@@ -361,10 +420,10 @@ program.command("save-intent").description("Write a private, immutable save snap
     console.log(JSON.stringify({ directory, snapshotSha256: intent.snapshotSha256, routing: intent.snapshot.routing, remoteWriteImplemented: true, remoteQualification: intent.remoteQualification }, null, 2));
   });
 
-program.command("mcp").description("Run private stdio MCP; publishing requires explicit client and daemon opt-in")
-  .option("--config <path>")
-  .option("--profile <name>", "select an existing configured profile; never resolve an Are.na token in this client")
-  .option("--publish", "expose save/status/cancel using the existing owner daemon")
+program.command("mcp").description("Run the private MCP server over stdio")
+  .option("--config <path>", "read a private configuration file")
+  .option("--profile <name>", "use this configured account profile")
+  .option("--publish", "enable save, status and cancel through the configured daemon")
   .action(async (options: Options) => {
     const config = await loadUserConfig(options.config ?? program.opts().config);
     const daemon = options.publish ? client() : undefined;
@@ -374,11 +433,15 @@ program.command("mcp").description("Run private stdio MCP; publishing requires e
       metadataReader: { blockMetadata: (blockUrl, signal) => client().blockMetadata(blockUrl, signal) }, credentialProfile: options.profile });
   });
 
-program.command("save-status").description("Read retained save status by UUID without Are.na writes").argument("<save-id>")
-  .action(async (id: string) => console.log(JSON.stringify(await client().saveStatus(id), null, 2)));
-program.command("cancel-save").description("Cancel active work by UUID; retain committed blocks, connections and receipts").argument("<save-id>")
+program.command("save-status").description("Read a retained save by UUID").argument("<save-id>")
+  .action(async (id: string) => {
+    const daemon = client(), status = await daemon.saveStatus(id);
+    const diagnosis = await diagnoseSaveDestinations(daemon, status);
+    console.log(JSON.stringify({ ...status, ...(diagnosis ? { diagnosis } : {}) }, null, 2));
+  });
+program.command("cancel-save").description("Stop active work and retain completed saves").argument("<save-id>")
   .action(async (id: string) => console.log(JSON.stringify(await client().cancelSave(id), null, 2)));
-addReceiptOptions(program.command("retry-save").description("Recover using the original capsule retained by the daemon, preserving its UUID and identity").argument("<save-id>"))
+addReceiptOptions(program.command("retry-save").description("Retry a retained save with its original UUID and plan").argument("<save-id>"))
   .action(async (id: string, options: Options) => {
     activeReceiptOptions = options; activeSaveId = id;
     const display = receiptOutputMode(options, Boolean(process.stdout.isTTY));
@@ -386,8 +449,8 @@ addReceiptOptions(program.command("retry-save").description("Recover using the o
     const receipt = await publicationWithProgress(daemon, intent.snapshot.plan, intent.snapshot.routing.destinations, signal => daemon.retrySave(id, signal), undefined, id, true, display === "human" ? "stdout" : "none");
     await printReceipt(receipt, options, { saveId: id, defaultChannel: snapshotDefaultChannel(intent.snapshot)?.channel }, daemon);
   });
-addReceiptOptions(program.command("replay-save").description("Replay a retained private save bundle with its original UUID and immutable capsule").argument("<bundle-directory>"))
-  .option("--config <path>").option("--profile <name>").option("--plan <path>", "original plan required if the capsule redacted source credentials")
+addReceiptOptions(program.command("replay-save").description("Retry a private save bundle with its original UUID").argument("<bundle-directory>"))
+  .option("--config <path>", "read a private configuration file").option("--profile <name>", "use this configured account profile").option("--plan <path>", "supply the original plan if the saved copy was redacted")
   .action(async (directory: string, options: Options) => {
     activeReceiptOptions = options; activeProvenanceDirectory = directory;
     const display = receiptOutputMode(options, Boolean(process.stdout.isTTY));
@@ -395,7 +458,7 @@ addReceiptOptions(program.command("replay-save").description("Replay a retained 
     if (snapshotFile.size > 2 * 1024 * 1024 || envelopeFile.size > 2 * 1024 * 1024) throw new Error("Save bundle exceeds its byte bound");
     const snapshot = saveSnapshotSchema.parse(await snapshotFile.json()), envelope = await envelopeFile.json();
     activeSaveId = snapshot.saveId;
-    if (snapshot.origin !== "cli") throw new Error("Use the original MCP adapter to replay an MCP save capsule");
+    if (snapshot.origin !== "cli") throw new Error("Recover this save through its original MCP client.");
     if (!snapshot.fidelity.originalPlanPreserved && !options.plan) throw new Error("Supply the original --plan to preserve its source fidelity");
     const config = await loadUserConfig(options.config ?? program.opts().config), daemon = client();
     await daemon.assertSaveProfile(config, "cli", options.profile);
@@ -408,17 +471,17 @@ addReceiptOptions(program.command("replay-save").description("Replay a retained 
 
 program.command("thread").description("Write a local x.com or Bluesky conversation draft")
   .argument("<ref>", "direct x.com or Bluesky post URL")
-  .requiredOption("--output-dir <path>", "directory for a fresh capture, provenance, Markdown and HTML bundle")
-  .option("--manifest <path>", "JSON array of exact x.com post URLs for a known thread or selected conversation")
-  .option("--scope <mode>", "chain (selected post and ancestors) or tree (bounded Bluesky replies)", "chain")
-  .option("--author <handle>", "prioritize a Bluesky author continuation in tree mode (repeatable)", (value, values: string[]) => [...values, value], [])
-  .option("--select <id>", "select captured post IDs for the draft, retaining their quote context (repeatable)", (value, values: string[]) => [...values, value], [])
-  .option("--media <mode>", "none, images, or all in the rendered draft; preserve original references in capture.json", "all")
-  .option("--max-posts <number>", "bounded snapshot post count", "100")
-  .option("--max-requests <number>", "bounded public source reads", "20")
+  .requiredOption("--output-dir <path>", "write source records, Markdown and HTML to a new directory")
+  .option("--manifest <path>", "read a JSON array of exact x.com post URLs")
+  .option("--scope <mode>", "chain (post and ancestors) or tree (Bluesky replies)", "chain")
+  .option("--author <handle>", "prioritize this Bluesky author in tree mode; repeatable", (value, values: string[]) => [...values, value], [])
+  .option("--select <id>", "include this captured post ID in the draft; repeatable", (value, values: string[]) => [...values, value], [])
+  .option("--media <mode>", "none, images, or all; capture.json retains source references", "all")
+  .option("--max-posts <number>", "maximum captured posts", "100")
+  .option("--max-requests <number>", "maximum public source requests", "20")
   .option("--depth <number>", "requested reply and quote depth", "6")
   .option("--parent-height <number>", "requested ancestor height", "80")
-  .option("--descriptions <path>", "JSON mapping of source media URLs to reviewed descriptions and evidence refs")
+  .option("--descriptions <path>", "read reviewed media descriptions and evidence from JSON")
   .action(async (ref: string, options: {outputDir: string; manifest?: string; scope: string; author: string[]; select: string[]; media: string; maxPosts: string; maxRequests: string; depth: string; parentHeight: string; descriptions?: string}) => {
     if (!["chain", "tree"].includes(options.scope)) throw new Error("--scope must be chain or tree");
     if (!["none", "images", "all"].includes(options.media)) throw new Error("--media must be none, images, or all");
@@ -443,7 +506,7 @@ program.command("status").description("Read a publication receipt").argument("<i
   console.log(JSON.stringify(await client().receipt(id), null, 2));
 });
 
-program.command("metadata").description("Read a block and its channel connection metadata without writes")
+program.command("metadata").description("Read block and channel metadata")
   .argument("<block-url>", "Are.na block URL")
   .option("--json", "print exact structured JSON")
   .action(async (blockUrl: string, options: Options) => {
@@ -451,7 +514,28 @@ program.command("metadata").description("Read a block and its channel connection
     console.log(options.json ? JSON.stringify(result, null, 2) : formatArenaBlockMetadata(result));
   });
 
-program.command("inspect").description("Inspect a saved publication and its exact source plan")
+program.command("ratio").description("Count channels and blocks by visibility without writes")
+  .option("--cached", "list channels from the daemon's saved channel index")
+  .option("--json", "print exact structured JSON")
+  .action(async (options: { cached?: boolean; json?: boolean }) => {
+    const daemon = client();
+    const index = options.cached ? await daemon.channelIndex() : undefined;
+    if (index && !index.completeAt) throw new Error("The daemon's channel index is incomplete; run without --cached to read the account again");
+    const source: RatioSource = {
+      channels: index ? async () => ({ accountId: index.accountId, channels: index.channels, nextPage: null }) : (page, signal) => daemon.channels(page, signal),
+      blocks: (type, sort, page, signal) => daemon.accountBlocks(type, sort, page, signal),
+    };
+    let reportedAt = 0;
+    const progress = (read: number, reported: number) => {
+      if (process.stderr.isTTY) process.stderr.write(`\rReading blocks ${read}/${reported}`);
+      else if (read - reportedAt >= 5000 || read === reported) { reportedAt = read; process.stderr.write(`Read blocks ${read}/${reported}\n`); }
+    };
+    const report = await collectRatio(source, { progress, listing: index ? `cached ${index.completeAt}` : "live" });
+    if (process.stderr.isTTY) process.stderr.write("\r\x1b[K");
+    console.log(options.json ? JSON.stringify(report, null, 2) : formatRatioReport(report));
+  });
+
+program.command("inspect").description("Read a save receipt and its source plan")
   .argument("<receipt>").option("--json", "print receipt and plan JSON")
   .action(async (id: string, options: Options) => {
     const daemon = client();
@@ -464,7 +548,7 @@ program.command("inspect").description("Inspect a saved publication and its exac
     ].join("\n"));
   });
 
-addReceiptOptions(program.command("resume").description("Resume a saved snapshot without resolving its source again"))
+addReceiptOptions(program.command("resume").description("Resume a save from its retained plan"))
   .argument("<receipt>")
   .option("--to <channel>", "additional destination (repeatable)", (value, values: string[]) => [...values, value], [])
   .action(async (id: string, options: Options) => {
@@ -481,7 +565,23 @@ addReceiptOptions(program.command("resume").description("Resume a saved snapshot
 program.command("attempt").description("Inspect a creation attempt with an uncertain remote outcome")
   .argument("<id>").action(async (id: string) => { console.log(JSON.stringify(await client().attempt(id), null, 2)); });
 
-program.command("picker").description("Serve the private local channel picker through the existing owner daemon")
+program.command("pick").description("Pick channels in the terminal; print the chosen destinations to stdout")
+  .option("--emit <format>", "id, slug, url or json", "id")
+  .option("--copy", "also copy the destinations to the clipboard")
+  .option("--block <url>", "hold an existing Are.na block while picking")
+  .option("--snapshot <file>", "pick from a saved channel snapshot instead of the daemon; nothing is sent")
+  .option("--mode <mode>", "filter (narrow the list as you type) or jump (keep the list, move to the best match)", "filter")
+  .option("--height <rows>", "rows the picker occupies below the prompt", "18")
+  .option("--preview <columns>", "width of the preview column, or off")
+  .option("--verbose", "also print the requests a save would send")
+  .action(async (options: import("./tui/command.ts").PickOptions) => {
+    if (!["id", "slug", "url", "json"].includes(options.emit ?? "id")) throw new Error("--emit is id, slug, url or json");
+    if (!["filter", "jump"].includes(options.mode ?? "filter")) throw new Error("--mode is filter or jump");
+    const { pickCommand } = await import("./tui/command.ts");
+    process.exitCode = await pickCommand(options);
+  });
+
+program.command("picker").description("Open the local channel picker")
   .action(async () => { const { startPicker } = await import("./picker-cli.ts"); await startPicker(); });
 
 program.command("serve").description("Run the HTTP service").action(async () => {
@@ -491,7 +591,7 @@ program.command("serve").description("Run the HTTP service").action(async () => 
 
 function saveRecovery(error: PublicationError): string | undefined {
   const status = error.saveStatus;
-  if (!status || status.failure?.code === "retained_recovery") return undefined;
+  if (!status || error.destinationUnavailable || status.failure?.code === "retained_recovery") return undefined;
   if (status.failure?.retryable === false) {
     if (status.phase === "not_saved" && !status.active && !status.receipt && !status.attempt
       && status.failure.code === "media_budget" && status.failure.message.startsWith("Mosaic selection is too dense"))
@@ -511,7 +611,48 @@ function publicationIssue(error: PublicationError): string {
   return error.message;
 }
 
-program.parseAsync().catch(async (error) => {
+function threadExpansionArguments(args: string[]): string[] {
+  const normalized: string[] = [];
+  const warnings = new Set<string>();
+  const commands = new Set(program.commands.flatMap(command => [command.name(), ...command.aliases()]));
+  for (let index = 0; index < args.length; index++) {
+    const arg = args[index]!;
+    if (arg === "--") { normalized.push(...args.slice(index)); break; }
+    if (arg !== "--thread-expansion" && arg !== "-t" && !arg.startsWith("--thread-expansion=")) {
+      normalized.push(arg); continue;
+    }
+    const attached = arg.startsWith("--thread-expansion=");
+    const next = args[index + 1];
+    const legacy = attached ? arg.slice("--thread-expansion=".length)
+      : arg === "--thread-expansion" && next !== undefined && ["on", "off", "auto"].includes(next) ? next : undefined;
+    if (legacy !== undefined) {
+      if (legacy === "auto") throw new Error("CLI thread expansion has no auto mode. Omit the flag to keep expansion off, or use -t / --thread-expansion to enable it.");
+      if (legacy !== "on" && legacy !== "off") throw new Error("--thread-expansion takes no value. Omit it for off, or use -t / --thread-expansion for on.");
+      if (!attached) index++;
+      normalized.push(legacy === "on" ? "--thread-expansion" : "--no-thread-expansion");
+      warnings.add(legacy === "on"
+        ? "Warning: --thread-expansion on is deprecated; use -t or --thread-expansion without a value."
+        : "Warning: --thread-expansion off is deprecated; omit the flag to keep expansion off.");
+      continue;
+    }
+    // A URL can immediately follow the boolean flag. Reject old mode-like
+    // words here so they never become source references or trigger acquisition.
+    if (next && !next.startsWith("-") && !/^[a-z][a-z0-9+.-]*:\/\//i.test(next) && !commands.has(next)) {
+      throw new Error(`${arg} takes no value. Omit it for off, or use -t / --thread-expansion for on; CLI auto mode is not supported.`);
+    }
+    normalized.push(arg);
+  }
+  for (const warning of warnings) console.error(warning);
+  return normalized;
+}
+
+configureCliHelp(program);
+
+Promise.resolve().then(() => program.parseAsync(threadExpansionArguments(process.argv.slice(2)), { from: "user" })).catch(async (error) => {
+  if (error instanceof PublicationError && error.saveStatus && !error.userInterrupted) {
+    const diagnosis = await diagnoseSaveDestinations(client(), error.saveStatus);
+    if (diagnosis) { error.message = diagnosis.message; error.destinationUnavailable = true; }
+  }
   if (error instanceof PublicationError && error.userInterrupted) {
     console.error(error.message);
     const receipt = error.receipt ?? error.saveStatus?.receipt;

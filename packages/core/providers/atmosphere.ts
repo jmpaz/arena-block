@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { ResolvedPost } from "../types.ts";
-import { parseSource, type ParsedSource } from "../url.ts";
+import { isInstagramReel, parseSource, type ParsedSource } from "../url.ts";
 import type { Fetcher } from "./comments.ts";
 import type { SocialProvider } from "./provider.ts";
 
@@ -76,6 +76,8 @@ export class AtmosphereProvider implements SocialProvider {
       canonicalUrl: this.provider === "tiktok" && media.every((item) => item.kind === "image")
         ? canonical.canonicalUrl.replace("/video/", "/photo/") : canonical.canonicalUrl,
       author: { handle: post.author.screen_name, ...(post.author.name ? { name: post.author.name } : {}) },
+      ...(this.provider === "instagram" && (isInstagramReel(source.canonicalUrl) || isInstagramReel(canonical.canonicalUrl))
+        ? { postTitle: `Reel by @${post.author.screen_name.replace(/^@/, "")}` } : {}),
       text: post.text, postedAt: postedAt.toISOString(), media,
     };
   }

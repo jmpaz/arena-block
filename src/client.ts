@@ -1,3 +1,4 @@
+import { requiredCompositionCapabilities, requireRetainedCompositionPolicy } from "../packages/core/composition-capabilities.ts";
 import { requiredPlanCapabilities } from "./plan-capabilities.ts";
 import type { BlockPlan, CompositionPolicy, PublicationReceipt, CreationAttempt, PublicationState, PublishRequest } from "./types.ts";
 import { blockPlanSchema, publicationReceiptSchema, creationAttemptSchema, publicationStateSchema } from "./types.ts";
@@ -14,6 +15,7 @@ import { credentialProfile } from "./config.ts";
 type Fetcher = (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => ReturnType<typeof fetch>;
 
 export class PublicationError extends Error {
+  destinationUnavailable?: boolean;
   constructor(message: string, readonly receipt?: PublicationReceipt, readonly attempt?: CreationAttempt, readonly saveStatus?: SaveStatus,
     readonly userInterrupted = false) { super(message); }
 }
@@ -117,7 +119,16 @@ export class ArenaBlockClient {
   }
 
   async plan(refs: string[], policy?: Partial<CompositionPolicy>, signal?: AbortSignal): Promise<BlockPlan> {
-    return blockPlanSchema.parse(await this.request("/v1/plans", { refs, policy }, signal));
+    const input = { refs, policy };
+    const required = requiredCompositionCapabilities(input);
+    if (required.length) {
+      const serving = buildInfoSchema.parse(await this.request("/v1/version", undefined, signal));
+      if (required.some(capability => !serving.planCapabilities?.includes(capability)))
+        throw new PublicationError("Update the receiver before using the current capture defaults and options. No source read or save was submitted.");
+    }
+    const plan = blockPlanSchema.parse(await this.request("/v1/plans", input, signal));
+    requireRetainedCompositionPolicy(input, plan);
+    return plan;
   }
 
   async webPlan(url: string, title?: string, description?: string, signal?: AbortSignal): Promise<BlockPlan> {
@@ -136,6 +147,21 @@ export class ArenaBlockClient {
       id: z.number().int().positive(), title: z.string(), slug: z.string(), visibility: z.string(),
       owner: z.object({ name: z.string(), slug: z.string() }), count: z.number().int().nonnegative().optional(), canAdd: z.boolean().optional(),
     })), updatedAt: z.string(), completeAt: z.string().nullable() }).parse(await this.request("/v1/channel-index", undefined, signal, 20_000));
+  }
+
+  async accountBlocks(type: string, sort: string, page = 1, signal?: AbortSignal) {
+    return z.object({ accountId: z.number().int().positive(), type: z.string(),
+      blocks: z.array(z.object({ id: z.number().int().positive().safe(), visibility: z.string() })).max(100),
+      total: z.number().int().nonnegative(), nextPage: z.number().int().positive().nullable() })
+      .parse(await this.request(`/v1/account/blocks?type=${encodeURIComponent(type)}&sort=${encodeURIComponent(sort)}&page=${page}`, undefined, signal, 20_000));
+  }
+
+  /** Nested channels per channel, plus records for nested channels outside the account's own index. */
+  async channelNesting(signal?: AbortSignal) {
+    const record = z.object({ id: z.number().int().positive(), title: z.string(), slug: z.string(), visibility: z.enum(["private", "closed", "public"]),
+      owner: z.object({ name: z.string(), slug: z.string() }), count: z.number().int().nonnegative().optional(), canAdd: z.boolean().optional() });
+    return z.object({ accountId: z.number().int().positive(), parents: z.record(z.string(), z.array(z.number().int().positive())), channels: z.array(record) })
+      .parse(await this.request("/v1/channel-nesting", undefined, signal, 20_000));
   }
 
   async channelLabels(refs: string[], signal?: AbortSignal): Promise<Array<{ ref: string; id: number; title: string; slug: string }>> {
@@ -312,9 +338,9 @@ export class ArenaBlockClient {
     return status;
   }
 
-  async retainedIntent(id: string) {
+  async retainedIntent(id: string, signal?: AbortSignal) {
     z.uuid().parse(id);
-    const intent = retainedIntentSchema.parse(await this.request(`/v1/saves/${id}/intent`));
+    const intent = retainedIntentSchema.parse(await this.request(`/v1/saves/${id}/intent`, undefined, signal));
     if (intent.snapshot.saveId !== id) throw new Error("Retained intent does not match its save UUID");
     return intent;
   }

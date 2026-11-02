@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read public X and Bluesky examples through a temporary Chrome extension."""
+"""Read public x.com and Bluesky examples through a temporary Chrome extension."""
 import argparse
 import json
 import shutil
