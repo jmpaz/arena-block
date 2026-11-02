@@ -11,7 +11,7 @@ import { resolveCapture } from "../extension/src/core.ts";
 
 const url = "https://bsky.app/profile/oxidist.bsky.social/post/3my7yohqedc2z";
 const fixture = await Bun.file(new URL("fixtures/bluesky-oxidist-gallery.json", import.meta.url)).json();
-function provider(value = fixture) { return new BlueskyProvider(undefined, (async () => Response.json(value)) as typeof fetch); }
+function provider(value = fixture) { return new BlueskyProvider(undefined, (async () => Response.json(value)) as unknown as typeof fetch); }
 
 test("the exact current public gallery produces five ordered primary media and a mosaic recipe", async () => {
   const resolved = await new SocialResolver({ bluesky: provider() }).resolveComposition([url], [], { media: "all", threadExpansion: "off" });
@@ -31,7 +31,7 @@ test("the exact current public gallery produces five ordered primary media and a
 
 test("native/browser composition projects the same primary gallery", async () => {
   const plan = await resolveCapture({ primary: [url], extras: [], policy: { media: "all", threadExpansion: "off" } }, undefined,
-    (async () => Response.json(fixture)) as typeof fetch);
+    (async () => Response.json(fixture)) as unknown as typeof fetch);
   expect(plan.block.selectedMedia).toEqual(["1.1", "1.2", "1.3", "1.4", "1.5"]);
   expect(plan.sources[0]!.media.map(asset => asset.url)).toEqual(fixture.thread.post.embed.items.map((item: any) => item.fullsize));
 });
@@ -119,5 +119,5 @@ test("rebuilt JavaScriptCore bundle classifies share links and resolves the exac
   const shared = await shareDone; expect(shared.error).toBeNull();
   const sharedPlan = JSON.parse(shared.value!).plan;
   expect(sharedPlan.block.canonicalSource).toBe("https://soundcloud.com/rrthielnc/fxxlsgxld");
-  expect(() => context.captureCompose(JSON.stringify(sharedPlan.sources), JSON.stringify({ media: "all" }))).toThrow("has not enabled an original audio download");
+  expect(JSON.parse(context.captureCompose(JSON.stringify(sharedPlan.sources), JSON.stringify({ media: "all" }))).plan.block.kind).toBe("audio");
 });

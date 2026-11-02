@@ -33,6 +33,17 @@ export function verifyPublication(plan: BlockPlan, block: Json, available: Json)
     if (soundCloudLink && type === "Embed" && !["auto", "none", "images"].includes(plan.policy.media)) throw new Error("Expected Link block for retained explicit audio intent");
     if ((plan.block.kind === "audio" || soundCloudLink) && plan.sources[0]?.provider === "soundcloud"
       && string(object(block.source)?.url) !== plan.block.canonicalSource) throw new Error("Are.na SoundCloud source does not match the block plan");
+    if (plan.block.kind === "audio" && plan.sources[0]?.provider === "soundcloud") {
+      const attachment = object(block.attachment);
+      const mime = (value: string | undefined) => value?.split(";", 1)[0]?.trim().toLowerCase().replace("audio/x-wav", "audio/wav")
+        .replace("audio/x-m4a", "audio/mp4").replace("audio/opus", "audio/ogg");
+      const asset = plan.sources[0].media.find(item => item.ref === plan.block.selectedMedia[0]);
+      if (!asset?.mimeType || mime(string(attachment?.content_type)) !== mime(asset.mimeType)) throw new Error("Are.na SoundCloud audio content type does not match the selected file");
+      try {
+        const url = new URL(string(attachment?.url) ?? "");
+        if (url.protocol !== "https:" || url.username || url.password) throw new Error();
+      } catch { throw new Error("Are.na SoundCloud audio has no public attachment URL"); }
+    }
     if (plan.block.kind === "image") {
       if (!arenaImageUrl(block)) throw new Error("Are.na playlist Image has no copied artwork");
       if (string(object(block.source)?.url) !== plan.block.canonicalSource) {

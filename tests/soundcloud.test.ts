@@ -52,7 +52,7 @@ async function resolve(url: string, output: unknown, media: "auto" | "all" | "no
 }
 
 async function originalPlan(extension: "wav" | "mp3") {
-  const { post } = await resolve(trackURL, trackInfo([{ format_id: "download", ext: extension, vcodec: "none", url: "https://media.invalid/original" }]));
+  const { post } = await resolve(trackURL, trackInfo([{ format_id: "download", ext: extension, vcodec: "none", url: "https://media.invalid/original" }], { duration: 0.1 }));
   post.media[0] = { ...post.media[0]!, acquisition: "soundcloud-original-download", sourceRole: "original", mimeType: extension === "wav" ? "audio/wav" : "audio/mpeg" };
   return blockPlanSchema.parse(composePlan([post], { media: "audio" }));
 }
@@ -156,14 +156,14 @@ describe("SoundCloud track adapter", () => {
     expect(withoutMedia.block.kind).toBe("url");
     expect(withoutMedia.block.artworkUrl).toBeUndefined();
     expect(() => verifyPublication(withoutMedia, { state: "available", type: "Embed", title: withoutMedia.block.title,
-      description: { markdown: withoutMedia.block.description } }, { state: "available" })).not.toThrow();
+      description: { markdown: withoutMedia.block.description }, source: { url: trackURL } }, { state: "available" })).not.toThrow();
     const unplayable = await resolve(trackURL, trackInfo([]), "auto");
     expect(unplayable.post.media).toEqual([]);
     expect(unplayable.plan.block.kind).toBe("url");
   });
 
   test("verifies Link and Embed results for a track URL while checking retained fields", async () => {
-    const { plan } = await resolve(trackURL, trackInfo([]), "all");
+    const { plan } = await resolve(trackURL, trackInfo([]), "none");
     expect(plan.block.kind).toBe("url");
     const block = { state: "available", type: "Embed", title: plan.block.title,
       description: { markdown: plan.block.description }, source: { url: trackURL } };
@@ -181,7 +181,7 @@ describe("SoundCloud track adapter", () => {
 
 
   test("selects MP3 audio without visual compositing and emits an Are.na audio Attachment", async () => {
-    const { plan } = await resolve(trackURL, trackInfo(), "auto");
+    const { plan } = await resolve(trackURL, trackInfo(streamFormats), "auto");
     expect(plan.block.kind).toBe("audio");
     expect(plan.block.title).toBe("Night Flight");
     expect(plan.block.selectedMedia).toEqual(["1.1"]);
@@ -194,7 +194,7 @@ describe("SoundCloud track adapter", () => {
     expect(publicationFields(plan).description).toBe(plan.block.markdown);
     expect(payload.value).not.toContain("stream.invalid");
     expect(() => verifyPublication(plan, { state: "available", type: "Attachment", title: "Night Flight",
-      description: { markdown: plan.block.markdown }, attachment: { content_type: "audio/mpeg", url: payload.value } }, { state: "available" })).not.toThrow();
+      description: { markdown: plan.block.markdown }, source: { url: trackURL }, attachment: { content_type: "audio/mpeg", url: payload.value } }, { state: "available" })).not.toThrow();
     expect(() => verifyPublication(plan, { state: "available", type: "Embed", title: "Night Flight",
       description: { markdown: plan.block.markdown } }, { state: "available" })).toThrow("Expected audio Attachment");
     expect(composePlan(plan.sources, { media: "none" }).block.kind).toBe("url");
@@ -251,6 +251,18 @@ describe("SoundCloud track adapter", () => {
     expect(unsupportedPost.text).not.toContain("downloadable as");
     expect(unsupportedPost.soundcloud).toMatchObject({ originalDownloadAvailable: true, originalDownloadExtension: "mp4" });
   });
+});
+
+test("preview and DRM formats never satisfy fresh full-audio intent", async () => {
+  for (const extra of [{ has_drm: true }, { is_preview: true }, { format_id: "http_mp3_preview" },
+    { format_note: "30-second preview" }, { url: "https://media.invalid/preview/track.mp3" }, { preference: -10 }]) {
+    const formats = [{ format_id: "http_mp3_128k", ext: "mp3", vcodec: "none", url: "https://media.invalid/full.mp3", ...extra }];
+    const post = await provider(trackInfo(formats)).resolve(parseSource(trackURL));
+    expect(post.media).toEqual([]);
+    expect(() => composePlan([post], { media: "audio" })).toThrow("No supported full SoundCloud audio");
+  }
+  const drm = await provider(trackInfo(undefined, { has_drm: true })).resolve(parseSource(trackURL));
+  expect(drm.media).toEqual([]);
 });
 
 describe("SoundCloud playlist adapter", () => {
@@ -464,7 +476,7 @@ test("authenticated media preparation returns an MP3 file without publishing a b
 });
 
 test("resumes a track URL saved as an Embed using the existing block", async () => {
-  const { plan } = await resolve(trackURL, trackInfo([]), "all");
+  const { plan } = await resolve(trackURL, trackInfo([]), "none");
   const directory = await mkdtemp(join(tmpdir(), "arena-soundcloud-embed-publisher-")); dirs.push(directory);
   const api = new MockApi();
   const store = new ArenaBlockStore(join(directory, "state.sqlite"));

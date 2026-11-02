@@ -15,13 +15,15 @@ const info = (formats: unknown[] = []) => ({ id: "123", title: "Original track",
 const original = { format_id: "download", ext: "wav", vcodec: "none", url: "https://media.invalid/original.wav" };
 const provider = (formats: unknown[] = []) => new SoundCloudProvider(async () => ({ stdout: JSON.stringify(info(formats)), stderr: "" }));
 
-test("fresh All and Audio require an acquired original before any publication", async () => {
+test("fresh All and Audio refuse unavailable full audio before any publication", async () => {
   for (const media of ["all", "audio"] as const) for (const formats of [[], [{ format_id: "hls_aac_160", ext: "m4a", vcodec: "none" }]]) {
     const resolver = new SocialResolver({ soundcloud: provider(formats) });
-    await expect(resolver.resolveComposition([url], [], { media, threadExpansion: "off" })).rejects.toThrow("has not enabled an original audio download");
+    await expect(resolver.resolveComposition([url], [], { media, threadExpansion: "off" })).rejects.toThrow("No supported full SoundCloud audio");
   }
-  await expect(new SocialResolver({ soundcloud: provider([{ ...original, ext: "mp4" }]) })
-    .resolveComposition([url], [], { media: "audio" })).rejects.toThrow("no supported original audio file");
+  const converted = await new SocialResolver({ soundcloud: provider([{ ...original, ext: "mp4" }]) })
+    .resolveComposition([url], [], { media: "audio" });
+  expect(composePlan(converted.posts, converted.policy).block.kind).toBe("audio");
+  expect(converted.posts[0]!.media[0]!.acquisition).toBe("soundcloud-mp3");
 });
 
 test("Auto retains its documented source-link fallback and explicit None/Images remain distinct", async () => {
@@ -63,23 +65,24 @@ test("an explicit source-link choice can verify a SoundCloud Embed with its exac
   expect(() => verifyPublication(plan, { ...received, source: { url: "https://soundcloud.com/other/track" } }, received)).toThrow("SoundCloud source");
 });
 
-test("cached source recomposition cannot turn missing original audio into an All/Audio URL fallback", async () => {
+test("cached source recomposition cannot turn missing audio into an All/Audio URL fallback", async () => {
   const resolved = await new SocialResolver({ soundcloud: provider() }).resolveComposition([url], [], { media: "auto" });
   const cached = composePlan(resolved.posts, resolved.policy);
   for (const media of ["all", "audio"] as const) {
-    expect(() => composePlan(cached.sources, { ...cached.policy, media })).toThrow("has not enabled an original audio download");
-    expect(() => revisePlan(cached, { policy: { media } })).toThrow("has not enabled an original audio download");
+    expect(() => composePlan(cached.sources, { ...cached.policy, media })).toThrow("No supported full SoundCloud audio");
+    expect(() => revisePlan(cached, { policy: { media } })).toThrow("No supported full SoundCloud audio");
   }
   expect(composePlan(cached.sources, { media: "none" }).block.kind).toBe("url");
 });
 
-test("native capture distinguishes an enabled download from a verified original file", async () => {
+test("native capture uses MP3 acquisition independently of original availability", async () => {
   for (const enabled of [false, true]) {
     const html = `<script>window.__sc_hydration = ${JSON.stringify([{ hydratable: "sound", data: { kind: "track", id: 123,
       title: "Original track", permalink_url: url, sharing: "public", user: { username: "Original artist" }, downloadable: enabled } }])};</script>`;
-    const read = (async () => new Response(html, { headers: { "content-type": "text/html" } })) as typeof fetch;
-    await expect(resolveCapture({ primary: [url], extras: [], policy: { media: "all" } }, undefined, read)).rejects.toThrow(
-      enabled ? "no supported original audio file" : "has not enabled an original audio download");
+    const read = (async () => new Response(html, { headers: { "content-type": "text/html" } })) as unknown as typeof fetch;
+    const plan = await resolveCapture({ primary: [url], extras: [], policy: { media: "all" } }, undefined, read);
+    expect(plan.block.kind).toBe("audio");
+    expect(plan.sources[0]!.media[0]!.acquisition).toBe("soundcloud-mp3");
     expect((await resolveCapture({ primary: [url], extras: [], policy: { media: "none" } }, undefined, read)).block.kind).toBe("url");
   }
 });

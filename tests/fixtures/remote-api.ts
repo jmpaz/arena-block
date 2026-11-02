@@ -45,7 +45,7 @@ export class MockApi {
     }
     if (method === "POST" && path === "/blocks") {
       const blockId = this.blocks.size + 10000;
-      this.blocks.set(blockId, { id: blockId, type: "Text", state: "available", visibility: "private", user: { id: this.account }, title: body.title, content: { markdown: body.value }, description: body.description ? { markdown: body.description } : null });
+      this.blocks.set(blockId, { id: blockId, type: "Text", state: "available", visibility: "private", user: { id: this.account }, title: body.title, ...(body.original_source_url ? { source: { url: body.original_source_url } } : {}), content: { markdown: body.value }, description: body.description ? { markdown: body.description } : null });
       for (const target of body.channels ?? body.channel_ids?.map((id: number) => ({ id })) ?? []) if (!(this.omitInbox && target.id === 901)) this.add(blockId, target.id, target.metadata);
       if (this.cancelCreate) { this.cancelCreate.abort(new Error("Fixture cancellation")); throw new Error("Fixture cancellation"); }
       if (this.loseCreate) { this.loseCreate = false; throw new Error("Create response lost"); }

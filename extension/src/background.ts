@@ -1,9 +1,7 @@
-import { redditLiveReadUnavailable } from "../../packages/core/reddit-record.ts";
-import { resolveWithNative } from "./native-reddit.ts";
+import { resolveCaptureWithHelper } from "./native-reddit.ts";
 import { BrowserOAuth } from "./browser-auth.ts";
 import { BrowserSaver, type BrowserSaveIntent } from "./browser-save.ts";
 import { CaptureJobRunner, type CaptureJob } from "./capture-job.ts";
-import { resolveCapture } from "./core.ts";
 import { blockPlanSchema } from "../../packages/core/types.ts";
 
 const extension = (globalThis as any).browser ?? (globalThis as any).chrome;
@@ -45,16 +43,8 @@ function jobs(): CaptureJobRunner {
     async get(id) { return (await extension.storage.local.get(jobKey(id)))[jobKey(id)] as CaptureJob | undefined; },
     async put(job) { await extension.storage.local.set({ [jobKey(job.saveId)]: job }); },
   }, {
-    async resolve(input) {
-      try { return await resolveCapture(input); }
-      catch (error) {
-        if (redditLiveReadUnavailable(error)) throw error;
-        if (!await extension.permissions.contains({ permissions: ["nativeMessaging"] })) throw error;
-        return resolveWithNative({
-          refs: input.primary, extraRefs: input.extras, policy: input.policy, refresh: false, redditCaptures: input.redditCaptures, substackCaptures: input.substackCaptures,
-        }, native);
-      }
-    },
+    resolve: input => resolveCaptureWithHelper(input,
+      () => extension.permissions.contains({ permissions: ["nativeMessaging"] }), native),
     async browserAvailable() {
       const response = await fetch(extension.runtime.getURL("oauth-client.json"));
       return Boolean((await response.json()).clientId);

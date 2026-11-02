@@ -29,3 +29,5 @@ arena-block render --plan ./plan.json --mosaic-layout compact -o ./comparison.mp
 ```
 
 With `--plan`, an explicit mosaic choice derives a new plan in memory for rendering or publishing. It preserves the retained writing, source snapshots, selection, frame choices and soundtrack, and leaves the original file untouched. Omit the option to use the saved layout and hash unchanged. No automatic migration changes existing saved plans.
+
+SoundCloud All/Audio requests must remain audio across helper and receiver boundaries; a source-link reply is refused before saving. Downloads abort on unavailable fragments. Both artist originals and MP3 output must pass bounded local-only container inspection and a complete decode with matching duration before upload. The inspection process has a 30-second deadline and bounded output; exceeding it reports an error.

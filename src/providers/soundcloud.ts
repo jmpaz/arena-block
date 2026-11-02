@@ -134,9 +134,17 @@ function ensureInfoType(info: Json, source: Extract<ParsedSource, { provider: "s
 }
 function trackMedia(info: Json, source: Extract<ParsedSource, { provider: "soundcloud" }>): { metadata: Extract<SoundCloudMetadata, { kind: "track" }>; media: MediaAsset[] } {
   const formats = Array.isArray(info.formats) ? info.formats.map(object).filter((item): item is Json => !!item) : [];
-  const original = formats.find(format => format.format_id === "download" && format.vcodec === "none" && typeof format.ext === "string");
+  const safeFormat = (format: Json) => info.has_drm !== true && info.is_live !== true
+    && format.has_drm !== true && format.is_drm !== true && format.is_preview !== true
+    && !/preview/i.test(text(format.format_id) ?? "") && !/preview/i.test(text(format.format_note) ?? "")
+    && !(typeof format.preference === "number" && format.preference <= -10);
+  const original = formats.find(format => safeFormat(format) && format.format_id === "download" && format.vcodec === "none" && typeof format.ext === "string");
   const download = original && typeof original.ext === "string" && AUDIO_MIME[original.ext] ? original : undefined;
-  const streamable = formats.some(format => format.vcodec === "none" && text(format.url));
+  const streamable = formats.some(format => {
+    if (!safeFormat(format) || format.vcodec !== "none" || !text(format.url)) return false;
+    try { const url = new URL(String(format.url)); return url.protocol === "https:" && !url.username && !url.password && !url.port && !/\/preview\//i.test(url.pathname); }
+    catch { return false; }
+  });
   const durationSeconds = positive(info.duration);
   const metadata: SoundCloudMetadata = {
     kind: "track", trackId: text(info.id) ?? source.id, artists: artists(info), description: sourceDescription(info),

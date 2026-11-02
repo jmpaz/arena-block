@@ -3,8 +3,22 @@ import { substackCapturesSchema, requireRetainedSubstackCaptures } from "../../p
 import { blockPlanSchema, type PlanInput, type CompositionPolicy } from "../../packages/core/types.ts";
 import { redditCapturesSchema, requireRetainedRedditCaptures } from "../../packages/core/reddit-record.ts";
 import { requiredSubstackResolutionCapabilities, requireSubstackPublicResult } from "../../packages/core/substack-input-capabilities.ts";
+import { redditLiveReadUnavailable } from "../../packages/core/reddit-record.ts";
+import { resolveCapture, type CaptureInput } from "./core.ts";
+import { requireSoundCloudAudioResult } from "../../packages/core/soundcloud-input.ts";
 
 type NativeCall = (action: string, fields: Record<string, unknown>) => Promise<any>;
+
+export async function resolveCaptureWithHelper(input: CaptureInput, available: () => Promise<boolean>, native: NativeCall,
+  local: typeof resolveCapture = resolveCapture) {
+  try { return await local(input); }
+  catch (error) {
+    if (redditLiveReadUnavailable(error) || !await available()) throw error;
+    return resolveWithNative({ refs: input.primary, extraRefs: input.extras, policy: input.policy, refresh: false,
+      redditCaptures: input.redditCaptures, substackCaptures: input.substackCaptures }, native);
+  }
+}
+
 export async function resolveWithNative(input: Omit<PlanInput, "redditCaptures" | "substackCaptures" | "policy"> & { redditCaptures?: PlanInput["redditCaptures"]; substackCaptures?: PlanInput["substackCaptures"]; policy?: Partial<CompositionPolicy> }, native: NativeCall) {
   const captures = redditCapturesSchema.parse(input.redditCaptures ?? []);
   const substack = substackCapturesSchema.parse(input.substackCaptures ?? []);
@@ -18,6 +32,7 @@ export async function resolveWithNative(input: Omit<PlanInput, "redditCaptures" 
   }
   const plan = blockPlanSchema.parse(await native("resolve", { input: { ...input, redditCaptures: captures, substackCaptures: substack } }));
   requireRetainedCompositionPolicy(input, plan);
+  requireSoundCloudAudioResult(input, plan);
   requireSubstackPublicResult(input, plan);
   requireRetainedRedditCaptures(plan, captures);
   requireRetainedSubstackCaptures(plan, substack);

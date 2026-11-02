@@ -39,7 +39,7 @@ async function cli(args: string[], original = false) {
 
 test("publish All refuses unavailable SoundCloud audio before contacting the receiver", async () => {
   const result = await cli(["publish", share, "--media", "all", "--to", "https://www.are.na/fixture/channel"]);
-  expect(result.code).toBe(1); expect(result.stdout).toBe(""); expect(result.stderr).toContain("has not enabled an original audio download");
+  expect(result.code).toBe(1); expect(result.stdout).toBe(""); expect(result.stderr).toContain("No supported full SoundCloud audio");
   expect(result.calls).toEqual([{ url: share, method: "HEAD" }]);
   expect(result.metadata.at(-1)).toBe(track); expect(result.metadata).toContain("--simulate");
 });

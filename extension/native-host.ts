@@ -2,6 +2,7 @@ import { requiredCompositionCapabilities, requireRetainedCompositionPolicy } fro
 import { requireRetainedSubstackCaptures } from "../packages/core/substack-record.ts";
 import { requiredSubstackResolutionCapabilities, requireSubstackPublicResult } from "../packages/core/substack-input-capabilities.ts";
 import { requireRetainedRedditCaptures } from "../packages/core/reddit-record.ts";
+import { requireSoundCloudAudioResult } from "../packages/core/soundcloud-input.ts";
 /** Optional native messaging transport. The bearer token stays in this process. */
 import { readSync, writeSync } from "node:fs";
 import { z } from "zod";
@@ -89,6 +90,7 @@ export async function handle(request: HostRequest, fetcher: typeof fetch = fetch
       }
       const plan = blockPlanSchema.parse(await daemon("/v1/plans", "POST", request.input, fetcher));
       requireRetainedCompositionPolicy(request.input, plan);
+      requireSoundCloudAudioResult(request.input, plan);
       requireSubstackPublicResult(request.input, plan);
       requireAddressableQuoteMedia(plan);
       requireRetainedRedditCaptures(plan, request.input.redditCaptures ?? []);

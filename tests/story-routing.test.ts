@@ -50,7 +50,7 @@ describe("story and selected-comment dispatch", () => {
 
   test("native/browser uses the same exact root dispatch and an external submission stays a source story", async () => {
     const plan = await resolveCapture({ primary: [reported], extras: [], policy: { media: "all", threadExpansion: "off" } }, undefined,
-      (async () => Response.json({ ...story, url: "https://example.com/original" })) as typeof fetch);
+      (async () => Response.json({ ...story, url: "https://example.com/original" })) as unknown as typeof fetch);
     expect(plan.block.canonicalSource).toBe(root); expect(plan.block.markdown).toContain("Link: <https://example.com/original>");
     expect(plan.block.markdown).not.toContain("UNSELECTED DISCUSSION");
   });

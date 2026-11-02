@@ -1,5 +1,6 @@
 import { requiredCompositionCapabilities, requireRetainedCompositionPolicy } from "../packages/core/composition-capabilities.ts";
 import { requiredPlanCapabilities } from "./plan-capabilities.ts";
+import { requireSoundCloudAudioResult } from "../packages/core/soundcloud-input.ts";
 import type { BlockPlan, CompositionPolicy, PublicationReceipt, CreationAttempt, PublicationState, PublishRequest } from "./types.ts";
 import { blockPlanSchema, publicationReceiptSchema, creationAttemptSchema, publicationStateSchema } from "./types.ts";
 import { buildInfoSchema } from "./version.ts";
@@ -128,6 +129,7 @@ export class ArenaBlockClient {
     }
     const plan = blockPlanSchema.parse(await this.request("/v1/plans", input, signal));
     requireRetainedCompositionPolicy(input, plan);
+    requireSoundCloudAudioResult(input, plan);
     return plan;
   }
 

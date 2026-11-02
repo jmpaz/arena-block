@@ -6,6 +6,7 @@ import type { BlockPlan, LayoutNode, MediaAsset, MediaKind, ResolvedPost } from 
 import { parseSource } from "../packages/core/url.ts";
 import { mediaSources, planMedia } from "../packages/core/media-tree.ts";
 import { blockPlanSchema } from "./types.ts";
+import { inspectAudio } from "./audio-inspection.ts";
 import { runYtDlp, type YtDlpRunner } from "./providers/soundcloud.ts";
 
 const FFMPEG = "ffmpeg";
@@ -421,7 +422,7 @@ async function renderSoundCloudAudio(plan: BlockPlan, directory: string, options
     const formatArgs = mp3
       ? ["--format", "bestaudio[ext=mp3]/bestaudio", "--extract-audio", "--audio-format", "mp3", "--audio-quality", "0", "--print", "after_move:%(id)s"]
       : ["--format", "download"];
-    const downloaded = await runDownload(["--no-playlist", ...formatArgs, "--max-filesize", "250M", "--output", output, "--", source.canonicalUrl], signal);
+    const downloaded = await runDownload(["--no-playlist", "--abort-on-unavailable-fragments", "--no-keep-fragments", ...formatArgs, "--max-filesize", "250M", "--output", output, "--", source.canonicalUrl], signal);
     signal.throwIfAborted();
     if (mp3 && downloaded.stdout.trim() !== owner.soundcloud.trackId) throw new Error("SoundCloud downloaded a different track than the prepared source");
     const allowed = new Set(mp3 ? ["mp3"] : ["mp3", "m4a", "wav", "flac", "ogg", "opus", "aac"]);
@@ -435,7 +436,8 @@ async function renderSoundCloudAudio(plan: BlockPlan, directory: string, options
     if (!mp3 && extension !== owner.soundcloud.originalDownloadExtension) {
       throw new Error("SoundCloud original download format changed since the plan was prepared");
     }
-    const probe = JSON.parse(await run([FFPROBE, "-v", "error", "-show_streams", "-show_format", "-of", "json", path], signal)) as {
+    const localInput = ["-protocol_whitelist", "file,pipe", "-format_whitelist", "mov,mp3,wav,flac,ogg,aac"];
+    const probe = JSON.parse(await inspectAudio([FFPROBE, "-v", "error", ...localInput, "-show_streams", "-show_format", "-of", "json", path], signal)) as {
       format?: { format_name?: string; duration?: string }; streams?: Array<{ codec_type?: string; codec_name?: string; disposition?: { attached_pic?: number } }>;
     };
     const streams = probe.streams ?? [];
@@ -447,15 +449,18 @@ async function renderSoundCloudAudio(plan: BlockPlan, directory: string, options
     if (!formats.has(expected[extension]!) || (extension === "opus" && !streams.some(stream => stream.codec_type === "audio" && stream.codec_name === "opus"))) {
       throw new Error(`SoundCloud audio content does not match its .${extension} file extension`);
     }
-    if (mp3) {
-      const duration = Number(probe.format?.duration), expectedDuration = assets[0]!.durationSeconds;
-      if (!streams.some(stream => stream.codec_type === "audio" && stream.codec_name === "mp3") || !(duration > 0)) {
-        throw new Error("SoundCloud download is not a valid MP3 audio file");
-      }
-      if (expectedDuration && Math.abs(duration - expectedDuration) > Math.max(1, expectedDuration * 0.02)) {
-        throw new Error("SoundCloud audio duration does not match the selected track");
-      }
+    if (mp3 && !streams.some(stream => stream.codec_type === "audio" && stream.codec_name === "mp3")) {
+      throw new Error("SoundCloud download is not a valid MP3 audio file");
     }
+    const duration = Number(probe.format?.duration), expectedDuration = assets[0]!.durationSeconds ?? duration;
+    if (!(duration > 0) || !(expectedDuration > 0)
+      || Math.abs(duration - expectedDuration) > Math.max(1, expectedDuration * 0.02)) throw new Error("SoundCloud audio duration does not match the selected track");
+    const decoded = await inspectAudio([FFMPEG, "-v", "error", "-nostdin", "-xerror", "-err_detect", "explode", ...localInput, "-i", path,
+      "-map", "0:a:0", "-vn", "-sn", "-dn", "-nostats", "-progress", "pipe:1", "-f", "null", "-"], signal);
+    const times = [...decoded.matchAll(/^out_time_us=(\d+)\r?$/gm)].map(match => Number(match[1]) / 1_000_000);
+    const actual = Math.max(0, ...times);
+    if (!/^progress=end\r?$/m.test(decoded) || !(actual > 0)
+      || Math.abs(actual - expectedDuration) > Math.max(1, expectedDuration * 0.02)) throw new Error("SoundCloud decoded audio duration disagrees with its complete source; no damaged audio was saved");
     const bytes = new Uint8Array(await Bun.file(path).arrayBuffer());
     signal.throwIfAborted();
     return writeContentAddressed(directory, extension, bytes);
