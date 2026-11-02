@@ -5,6 +5,7 @@ import { parseSource } from "./url.ts";
 import { substackNoteVideo, substackNotePodcastAudio, substackPodcastAttributionSchema } from "./substack-note-attachments.ts";
 import { substackArticleRecordSchema, substackRelationSchema, substackThreadSchema, type SubstackArticleRecord } from "./substack-article-record.ts";
 import { planMedia } from "./media-tree.ts";
+import { parentContextSchema, type ParentContext } from "./parent-context.ts";
 
 export const SCHEMA_VERSION = 1 as const;
 
@@ -113,6 +114,7 @@ export type ResolvedPost = {
   mediaIssues?: z.infer<typeof mediaIssueSchema>[];
   arenaBlock?: { type: "Image" | "Link" | "Attachment" | "Embed"; sourceURL?: string; updatedAt?: string; mediaUpdatedAt?: string };
   quote?: ResolvedPost;
+  parentContext?: ParentContext;
   atproto?: z.infer<typeof atprotoSchema>;
   facets?: z.infer<typeof facetSchema>[];
   external?: z.infer<typeof externalSchema>;
@@ -153,6 +155,7 @@ const resolvedPostNodeSchema: z.ZodType<ResolvedPost> = z.lazy(() =>
     mediaIssues: z.array(mediaIssueSchema).optional(),
     arenaBlock: z.object({ type: z.enum(["Image", "Link", "Attachment", "Embed"]), sourceURL: z.url().optional(), updatedAt: z.string().optional(), mediaUpdatedAt: z.string().optional() }).optional(),
     quote: resolvedPostNodeSchema.optional(),
+    parentContext: parentContextSchema.optional(),
     atproto: atprotoSchema.optional(),
     facets: z.array(facetSchema).optional(),
     external: externalSchema.optional(),
@@ -160,6 +163,17 @@ const resolvedPostNodeSchema: z.ZodType<ResolvedPost> = z.lazy(() =>
     quoteBoundary: quoteBoundarySchema.optional(), quoteCoverage: quoteCoverageSchema.optional(),
     quoteSnapshot: z.object({ basis: z.literal("embedded"), hydration: z.enum(["unavailable", "deleted"]) }).optional(),
   }).superRefine((post, context) => {
+    if (post.parentContext) {
+      const seen = new Set([post.id]);
+      for (const entry of post.parentContext.parents) {
+        try {
+          const source = parseSource(entry.canonicalUrl);
+          if (!["hackernews", "lobsters"].includes(post.provider) || source.provider !== post.provider || source.id !== entry.id || seen.has(entry.id)) throw new Error("Invalid ancestor");
+          seen.add(entry.id);
+        } catch { context.addIssue({ code: "custom", message: "Mismatched or repeated parent comment", path: ["parentContext"] }); }
+      }
+      if (!["hackernews", "lobsters"].includes(post.provider)) context.addIssue({ code: "custom", message: "Parent context requires a supported comment source", path: ["parentContext"] });
+    }
     if (post.provider === "substack" && post.id.startsWith("article:") && !post.substackArticle) {
       context.addIssue({ code: "custom", message: "Substack article is missing its complete source record", path: ["substackArticle"] });
     }
@@ -246,6 +260,8 @@ export const compositionPolicySchema = z.object({
   threadExpansion: z.enum(["auto", "off", "on"]).optional(),
   quote: z.enum(["block", "sequence", "omit"]).default("block"),
   quoteDepth: quoteDepthSchema.optional(),
+  parentDepth: quoteDepthSchema.optional(),
+  parentStyle: z.enum(["flat", "quote"]).optional(),
   quoteDates: z.enum(["auto", "source", "none"]).optional(),
   // Undefined preserves each existing plan’s legacy quote credit presentation.
   quoteAuthorLink: z.enum(["source", "plain"]).optional(),

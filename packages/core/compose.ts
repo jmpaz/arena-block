@@ -13,6 +13,7 @@ import { availableQuoteNodes, quoteDateLabel, renderedQuoteDepth } from "./quote
 import { soundCloudPlaylistText } from "./soundcloud.ts";
 import { isInstagramReel, parseSource } from "./url.ts";
 import { mediaSources, selectableMedia } from "./media-tree.ts";
+import { renderedParentDepth, type ParentEntry } from "./parent-context.ts";
 
 function handle(post: ResolvedPost): string {
   return post.author.handle.replace(/^@/, "");
@@ -29,6 +30,7 @@ function sourceAuthor(post: ResolvedPost): string {
 function title(post: ResolvedPost): string {
   if (post.postTitle !== undefined) return post.postTitle;
   if (post.storyTitle !== undefined) return `Comment by ${handle(post)} on “${post.storyTitle}”`;
+  if (post.provider === "hackernews" || post.provider === "lobsters") return `Comment by ${handle(post)}`;
   if (post.provider === "instagram" && isInstagramReel(post.canonicalUrl)) return `Reel by @${handle(post)}`;
   if (post.provider === "tiktok") return `TikTok by @${(post.author.name?.trim() || handle(post)).replace(/^@/, "")}`;
   return `Post by @${handle(post)}`;
@@ -85,11 +87,22 @@ function blockquote(body: string): string {
   return body.split("\n").map((line) => line ? `> ${line}` : ">").join("\n");
 }
 
+function codeSpan(value: string): string {
+  const text = value.replace(/[\r\n]+/g, " ");
+  const fence = "`".repeat(Math.max(0, ...[...text.matchAll(/`+/g)].map(match => match[0].length)) + 1);
+  return `${fence}${text.includes("`") || /^ | $/.test(text) ? ` ${text} ` : text}${fence}`;
+}
+
+// Comment ancestry and authored quotes share the existing nesting convention.
+function withPrior(own: string, prior: string, nested: boolean): string {
+  return [prior && nested ? blockquote(prior) : prior, own].filter(Boolean).join("\n\n");
+}
+
 function quoteHeader(post: ResolvedPost, root: ResolvedPost, policy: CompositionPolicy): string {
   const date = quoteDateLabel(root, post, policy.quoteDates).label;
   // A quote is an independently authored source, even when the quoting
   // account also wrote it. Keep both identities visible at the boundary.
-  const author = `\`${authorTag(post)}\``;
+  const author = codeSpan(authorTag(post));
   const linked = policy.quoteAuthorLink === "source" || policy.quoteAuthorLink === undefined && post.provider === "substack";
   const credit = linked ? `[${author}](<${post.canonicalUrl}>)` : author;
   const lead = [credit, date ? `(${date})` : ""].filter(Boolean).join(" ");
@@ -110,10 +123,38 @@ function renderQuoted(post: ResolvedPost, root: ResolvedPost, policy: Compositio
   const descendant = depth < renderedQuoteDepth(policy) && post.quote ? renderQuoted(post.quote, root, policy, depth + 1, path, frameRefs) : "";
   const boundary = depth < renderedQuoteDepth(policy) ? quoteBoundary(post) : "";
   const prior = descendant || boundary;
-  return [prior && policy.quote === "block" ? blockquote(prior) : prior, own].filter(Boolean).join("\n\n");
+  return withPrior(own, prior, policy.quote === "block");
+}
+
+function renderParents(post: ResolvedPost, policy: CompositionPolicy, frameRefs: Set<string>): string | undefined {
+  const depth = renderedParentDepth(policy), context = post.parentContext;
+  if (!depth) return undefined;
+  if (!context) {
+    if (post.provider === "hackernews" || post.provider === "lobsters") throw new Error("This comment snapshot has no parent evidence. Read the source again before including parent context. No block was created.");
+    return undefined;
+  }
+  const parents = context.parents.slice(0, depth);
+  const boundary = (depth > parents.length && context.stopped !== "submission") || (depth === MAX_QUOTE_DEPTH && context.stopped === "depth_limit")
+    ? `*[Further parent context ${context.stopped.replaceAll("_", " ")}]${context.boundary ? `(<${context.boundary.canonicalUrl}>)` : ""}*` : "";
+  function entry(parent: ParentEntry): string {
+    if (parent.status !== "available") return `*[Parent comment ${parent.status}](<${parent.canonicalUrl}>)*`;
+    const node: ResolvedPost = { provider: post.provider, id: parent.id, canonicalUrl: parent.canonicalUrl,
+      author: parent.author!, text: parent.text!, postedAt: parent.postedAt, media: [] };
+    return policy.parentStyle === "quote"
+      ? [quoteHeader(node, post, policy), quoteBody(node, frameRefs)].join("\n")
+      : `${codeSpan(handle(node))}\n${quoteBody(node, frameRefs)}`;
+  }
+  if (policy.parentStyle !== "quote") {
+    return [boundary, ...[...parents].reverse().map(entry), `${codeSpan(handle(post))}\n${quoteBody(post, frameRefs)}`].filter(Boolean).join("\n\n---\n\n");
+  }
+  let prior = boundary;
+  for (const parent of [...parents].reverse()) prior = withPrior(entry(parent), prior, true);
+  return withPrior(quoteBody(post, frameRefs), prior, true);
 }
 
 function renderPost(post: ResolvedPost, policy: CompositionPolicy, frameRefs: Set<string>, quoteAfterText = false): string {
+  const parents = renderParents(post, policy, frameRefs);
+  if (parents !== undefined) return parents;
   const text = quoteBody(!renderedQuoteDepth(policy) ? { ...post, embeddedRecord: undefined } : post, frameRefs);
   if (!renderedQuoteDepth(policy)) return text;
   if (!post.quote) return [quoteBoundary(post), text].filter(Boolean).join("\n\n");
@@ -156,7 +197,8 @@ function renderSequence(posts: ResolvedPost[], policy: CompositionPolicy, frameR
     const speakerChanged = index > 0 && sourceAuthor(post) !== sourceAuthor(posts[index - 1]!);
     const forumHeader = post.provider === "forum_magnum"
       ? [`\`${authorTag(post)}\``, post.postedAt ? `(${post.postedAt.slice(0, 10)})` : ""].filter(Boolean).join(" ") : "";
-    return [forumHeader || (speakerChanged ? `\`${authorTag(post)}\`` : ""), forumRelation, body].filter(Boolean).join("\n");
+    const flatParentHeader = renderedParentDepth(policy) > 0 && post.parentContext && policy.parentStyle !== "quote";
+    return [forumHeader || (speakerChanged && !flatParentHeader ? `\`${authorTag(post)}\`` : ""), forumRelation, body].filter(Boolean).join("\n");
   });
   return entries.reduce((rendered, entry, index) => {
     if (!index) return entry;

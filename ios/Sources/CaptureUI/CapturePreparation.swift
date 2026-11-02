@@ -54,6 +54,7 @@ final class CapturePreparation {
         }
         let sources: JSONValue
         if let retained = snapshot.preview?.plan?["sources"], !retained.array.isEmpty,
+           !(snapshot.preview?.needsParentContextAcquisition == true && (snapshot.policy["parentDepth"] == .string("full") || (snapshot.policy["parentDepth"]?.int ?? 0) > 0)),
            !(snapshot.preview?.canExpandQuotes == true && (snapshot.policy["quoteDepth"] == .string("full") || (snapshot.policy["quoteDepth"]?.int ?? 0) > (snapshot.preview?.availableQuoteDepth ?? 0))) {
             sources = retained
         } else {

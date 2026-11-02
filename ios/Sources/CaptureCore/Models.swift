@@ -161,6 +161,8 @@ public struct CaptureDraft: Codable, Identifiable, Sendable {
     public var audio: String?
     public var videoFrameThresholdSeconds: Int?
     public var quoteDepth: CaptureQuoteDepth?
+    public var parentDepth: CaptureQuoteDepth?
+    public var parentStyle: CaptureParentStyle?
     /// Nil retains legacy quote credits; an explicit choice applies only to this draft.
     public var quoteAuthorLink: CaptureQuoteAuthorLink?
     /// Nil decodes older drafts as the shared core's default automatic mode.

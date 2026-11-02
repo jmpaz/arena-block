@@ -34,6 +34,8 @@ type Options = {
   frame?: string;
   videoFrameThreshold?: string;
   quoteDepth?: string;
+  parentDepth?: string;
+  parentStyle?: CompositionPolicy["parentStyle"];
   quoteDates?: CompositionPolicy["quoteDates"];
   quoteAuthorLink?: CompositionPolicy["quoteAuthorLink"];
   audio?: string;
@@ -93,6 +95,8 @@ function policy(options: Options, postCount: number): Partial<CompositionPolicy>
     ...(options.mediaOrder !== undefined ? { mediaOrder: options.mediaOrder.split(",").map(value => value.trim()) } : {}),
     quote: options.quote ?? "block",
     ...(options.quoteDepth !== undefined ? { quoteDepth: options.quoteDepth === "full" ? "full" : Number(options.quoteDepth) } : {}),
+    ...(options.parentDepth !== undefined ? { parentDepth: options.parentDepth === "full" ? "full" : Number(options.parentDepth) } : {}),
+    ...(options.parentStyle !== undefined ? { parentStyle: options.parentStyle } : {}),
     ...(options.quoteDates !== undefined ? { quoteDates: options.quoteDates } : {}),
     ...(options.quoteAuthorLink !== undefined ? { quoteAuthorLink: options.quoteAuthorLink } : {}),
     separator: options.separator ?? "auto",
@@ -177,6 +181,8 @@ function addCompositionOptions(command: Command, extras = true): Command {
     .option("--audio <mode>", "choose a video soundtrack: auto, mix, index (2), or ref (1.2)")
     .option("--quote <mode>", "block, sequence, or omit", "block")
     .option("--quote-depth <depth>", "include 0-8 quote levels, or full (up to 8); default 2")
+    .option("--parent-depth <depth>", "include 0-8 HN/Lobsters comment ancestors, or full (up to 8); default 0")
+    .addOption(new Option("--parent-style <mode>", "flat forum entries or existing nested quote presentation").choices(["flat", "quote"]))
     .option("--quote-dates <mode>", "auto (earlier source dates), source (literal timestamps), or none")
     .addOption(new Option("--quote-author-link <mode>", "source links to the quoted post; plain uses an unlinked name. Omit to keep the platform style").choices(["source", "plain"]))
     .option("--separator <mode>", "auto, always, or never", "auto")
@@ -234,7 +240,7 @@ program.enablePositionalOptions();
 // choice unless the subcommand supplies its own choice.
 program.hook("preAction", (root, command) => {
   if (command === root) return;
-  for (const key of ["threadExpansion", "quoteAuthorLink"] as const) {
+  for (const key of ["threadExpansion", "quoteAuthorLink", "parentDepth", "parentStyle"] as const) {
     const source = command.getOptionValueSource(key);
     if (root.getOptionValueSource(key) === "cli" && (source === undefined || source === "default")
       && command.options.some(option => option.attributeName() === key)) {

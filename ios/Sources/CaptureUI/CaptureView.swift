@@ -320,6 +320,24 @@ public struct CaptureRootView: View {
                             .listRowInsets(EdgeInsets())
                             .listRowSeparator(.hidden)
                         }
+                        if let preview = session.preview, preview.hasParentContext {
+                            Picker("Parent depth", selection: Binding(get: { session.draft?.parentDepth ?? .levels(0) }, set: session.setParentDepth)) {
+                                Text("Selected comment only").tag(CaptureQuoteDepth.levels(0))
+                                ForEach(1...8, id: \.self) { depth in
+                                    Text(CaptureQuoteDepth.levels(depth).title).tag(CaptureQuoteDepth.levels(depth))
+                                }
+                                Text("All available (up to 8)").tag(CaptureQuoteDepth.full)
+                            }.pickerStyle(.menu).disabled(locked)
+                                .accessibilityIdentifier("capture.parent-depth")
+                            Picker("Parent presentation", selection: Binding(get: { session.draft?.parentStyle ?? .flat }, set: session.setParentStyle)) {
+                                Text(CaptureParentStyle.flat.title).tag(CaptureParentStyle.flat)
+                                Text(CaptureParentStyle.quote.title).tag(CaptureParentStyle.quote)
+                            }.pickerStyle(.menu).disabled(locked)
+                                .accessibilityIdentifier("capture.parent-style")
+                            if let note = preview.parentContextNote {
+                                Text(note).font(.footnote).foregroundStyle(.secondary)
+                            }
+                        }
                         if let preview = session.preview, preview.hasQuotes {
                             Picker("Quotes", selection: Binding(get: { session.draft?.quoteDepth ?? .levels(2) }, set: session.setQuoteDepth)) {
                                 ForEach(0...max(2, preview.availableQuoteDepth), id: \.self) { depth in

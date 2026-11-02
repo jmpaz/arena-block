@@ -549,7 +549,7 @@ public final class CaptureSession {
         draft?.renderPath = nil; draft?.previewSnapshot = nil
         if !preservingChoices {
             draft?.titleOverride = nil; draft?.descriptionOverride = nil
-            draft?.selectedMedia = nil; draft?.videoFrames = nil; draft?.audio = nil; draft?.quoteDepth = nil
+            draft?.selectedMedia = nil; draft?.videoFrames = nil; draft?.audio = nil; draft?.quoteDepth = nil; draft?.parentDepth = nil; draft?.parentStyle = nil
             draft?.pendingMediaChoices = nil
         }
         if !keepingExpansion {
@@ -815,6 +815,22 @@ public final class CaptureSession {
         autoFrameThresholdSeconds = seconds
         defaults.set(seconds, forKey: "autoFrameThreshold.\(account.id)")
         // Apply the preference when creating a draft; retain existing draft choices.
+    }
+
+    func setParentDepth(_ depth: CaptureQuoteDepth) {
+        guard !busy, draft?.blockID == nil, preview?.hasParentContext == true,
+              [.editing, .preparing, .ready, .failed].contains(draft?.phase ?? .saved) else { return }
+        draft?.parentDepth = depth; draft?.phase = .editing
+        let retained = preview?.needsParentContextAcquisition == false ? preview?.plan?["sources"] : nil
+        if retained == nil { resolvedSources.invalidate(); expandedSources.invalidate() }
+        persistOrReport(); resolve(retainedSources: retained)
+    }
+
+    func setParentStyle(_ style: CaptureParentStyle) {
+        guard !busy, draft?.blockID == nil, preview?.hasParentContext == true,
+              [.editing, .preparing, .ready, .failed].contains(draft?.phase ?? .saved) else { return }
+        draft?.parentStyle = style; draft?.phase = .editing
+        persistOrReport(); resolve(retainedSources: preview?.plan?["sources"])
     }
 
     func setQuoteAuthorLink(_ style: CaptureQuoteAuthorLink?) {
@@ -1440,7 +1456,7 @@ public final class CaptureSession {
             var next: CaptureDraft
             if input.isEmpty, let previous, !previous.hasDraftContent {
                 next = previous
-                next.input = ""; next.originalLinkOnly = nil; next.redditCapturesJSON = nil; next.substackCapturesJSON = nil; next.media = .auto; next.selectedMedia = nil; next.videoFrames = nil; next.audio = nil; next.quoteDepth = nil; next.quoteAuthorLink = nil; next.phase = .editing; next.problem = nil
+                next.input = ""; next.originalLinkOnly = nil; next.redditCapturesJSON = nil; next.substackCapturesJSON = nil; next.media = .auto; next.selectedMedia = nil; next.videoFrames = nil; next.audio = nil; next.quoteDepth = nil; next.parentDepth = nil; next.parentStyle = nil; next.quoteAuthorLink = nil; next.phase = .editing; next.problem = nil
                 next.selection = DestinationSelection(defaultChannel: defaultChannel)
             } else { next = CaptureDraft(accountID: account.id, defaultChannel: defaultChannel, input: input) }
             next.videoFrameThresholdSeconds = autoFrameThresholdSeconds

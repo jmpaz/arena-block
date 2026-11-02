@@ -36,6 +36,11 @@ public enum CaptureQuoteDepth: Hashable, Codable, Sendable {
     }
 }
 
+public enum CaptureParentStyle: String, Codable, Hashable, Sendable {
+    case flat, quote
+    public var title: String { self == .flat ? "Flat forum" : "Nested quotes" }
+}
+
 public enum CaptureQuoteAuthorLink: String, Codable, Hashable, Sendable {
     case source, plain
 
@@ -56,6 +61,22 @@ public extension CapturePreview {
     func orderedMediaRefs(_ refs: [String]) -> [String] {
         let chosen = Set(refs)
         return mediaRefs.filter { chosen.contains($0) }
+    }
+
+    var hasParentContext: Bool {
+        plan?["sources"]?.array.contains { ["hackernews", "lobsters"].contains($0["provider"]?.string ?? "") } ?? false
+    }
+
+    var needsParentContextAcquisition: Bool {
+        plan?["sources"]?.array.contains { ["hackernews", "lobsters"].contains($0["provider"]?.string ?? "") && $0["parentContext"] == nil } ?? false
+    }
+
+    var parentContextNote: String? {
+        guard hasParentContext else { return nil }
+        let contexts = plan?["sources"]?.array.compactMap { $0["parentContext"] } ?? []
+        let incomplete = contexts.contains { !["submission", "depth_limit"].contains($0["stopped"]?.string ?? "") }
+        let deleted = contexts.contains { $0["parents"]?.array.contains { $0["status"]?.string != "available" } == true }
+        return "Oldest included parent first; selected comment last. Submission stays as story metadata. Up to eight ancestors." + (incomplete ? " Some parent context is unavailable; gaps are labeled." : "") + (deleted ? " Deleted or unavailable comments are labeled." : "")
     }
 
     var hasQuotes: Bool {
@@ -176,6 +197,8 @@ public extension CaptureDraft {
         if let audio { policy["audio"] = .string(audio) }
         if let videoFrameThresholdSeconds { policy["videoFrameThresholdSeconds"] = .number(Double(videoFrameThresholdSeconds)) }
         if let quoteDepth { policy["quoteDepth"] = quoteDepth.jsonValue }
+        if let parentDepth { policy["parentDepth"] = parentDepth.jsonValue }
+        if let parentStyle { policy["parentStyle"] = .string(parentStyle.rawValue) }
         if let quoteAuthorLink { policy["quoteAuthorLink"] = .string(quoteAuthorLink.rawValue) }
         if let threadExpansion { policy["threadExpansion"] = .string(threadExpansion.rawValue) }
         return .object(policy)
