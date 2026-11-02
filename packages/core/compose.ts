@@ -178,27 +178,14 @@ function renderSequence(posts: ResolvedPost[], policy: CompositionPolicy, frameR
     // remain literal source text.
     const body = renderPost(hasCarriedReplyAddress ? { ...post, text: post.text.slice(post.replyAddressPrefix!.length) } : post,
       policy, frameRefs, sameAuthorReply && !!post.quote);
-    let forumRelation = "";
-    if (post.provider === "forum_magnum" && post.replyTo) {
-      const source = parseSource(post.canonicalUrl);
-      if (source.provider !== "forum_magnum") throw new Error("Forum Magnum reply has a mismatched source URL");
-      const parentUrl = new URL(`?commentId=${post.replyTo.id}`, source.canonicalUrl).href;
-      const parent = posts.find(candidate => {
-        if (candidate.provider !== "forum_magnum" || candidate.id !== post.replyTo!.id) return false;
-        const parsed = parseSource(candidate.canonicalUrl);
-        return parsed.provider === "forum_magnum" && parsed.site === source.site && parsed.id === source.id;
-      });
-      const parentAuthor = post.replyTo.authorHandle ?? parent?.author.handle;
-      forumRelation = `*[${parentAuthor ? `Reply to @${parentAuthor.replace(/^@/, "")}` : "Parent comment"}](<${parentUrl}>)*`;
-    }
-    if (!multiSource) return [forumRelation, body].filter(Boolean).join("\n\n");
+    if (!multiSource) return body;
     // The title identifies the first speaker. Label turns, not every post;
     // source URLs and exact times remain in plan.sources.
     const speakerChanged = index > 0 && sourceAuthor(post) !== sourceAuthor(posts[index - 1]!);
     const forumHeader = post.provider === "forum_magnum"
-      ? [`\`${authorTag(post)}\``, post.postedAt ? `(${post.postedAt.slice(0, 10)})` : ""].filter(Boolean).join(" ") : "";
+      ? [`\`${authorTag(post)}\``, post.postedAt ? `([${post.postedAt.slice(0, 10)}](<${post.canonicalUrl}>))` : `[Source](<${post.canonicalUrl}>)`].join(" ") : "";
     const flatParentHeader = renderedParentDepth(policy) > 0 && post.parentContext && policy.parentStyle !== "quote";
-    return [forumHeader || (speakerChanged && !flatParentHeader ? `\`${authorTag(post)}\`` : ""), forumRelation, body].filter(Boolean).join("\n");
+    return [forumHeader || (speakerChanged && !flatParentHeader ? `\`${authorTag(post)}\`` : ""), body].filter(Boolean).join("\n");
   });
   return entries.reduce((rendered, entry, index) => {
     if (!index) return entry;
@@ -513,6 +500,8 @@ export function composePlan(
       ...(dateUncertainty.length ? { dateUncertainty } : {}) };
   });
   const first = posts[0]!;
+  const canonical = first.provider === "forum_magnum"
+    ? posts.find(post => post.selection?.role === "primary" && post.selection.origin === "explicit") ?? first : first;
   const video = effective.some((item) => item.kind === "video");
   const audioOnly = audioAssets.length === 1;
   const soloVideo = video && chosen.length === 1;
@@ -525,7 +514,7 @@ export function composePlan(
       title: title(first),
       markdown,
       ...(blockDescription === undefined ? {} : { description: blockDescription }),
-      canonicalSource: first.canonicalUrl,
+      canonicalSource: canonical.canonicalUrl,
       ...(audioOnly && first.soundcloud?.kind === "track" && first.soundcloud.artworkUrl ? { artworkUrl: first.soundcloud.artworkUrl } : {}),
       selectedMedia: chosen.map((item) => item.ref),
       ...(frameMedia.length ? { frameMedia } : {}),

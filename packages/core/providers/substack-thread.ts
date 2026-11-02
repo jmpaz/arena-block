@@ -88,7 +88,9 @@ export async function discoverSubstackThread(seedId: string, resolve: (url: stri
       if (cursor) cursors.add(cursor);
     } while (cursor);
     if (current.children_count !== undefined && returned.size < current.children_count) throw new Error("Substack reply pages do not cover the reported replies; no complete author chain was inferred");
-    const owned = [...children.values()].filter(child => child.user_id === root.comment.user_id);
+    const candidates = [...children.values()].filter(child => child.user_id === root.comment.user_id);
+    const expected = chain[index + 1];
+    const owned = expected ? candidates.filter(child => child.id === expected.id) : candidates;
     if (owned.length > 1) throw new Error("Substack author replies branch; choose exact Note permalinks in the intended order");
     if (!owned.length) {
       if (chain[index + 1] || current.children_count && !children.size) throw new Error("Substack reply page omitted an expected continuation; no complete author chain was inferred");

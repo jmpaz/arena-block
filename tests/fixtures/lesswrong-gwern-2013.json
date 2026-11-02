@@ -1,0 +1,253 @@
+{
+  "sourceUrl": "https://www.lesswrong.com/posts/5GnwjxbL3SQ7gjRn6/open-thread-july-16-22-2013#gFRKkcyXDTiKkug56",
+  "capturedAt": "2026-10-18",
+  "post": {
+    "_id": "5GnwjxbL3SQ7gjRn6",
+    "title": "Open thread, July 16-22, 2013",
+    "postedAt": "2013-07-15T20:13:13.041Z",
+    "status": 2,
+    "draft": null,
+    "shortform": false,
+    "pageUrl": "https://www.lesswrong.com/posts/5GnwjxbL3SQ7gjRn6/open-thread-july-16-22-2013",
+    "user": {
+      "username": "Vaniver"
+    },
+    "contents": {
+      "html": ""
+    }
+  },
+  "comments": [
+    {
+      "_id": "LsyGSZRxJM2CAiQ9M",
+      "postId": "5GnwjxbL3SQ7gjRn6",
+      "parentCommentId": "TXDthBGbMtpEpvNqe",
+      "postedAt": "2018-10-29T02:32:41.368Z",
+      "deleted": false,
+      "deletedPublic": false,
+      "draft": false,
+      "rejected": false,
+      "user": {
+        "username": "gwern",
+        "displayName": "gwern",
+        "_id": "BtbwfsEyeT4P2eqXu"
+      },
+      "contents": {
+        "html": "<html><head></head><body><p>Bryan Caplan, <a href=\"http://www.econlib.org/archives/2014/07/a_non-conformis.html\">\"A Non-Conformist's Guide to Success in a Conformist World\"</a>:</p>\n<blockquote>\n<p>1. Don't be an absolutist non-conformist. Conforming in small ways often gives you the opportunity to non-conform in big ways. Being deferential to your boss, for example, opens up a world of possibilities.</p>\n<p>2. Don't proselytize the conformists. Most of them will leave you alone if you leave them alone. Monitor your behavior: Are you trying to change them more often than they try to change you? Then stop. Saving time is much more helpful than making enemies.</p>\n<p>3. In modern societies, most demands for conformity are based on empty threats. But not all. So pay close attention to societal sanctions for others' deviant behavior. Let the impulsive non-conformists be your guinea pigs.</p>\n<p>10. Social intelligence can be improved. For non-conformists, the marginal benefit of doing so is especially big.</p>\n<p>12. When faced with demands for conformity, silently ask, \"What will happen to me if I refuse?\" Train yourself to ponder subtle and indirect repercussions, but learn to dismiss most such ponderings as paranoia. Modern societies are huge, anonymous, and forgetful.</p>\n<p>13. Most workplaces are not democracies. This is very good news, because as a non-conformist you'll probably never be popular. You can however make yourself invaluable to key superiors, who will in turn protect and promote you.</p>\n</blockquote>\n</body></html>"
+      },
+      "pageUrl": "https://www.lesswrong.com/posts/5GnwjxbL3SQ7gjRn6/open-thread-july-16-22-2013?commentId=LsyGSZRxJM2CAiQ9M",
+      "directChildrenCount": 0
+    },
+    {
+      "_id": "EtGAGRd3CxfDgPeEc",
+      "postId": "5GnwjxbL3SQ7gjRn6",
+      "parentCommentId": "ScDmPzpF4TNgRFbRg",
+      "postedAt": "2018-05-22T01:22:19.676Z",
+      "deleted": false,
+      "deletedPublic": false,
+      "draft": false,
+      "rejected": false,
+      "user": {
+        "username": "gwern",
+        "displayName": "gwern",
+        "_id": "BtbwfsEyeT4P2eqXu"
+      },
+      "contents": {
+        "html": "<p>Early example: <a href=\"https://www.gwern.net/docs/psychology/1969-torrance.pdf\">&quot;The Creative Personality and the Ideal Pupil&quot;</a>, Torrance 1969.</p>\n"
+      },
+      "pageUrl": "https://www.lesswrong.com/posts/5GnwjxbL3SQ7gjRn6/open-thread-july-16-22-2013?commentId=EtGAGRd3CxfDgPeEc",
+      "directChildrenCount": 0
+    },
+    {
+      "_id": "AEGKhW7L5uB27pGiJ",
+      "postId": "5GnwjxbL3SQ7gjRn6",
+      "parentCommentId": "gFRKkcyXDTiKkug56",
+      "pageUrl": "https://www.lesswrong.com/posts/5GnwjxbL3SQ7gjRn6/open-thread-july-16-22-2013?commentId=AEGKhW7L5uB27pGiJ",
+      "postedAt": "2018-05-15T17:24:35.145Z",
+      "deleted": false,
+      "deletedPublic": false,
+      "draft": false,
+      "rejected": false,
+      "contents": {
+        "html": "<p>Speaking of Schmidhuber, he serves as a good example: he spends weirdness points like they're Venezuelan bolivars. Despite him and his lab laying more of the groundwork for the deep learning revolution than perhaps anyone and being right about many things decades before everyone else, he is probably the single most disliked researcher in DL. Not only is he not unfathomably rich or in charge of a giant lab like DeepMind, he is the only DL/RL researcher I know of who regularly gets articles in major media outlets written in large part about how he has alienated people: eg <a href=\"https://www.nytimes.com/2016/11/27/technology/artificial-intelligence-pioneer-jurgen-schmidhuber-overlooked.html\">https://www.nytimes.com/2016/11/27/technology/artificial-intelligence-pioneer-jurgen-schmidhuber-overlooked.html</a> or <a href=\"https://www.bloomberg.com/news/features/2018-05-15/google-amazon-and-facebook-owe-j-rgen-schmidhuber-a-fortune\">https://www.bloomberg.com/news/features/2018-05-15/google-amazon-and-facebook-owe-j-rgen-schmidhuber-a-fortune</a> And this is solely because of his personal choices and conduct. It's difficult to think of an example of a technologist inventing so much important stuff and then missing out on the gains because of being so entirely unnecessarily unpleasant and hard to bear (William Shockley and the Traitorous Eight come to mind as an example; maybe David Chaum &amp; Digicash too).</p>\n"
+      },
+      "user": {
+        "username": "gwern",
+        "displayName": "gwern",
+        "_id": "BtbwfsEyeT4P2eqXu"
+      },
+      "directChildrenCount": 0
+    },
+    {
+      "_id": "5x5ncgpApGiYdFx8A",
+      "postId": "5GnwjxbL3SQ7gjRn6",
+      "parentCommentId": "gFRKkcyXDTiKkug56",
+      "pageUrl": "https://www.lesswrong.com/posts/5GnwjxbL3SQ7gjRn6/open-thread-july-16-22-2013?commentId=5x5ncgpApGiYdFx8A",
+      "postedAt": "2015-03-08T22:50:06.153Z",
+      "deleted": false,
+      "deletedPublic": false,
+      "draft": false,
+      "rejected": false,
+      "contents": {
+        "html": "<p>Katja offers 8 models of weirdness budgets in <a href=\"https://meteuphoric.wordpress.com/2015/03/08/the-economy-of-weirdness/\">&quot;The economy of weirdness&quot;</a>; #1 seems to fit best the psychology and other research.</p>\n"
+      },
+      "user": {
+        "username": "gwern",
+        "displayName": "gwern",
+        "_id": "BtbwfsEyeT4P2eqXu"
+      },
+      "directChildrenCount": 0
+    },
+    {
+      "_id": "TXDthBGbMtpEpvNqe",
+      "postId": "5GnwjxbL3SQ7gjRn6",
+      "parentCommentId": "gFRKkcyXDTiKkug56",
+      "pageUrl": "https://www.lesswrong.com/posts/5GnwjxbL3SQ7gjRn6/open-thread-july-16-22-2013?commentId=TXDthBGbMtpEpvNqe",
+      "postedAt": "2014-11-29T23:31:42.339Z",
+      "deleted": false,
+      "deletedPublic": false,
+      "draft": false,
+      "rejected": false,
+      "contents": {
+        "html": "<p>Some more discussion:</p>\n<ul>\n<li><a href=\"http://lesswrong.com/lw/lbn/you_have_a_set_amount_of_weirdness_points_spend/\">&quot;You have a set amount of &quot;weirdness points&quot;. Spend them wisely.&quot;</a></li>\n<li><p><a href=\"https://en.wikipedia.org/wiki/Idiosyncrasy_credit\">Idiosyncrasy credit</a></p>\n<blockquote>\n<p>Idiosyncrasy credit[1] is a concept in social psychology that describes an individual's capacity to acceptably deviate from group expectations. Idiosyncrasy credits are increased (earned) each time an individual conforms to a group's expectations, and decreased (spent) each time an individual deviates from a group's expectations. Edwin Hollander[2] originally defined idiosyncrasy credit as &quot;an accumulation of positively disposed impressions residing in the perceptions of relevant others; it is\u2026 the degree to which an individual may deviate from the common expectancies of the group&quot;.</p>\n</blockquote>\n<p>  (But the cited research in the Examples section seem weak, and social psychology isn't the most reliable area of psychology in the first place.)</p>\n</li>\n</ul>\n"
+      },
+      "user": {
+        "username": "gwern",
+        "displayName": "gwern",
+        "_id": "BtbwfsEyeT4P2eqXu"
+      },
+      "directChildrenCount": 1
+    },
+    {
+      "_id": "ScDmPzpF4TNgRFbRg",
+      "postId": "5GnwjxbL3SQ7gjRn6",
+      "parentCommentId": "gFRKkcyXDTiKkug56",
+      "pageUrl": "https://www.lesswrong.com/posts/5GnwjxbL3SQ7gjRn6/open-thread-july-16-22-2013?commentId=ScDmPzpF4TNgRFbRg",
+      "postedAt": "2013-12-06T19:05:34.575Z",
+      "deleted": false,
+      "deletedPublic": false,
+      "draft": false,
+      "rejected": false,
+      "contents": {
+        "html": "<p>Some anecdotal discussion of the dislike of (too much) creativity:</p>\n<ul>\n<li><a href=\"http://www.slate.com/articles/health_and_science/science/2013/12/creativity_is_rejected_teachers_and_bosses_don_t_value_out_of_the_box_thinking.html\">http://www.slate.com/articles/health_and_science/science/2013/12/creativity_is_rejected_teachers_and_bosses_don_t_value_out_of_the_box_thinking.html</a></li>\n<li><a href=\"https://news.ycombinator.com/item?id=6861533\">https://news.ycombinator.com/item?id=6861533</a></li>\n</ul>\n"
+      },
+      "user": {
+        "username": "gwern",
+        "displayName": "gwern",
+        "_id": "BtbwfsEyeT4P2eqXu"
+      },
+      "directChildrenCount": 1
+    },
+    {
+      "_id": "oJqCCuoJxkoTAkCv7",
+      "postId": "5GnwjxbL3SQ7gjRn6",
+      "parentCommentId": "gFRKkcyXDTiKkug56",
+      "pageUrl": "https://www.lesswrong.com/posts/5GnwjxbL3SQ7gjRn6/open-thread-july-16-22-2013?commentId=oJqCCuoJxkoTAkCv7",
+      "postedAt": "2013-10-10T16:58:11.978Z",
+      "deleted": false,
+      "deletedPublic": false,
+      "draft": false,
+      "rejected": false,
+      "contents": {
+        "html": "<blockquote>\n<p>ideas like existential risk are highly novel</p>\n</blockquote>\n<p>Why is that so? The end of the world is a strong element in major religions and is a popular theme in literature and movies. The global warming meme made the idea that human activity can have significant planet-wide consequences be universally accepted.</p>\n"
+      },
+      "user": {
+        "username": "Lumifer",
+        "displayName": "Lumifer",
+        "_id": "Jbattmm7Mw4NtKZRv"
+      },
+      "directChildrenCount": 1
+    },
+    {
+      "_id": "fdcktrm7uQSnCoHH6",
+      "postId": "5GnwjxbL3SQ7gjRn6",
+      "parentCommentId": "gFRKkcyXDTiKkug56",
+      "pageUrl": "https://www.lesswrong.com/posts/5GnwjxbL3SQ7gjRn6/open-thread-july-16-22-2013?commentId=fdcktrm7uQSnCoHH6",
+      "postedAt": "2013-10-10T16:42:00.215Z",
+      "deleted": false,
+      "deletedPublic": false,
+      "draft": false,
+      "rejected": false,
+      "contents": {
+        "html": "<blockquote>\n<p>Though there\u2019s probably no perfect way, the recent research mined keywords generated by users of the website the Internet Movie Database (IMDb), which contains descriptions of more than 2 million films. When summarizing plots, people on the site are prompted to use keywords that have been used to describe previous movies, yielding tags that characterize particular genres (cult-film), locations (manhattan-new-york), or story elements (tied-to-a-chair). Each keyword was given a score based on its rarity when compared to previous work. If some particular plot point \u2013 like, say, beautiful-woman \u2013 had appeared in many movies that preceded a particular film, it was given a low novelty value. But a new element \u2013 perhaps martial-arts, which appeared infrequently in films before the \u201960s \u2013 was given a high novelty score when it first showed up. The scores ranged from zero to one, with the least novel being zero. Lining up the scores chronologically showed the evolution of film culture and plots over time. <a href=\"http://www.nature.com/srep/2013/130926/srep02758/full/srep02758.html\">The results appeared Sept. 26 in <em>Nature Scientific Reports</em></a>.</p>\n<p>...Unsurprisingly, the research also suggests that unfamiliar combinations of themes or plots that haven\u2019t been encountered before (something like sci-fi-western) often have the highest novelty scores. \u201cI think this reinforces this idea that novelty is often variations on a theme,\u201d said Sreenivasan. \u201cYou use familiar elements broadly, and then combine them in novel ways.\u201d</p>\n<p>Sreenivasan\u2019s analysis shows trends within particular genres as well. Action movies are essentially redefined in 1962 with the release of the first James Bond movie. Science-fiction films, on the other hand, show no similar creative uptick during the same period. According to the analysis, novelty in sci-fi has declined essentially since the genre first made it into movies. It\u2019s possible that this has to do with early science-fiction films codifying the major tropes seen in these movies.</p>\n<p>Another part of the analysis seem to correspond to theories put forth by social scientists about how much we enjoy novelty in creative works, said Sreenivasan. In general, humans enjoy new things. More specifically, there\u2019s a tendency for people to look at and like things that are new but not too new. \u201cIf it\u2019s way out there, it\u2019s hard to palate,\u201d said Sreenivasan. \u201cAnd if it\u2019s too familiar, then it seems boring.\u201d</p>\n<p>A model known as the Wundt-Berlyne curve illustrates this result. The amount of pleasure someone derives from a creative piece goes up as its novelty increases. But at a certain point, there is a maximum of enjoyment. After that, something becomes too unfamiliar to stomach anymore. Using the revenue generated by different films as a measure of its mass appeal, Sreenivasan found that <a href=\"http://www.nature.com/srep/2013/130926/srep02758/fig_tab/srep02758_F6.html\">more novel films sold more tickets until they reached a score of about 0.8</a>. Afterwards, they appeared to decline in popularity and revenue.</p>\n</blockquote>\n<p>(From the standard errors &amp; shuffled results, the decline in revenue from 0.8 to 1.0 happens very fast, so one probably wants to undershoot novelty and avoid the catastrophic risk of overshoot.)</p>\n"
+      },
+      "user": {
+        "username": "gwern",
+        "displayName": "gwern",
+        "_id": "BtbwfsEyeT4P2eqXu"
+      },
+      "directChildrenCount": 1
+    },
+    {
+      "_id": "aQMymsKXpsChbktpw",
+      "postId": "5GnwjxbL3SQ7gjRn6",
+      "parentCommentId": "gFRKkcyXDTiKkug56",
+      "pageUrl": "https://www.lesswrong.com/posts/5GnwjxbL3SQ7gjRn6/open-thread-july-16-22-2013?commentId=aQMymsKXpsChbktpw",
+      "postedAt": "2013-08-02T02:53:01.605Z",
+      "deleted": false,
+      "deletedPublic": false,
+      "draft": false,
+      "rejected": false,
+      "contents": {
+        "html": "<p>See also <a href=\"http://lesswrong.com/lw/hv9/rationality_quotes_july_2013/99vg\">Schank's Law</a>.</p>\n"
+      },
+      "user": {
+        "username": "gwern",
+        "displayName": "gwern",
+        "_id": "BtbwfsEyeT4P2eqXu"
+      },
+      "directChildrenCount": 0
+    },
+    {
+      "_id": "gFRKkcyXDTiKkug56",
+      "postId": "5GnwjxbL3SQ7gjRn6",
+      "parentCommentId": null,
+      "postedAt": "2013-07-20T23:34:14.800Z",
+      "deleted": false,
+      "deletedPublic": false,
+      "draft": false,
+      "rejected": false,
+      "user": {
+        "username": "gwern",
+        "displayName": "gwern",
+        "_id": "BtbwfsEyeT4P2eqXu"
+      },
+      "contents": {
+        "html": "<p>While reading a psychology paper, I ran into the following comment:</p>\n<blockquote>\n<p>Unfamiliar things are distrusted and hard to process, overly familiar things are boring, and the perfect object of beauty lies somewhere in between (<a href=\"http://www.le.ac.uk/psychology/amc/novehuma.pdf\">Sluckin, Hargreaves, &amp; Colman, 1983</a>). The familiar comes as standard equipment in every empirical paper: scientific report structure, well-known statistical techniques, established methods. In fact, the form of a research article is so standardized that it is in danger of becoming deathly dull. So the burden is on the author to provide content and ideas that will knock the reader\u2019s socks off\u2014at least if the reader is one of the dozen or so potential reviewers in that sub-subspecialty.</p>\n</blockquote>\n<p>Besides the obvious connection to <a href=\"http://www.idsia.ch/~juergen/creativity.html\">Schmidhuber's esthetics</a>, it occurred to me that this has considerable relevance to LW/OB. Hanson in the past has counseled contrarians like us to pick our battles and conform in most ways while not conforming in a few carefully chosen ones (eg <a href=\"http://www.overcomingbias.com/2012/01/dear-young-eccentric.html\">Dear Young Eccentric</a>, <a href=\"http://www.overcomingbias.com/2007/06/against_free_th.html\">Against Free Thinkers</a>, <a href=\"http://www.overcomingbias.com/2007/09/even-when-contr.html\">Even When Contrarians Win, They Lose</a>); this struck me as obviously correct, and that one could think of oneself as having a \"budget\" where non-conforming on both dress and language and ideas blows one's credit with people / discredits oneself.</p>\n<p>This idea about familiarity suggests a different way to think of it is in terms of novelty and familiarity: ideas like existential risk are highly novel compared to regular politics or charities. But if these ideas are highly novel, then they are likely \"distrusted and hard to process\" (which certainly describes well many people's reaction to things on LW/OB), and any <em>additional</em> novelty like that of vocabulary or formatting or style, is more likely to damage reception or perhaps push readers past some critical limit than if applied to some standard familiar boring thing like evolution, where due to sufficient familiarity, idiosyncratic or novel aspects will not damage reception but instead improve reception. Consider the different reactions to Nick Bostrom and Eliezer Yudkowsky, who write about many of the same exact ideas and problems - but no one put on Broadway plays or YouTube videos mocking Bostrom or accusing him of being a sinister billionaire's tool in a plot against all that is good and just - while on the other hand, Hofstadter's <em>GEB</em> is dearly beloved for its diversity of novel forms and expressions, even if it's all directed toward exposition on pretty standard unshocking topics like Godel's theorems or GOFAI.</p>\n<p>This line of reasoning suggests a simple strategy for writing: <em>the novelty of a story or essay's content should be inverse to the novelty of its form.</em></p>\n<p>If one has highly novel, perhaps even outright frightening ideas, about the true nature of the multiverse or the future of humanity, the format should be as standard and dry as possible. Conversely, if one is discussing settled science like genetics, one should spice it up with little parables, stories, unexpected topics and applications, etc.</p>\n<p>Does this predict success of existing writings? Well, let's take Eliezer as an example, since he has a very particular style of writing. Three of his longest fictions so far are the Ultra Mega Crossover, \"Three Worlds Collide\", and <em>MoR</em>. Keeping in mind that the former were targeted at OB and the last at a general audience on <a href=\"http://FF.net\">FF.net</a>, they seem to fit well: the Crossover was confusing in format, introduced many obscure characters or allusions, in service of a computationally-oriented multiverse that only really made sense if you had already read <em>Permutation City</em>, and so is highly novel in form &amp; content, so naturally no one ever mentions it or recommends it to other people; \"Three Worlds Collide\" took a standard SF opera short-story style with stock archetypes like \"the Captain\", and saved its novelty for its meta-ethical content and world-building, and accordingly, I see it linked and discussed both on LW and off; <em>MoR</em>, as fanfiction, adapts a world wholesale, reducing its novelty considerably for millions of people, and inside this almost-\"boring\" framework introduces its audience to a panoply of cognitive biases, transhuman tropes like anti-deathism, existential risks, the scientific method, Bayesian-style reasoning, etc, and <em>MoR</em> has been tremendously successful on and off LW (I saw someone recommend it yesterday on HN).</p>\n<p>Of course this is just 3 examples, but it does match the vibe I get reading why people dislike Eliezer or LW: they seem to have little trouble with his casual informal style when it's being applied to topics like cognitive biases or evolution where the topic is familiar to relatively large numbers of people, but then are horribly put off by the same style or novel forms when applied to obscurer topics like subjective Bayesianism (like the Bayesian Conspiracy short stories - actually, <em>especially</em> the Conspiracy-verse stories) or cryonics. Of course, I suppose this could just reflect that more popular topics tend to be less controversial and what I'm actually noticing is people disliking marginal minority theories, but things like global warming are quite controversial and I suspect Eliezer blogging about global warming would not trigger the same reaction as to, say, his \"you're a bad parent if you don't sign kids up for cryonics\" post that a lot of people hate.</p>\n<p>Have I seen this \"golden mean\" effect in my own writing? I'm not sure. Unfortunately, my stuff seems to generally adopt a vaguely academic format or tone in proportion to how mainstream a topic is, and a great deal of traffic is driven by interest in the topic and not my work specifically; so for example, my Silk Road page is not in any particularly boring format but interest in the topic is too high for that to matter either way. It's certainly something for me to keep in mind, though, when I write about stranger topics.</p>\n<p>EDIT: put links at <a href=\"https://www.gwern.net/docs/psychology/novelty/index\">https://www.gwern.net/docs/psychology/novelty/index</a></p>\n"
+      },
+      "pageUrl": "https://www.lesswrong.com/posts/5GnwjxbL3SQ7gjRn6/open-thread-july-16-22-2013?commentId=gFRKkcyXDTiKkug56",
+      "directChildrenCount": 9
+    },
+    {
+      "_id": "qpMNTh6794JmNySo6",
+      "postId": "5GnwjxbL3SQ7gjRn6",
+      "parentCommentId": "gFRKkcyXDTiKkug56",
+      "pageUrl": "https://www.lesswrong.com/posts/5GnwjxbL3SQ7gjRn6/open-thread-july-16-22-2013?commentId=qpMNTh6794JmNySo6",
+      "postedAt": "2013-12-06T19:44:29.540Z",
+      "deleted": false,
+      "deletedPublic": false,
+      "draft": false,
+      "rejected": false,
+      "contents": {
+        "html": "<blockquote>\n<p>(I saw someone recommend it yesterday on HN).</p>\n</blockquote>\n<p>Were they a LW user? Every once in a while I'll be surprised when someone links a LW article, only to see that it's loup-valliant.</p>\n"
+      },
+      "user": null,
+      "directChildrenCount": 1
+    },
+    {
+      "_id": "e3MMBm95drxpMCbuP",
+      "postId": "5GnwjxbL3SQ7gjRn6",
+      "parentCommentId": "gFRKkcyXDTiKkug56",
+      "pageUrl": "https://www.lesswrong.com/posts/5GnwjxbL3SQ7gjRn6/open-thread-july-16-22-2013?commentId=e3MMBm95drxpMCbuP",
+      "postedAt": "2013-07-21T13:44:57.258Z",
+      "deleted": false,
+      "deletedPublic": false,
+      "draft": false,
+      "rejected": false,
+      "contents": {
+        "html": "<p>Useful enough to be a discussion post.</p>\n"
+      },
+      "user": null,
+      "directChildrenCount": 0
+    }
+  ]
+}

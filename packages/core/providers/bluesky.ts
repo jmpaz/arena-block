@@ -1,3 +1,4 @@
+import { assertNoKnownAuthorForks, observedAuthorForks } from "./author-thread-forks.ts";
 import type {} from "@atcute/bluesky";
 import { Client, ok, simpleFetchHandler } from "@atcute/client";
 import type { ResourceUri } from "@atcute/lexicons";
@@ -114,6 +115,7 @@ type AuthorThreadEntry = { post: Json; index: number; count: number };
 type AuthorThreadCoverage = { scope: "author-chain"; basis: "appview-op-thread"; reportedPosts: number;
   replyGaps: Array<{ uri: string; reported?: number; returned: number; unavailable: number }> };
 type ThreadDiscoveryOptions = { retainConversationCoverage?: boolean };
+type SelectedAuthorPath = Map<string, { uri: string; cid: string; parentCid: string }>;
 
 function threadNode(value: unknown): ThreadNode | undefined {
   const node = object(value);
@@ -151,12 +153,13 @@ function conversationGaps(raw: unknown, selected: Json[]): AuthorThreadCoverage[
 }
 
 /** Select only a verified, contiguous, same-DID linear chain. Never choose a fork. */
-function oldestAuthorNode(raw: unknown): { seed: ThreadNode; oldest: ThreadNode } {
+function oldestAuthorNode(raw: unknown): { seed: ThreadNode; oldest: ThreadNode; path: SelectedAuthorPath } {
   const seed = threadNode(object(raw)?.thread);
   if (!seed) throw new Error("Bluesky thread is unavailable; choose posts explicitly or turn thread expansion off");
   const did = string(object(seed.post.author)?.did);
   if (!did) throw new Error("Bluesky thread lacks a stable author ID; choose posts explicitly or turn thread expansion off");
   let cursor = seed;
+  const path: SelectedAuthorPath = new Map();
   let count = 1;
   while (parentRef(cursor)) {
     const parent = threadNode(cursor.parent);
@@ -166,14 +169,16 @@ function oldestAuthorNode(raw: unknown): { seed: ThreadNode; oldest: ThreadNode 
       throw new Error("Bluesky thread parent reference changed; choose posts explicitly or turn thread expansion off");
     }
     if (string(object(parent.post.author)?.did) !== did) break;
+    path.set(postUri(parent), { uri: postUri(cursor), cid: string(cursor.post.cid)!, parentCid: string(parent.post.cid)! });
     cursor = parent;
     if (++count > 20) throw new Error("Bluesky thread exceeds 20 posts; choose posts explicitly");
   }
-  return { seed, oldest: cursor };
+  return { seed, oldest: cursor, path };
 }
 
-export function linearAuthorThread(raw: unknown, source: Extract<ParsedSource, { provider: "bluesky" }>, selectedUri?: string, options: ThreadDiscoveryOptions = {}): { posts: ResolvedPost[]; seedUri: string; parentUris: Map<string, string> } {
-  const { seed, oldest } = oldestAuthorNode(raw);
+export function linearAuthorThread(raw: unknown, source: Extract<ParsedSource, { provider: "bluesky" }>, selectedUri?: string, options: ThreadDiscoveryOptions = {}, selectedPath?: SelectedAuthorPath): { posts: ResolvedPost[]; seedUri: string; parentUris: Map<string, string> } {
+  const { seed, oldest, path } = oldestAuthorNode(raw);
+  const ancestry = selectedPath ?? path;
   const seedUri = selectedUri ?? postUri(seed);
   const did = string(object(seed.post.author)?.did)!;
   const ordered: ThreadNode[] = [oldest];
@@ -200,8 +205,16 @@ export function linearAuthorThread(raw: unknown, source: Extract<ParsedSource, {
     }
     const sameAuthor = replies.map(threadNode).filter((child): child is ThreadNode =>
       Boolean(child && string(object(child.post.author)?.did) === did));
-    if (sameAuthor.length > 1) throw new ThreadNeedsAuthorEvidence("Bluesky thread forks into multiple author replies; choose posts explicitly");
-    const child = sameAuthor[0];
+    const expected = ancestry.get(postUri(current));
+    if (!expected && sameAuthor.length > 1) {
+      if (returned === undefined || returned > replies.length) throw new ThreadNeedsAuthorEvidence("Bluesky thread replies are incomplete; choose posts explicitly");
+      throw new Error("Bluesky thread forks into multiple author replies; choose posts explicitly");
+    }
+    const child = expected ? sameAuthor.find(node => postUri(node) === expected.uri) : sameAuthor[0];
+    if (expected && !child) throw new Error("Bluesky thread omitted the selected post's ancestry; choose posts explicitly");
+    if (expected && (string(child!.post.cid) !== expected.cid || string(current.post.cid) !== expected.parentCid)) {
+      throw new Error("Bluesky selected ancestry changed between reads; choose posts explicitly");
+    }
     if (!child) break;
     const parent = parentRef(child);
     if (!string(parent?.cid) || !string(current.post.cid) || string(parent?.uri) !== postUri(current) || string(parent?.cid) !== string(current.post.cid)) {
@@ -249,14 +262,20 @@ export class BlueskyProvider implements SocialProvider {
     };
     const read = (uri: string) => readJson("app.bsky.feed.getPostThread", { uri, depth: "20", parentHeight: "20" });
     const initial = await read(`at://${source.handle}/app.bsky.feed.post/${source.id}`);
-    const { seed, oldest } = oldestAuthorNode(initial);
+    const { seed, oldest, path } = oldestAuthorNode(initial);
     const seedUri = postUri(seed);
+    const authorDid = string(object(seed.post.author)?.did)!;
+    const observedForks = observedAuthorForks(initial, authorDid);
+    if (observedForks.has(seedUri)) throw new Error("Bluesky thread forks into multiple author replies; choose posts explicitly");
     if (seedUri.split("/").at(-1) !== source.id) throw new Error("Bluesky returned a different selected post; choose posts explicitly");
     const rootUri = postUri(oldest);
     const result = rootUri === seedUri ? initial : await read(rootUri);
     if (postUri(threadNode(object(result)?.thread) ?? { post: {} }) !== rootUri) throw new Error("Bluesky returned a different thread root; choose posts explicitly");
+    for (const uri of observedAuthorForks(result, authorDid)) observedForks.add(uri);
     try {
-      return linearAuthorThread(result, source, seedUri, this.discovery);
+      const linear = linearAuthorThread(result, source, seedUri, this.discovery, path);
+      assertNoKnownAuthorForks(linear.posts.map(post => `at://${authorDid}/app.bsky.feed.post/${post.id}`), seedUri, observedForks);
+      return linear;
     } catch (error) {
       if (!(error instanceof ThreadNeedsAuthorEvidence)) throw error;
       // getPostThread is a bounded conversation view, without a cursor. Its
@@ -319,6 +338,7 @@ export class BlueskyProvider implements SocialProvider {
               && string(parentRef({ post: entry.post })?.uri) === string(ordered.at(-1)!.uri))) {
               throw new Error("Bluesky author-thread counts are inconsistent; try again");
             }
+            assertNoKnownAuthorForks(ordered.map(post => string(post.uri)!), seedUri, observedForks);
             const selected = ordered.find(post => string(post.uri) === seedUri);
             if (!selected || string(selected.cid) !== string(seed.post.cid)) {
               throw new Error("Bluesky author thread did not retain the selected post; add posts explicitly");

@@ -1,0 +1,158 @@
+{
+  "item": {
+    "comment": {
+      "id": 313838934,
+      "type": "feed",
+      "post_id": null,
+      "user_id": 850764,
+      "handle": "henrikkarlsson",
+      "body": "So on the question if there are any essays I’d like to rewrite / think differently about, I think the one that bothers me most is “Everything that turned out well in my life followed the same design process,” mostly because it is one of my most read pieces. https://www.henrikkarlsson.xyz/p/unfolding\n\nI think the main thrust of that essay is right—that I have had much more success just tinkering with small promising things, seeing where they lead, as compared to pursuing some big goal—but I don’t feel I conceptualized it right.\n\nI think the less bold more true formulation of the core insight in the essay is: “don’t invest a lot of time and resources into projects based on mental models that you have not validated by making contact with reality.” As in, I myself and many people I know often get locked in to pursuing a certain goal with a certain strategy and then spend a lot of time doing that and it turns out it doesn’t work at all because it is based on a wrong model of reality (or a wrong model of ourselves, as in cases where something we do succeed and we discover that we don’t actually like the outcome, eg become a doctor after long hard work and realize we don’t like being a doctor) and that is fairly obviously a bad idea.\n\nBut I think it is wrong to say that you can’t have big ambitious longterm goals (“visions”). It just requires a lot of skill to be able to validate something like that. And I’ve generally not been good at that, so the projects that have worked out for me have been small scale ones where I got rapid feedback from reality and let it unfold. But I do have friends who are capable of validating very complex longterm ideas—they formulate testable hypothesis, they track down experts who have the knowledge they need, etc, and very rapidly reduce the uncertainty so they can have high conviction that this longterm thing will work out and give them what they are looking for. I wish I was better at that! \n\nTwo things to said in favor of working toward longterm goals and visions (which I sort of argue against in the essay) is that 1) goals can be really motivating and 2) backwards induction is a powerful tool. By that I mean that if you know where you want to go, you can chain backwards and ask, what needs to happen before that to make it possible, and before that, and before that, until you roll all the way back. And by doing that you will see that the things you need to prioritize right now are completely different than what you’d prioritize if you didn’t look ahead to that goal. It is often possible to make a lot more progress, and surprisingly fast, if you know where you are going and have a well calibrated theory of success so you can focus on taking the shortest path to the goal.\n\nBut again, this is not how good things have tended to happen in my life. I have tended to stumble into goodness by tinkering. I think this is so mostly because I (and most people I know) aren’t very good at reducing uncertainty about such complex, long trajectories, and instead just get pulled into false fantasies when we make longterm plans. So unfolding, going step by step in an opportunistic way often leads (someone like me) to more surprising and fruitful places. But it is good to consider both approaches, tinkering and formulating longterm visions that you rapidly validate, because both approaches have their strengths.",
+      "date": "2026-08-13T09:44:13.062Z",
+      "body_json": {
+        "type": "doc",
+        "attrs": {
+          "schemaVersion": "v1",
+          "title": null
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "So on the question if there are any essays I’d like to rewrite / think differently about, I think the one that bothers me most is “Everything that turned out well in my life followed the same design process,” mostly because it is one of my most read pieces. "
+              },
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "link",
+                    "attrs": {
+                      "href": "https://www.henrikkarlsson.xyz/p/unfolding",
+                      "target": "_blank",
+                      "rel": "nofollow ugc noopener",
+                      "class": "note-link"
+                    }
+                  }
+                ],
+                "text": "https://www.henrikkarlsson.xyz/p/unfolding"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "I think the main thrust of that essay is right—that I have had much more success just tinkering with small promising things, seeing where they lead, as compared to pursuing some big goal—but I don’t feel I conceptualized it right."
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "I think the less bold more true formulation of the core insight in the essay is: “don’t invest a lot of time and resources into projects based on mental models that you have not validated by making contact with reality.” As in, I myself and many people I know often get locked in to pursuing a certain goal with a certain strategy and then spend a lot of time doing that and it turns out it doesn’t work at all because it is based on a wrong model of reality (or a wrong model of ourselves, as in cases where something we do succeed and we discover that we don’t actually like the outcome, eg become a doctor after long hard work and realize we don’t like being a doctor) and that is fairly obviously a bad idea."
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "But I think it is wrong to say that you can’t have big ambitious longterm goals (“visions”). It just requires a lot of skill to be able to validate something like that. And I’ve generally not been good at that, so the projects that have worked out for me have been small scale ones where I got rapid feedback from reality and let it unfold. But I do have friends who are capable of validating very complex longterm ideas—they formulate testable hypothesis, they track down experts who have the knowledge they need, etc, and very rapidly reduce the uncertainty so they can have high conviction that this longterm thing will work out and give them what they are looking for. I wish I was better at that! "
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Two things to said in favor of working toward longterm goals and visions (which I sort of argue against in the essay) is that 1) goals can be really motivating and 2) backwards induction is a powerful tool. By that I mean that if you know where you want to go, you can chain backwards and ask, what needs to happen before that to make it possible, and before that, and before that, until you roll all the way back. And by doing that you will see that the things you need to prioritize right now are completely different than what you’d prioritize if you didn’t look ahead to that goal. It is often possible to make a lot more progress, and surprisingly fast, if you know where you are going and have a well calibrated theory of success so you can focus on taking the shortest path to the goal."
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "But again, this is not how good things have tended to happen in my life. I have tended to stumble into goodness by tinkering. I think this is so mostly because I (and most people I know) aren’t very good at reducing uncertainty about such complex, long trajectories, and instead just get pulled into false fantasies when we make longterm plans. So unfolding, going step by step in an opportunistic way often leads (someone like me) to more surprising and fruitful places. But it is good to consider both approaches, tinkering and formulating longterm visions that you rapidly validate, because both approaches have their strengths."
+              }
+            ]
+          }
+        ]
+      },
+      "attachments": [
+        {
+          "id": "784430bc-47e9-44e9-b3c5-2676f98b3ec8",
+          "type": "post",
+          "postSelection": null,
+          "postImageSelection": null,
+          "clipInfo": null,
+          "mediaClip": null,
+          "publication": {
+            "id": 313411
+          },
+          "post": {
+            "id": 147336576,
+            "publication_id": 313411,
+            "canonical_url": "https://www.henrikkarlsson.xyz/p/unfolding",
+            "title": "Everything that turned out well in my life followed the same design process",
+            "subtitle": "",
+            "podcastUpload": null,
+            "videoUpload": null,
+            "publishedBylines": [
+              {
+                "id": 850764,
+                "name": "Henrik Karlsson",
+                "handle": "henrikkarlsson"
+              }
+            ]
+          }
+        },
+        {
+          "id": "e3811bfa-fad9-4c39-808b-4a87f9d72dec",
+          "type": "comment",
+          "post": null,
+          "publication": null,
+          "comment": {
+            "id": 313830666,
+            "type": "feed",
+            "post_id": null,
+            "user_id": 9764589,
+            "body": "Is there an essay you’ve already published that you’d like to substantially rewrite or at least think differently about? What changed about it/ you in the time between publication and now?",
+            "date": "2026-08-13T09:19:52.534Z",
+            "attachments": [],
+            "body_json": {
+              "type": "doc",
+              "attrs": {
+                "schemaVersion": "v1",
+                "title": null
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Is there an essay you’ve already published that you’d like to substantially rewrite or at least think differently about? What changed about it/ you in the time between publication and now?"
+                    }
+                  ]
+                }
+              ]
+            },
+            "user": {
+              "id": 9764589,
+              "name": "Sindhu Shivaprasad",
+              "handle": "sindhusprasad"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -154,9 +154,28 @@
         throw new Error("Substack attachment metadata disagrees with the selected Note");
       return comment;
     }
-    async function attachments(id, handle) {
-      const comment = await publicNote(id, handle);
-      const projected = comment.attachments.map((a) => {
+    function checkAttachmentIds(items) {
+      const attachmentIds = new Set;
+      for (const a of items) {
+        if (!a || typeof a.id !== "string" || !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(a.id) || attachmentIds.has(a.id))
+          throw new Error("Substack attachment identity is missing or duplicated");
+        attachmentIds.add(a.id);
+      }
+    }
+    function projectAttachments(comment, quoteURLs) {
+      checkAttachmentIds(comment.attachments);
+      let quotedComment;
+      const projected = comment.attachments.flatMap((a) => {
+        if (a.type === "comment") {
+          const quoted = a.comment, user = quoted?.user;
+          const actor = quoteURLs.length === 1 ? new URL(quoteURLs[0]).pathname.replace(/\/note\/c-\d+$/, "") : "";
+          const profileId = /^\/profile\/([1-9]\d*)(?:-[a-zA-Z0-9_-]+)?$/.exec(actor)?.[1];
+          if (quotedComment || quoteURLs.length !== 1 || !Number.isSafeInteger(quoted?.id) || quoted.id <= 0 || noteId(quoteURLs[0]) !== String(quoted.id) || quoted.type !== "feed" || quoted.post_id !== null || a.post != null || a.publication != null || !Number.isSafeInteger(quoted.user_id) || quoted.user_id <= 0 || user?.id !== quoted.user_id || typeof user.handle !== "string" || !/^[a-zA-Z0-9_]+$/.test(user.handle) || typeof user.name !== "string" || !user.name.trim() || user.name.length > 512 || typeof quoted.body !== "string" || quoted.body.length > 500000 || !Array.isArray(quoted.attachments) || quoted.attachments.length > 100 || actor.toLowerCase() !== `/@${user.handle.toLowerCase()}` && profileId !== String(quoted.user_id)) {
+            throw new Error("Substack comment attachment disagrees with its quoted Note");
+          }
+          quotedComment = { id: String(quoted.id), userId: quoted.user_id, handle: user.handle, name: user.name, bodyText: quoted.body, attachments: quoted.attachments };
+          return [];
+        }
         if (a.type === "video") {
           const u = a.mediaUpload;
           if (!u || a.media_upload_id !== u.id || u.media_type !== "video" || u.is_free_preview)
@@ -189,9 +208,72 @@
         }
         throw new Error(`Substack Note attachment ${a.type} has no complete supported projection`);
       });
-      return { method: "public-api", observedAt: new Date().toISOString(), commentId: comment.id, userId: comment.user_id, handle: comment.handle, bodyText: comment.body, attachments: projected };
+      return { evidence: { method: "public-api", observedAt: new Date().toISOString(), commentId: comment.id, userId: comment.user_id, handle: comment.handle, bodyText: comment.body, attachments: projected }, quotedComment };
     }
-    async function extract(doc, url, depth) {
+    async function attachments(id, handle, quoteURLs) {
+      return projectAttachments(await publicNote(id, handle), quoteURLs);
+    }
+    function prepareQuotedAttachments(expected, quoteURLs) {
+      checkAttachmentIds(expected.attachments);
+      if (expected.attachments.some((a) => !["image", "link", "video", "post", "comment"].includes(a.type))) {
+        throw new Error("Substack quoted Note has an unsupported attachment projection");
+      }
+      const projected = projectAttachments({
+        id: Number(expected.id),
+        user_id: expected.userId,
+        handle: expected.handle,
+        body: expected.bodyText,
+        attachments: expected.attachments.filter((a) => !["image", "link"].includes(a.type))
+      }, quoteURLs);
+      return {
+        images: expected.attachments.filter((a) => a.type === "image"),
+        links: expected.attachments.filter((a) => a.type === "link"),
+        ...projected
+      };
+    }
+    function reconcileQuotedAttachments(expected, note) {
+      const native = note.attachmentEvidence?.attachments ?? [];
+      if (JSON.stringify(expected.evidence.attachments) !== JSON.stringify(native)) {
+        throw new Error("Substack quoted Note native attachments changed or are missing");
+      }
+      const images = note.media ?? [];
+      if (images.length !== expected.images.length)
+        throw new Error("Substack quoted Note image attachments changed or are missing");
+      const used = new Set;
+      for (const source of expected.images) {
+        const url = safeURL(source.imageUrl, note.url);
+        const index = images.findIndex((image, index2) => !used.has(index2) && image.kind === "image" && image.url === url);
+        if (!url || index < 0)
+          throw new Error("Substack quoted Note image attachment has no complete original projection");
+        used.add(index);
+        if (source.imageWidth !== undefined || source.imageHeight !== undefined) {
+          if (!Number.isSafeInteger(source.imageWidth) || source.imageWidth <= 0 || !Number.isSafeInteger(source.imageHeight) || source.imageHeight <= 0 || images[index].width !== undefined && images[index].width !== source.imageWidth || images[index].height !== undefined && images[index].height !== source.imageHeight) {
+            throw new Error("Substack quoted Note image dimensions disagree");
+          }
+          Object.assign(images[index], { width: source.imageWidth, height: source.imageHeight });
+        }
+      }
+      const links = note.links.filter((link) => link.kind === "link" && link.role === "preview");
+      if (links.length !== expected.links.length)
+        throw new Error("Substack quoted Note link attachments changed or are missing");
+      const matched = new Set;
+      for (const source of expected.links) {
+        const metadata = source.linkMetadata;
+        let address;
+        try {
+          address = new URL(metadata?.url);
+        } catch {
+          throw new Error("Substack quoted Note link attachment has no supported URL");
+        }
+        if (!["http:", "https:"].includes(address.protocol) || address.username || address.password || address.port || typeof metadata.title !== "string" || !metadata.title || typeof metadata.description !== "string")
+          throw new Error("Substack quoted Note link metadata is incomplete");
+        const index = links.findIndex((link, index2) => !matched.has(index2) && link.url === address.href && link.title === metadata.title && link.previewText === metadata.description);
+        if (index < 0)
+          throw new Error("Substack quoted Note link attachment has no complete projection");
+        matched.add(index);
+      }
+    }
+    async function extract(doc, url, depth, expectedQuotes = []) {
       if (controller.signal.aborted)
         throw new Error("Substack acquisition cancelled");
       const target = identity(url);
@@ -258,6 +340,7 @@
         const href = a.getAttribute("href");
         return noteId(href) && noteId(href) !== target.id ? [identity(href).url] : [];
       }))];
+      const expectedAttachments = expectedQuotes.map((expected) => prepareQuotedAttachments(expected, quoteURLs));
       const playerNodes = all(root.querySelectorAll('video,[aria-label="Video player"],[class*="videoPlayerContainer-"]')).filter((item) => !quoted(item) && !body.contains(item));
       const cardNodes = Array.from(root.children).filter((e) => e !== root.children[0] && !e.contains(body) && !all(e.querySelectorAll("a[title]")).some((a) => {
         const id = noteId(a.getAttribute("href"));
@@ -292,7 +375,8 @@
       }
       const ownPlayers = playerNodes.filter((item) => !playerNodes.some((other) => other !== item && other.contains(item)) && !articleCards.some((card) => card.contains(item)));
       const hasArticleCard = articleCards.length > 0;
-      const attachmentEvidence = ownPlayers.length || hasArticleCard ? await attachments(target.id, handle) : undefined;
+      const attachmentRead = ownPlayers.length || hasArticleCard ? await attachments(target.id, handle, quoteURLs) : undefined;
+      const attachmentEvidence = attachmentRead?.evidence;
       if (attachmentEvidence && (!attachmentEvidence.attachments.length || ownPlayers.length && !attachmentEvidence.attachments.some((a) => a.kind === "video") || hasArticleCard && !attachmentEvidence.attachments.some((a) => a.kind === "article")))
         throw new Error("Substack attachment metadata does not cover its visible player or article card");
       if (attachmentEvidence) {
@@ -366,6 +450,11 @@
           anchor.textContent = checked.observed;
       }
       const bodyTexts = [...new Set([body.textContent ?? "", expandedLinks.textContent ?? "", observedLinks.textContent ?? ""])];
+      for (const expected of expectedQuotes) {
+        if (target.id !== expected.id || handle.toLowerCase() !== expected.handle.toLowerCase() || name !== expected.name || String(structured?.author?.identifier) !== String(expected.userId) || !bodyTexts.some((text) => comparable(text) === comparable(expected.bodyText))) {
+          throw new Error("Substack quoted Note changed from its comment attachment");
+        }
+      }
       if (attachmentEvidence && !bodyTexts.some((text) => comparable(attachmentEvidence.bodyText) === comparable(text)))
         throw new Error("Substack attachment snapshot changed the authored Note body");
       if (!imageOnly && structured && (typeof structured.text !== "string" || !bodyTexts.flatMap((text) => [
@@ -448,6 +537,7 @@
       };
       if (quoteURLs[0]) {
         const quotedURL = quoteURLs[0];
+        const knownQuotes = [attachmentRead?.quotedComment, ...expectedAttachments.map((item) => item.quotedComment)].filter(Boolean);
         note.quote = { url: quotedURL, previewHtml: quotePreview[0]?.innerHTML ?? "" };
         if (seen.has(identity(quotedURL).id))
           note.quote.status = "cycle";
@@ -455,9 +545,9 @@
           note.quote.status = "depth_limit";
         else {
           try {
-            note.quote.expanded = await extract(await load(quotedURL), quotedURL, depth + 1);
+            note.quote.expanded = await extract(await load(quotedURL), quotedURL, depth + 1, knownQuotes);
           } catch (error) {
-            if (controller.signal.aborted)
+            if (controller.signal.aborted || knownQuotes.length)
               throw error;
             note.quote.status = "unavailable";
           }
@@ -475,6 +565,8 @@
       }
       if (links.length > 100 || media.length > 100)
         throw new Error("Too many Substack media references");
+      for (const expected of expectedAttachments)
+        reconcileQuotedAttachments(expected, note);
       return note;
     }
     try {

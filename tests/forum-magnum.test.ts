@@ -12,6 +12,7 @@ import { requiredPlanCapabilities } from "../src/plan-capabilities.ts";
 import { publicationFields } from "../packages/core/capture.ts";
 
 type Example = { post: any; comments: any[] };
+const counted = (comment: any, comments: any[]) => ({ ...comment, user: comment.user ? { _id: `User${comment.user.username.replace(/[^A-Za-z0-9]/g, "")}`, ...comment.user } : null, directChildrenCount: comments.filter(child => child.parentCommentId === comment._id).length });
 const publicExamples = examples as Record<string, Example>;
 const sample = "https://www.lesswrong.com/posts/6eaKqtmDuo6CmkqMK/loops-s-shortform?commentId=7C9iqsDCdxC2PfKDf";
 const ea = "https://forum.effectivealtruism.org/posts/ckj6Moau9qpYArHWc/want-to-be-an-expert-build-deep-models?commentId=Myoki5MsXgG8Jmb2J";
@@ -28,8 +29,11 @@ function fixtureFetch(): { fetcher: typeof fetch; calls: Array<{ url: string; va
         || item.comments.some(comment => comment._id === variables.id || comment._id === variables.terms?.parentCommentId)));
     if (!example) throw new Error(`Unfixtureed API request: ${url} ${JSON.stringify(variables)}`);
     if (query.includes("ForumPost")) return Response.json({ data: { post: { result: example.post } } });
-    if (query.includes("ForumComment")) return Response.json({ data: { comment: { result: example.comments.find(comment => comment._id === variables.id) ?? null } } });
-    if (query.includes("ForumReplies")) return Response.json({ data: { comments: { results: example.comments.filter(comment => comment.parentCommentId === variables.terms.parentCommentId) } } });
+    if (query.includes("ForumComment")) {
+      const selected = example.comments.find(comment => comment._id === variables.id);
+      return Response.json({ data: { comment: { result: selected ? counted(selected, example.comments) : null } } });
+    }
+    if (query.includes("ForumReplies")) return Response.json({ data: { comments: { results: example.comments.filter(comment => comment.parentCommentId === variables.terms.parentCommentId).map(comment => counted(comment, example.comments)) } } });
     throw new Error("Unexpected GraphQL query");
   }) as typeof fetch;
   return { fetcher, calls };
@@ -92,35 +96,35 @@ test("multiple real comment permalinks preserve declared order and actual reply 
   expect(resolved.posts[0]!.replyTo?.id).toBe(parent._id);
   expect(resolved.posts.map(post => post.selection?.declaredIndex)).toEqual([1, 2, 3]);
   const plan = composePlan(resolved.posts, resolved.policy);
-  expect(plan.block.markdown).toContain(`Reply to @${parent.user.username}`);
+  expect(plan.block.markdown).not.toContain("Reply to @");
+  expect(plan.sources[0]!.replyTo?.id).toBe(parent._id);
   expect(plan.block.markdown.indexOf("`@Nanashi`")).toBeLessThan(plan.block.markdown.indexOf("`@estimator`"));
 });
 
-test("reply links from path-style comments resolve to the actual parent", () => {
-  const child = "ChildCommentABC";
-  const parent = "ParentCommentABC";
-  const plan = composePlan([{ provider: "forum_magnum", id: child,
-    canonicalUrl: `https://www.alignmentforum.org/posts/PostID1234/example/comment/${child}`,
-    author: { handle: "commenter" }, text: "A reply", media: [], replyTo: { id: parent } }]);
-  const link = plan.block.markdown.match(/\[Parent comment\]\(<([^>]+)>\)/)?.[1];
-  expect(link).toBeDefined();
-  expect(parseSource(link!)).toMatchObject({ provider: "forum_magnum", id: "PostID1234", commentId: parent });
+test("single path-style comment renders its body while retaining the parent in source records", () => {
+  const post = { provider: "forum_magnum" as const, id: "ChildCommentABC",
+    canonicalUrl: "https://www.alignmentforum.org/posts/PostID1234/example/comment/ChildCommentABC",
+    author: { handle: "commenter" }, text: "A reply", media: [], replyTo: { id: "ParentCommentABC" } };
+  const plan = composePlan([post]);
+  expect(plan.block.markdown).toBe("A reply");
+  expect(plan.sources[0]!.replyTo).toEqual(post.replyTo);
+  expect(plan.block.canonicalSource).toBe(post.canonicalUrl);
 });
 
-test("auto includes only real ancestors; on adds bounded replies without siblings", async () => {
+test("auto and on stop at an intervening author", async () => {
   const parent = publicExamples.shortform_thread!.comments.find(item => item._id === "hLcibt3RxuQXGhRK3")!;
   const child = publicExamples.shortform_thread!.comments.find(item => item._id === "eFwRurEDaCxCLTyR4")!;
   const resolver = new SocialResolver({ forum_magnum: new ForumMagnumProvider(fixtureFetch().fetcher) });
   const auto = await resolver.resolveComposition([child.pageUrl]);
-  expect(auto.posts.map(post => post.id)).toEqual([parent._id, child._id]);
-  expect(auto.posts[1]!.selection).toMatchObject({ origin: "explicit", parentUri: `forum-magnum:lesswrong:comment:${parent._id}` });
+  expect(auto.posts.map(post => post.id)).toEqual([child._id]);
+  expect(auto.posts[0]!.selection).toMatchObject({ origin: "explicit", parentUri: `forum-magnum:lesswrong:comment:${parent._id}` });
   const off = await resolver.resolveComposition([child.pageUrl], [], { threadExpansion: "off" });
   expect(off.posts.map(post => post.id)).toEqual([child._id]);
   const on = await resolver.resolveComposition([parent.pageUrl], [], { threadExpansion: "on" });
-  expect(on.posts.map(post => post.id)).toEqual([parent._id, child._id]);
+  expect(on.posts.map(post => post.id)).toEqual([parent._id]);
 });
 
-test("opt-in expansion stops at eight direct replies and follows same-author continuation edges", async () => {
+test("opt-in expansion follows only a direct same-author continuation among other replies", async () => {
   const example = publicExamples.shortform_thread!;
   const parent = example.comments.find(item => item._id === "hLcibt3RxuQXGhRK3")!;
   const children = Array.from({ length: 12 }, (_, index) => ({ ...parent,
@@ -135,15 +139,15 @@ test("opt-in expansion stops at eight direct replies and follows same-author con
   const fetcher = (async (_input: RequestInfo | URL, init?: RequestInit) => {
     const { query, variables } = JSON.parse(String(init?.body));
     if (query.includes("ForumPost")) return Response.json({ data: { post: { result: example.post } } });
-    if (query.includes("ForumComment")) return Response.json({ data: { comment: { result: parent } } });
+    if (query.includes("ForumComment")) return Response.json({ data: { comment: { result: counted(parent, [parent, ...children, grandchild]) } } });
     if (query.includes("ForumReplies")) return Response.json({ data: { comments: { results:
-      variables.terms.parentCommentId === parent._id ? children : variables.terms.parentCommentId === children[0]!._id ? [grandchild] : [] } } });
+      (variables.terms.parentCommentId === parent._id ? children : variables.terms.parentCommentId === children[0]!._id ? [grandchild] : []).map(comment => counted(comment, [parent, ...children, grandchild])) } } });
     throw new Error("Unexpected query");
   }) as typeof fetch;
   const source = parseSource(parent.pageUrl);
   if (source.provider !== "forum_magnum") throw new Error("Fixture source is not Forum Magnum");
   const result = await new ForumMagnumProvider(fetcher).discoverRelated(source, "on");
-  expect(result.posts).toHaveLength(10);
+  expect(result.posts.map(item => item.id)).toEqual([parent._id, children[0]!._id, grandchild._id]);
   expect(result.posts.map(item => item.id)).toContain(grandchild._id);
   expect(result.posts.map(item => item.id)).not.toContain(children[8]!._id);
   expect(result.posts.find(item => item.id === grandchild._id)?.replyTo?.id).toBe(children[0]!._id);
@@ -250,15 +254,15 @@ liveTest("live public receiving examples across three Forum Magnum sites", async
   expect(article.text).toContain("> ");
 });
 
-test("parent labels use only a matching site and post while retaining the parent link", () => {
+test("Forum source headers link each date without generated reply attribution", () => {
   const child = { provider: "forum_magnum" as const, id: "ChildABC", canonicalUrl: "https://www.lesswrong.com/posts/PostABC/example?commentId=ChildABC",
-    author: { handle: "child" }, text: "Reply", media: [], replyTo: { id: "ParentABC" } };
+    author: { handle: "child" }, postedAt: "2026-10-18T00:00:00Z", text: "Reply", media: [], replyTo: { id: "ParentABC" } };
   const other = { ...child, id: "ParentABC", canonicalUrl: "https://forum.effectivealtruism.org/posts/PostABC/example?commentId=ParentABC", author: { handle: "other-site" }, replyTo: undefined };
-  const unmatched = composePlan([child, other]).block.markdown;
-  expect(unmatched).toContain("[Parent comment](<https://www.lesswrong.com/posts/PostABC/?commentId=ParentABC>)");
-  expect(unmatched).not.toContain("Reply to @other-site");
-  const parent = { ...other, canonicalUrl: "https://www.lesswrong.com/posts/PostABC/example?commentId=ParentABC", author: { handle: "parent" } };
-  expect(composePlan([child, parent]).block.markdown).toContain("[Reply to @parent]");
+  const plan = composePlan([child, other]);
+  expect(plan.block.markdown).not.toMatch(/Reply to @|Parent comment/);
+  expect(plan.block.markdown).toContain(`[2026-10-18](<${child.canonicalUrl}>)`);
+  expect(plan.block.markdown).toContain(`[2026-10-18](<${other.canonicalUrl}>)`);
+  expect(plan.sources[0]!.replyTo?.id).toBe("ParentABC");
 });
 
 test.each([sample, ea, af])("read errors name the selected site: %s", async url => {

@@ -89,7 +89,7 @@ function policy(options: Options, postCount: number): Partial<CompositionPolicy>
   const selectedMedia = indexes ? media.split(/[+,]/).map(value => `1.${value}`)
     : /^\d+\.\d+/.test(media) ? media.split(",").map(value => value.trim()) : [];
   return {
-    media: selectedMedia.length ? "selected" : media as CompositionPolicy["media"],
+    media: selectedMedia.length ? "selected" : media === "all+quotes" ? "all" : media as CompositionPolicy["media"],
     selectedMedia,
     ...(options.video ? { videoMotion: options.video.split(",").map(value => value.trim()) } : {}),
     ...(options.frame ? { videoFrames: options.frame.split(",").map(value => value.trim()) } : {}),
@@ -158,7 +158,7 @@ async function localPlan(values: string[], options: Options): Promise<{ plan: Bl
   if (refs.length > 20) throw new Error("At most 20 source posts are supported");
   const composition = policy(options, refs.length);
   const resolved = await resolver.resolveComposition(inputs.refs, extras, composition);
-  const plan = composePlan(resolved.posts, selectedPostMediaPolicy(resolved.posts, resolved.policy));
+  const plan = composePlan(resolved.posts, selectedPostMediaPolicy(resolved.posts, resolved.policy, options.media === "all+quotes"));
   return { plan, destinations: inputs.destinations };
 }
 
@@ -174,7 +174,7 @@ function addCompositionOptions(command: Command, extras = true): Command {
   return command
     .option("--substack-capture <path>", "read a retained Substack source record; repeatable", (value, values: string[]) => [...values, value], [])
     .option("--reddit-capture <path>", "read a retained Reddit source record; repeatable", (value, values: string[]) => [...values, value], [])
-    .option("--media <mode>", "auto, none, all, images, video, audio, indexes (1+4) or refs (1.1,1.4); all/types exclude quote-only media", "auto")
+    .option("--media <mode>", "auto, none, all, all+quotes, images, video, audio, indexes (1+4) or refs (1.1,1.4); all+quotes adds quoted attachments; all/types exclude them", "auto")
     .option("--frame <refs>", "use source poster frames for video refs, such as 1.1,2.1")
     .option("--video <refs>", "keep moving video for refs regardless of the frame default, such as 1.1,2.1")
     .option("--video-frame-threshold <seconds>", "default to frames above this duration; 1-86400 seconds, default 1500; --video overrides it")
@@ -243,7 +243,7 @@ program.enablePositionalOptions();
 // choice unless the subcommand supplies its own choice.
 program.hook("preAction", (root, command) => {
   if (command === root) return;
-  for (const key of ["threadExpansion", "quoteAuthorLink", "parentDepth", "parentStyle", "video", "frame", "videoFrameThreshold"] as const) {
+  for (const key of ["threadExpansion", "media", "quoteAuthorLink", "parentDepth", "parentStyle", "video", "frame", "videoFrameThreshold"] as const) {
     const source = command.getOptionValueSource(key);
     if (root.getOptionValueSource(key) === "cli" && (source === undefined || source === "default")
       && command.options.some(option => option.attributeName() === key)) {

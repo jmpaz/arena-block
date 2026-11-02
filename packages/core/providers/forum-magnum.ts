@@ -1,6 +1,6 @@
 import TurndownService from "turndown";
 import { z } from "zod";
-import type { MediaAsset, ResolvedPost } from "../types.ts";
+import { MAX_EXPANDED_SOURCE_POSTS, type MediaAsset, type ResolvedPost } from "../types.ts";
 import { parseSource, type ParsedSource } from "../url.ts";
 import type { Fetcher } from "./comments.ts";
 import type { SocialProvider } from "./provider.ts";
@@ -14,7 +14,7 @@ const origins = {
   ea_forum: "https://forum.effectivealtruism.org",
 } as const;
 const id = z.string().regex(/^[A-Za-z0-9]+$/);
-const user = z.object({ username: z.string().min(1), displayName: z.string().nullish() }).nullish();
+const user = z.object({ _id: id.optional(), username: z.string().min(1), displayName: z.string().nullish() }).nullish();
 const postSchema = z.object({
   _id: id, title: z.string().min(1), pageUrl: z.string().url(), postedAt: z.string(),
   status: z.number(), draft: z.boolean().nullish(), isFuture: z.boolean().nullish(),
@@ -23,28 +23,33 @@ const postSchema = z.object({
 const commentSchema = z.object({
   _id: id, postId: id, parentCommentId: id.nullish(), pageUrl: z.string().url(),
   postedAt: z.string(), deleted: z.boolean(), deletedPublic: z.boolean(),
+  directChildrenCount: z.number().int().nonnegative().nullish(),
   draft: z.boolean().nullish(), rejected: z.boolean().nullish(),
   contents: z.object({ html: z.string().nullish() }).nullish(), user,
 });
 type ForumPost = z.infer<typeof postSchema>;
 type ForumComment = z.infer<typeof commentSchema>;
+function commentAuthorId(comment: ForumComment): string {
+  if (!comment.user?._id) throw new Error("The comment author identity is incomplete. Choose exact comment permalinks or turn thread expansion off.");
+  return comment.user._id;
+}
 
 const postQuery = `query ForumPost($id: String!) {
   post(input: {selector: {_id: $id}}) { result {
     _id title pageUrl postedAt status draft isFuture shortform contents { html }
-    user { username displayName }
+    user { _id username displayName }
   } }
 }`;
 const commentQuery = `query ForumComment($id: String!) {
   comment(input: {selector: {_id: $id}}) { result {
-    _id postId parentCommentId pageUrl postedAt deleted deletedPublic draft rejected
-    contents { html } user { username displayName }
+    _id postId parentCommentId pageUrl postedAt deleted deletedPublic draft rejected directChildrenCount
+    contents { html } user { _id username displayName }
   } }
 }`;
 const repliesQuery = `query ForumReplies($terms: JSON) {
   comments(input: {terms: $terms}) { results {
-    _id postId parentCommentId pageUrl postedAt deleted deletedPublic draft rejected
-    contents { html } user { username displayName }
+    _id postId parentCommentId pageUrl postedAt deleted deletedPublic draft rejected directChildrenCount
+    contents { html } user { _id username displayName }
   } }
 }`;
 
@@ -218,18 +223,21 @@ export class ForumMagnumProvider implements SocialProvider {
     return post;
   }
 
-  /** Ancestors by default; opt-in adds only bounded direct replies and same-author continuations. */
   async discoverRelated(input: ForumSource, mode: "auto" | "on", signal?: AbortSignal): Promise<{ posts: ResolvedPost[]; seedId: string }> {
-    if (!input.commentId) throw new Error("Copy a comment link to include its parents or replies.");
+    if (!input.commentId) throw new Error("Copy a comment link to include its author chain.");
+    signal = AbortSignal.any([...(signal ? [signal] : []), AbortSignal.timeout(60_000)]);
     const [post, seed] = await Promise.all([this.postForComment(input, signal), this.comment(input, input.commentId, signal)]);
+    const seedAuthor = commentAuthorId(seed);
     const ancestors: ForumComment[] = [];
     const visited = new Set([seed._id]);
     let parentId = seed.parentCommentId;
-    for (let depth = 0; parentId && depth < 6; depth++) {
+    for (; parentId;) {
       if (visited.has(parentId)) throw new Error("The comment links form a cycle. Capture cannot determine their order.");
       visited.add(parentId);
       try {
         const parent = await this.comment(input, parentId, signal);
+        if (commentAuthorId(parent) !== seedAuthor) break;
+        if (ancestors.length + 1 >= MAX_EXPANDED_SOURCE_POSTS) throw new Error("The author chain exceeds 32 comments. Choose exact comment permalinks.");
         ancestors.unshift(parent);
         parentId = parent.parentCommentId;
       } catch (error) {
@@ -240,27 +248,34 @@ export class ForumMagnumProvider implements SocialProvider {
     }
     const selected: ForumComment[] = [...ancestors, seed];
     if (mode === "on") {
-      const queue: Array<{ parent: ForumComment; depth: number }> = [{ parent: seed, depth: 0 }];
-      while (queue.length && selected.length < 16) {
-        const { parent, depth } = queue.shift()!;
-        if (depth >= 3) continue;
+      let index = selected.length - 1;
+      while (true) {
+        const parent = selected[index]!;
         const response = await this.query(input, repliesQuery,
-          { terms: { view: "commentReplies", parentCommentId: parent._id, limit: depth ? 5 : 9 } }, signal);
+          { terms: { view: "commentReplies", parentCommentId: parent._id, limit: 101 } }, signal);
         const raw = response?.comments?.results;
-        if (!Array.isArray(raw)) throw new Error(`${siteName(input)} returned an incomplete set of replies.`);
+        if (!Array.isArray(raw) || raw.length >= 101 || parent.directChildrenCount == null || raw.length !== parent.directChildrenCount) throw new Error(`${siteName(input)} returned an incomplete set of replies. Choose exact comment permalinks.`);
+        const ids = new Set<string>();
         const replies = raw.map(value => {
           const item = commentSchema.parse(value);
-          if (item.parentCommentId !== parent._id) throw new Error(`${siteName(input)} returned an unrelated reply.`);
+          if (item.parentCommentId !== parent._id || item.postId !== input.id || ids.has(item._id)) throw new Error(`${siteName(input)} returned inconsistent reply identities.`);
+          const source = parseSource(item.pageUrl);
+          if (source.provider !== "forum_magnum" || source.site !== input.site || source.id !== input.id || source.commentId !== item._id) {
+            throw new Error(`${siteName(input)} returned a different comment link.`);
+          }
+          ids.add(item._id);
           return item;
-        }).filter(item => !item.deleted && !item.deletedPublic && !item.draft && !item.rejected && item.user && item.contents?.html?.trim())
-          .slice(0, depth ? 4 : 8);
-        replies.sort((a, b) => a.postedAt.localeCompare(b.postedAt) || a._id.localeCompare(b._id));
-        for (const reply of replies) {
-          if (selected.length >= 16 || visited.has(reply._id)) continue;
-          const verified = verifiedComment(reply, input, reply._id);
-          selected.push(verified); visited.add(reply._id);
-          if (reply.user!.username === parent.user!.username) queue.push({ parent: verified, depth: depth + 1 });
-        }
+        });
+        const owned = replies.filter(item => item.user?._id === seedAuthor);
+        if (owned.length > 1) throw new Error(`${siteName(input)} author replies branch. Choose exact comment permalinks in the intended order, or omit -t.`);
+        if (replies.some(item => !item.user?._id)) throw new Error(`${siteName(input)} returned incomplete reply author identities. Choose exact comment permalinks.`);
+        const reply = owned[0];
+        if (!reply) break;
+        const verified = verifiedComment(reply, input, reply._id);
+        if (visited.has(reply._id)) throw new Error("The comment links form a cycle. Capture cannot determine their order.");
+        if (selected.length >= MAX_EXPANDED_SOURCE_POSTS) throw new Error("The author chain exceeds 32 comments. Choose exact comment permalinks.");
+        selected.push(verified); visited.add(reply._id);
+        index++;
       }
     }
     return { seedId: seed._id, posts: selected.map(item => commentResult(item, post)) };

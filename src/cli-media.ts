@@ -8,13 +8,13 @@ import type { CompositionPolicy, ResolvedPost } from "./types.ts";
  * refs and is eligible only when named; its ID never excludes a selected copy.
  * Saved plans bypass this step and retain their original policy and selection.
  */
-export function selectedPostMediaPolicy(posts: ResolvedPost[], policy: CompositionPolicy): CompositionPolicy {
+export function selectedPostMediaPolicy(posts: ResolvedPost[], policy: CompositionPolicy, includeQuotes = false): CompositionPolicy {
   const mode = policy.media;
   if (!["all", "images", "video", "audio"].includes(mode)) return policy;
   const audio = explicitAudio(policy);
-  const named = new Set([...(policy.mediaOrder ?? []), ...(policy.videoFrames ?? []), ...(audio ? [audio] : [])]);
+  const named = new Set([...(policy.mediaOrder ?? []), ...(policy.videoFrames ?? []), ...(policy.videoMotion ?? []), ...(audio ? [audio] : [])]);
   const selectedMedia = mediaSources(posts, renderedQuoteDepth(policy)).flatMap(node => node.media
-    .filter(asset => (node.quoteDepth === 0 || named.has(asset.ref))
+    .filter(asset => (includeQuotes || node.quoteDepth === 0 || named.has(asset.ref))
       && (mode === "all" || asset.kind === (mode === "images" ? "image" : mode)))
     .map(asset => asset.ref));
   return { ...policy, media: "selected", selectedMedia };

@@ -4,8 +4,18 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { selectedPostMediaPolicy } from "../src/cli-media.ts";
 import { composePlan } from "../src/compose.ts";
+import { captureRenderRecipe } from "../packages/core/render-recipe.ts";
 import { assignMediaRefs } from "../packages/core/providers/provider.ts";
 import { compositionPolicySchema, type MediaAsset, type ResolvedPost } from "../src/types.ts";
+import { planMedia } from "../packages/core/media-tree.ts";
+import { createHash } from "node:crypto";
+import { createContext, runInContext } from "node:vm";
+
+function recipe(plan: ReturnType<typeof composePlan>) {
+  const probes = Object.fromEntries(planMedia(plan).filter(asset => asset.kind === "video").map(asset => [asset.ref,
+    { width: asset.width ?? 640, height: asset.height ?? 480, duration: asset.durationSeconds ?? 5, fps: 30, audio: true }]));
+  return captureRenderRecipe(plan, probes)!;
+}
 
 const first = "https://x.com/selected/status/101", second = "https://x.com/selected/status/102";
 const quoted = "https://x.com/other/status/201", extra = "https://x.com/extra/status/301";
@@ -48,6 +58,37 @@ test("thread traversal contributes each selected member's own media, including a
   expect(invoke(second, "-t", "--media", "video").block.selectedMedia).toEqual(["1.2"]);
   expect(plan.block.markdown).toContain("Second selected writing.");
   expect(plan.block.markdown).toContain("Quote-only writing.");
+});
+
+test("all+quotes adds acquired quoted attachments across the included chain and extras", () => {
+  const plan = invoke(second, "-t", "--extra", extra, "--media", "all+quotes");
+  expect(plan.block.selectedMedia).toEqual(["1.1", "1.2", "1.3", "1.4", "2.1", "2.2", "3.1", "3.2"]);
+  expect(plan.policy.media).toBe("selected");
+  expect(composePlan(plan.sources, plan.policy)).toEqual(plan);
+  expect(recipe(plan).tiles.map(tile => tile.ref)).toEqual(plan.block.selectedMedia);
+  expect(plan.block.markdown).not.toContain("Extra writing stays excluded.");
+  expect(invoke(first, "--media", "all+quotes", "--quote-depth", "0").block.selectedMedia).toEqual(["1.1", "1.2"]);
+  expect(invoke(first, "--media", "all+quotes", "--quote-depth", "1").block.selectedMedia).toEqual(["1.1", "1.2", "1.3"]);
+  expect(invoke(first, "--media", "all+quotes", "--quote", "omit").block.selectedMedia).toEqual(["1.1", "1.2"]);
+  expect(invoke(first, "--media", "all+quotes", "--media-order", "1.4,1.3,1.2,1.1").block.selectedMedia).toEqual(["1.4", "1.3", "1.2", "1.1"]);
+  const frame = invoke(first, "--media", "all+quotes", "--frame", "1.4");
+  expect(frame.block.frameMedia.map((asset: MediaAsset) => asset.ref)).toEqual(["1.4"]);
+  expect(invoke(first, "--media", "all+quotes", "--audio", "1.4").policy.audio).toBe("1.4");
+});
+
+test("an explicit Video choice keeps a quoted movie in broad CLI media selection", () => {
+  const plan = invoke(first, "--media", "all", "--video", "1.4");
+  expect(plan.block.selectedMedia).toEqual(["1.1", "1.2", "1.4"]);
+  expect(plan.policy.videoMotion).toEqual(["1.4"]);
+  expect(plan.block.frameMedia ?? []).toEqual([]);
+  expect(recipe(plan).tiles.map(tile => tile.ref)).toContain("1.4");
+});
+
+test("all+quotes keeps a quote-only video attached to its original source", () => {
+  const plan = invoke(reported, "--media", "all+quotes");
+  expect(plan.block.selectedMedia).toEqual(["1.1"]);
+  expect(recipe(plan).tiles.map(tile => tile.ref)).toEqual(["1.1"]);
+  expect(plan.sources[0].quote.canonicalUrl).toBe("https://x.com/TheDonAyo/status/2110461702936695263");
 });
 
 test("explicit media extras contribute their own attachments without their quote-only media or writing", () => {
@@ -99,6 +140,23 @@ test("audio type selection follows selected-post roles, and other explicit or sa
 
 const replayDirectory = await mkdtemp(join(tmpdir(), "arena-selected-media-replay-"));
 afterAll(() => rm(replayDirectory, { recursive: true, force: true }));
+test("global all+quotes freezes native-compatible refs without discovering quoted threads", async () => {
+  const ledger = join(replayDirectory, "all-quotes-ledger.json");
+  const run = Bun.spawnSync([process.execPath, "--preload", `${import.meta.dir}/fixtures/selected-post-media-cli.ts`, "src/cli.ts",
+    "--media", "all+quotes", "plan", second, "-t", "--json"], {
+    env: { ...process.env, ARENA_BLOCK_ACCESS_TOKEN: "", ARENA_SELECTION_LEDGER: ledger }, stdout: "pipe", stderr: "pipe",
+  });
+  expect(run.exitCode, run.stderr.toString()).toBe(0);
+  const plan = JSON.parse(run.stdout.toString());
+  expect(plan.block.selectedMedia).toEqual(["1.1", "1.2", "1.3", "1.4", "2.1", "2.2"]);
+  expect((await Bun.file(ledger).json()).requests).toEqual(["https://api.fxtwitter.com/2/thread/102",
+    "https://api.fxtwitter.com/other/status/201", "https://api.fxtwitter.com/other/status/201"]);
+  const context = createContext({ nativeSHA256: (value: string) => createHash("sha256").update(value).digest("hex"),
+    setTimeout: (fn: () => void, delay: number) => setTimeout(fn, delay).unref(), clearTimeout,
+    nativeHTTP: () => { throw Error("Unexpected native network request"); }, nativeCancelHTTP: () => {}, nativeResolveComplete: () => {} });
+  runInContext(await Bun.file(new URL("../ios/Sources/CaptureRuntime/Resources/capture-core.js", import.meta.url)).text(), context);
+  expect(JSON.parse(context.captureCompose(JSON.stringify(plan.sources), JSON.stringify(plan.policy))).plan).toEqual(plan);
+});
 test("saved Auto and All plans replay their frozen quoted-media selections without source or daemon requests", async () => {
   const queued = await Bun.file(`${import.meta.dir}/fixtures/quoted-image-v1-queued-plan.json`).json();
   const legacyAll = composePlan(queued.sources, { ...queued.policy, media: "all" });
@@ -109,7 +167,7 @@ test("saved Auto and All plans replay their frozen quoted-media selections witho
     const serialized = JSON.stringify(saved);
     await Bun.write(path, serialized);
     const result = Bun.spawnSync([process.execPath, "--preload", `${import.meta.dir}/fixtures/selected-post-media-cli.ts`, "src/cli.ts",
-      "publish", "--plan", path, "--dry-run", "--config", config, "--to", "fixture-inbox"], {
+      "publish", "--plan", path, "--media", "all+quotes", "--dry-run", "--config", config, "--to", "fixture-inbox"], {
       env: { ...process.env, ARENA_BLOCK_ACCESS_TOKEN: "", ARENA_SELECTION_LEDGER: ledger }, stdout: "pipe", stderr: "pipe",
     });
     expect(result.exitCode, result.stderr.toString()).toBe(0);
