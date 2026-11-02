@@ -41,9 +41,12 @@ test.each(["delve-client-thread-plan", "delve-client-image-plan", "delve-client-
     const recomposed = composePlan(plan.sources, plan.policy);
     expect(recomposed.sources).toEqual(plan.sources);
     expect(recomposed.policy).toEqual(plan.policy);
-    expect(recomposed.block.title).toBe(plan.block.title);
+    expect(recomposed.block.title).toBe(name === "delve-client-thread-plan" ? "Thread by @writer-delve.example" : plan.block.title);
     expect(recomposed.block.selectedMedia).toEqual(plan.block.selectedMedia);
-    if (name !== "delve-client-quote-images-plan") expect(recomposed).toEqual(plan);
+    if (name === "delve-client-thread-plan") {
+      expect(recomposed).toEqual({ ...plan, hash: recomposed.hash, block: { ...plan.block, title: "Thread by @writer-delve.example" } });
+      expect(recomposed.hash).not.toBe(plan.hash);
+    } else if (name !== "delve-client-quote-images-plan") expect(recomposed).toEqual(plan);
     else {
       expect(plan.block.markdown).toContain("[reference.example/](<https://reference.example/>)");
       expect(recomposed.block.markdown).toContain("[https://reference.example/](<https://reference.example/>)");

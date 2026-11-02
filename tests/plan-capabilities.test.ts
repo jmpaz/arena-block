@@ -132,8 +132,16 @@ test("fresh faceted Bluesky plans require a receiver that retains their protocol
   const { BlueskyProvider } = await import("../src/providers/bluesky.ts");
   const { SocialResolver } = await import("../src/providers/index.ts");
   const fixture = await Bun.file(new URL("./fixtures/bluesky-op-thread.json", import.meta.url)).json();
-  const fetcher = (async (input: URL | RequestInfo) => Response.json(String(input).includes("getAuthorFeed") ? fixture.authorFeed : fixture.thread)) as typeof fetch;
-  const resolved = await new SocialResolver({ bluesky: new BlueskyProvider(undefined, fetcher) }).resolveComposition([fixture.source], [], { media: "all", threadExpansion: "on" });
+  const member = fixture.authorFeed.feed.find((entry: any) => entry.opThreadPostIndex === 2).post;
+  const id = member.uri.split("/").at(-1);
+  const selected = fixture.thread.thread.replies.find((node: any) => node.post?.uri === member.uri);
+  const ref = fixture.source.replace(/post\/[^/]+$/, `post/${id}`);
+  const fetcher = (async (input: URL | RequestInfo) => {
+    const url = new URL(String(input));
+    return Response.json(url.pathname.endsWith("getAuthorFeed") ? fixture.authorFeed : url.searchParams.get("uri")!.endsWith(`/${id}`)
+      ? { thread: { ...selected, parent: fixture.thread.thread } } : fixture.thread);
+  }) as typeof fetch;
+  const resolved = await new SocialResolver({ bluesky: new BlueskyProvider(undefined, fetcher) }).resolveComposition([ref], [], { media: "all", threadExpansion: "on" });
   const retained = composePlan(resolved.posts, resolved.policy);
   const legacyPlan = legacySchema.parse(retained);
   expect(legacyPlan as unknown).not.toEqual(retained);
