@@ -17,35 +17,45 @@ function post(id: string, parent?: string) {
 }
 const a = post("a"), b = post("b", "a"), c = post("c", "b");
 const item = (post: Record<string, any>, index: number, count = 3) => ({ post, opThreadPostIndex: index, opThreadPostCount: count });
-const ambiguous = { thread: { post: { ...a, replyCount: 27 }, replies: [{ post: b }, { post: post("sibling", "a") }] } };
+const incomplete = { thread: { post: { ...a, replyCount: 27 }, replies: [{ post: b }] } };
 
-function provider(pages: unknown[], tree: unknown = ambiguous, onRead?: (url: URL, init?: RequestInit) => void, retainConversationCoverage = false) {
+function provider(pages: unknown[], tree: unknown = incomplete, onRead?: (url: URL, init?: RequestInit) => void, retainConversationCoverage = false) {
   const requests: URL[] = [];
   let page = 0;
   const fetcher = (async (input: URL | RequestInfo, init?: RequestInit) => {
     const url = new URL(String(input)); requests.push(url); onRead?.(url, init);
     expect(url.origin).toBe("https://public.api.bsky.app");
     expect(init?.credentials).toBe("omit"); expect(init?.redirect).toBe("error");
-    return Response.json(url.pathname.endsWith("getAuthorFeed") ? pages[page++] : tree);
+    return Response.json(url.pathname.endsWith("getAuthorFeed") ? pages[page++] : typeof tree === "function" ? tree(url) : tree);
   }) as typeof fetch;
   return { client: new BlueskyProvider("https://public.api.bsky.app", fetcher, { retainConversationCoverage }), requests };
 }
 
 describe("provider-identified Bluesky OP thread", () => {
-  test("author-thread fixture response resolves all four OP positions despite reply-count gaps and the later sibling", async () => {
+  test("retained public fork refuses the root while an explicit descendant identifies its ancestor branch", async () => {
     const fixture = await Bun.file(new URL("./fixtures/bluesky-op-thread.json", import.meta.url)).json();
-    const ref = fixture.source;
+    const forked = provider([fixture.authorFeed], fixture.thread);
+    const rootSource = parseSource(fixture.source);
+    if (rootSource.provider !== "bluesky") throw new Error("Invalid source");
+    await expect(forked.client.discoverLinear(rootSource)).rejects.toThrow("forks into multiple author replies");
+    expect(forked.requests).toHaveLength(1);
+    const member = fixture.authorFeed.feed.find((entry: any) => entry.opThreadPostIndex === 2).post;
+    const memberId = member.uri.split("/").at(-1);
+    const ref = fixture.source.replace(/post\/[^/]+$/, `post/${memberId}`);
+    const selected = fixture.thread.thread.replies.find((node: any) => node.post?.uri === member.uri);
+    const tree = (url: URL) => url.searchParams.get("uri")!.endsWith(`/${memberId}`)
+      ? { thread: { ...selected, parent: fixture.thread.thread } } : fixture.thread;
     const parsed = parseSource(ref);
     if (parsed.provider !== "bluesky") throw new Error("Invalid source");
-    const { client, requests } = provider([fixture.authorFeed], fixture.thread);
+    const { client, requests } = provider([fixture.authorFeed], tree);
     const resolved = await new SocialResolver({ bluesky: client }).resolveComposition([ref], [], { media: "all", threadExpansion: "on" });
     expect(resolved.posts.map(p => p.id)).toEqual(["3mxjzbrinf22d", "3mxjzmgx6sc2d", "3mxk2eqkcks2d", "3mxk2iwcjec2a"]);
-    expect(resolved.posts.map(p => p.selection?.origin)).toEqual(["explicit", "expanded", "expanded", "expanded"]);
+    expect(resolved.posts.map(p => p.selection?.origin)).toEqual(["expanded", "explicit", "expanded", "expanded"]);
     expect(resolved.posts[1]?.selection?.parentUri).toBe(fixture.thread.thread.post.uri);
-    expect(requests.map(u => u.pathname)).toEqual(["/xrpc/app.bsky.feed.getPostThread", "/xrpc/app.bsky.feed.getAuthorFeed"]);
+    expect(requests.map(u => u.pathname)).toEqual(["/xrpc/app.bsky.feed.getPostThread", "/xrpc/app.bsky.feed.getPostThread", "/xrpc/app.bsky.feed.getAuthorFeed"]);
     const plan = composePlan(resolved.posts, resolved.policy);
     expect(plan.sources[0]).not.toHaveProperty("threadCoverage");
-    const discovery = await provider([fixture.authorFeed], fixture.thread).client.discoverLinear(parsed);
+    const discovery = await provider([fixture.authorFeed], tree).client.discoverLinear(parsed);
     expect(discovery).toHaveProperty("coverage");
     if (!("coverage" in discovery)) throw new Error("Missing recovery evidence");
     expect(discovery.coverage).toMatchObject({ scope: "author-chain", basis: "appview-op-thread", reportedPosts: 4 });
@@ -86,9 +96,7 @@ describe("provider-identified Bluesky OP thread", () => {
     const fixture = await Bun.file(new URL("./fixtures/bluesky-op-thread.json", import.meta.url)).json();
     const parsed = parseSource(fixture.source);
     if (parsed.provider !== "bluesky") throw new Error("Invalid source");
-    const recovered = await provider([fixture.authorFeed], fixture.thread, undefined, true).client.discoverLinear(parsed);
-    expect(recovered.posts).toHaveLength(4);
-    expect(recovered.posts[0]?.threadCoverage?.replyGaps).toContainEqual({ uri: fixture.thread.thread.post.uri, reported: 27, returned: 26, unavailable: 0 });
+    await expect(provider([fixture.authorFeed], fixture.thread, undefined, true).client.discoverLinear(parsed)).rejects.toThrow("forks into multiple author replies");
   });
 
   test("a missing reported position cannot become a partial successful thread", async () => {
@@ -99,7 +107,7 @@ describe("provider-identified Bluesky OP thread", () => {
   test("a real fork without provider OP evidence is still rejected", async () => {
     const { client } = provider([{ feed: [{ post: a }, { post: b }, { post: post("sibling", "a") }] }],
       { thread: { post: { ...a, replyCount: 2 }, replies: [{ post: b }, { post: post("sibling", "a") }] } });
-    await expect(client.discoverLinear(source)).rejects.toThrow("verify every author-thread post");
+    await expect(client.discoverLinear(source)).rejects.toThrow("forks into multiple author replies");
   });
 
   test.each(["parent-cid", "root-cid", "root-view-cid", "count", "extra-position", "two-continuations"])("rejects contradictory %s evidence", async change => {
@@ -121,14 +129,14 @@ describe("provider-identified Bluesky OP thread", () => {
     const actualFetcher = (async (input: URL | RequestInfo, init?: RequestInit) => {
       const url = new URL(String(input));
       if (url.pathname.endsWith("getAuthorFeed")) return Response.json({ feed: [item(a, 1), item(b, 2), item(c, 3)] });
-      return Response.json(url.searchParams.get("uri") === uri("a") ? ambiguous : { thread: { post: sibling, parent: ambiguous.thread } });
+      return Response.json(url.searchParams.get("uri") === uri("a") ? incomplete : { thread: { post: sibling, parent: incomplete.thread } });
     }) as typeof fetch;
     await expect(new BlueskyProvider("https://public.api.bsky.app", actualFetcher).discoverLinear(selected)).rejects.toThrow("retain the selected post");
   });
 
   test("aborting during evidence acquisition produces no partial result", async () => {
     const abort = new AbortController();
-    const { client } = provider([{ feed: [item(a, 1), item(b, 2), item(c, 3)] }], ambiguous, url => {
+    const { client } = provider([{ feed: [item(a, 1), item(b, 2), item(c, 3)] }], incomplete, url => {
       if (url.pathname.endsWith("getAuthorFeed")) abort.abort(new Error("interrupted capture"));
     });
     await expect(client.discoverLinear(source, abort.signal)).rejects.toThrow("interrupted capture");
