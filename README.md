@@ -53,6 +53,7 @@ Are.na lists blocks through search, which can refuse pages deep into a large acc
 | Substack | Public Notes, free public articles, original media and article cards |
 | TikTok, Instagram | Post, video and share permalinks, read through FxEmbed Atmosphere |
 | SoundCloud | Public tracks and playlists, with track audio saved as an attachment |
+| LinkedIn | Public post permalinks with video; unsupported or incomplete post content returns an error |
 | Hacker News, Lobsters | Comment permalinks, read through public APIs |
 
 A Substack Note gets the title **Note by @handle**, and each quoted Note keeps its own author. Article previews and excerpts carry labels separating them from the Note's text. See [Substack captures](docs/substack-notes.md), [support and limits](docs/substack-parity.md) and [source checks](docs/substack-contract-checks.md).
@@ -74,6 +75,8 @@ By default the CLI reads only the listed posts. `-t` adds the surrounding thread
 Several images become a JPEG mosaic, and several videos an MP4 mosaic, with `--frame` and `--audio` picking poster frames and the soundtrack.
 
 The CLI saves a SoundCloud track as an audio attachment, using the artist's original file when offered. For other tracks, yt-dlp and FFmpeg convert the public stream to MP3, and `--media none` saves the track URL alone. A playlist block lists its tracks in order, with the playlist artwork.
+
+LinkedIn video capture requires matching public post and video identities, author, caption, video and poster. It stops on denied or incomplete pages. Other LinkedIn post types are not yet supported; the iOS original-link choice saves only the URL. Media links can expire, so resolve again before saving.
 
 The iOS app gets SoundCloud audio as MP3 from an arena-block media service, configured in Settings with its HTTPS address and access token; it checks the file before uploading it to Are.na, and the Share extension uses the same settings. Without the service, text-only capture saves the track URL. Substack article audio uploads as the original file, in a block of its own.
 

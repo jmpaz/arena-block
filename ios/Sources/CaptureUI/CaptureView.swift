@@ -256,7 +256,7 @@ public struct CaptureRootView: View {
                     }
                     sourceExtras
                     if session.draft?.originalLinkOnly == true {
-                        Text("Original link only. Reddit content and media aren’t included.")
+                        Text("Original link only. Source content and media aren’t included.")
                             .font(.callout).foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
                             .accessibilityIdentifier("capture.original-link.notice")
@@ -530,7 +530,7 @@ public struct CaptureRootView: View {
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("capture.failed-source.open")
             }
-            if !CaptureSourceAccess.redditDenied(value.problem) {
+            if !CaptureSourceAccess.denied(value.problem) {
                 Button { Task { await session.checkAgain(value.id) } } label: {
                     Text("Try again").frame(maxWidth: .infinity, minHeight: 44, alignment: .leading).contentShape(Rectangle())
                 }
@@ -930,7 +930,7 @@ public struct CaptureRootView: View {
                         }
                 }.frame(maxWidth: .infinity, alignment: .leading)
             }
-            if !reading, CaptureSourceAccess.redditDenied(session.draft?.problem),
+            if !reading, CaptureSourceAccess.originalLinkAvailable(session.draft?.problem),
                let source = try? CaptureInput.selectedPosts(session.draft?.input ?? "", roles: session.draft?.sourceRoles).primary.first {
                 Link(destination: source) {
                     Text("Open source").frame(maxWidth: .infinity, minHeight: 44, alignment: .leading).contentShape(Rectangle())
@@ -957,7 +957,7 @@ public struct CaptureRootView: View {
                 Text("Use original link").frame(maxWidth: .infinity, minHeight: 44, alignment: .leading).contentShape(Rectangle())
             }
             .buttonStyle(.plain).accessibilityIdentifier("capture.original-link.choose")
-            Text("Reddit content and media won't be included.")
+            Text("Source content and media won't be included.")
                 .font(.footnote).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
         }
     }

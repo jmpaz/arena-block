@@ -35,7 +35,8 @@ function title(post: ResolvedPost): string {
 }
 
 function body(post: ResolvedPost): string {
-  return atprotoMarkdown(post);
+  const text = atprotoMarkdown(post);
+  return post.provider === "linkedin" ? text.replace(/^( {0,3})(?=#+)/gm, "$1\\") : text;
 }
 
 // Escape source lines containing thematic-break syntax before adding dividers.
@@ -53,7 +54,7 @@ function description(posts: ResolvedPost[]): string | undefined {
   return [...dates, ...introductions].join("\n\n---\n\n") || undefined;
 }
 
-const MEDIA_FIRST_PROVIDERS = new Set<ResolvedPost["provider"]>(["reddit", "instagram", "tiktok", "arena", "soundcloud"]);
+const MEDIA_FIRST_PROVIDERS = new Set<ResolvedPost["provider"]>(["linkedin", "reddit", "instagram", "tiktok", "arena", "soundcloud"]);
 
 function mediaMarker(media: MediaAsset[], frameRefs: Set<string>): string {
   if (!media.length) return "";

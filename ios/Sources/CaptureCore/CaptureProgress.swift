@@ -150,6 +150,14 @@ public enum CaptureSourceAccess {
             [401, 403, 429].contains { status in problem.hasPrefix("Reddit's live \(kind) read returned HTTP \(status);") }
         }
     }
+    public static func denied(_ problem: String?) -> Bool {
+        guard let problem else { return false }
+        return redditDenied(problem) || (problem.hasPrefix("LinkedIn source page is unavailable or redirected") &&
+            ["(HTTP 401)", "(HTTP 403)", "(HTTP 429)"].contains { problem.contains($0) })
+    }
+    public static func originalLinkAvailable(_ problem: String?) -> Bool {
+        redditDenied(problem) || (problem?.hasPrefix("LinkedIn ") ?? false)
+    }
     public static func message(_ problem: String) -> String {
         redditDenied(problem) ? "Reddit didn’t allow Capture to read this link. Full content could not be acquired." : problem
     }

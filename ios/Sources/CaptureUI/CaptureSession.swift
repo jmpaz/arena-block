@@ -853,7 +853,7 @@ public final class CaptureSession {
             self.draft?.phase = .ready; self.draft?.problem = nil
             persistOrReport(); return
         }
-        guard !CaptureSourceAccess.redditDenied(draft.problem) else { return }
+        guard !CaptureSourceAccess.denied(draft.problem) else { return }
         guard (try? CaptureInput.selectedPosts(draft.input, roles: draft.sourceRoles)) != nil else {
             restoreInvalidSourceFailure()
             return
@@ -1043,7 +1043,7 @@ public final class CaptureSession {
         guard !busy, account != nil, let draft, !draft.isCanceled, canSaveToDestinations,
               [.editing, .preparing, .ready, .failed].contains(draft.phase) else { return false }
         if isAddingPlacements { return draft.selection.channels.map(\.id) != placementBaseline?.channels.map(\.id) }
-        if CaptureSourceAccess.redditDenied(draft.problem) { return false }
+        if CaptureSourceAccess.denied(draft.problem) { return false }
         return draft.isPlacementOnly ? draft.blockID != nil :
             (try? CaptureInput.selectedPosts(draft.input, roles: draft.sourceRoles)) != nil
     }
@@ -1521,7 +1521,7 @@ public final class CaptureSession {
     }
 
     var canUseOriginalLink: Bool {
-        guard !busy, let draft, CaptureSourceAccess.redditDenied(draft.problem),
+        guard !busy, let draft, CaptureSourceAccess.originalLinkAvailable(draft.problem),
               let sources = try? CaptureInput.selectedPosts(draft.input, roles: draft.sourceRoles),
               sources.primary.count == 1, sources.extra.isEmpty else { return false }
         return canEditSubmission || !hasDurableSubmission(draft.id)

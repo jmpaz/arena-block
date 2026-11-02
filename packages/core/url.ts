@@ -10,6 +10,7 @@ const X_HOSTS = new Set([
 export type ParsedSource =
   | { provider: "substack"; id: string; canonicalUrl: string }
   | { provider: "substack"; kind: "article"; id: string; canonicalUrl: string; slug: string; publicationHost: boolean }
+  | { provider: "linkedin"; id: string; canonicalUrl: string }
   | { provider: "arena"; id: string; canonicalUrl: string }
   | { provider: "forum_magnum"; site: "lesswrong" | "alignment_forum" | "ea_forum"; id: string; canonicalUrl: string; commentId?: string }
   | { provider: "reddit"; id: string; canonicalUrl: string; short?: boolean; commentId?: string }
@@ -35,6 +36,11 @@ export function parseSource(value: string): ParsedSource {
   const url = new URL(value);
   const host = url.hostname.toLowerCase().replace(/^www\./, "");
   const parts = url.pathname.split("/").filter(Boolean);
+  const linkedInPost = host === "linkedin.com" ? /^\/posts\/([a-zA-Z0-9_-]+-activity-(\d+)-[a-zA-Z0-9_-]+)\/?$/.exec(url.pathname) : null;
+  if (linkedInPost) {
+    if (url.protocol !== "https:" || url.username || url.password || url.port) throw new Error("LinkedIn URLs must use HTTPS without credentials or custom ports");
+    return { provider: "linkedin", id: linkedInPost[2]!, canonicalUrl: `https://www.linkedin.com/posts/${linkedInPost[1]}` };
+  }
   if (host === "substack.com" && /\/note\//.test(url.pathname)) {
     if (url.protocol !== "https:" || url.username || url.password || url.port) throw new Error("Substack Notes require HTTPS without credentials or custom ports");
     const match = /^\/(?:(@[a-zA-Z0-9_]+|profile\/[1-9]\d*(?:-[a-zA-Z0-9_-]+)?)\/)?note\/c-([1-9]\d*)\/?$/.exec(url.pathname);

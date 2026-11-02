@@ -240,6 +240,11 @@ public enum CaptureInput {
             return "\(provider):\(author.lowercased())/\(parts[1])"
         }
         let host = (url.host ?? "").lowercased().replacingOccurrences(of: #"^www\."#, with: "", options: .regularExpression)
+        if host == "linkedin.com", url.path.range(of: #"^/posts/[a-zA-Z0-9_-]+-activity-[0-9]+-[a-zA-Z0-9_-]+/?$"#, options: .regularExpression) != nil,
+           let range = url.path.range(of: #"-activity-[0-9]+-"#, options: .regularExpression) {
+            let identity = url.path[range].dropFirst("-activity-".count).dropLast()
+            return "linkedin:\(identity)"
+        }
         if host == "substack.com", let range = url.path.range(of: #"/note/c-([1-9][0-9]*)/?$"#, options: .regularExpression) {
             let identity = String(url.path[range]).replacingOccurrences(of: "/note/c-", with: "").trimmingCharacters(in: CharacterSet(charactersIn: "/"))
             return "substack:\(identity)"

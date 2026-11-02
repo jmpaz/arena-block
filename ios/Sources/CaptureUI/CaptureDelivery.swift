@@ -545,7 +545,7 @@ final class CaptureDelivery {
             guard var job = try store.value(DeliveryJob.self, account: 0, kind: "delivery", id: id.uuidString), job.stage == .attention,
                   job.stopRequestedAt == nil else { return }
             // Reopening or checking a retained failure cannot retry denied provider access.
-            if job.preparationFailureStage == .reading, CaptureSourceAccess.redditDenied(job.problem) { return }
+            if job.preparationFailureStage == .reading, CaptureSourceAccess.denied(job.problem) { return }
             try store.transaction {
                 guard let current = try store.value(DeliveryJob.self, account: 0, kind: "delivery", id: id.uuidString), current.stage == .attention else { return }
                 job = current
