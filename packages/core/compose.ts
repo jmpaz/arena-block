@@ -376,6 +376,7 @@ function layoutFor(posts: ResolvedPost[], media: MediaAsset[], ordered: boolean,
 }
 
 export function reviseMosaicLayout(plan: BlockPlan, mode: NonNullable<CompositionPolicy["mosaicLayout"]>): BlockPlan {
+  if (plan.block.excerpt) throw new Error("Text excerpts do not have a media layout; retain their exact text plan");
   const { hash, ...original } = plan;
   if (planHash(original) !== hash) throw new Error("The retained plan hash does not match its content. No layout was changed.");
   const policy = compositionPolicySchema.parse({ ...plan.policy, mosaicLayout: mode });

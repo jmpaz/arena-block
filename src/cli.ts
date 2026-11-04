@@ -29,8 +29,12 @@ import { formatArenaBlockMetadata } from "./metadata.ts";
 import { collectRatio, formatRatioReport, type RatioSource } from "./visibility-ratio.ts";
 import { captureSource } from "./capture.ts";
 import { resolveWebPlan } from "./web-link.ts";
+import { resolveExcerptPlan, parseTextFragment } from "./excerpt.ts";
 
 type Options = {
+  excerpt?: string;
+  excerptFile?: string;
+  excerptFormat?: "plain" | "markdown";
   sourceUrl?: string;
   title?: string;
   media?: string;
@@ -158,11 +162,31 @@ async function captureInputs(values: string[], options: Options) {
 }
 
 async function localPlan(values: string[], options: Options): Promise<{ plan: BlockPlan; destinations: string[] }> {
+  if (options.excerpt !== undefined && options.excerptFile !== undefined) throw new Error("Use either --excerpt or --excerpt-file");
+  if (options.excerptFormat && options.excerpt === undefined && options.excerptFile === undefined) throw new Error("--excerpt-format requires manual excerpt text");
+  let excerpt = options.excerpt;
+  if (options.excerptFile !== undefined) {
+    const file = Bun.file(options.excerptFile);
+    if (file.size > 200_000) throw new Error("The excerpt file exceeds 200,000 UTF-8 bytes");
+    excerpt = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(await file.arrayBuffer());
+  }
   const { inputs, resolver } = await captureInputs(values, options);
+  if (!inputs.refs.length && excerpt !== undefined && options.sourceUrl) inputs.refs = [options.sourceUrl];
+  if (!inputs.refs.length && excerpt !== undefined) throw new Error("Supply a source URL with the excerpt text");
   if (!inputs.refs.length) throw new Error("At least one source post or non-text Are.na block URL is required");
   const extras = options.extra ?? [];
   const refs = [...inputs.refs, ...extras];
   if (refs.length > 20) throw new Error("At most 20 source posts are supported");
+  if (excerpt !== undefined || parseTextFragment(inputs.refs[0]!)) {
+    if (refs.length !== 1) throw new Error("Save one excerpt and source at a time");
+    if (options.redditCapture?.length || options.substackCapture?.length || options.frame || options.video || options.audio || options.threadExpansion ||
+        options.media && !["auto", "none"].includes(options.media) || options.mediaOrder || options.mosaicLayout || options.parentDepth || options.quoteDepth ||
+        options.parentStyle || options.quoteDates || options.quoteAuthorLink || options.videoFrameThreshold || options.quote && options.quote !== "block" || options.separator && options.separator !== "auto")
+      throw new Error("Excerpt input cannot accompany social captures, thread expansion or media composition options");
+    const plan = await resolveExcerptPlan({ url: inputs.refs[0]!, sourceUrl: options.sourceUrl, title: options.title,
+      ...(excerpt !== undefined ? { text: excerpt, format: options.excerptFormat } : {}) });
+    return { plan, destinations: inputs.destinations };
+  }
   if (captureSource(inputs.refs[0]!).kind === "url") {
     if (refs.length !== 1) throw new Error("Save a web link or PDF separately from other sources");
     const plan = await resolveWebPlan({ url: inputs.refs[0]!, sourceUrl: options.sourceUrl, title: options.title });
@@ -185,6 +209,9 @@ function client(): ArenaBlockClient {
 function addCompositionOptions(command: Command, extras = true): Command {
   if (extras) command.option("--extra <url>", "add supplementary media from a post or Are.na block; repeatable", (value, values: string[]) => [...values, value], []);
   return command
+    .option("--excerpt <text>", "retain supplied excerpt text with its source; Markdown is preserved verbatim")
+    .option("--excerpt-file <path>", "read exact UTF-8 excerpt text from a file")
+    .addOption(new Option("--excerpt-format <format>", "interpret manual text as Markdown or literal plain text").choices(["markdown", "plain"]))
     .option("--source-url <url>", "set a source link while preserving the captured URL or PDF")
     .option("--title <text>", "set the title for a web link or PDF")
     .option("--substack-capture <path>", "read a retained Substack source record; repeatable", (value, values: string[]) => [...values, value], [])
@@ -240,13 +267,13 @@ let activeReceiptOptions: Options | undefined;
 let activeSaveId: string | undefined;
 let activeProvenanceDirectory: string | undefined;
 const program = addCompositionOptions(new Command("arena-block"))
-  .description("Capture social posts as editable Are.na blocks")
+  .description("Capture posts, PDFs, links and text excerpts as editable Are.na blocks")
   .version(`${cliBuild.version} (${cliBuild.sourceId})`)
-  .argument("[refs...]", "supported social posts, comments, Bluesky at:// URIs, or non-text Are.na blocks")
+  .argument("[refs...]", "posts, web/PDF/highlight URLs, Bluesky at:// URIs, or Are.na media blocks")
   .option("--json", "print stable JSON")
   .option("--config <path>", "read a private configuration file")
   .action(async (refs: string[], options: Options) => {
-    if (!refs.length && !options.extra?.length && !options.redditCapture?.length && !options.substackCapture?.length) {
+    if (!refs.length && !options.extra?.length && !options.redditCapture?.length && !options.substackCapture?.length && options.excerpt === undefined && options.excerptFile === undefined && !options.excerptFormat) {
       console.log(program.helpInformation());
       return;
     }
@@ -259,7 +286,7 @@ program.enablePositionalOptions();
 // choice unless the subcommand supplies its own choice.
 program.hook("preAction", (root, command) => {
   if (command === root) return;
-  for (const key of ["threadExpansion", "media", "quoteAuthorLink", "parentDepth", "parentStyle", "video", "frame", "videoFrameThreshold", "mosaicLayout"] as const) {
+  for (const key of ["threadExpansion", "media", "quoteAuthorLink", "parentDepth", "parentStyle", "video", "frame", "videoFrameThreshold", "mosaicLayout", "sourceUrl", "title", "excerpt", "excerptFile", "excerptFormat"] as const) {
     const source = command.getOptionValueSource(key);
     if (root.getOptionValueSource(key) === "cli" && (source === undefined || source === "default")
       && command.options.some(option => option.attributeName() === key)) {
@@ -276,6 +303,8 @@ program.command("version").description("Report the CLI build")
 
 addCompositionOptions(program.command("resolve").description("Read normalized source posts").argument("[refs...]").option("--json", "print JSON"), false)
   .action(async (refs: string[], options: Options) => {
+    if (options.excerpt !== undefined || options.excerptFile !== undefined || options.excerptFormat || refs.some(ref => ref.includes(":~:") && parseTextFragment(ref)))
+      throw new Error("Use plan to resolve a web excerpt into a block");
     const { inputs, resolver } = await captureInputs(refs, options);
     if (!inputs.refs.length) throw new Error("At least one source URL or browser-capture file is required");
     const posts = await resolver.resolve(inputs.refs, undefined, compositionPolicySchema.parse(policy(options, inputs.refs.length)));
@@ -296,7 +325,7 @@ addCompositionOptions(program.command("render").description("Render a local medi
   .option("--canvas <width>x<height>", "canvas size; defaults: reading 4096x4096, wallpaper 1440x2560")
   .option("--min-scale <number>", "minimum image scale for reading pages; default 1"))
   .action(async (refs: string[], options: Options) => {
-    if (options.plan && (refs.length || options.extra?.length || options.redditCapture?.length || options.substackCapture?.length || options.sourceUrl || options.title)) throw new Error("--plan cannot accompany source URLs, source/title overrides, --extra, --reddit-capture, or --substack-capture");
+    if (options.plan && (refs.length || options.extra?.length || options.redditCapture?.length || options.substackCapture?.length || options.sourceUrl || options.title || options.excerpt !== undefined || options.excerptFile !== undefined || options.excerptFormat)) throw new Error("--plan cannot accompany source URLs, source/title overrides, excerpt input, --extra, --reddit-capture, or --substack-capture");
     if (options.layout && !["reading", "wallpaper"].includes(options.layout)) throw new Error("--layout must be reading or wallpaper");
     if (options.layout ? (!options.outputDir || options.output) : (!options.output || options.outputDir || options.canvas || options.minScale)) {
       throw new Error("Normal rendering requires -o; --layout requires --output-dir and writes local preview pages");
@@ -338,7 +367,7 @@ addCompositionOptions(addReceiptOptions(program.command("publish").description("
   .action(async (refs: string[], options: Options) => {
     activeReceiptOptions = options;
     const display = receiptOutputMode(options, Boolean(process.stdout.isTTY));
-    if (options.plan && (refs.length || options.extra?.length || options.redditCapture?.length || options.substackCapture?.length || options.sourceUrl || options.title)) throw new Error("--plan cannot accompany source URLs, source/title overrides, --extra, --reddit-capture, or --substack-capture");
+    if (options.plan && (refs.length || options.extra?.length || options.redditCapture?.length || options.substackCapture?.length || options.sourceUrl || options.title || options.excerpt !== undefined || options.excerptFile !== undefined || options.excerptFormat)) throw new Error("--plan cannot accompany source URLs, source/title overrides, excerpt input, --extra, --reddit-capture, or --substack-capture");
     const planned = options.plan
       ? { plan: await readLocalPlan(options.plan, options.mosaicLayout), destinations: options.to ?? [] }
       : await localPlan(refs, options);
@@ -346,7 +375,7 @@ addCompositionOptions(addReceiptOptions(program.command("publish").description("
     const legacyDefaults = (process.env.ARENA_BLOCK_DEFAULT_CHANNELS ?? "").split(",").filter(Boolean);
     const intent = prepareSaveIntent(planned.plan, config, { origin: "cli", initiator: initiatorSchema.parse({ kind: options.initiator, identityBasis: options.initiator === "unknown" ? "unknown" : "declared", ...(options.agent ? { label: options.agent } : {}) }),
       destinations: planned.destinations, legacyDefaults, operation: "publish", force: options.force, credentialProfile: options.profile,
-      inputSourceRefs: options.plan ? undefined : [...splitInputs(refs).refs, ...(options.extra ?? [])],
+      inputSourceRefs: options.plan ? undefined : [...(splitInputs(refs).refs.length ? splitInputs(refs).refs : (options.excerpt !== undefined || options.excerptFile !== undefined) && options.sourceUrl ? [options.sourceUrl] : []), ...(options.extra ?? [])],
       inputDestinationArgs: [...(options.to ?? []), ...refs.filter(ref => arenaDestination(ref))],
       sourceRevision: cliBuild.revision ?? undefined, sourceId: cliBuild.sourceId });
     const destinations = intent.snapshot.routing.destinations;

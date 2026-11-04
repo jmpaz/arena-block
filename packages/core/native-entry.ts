@@ -1,4 +1,5 @@
 import "./native-platform.ts";
+import { z } from "zod";
 import { SubstackProvider } from "./providers/substack.ts";
 import { bindSubstackCaptures, normalizeSubstackCapture, substackCapturesSchema } from "./substack-record.ts";
 import { RedditProvider } from "./providers/reddit.ts";
@@ -7,6 +8,9 @@ import { resolveMediaURL, resolveMediaSources } from "./media-acquisition.ts";
 import { verifyPublication, arenaImageUrl } from "./verification.ts";
 import { composePlan, planHash, reviseMosaicLayout } from "./compose.ts";
 import { publicationFields, publicationPayload, publicationPayloadForMedia, captureSource, webPlan, pdfFilePlan } from "./capture.ts";
+import { manualExcerptPlan, excerptPlanFromDocument } from "./excerpt.ts";
+import { excerptPlanInputSchema } from "./excerpt-schema.ts";
+import { parseTextFragment } from "./text-fragment.ts";
 import { SocialResolver } from "./providers/index.ts";
 import { BlueskyProvider } from "./providers/bluesky.ts";
 import { NativeSoundCloudProvider } from "./providers/soundcloud-native.ts";
@@ -56,6 +60,17 @@ host.captureWebPlan = (value: string) => {
 };
 host.capturePDFFilePlan = (value: string) => {
   const plan = pdfFilePlan(JSON.parse(value));
+  return JSON.stringify({ plan, fields: publicationFields(plan) });
+};
+host.captureTextFragment = (value: string) => JSON.stringify(parseTextFragment(value) ?? null);
+host.captureExcerptPlan = (value: string) => {
+  const plan = manualExcerptPlan(JSON.parse(value));
+  return JSON.stringify({ plan, fields: publicationFields(plan) });
+};
+host.captureExcerptDocumentPlan = (value: string) => {
+  const input = z.object({ input: excerptPlanInputSchema, document: z.object({ body: z.string(), responseURL: z.string(), contentType: z.enum(["text/html", "text/plain"]) }).strict() }).strict().parse(JSON.parse(value));
+  const document = input.document;
+  const plan = excerptPlanFromDocument(excerptPlanInputSchema.parse(input.input), { body: document.body, responseURL: document.responseURL, contentType: document.contentType });
   return JSON.stringify({ plan, fields: publicationFields(plan) });
 };
 host.captureArenaMediaPost = (block: string, blockID: string) => JSON.stringify(arenaMediaPost(JSON.parse(block), blockID));

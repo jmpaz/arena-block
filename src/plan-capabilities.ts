@@ -4,6 +4,7 @@ import { mediaSources } from "../packages/core/media-tree.ts";
 /** Collect the receiver capabilities needed before submitting a publication capsule. */
 export function requiredPlanCapabilities(plan: BlockPlan): string[] {
   const required = new Set<string>();
+  if (plan.block.excerpt) required.add("web-excerpts-v1");
   if (plan.block.contentUrl || plan.block.contentType) required.add("web-pdf-source-v1");
   if (plan.block.pdfFile) required.add("pdf-file-input-v1");
   if (plan.policy.mosaicLayout !== undefined) required.add("mosaic-layout-v1");

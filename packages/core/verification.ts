@@ -24,7 +24,7 @@ export function verifyPublication(plan: BlockPlan, block: Json, available: Json)
       if (plan.block.pdfFile && attachment?.file_size !== plan.block.pdfFile.byteCount)
         throw new Error("Are.na PDF size does not match the retained file");
     }
-    if (plan.block.kind === "url" && plan.sources[0]?.provider === "web" && string(object(block.source)?.url) !== plan.block.canonicalSource)
+    if ((plan.block.kind === "url" || plan.block.excerpt) && plan.sources[0]?.provider === "web" && string(object(block.source)?.url) !== plan.block.canonicalSource)
       throw new Error("Are.na source does not match the selected source URL");
     if (plan.block.kind === "video" && !["Attachment", "Embed"].includes(type ?? "")) {
       throw new Error(`Expected video Attachment or Embed block, received ${type}`);

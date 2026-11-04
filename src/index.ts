@@ -1,6 +1,7 @@
 export * from "./arena.ts";
 export * from "./client.ts";
 export * from "./capture.ts";
+export * from "./excerpt.ts";
 export * from "./compose.ts";
 export * from "./providers/index.ts";
 export * from "./render.ts";

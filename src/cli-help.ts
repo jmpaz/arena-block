@@ -6,9 +6,9 @@ function outputWidth(stream: NodeJS.WriteStream): number {
 }
 
 const optionGroups: Record<string, string[]> = {
-  "Sources:": ["extra", "substackCapture", "redditCapture", "threadExpansion", "manifest", "scope", "author", "select", "maxPosts", "maxRequests", "depth", "parentHeight"],
+  "Sources:": ["sourceUrl", "excerpt", "excerptFile", "excerptFormat", "extra", "substackCapture", "redditCapture", "threadExpansion", "manifest", "scope", "author", "select", "maxPosts", "maxRequests", "depth", "parentHeight"],
   "Media:": ["media", "frame", "videoFrameThreshold", "mediaOrder", "audio"],
-  "Text and quotes:": ["quote", "quoteDepth", "quoteDates", "quoteAuthorLink", "separator"],
+  "Text and quotes:": ["title", "quote", "quoteDepth", "quoteDates", "quoteAuthorLink", "separator"],
   "Files and output:": ["output", "outputDir", "plan", "layout", "canvas", "minScale", "descriptions", "json", "human", "verbose"],
   "Saving:": ["to", "force", "dryRun", "initiator", "agent", "publish"],
   "Configuration:": ["config", "profile", "daemon"],

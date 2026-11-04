@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { excerptRecordSchema, excerptMarkdownHash, literalExcerptMarkdown } from "./excerpt-schema.ts";
 import { substackCaptureSchema, substackCapturesSchema, substackSourceKey, type SubstackCapture, type SubstackNote } from "./substack-record.ts";
 import { redditBrowserCaptureSchema, redditCapturesSchema, redditSourceKey, type RedditBrowserCapture } from "./reddit-record.ts";
 import { parseSource } from "./url.ts";
@@ -312,6 +313,7 @@ export const blockPlanSchema = z.object({
     }).optional(),
     contentType: z.literal("application/pdf").optional(),
     pdfFile: z.object({ sha256: z.string().regex(/^[a-f0-9]{64}$/), byteCount: z.number().int().positive().max(50 * 1024 * 1024) }).optional(),
+    excerpt: excerptRecordSchema.optional(),
     artworkUrl: soundCloudArtworkUrlSchema.optional(),
     selectedMedia: z.array(z.string()),
     frameMedia: z.array(z.object({ ref: z.string().regex(/^\d+\.\d+$/), url: z.url().refine(value => {
@@ -326,6 +328,18 @@ export const blockPlanSchema = z.object({
       dateUncertainty: z.array(z.enum(["same_day", "missing_or_incomparable_source_days"])).optional() })).optional(),
   }),
 }).superRefine((plan, context) => {
+  if (plan.block.excerpt) {
+    if (plan.block.kind !== "text" || plan.sources.length !== 1 || plan.sources[0]?.provider !== "web" || plan.block.selectedMedia.length)
+      context.addIssue({ code: "custom", message: "An excerpt requires one web source and a Text block", path: ["block", "excerpt"] });
+    if (plan.sources[0]?.text !== plan.block.excerpt.text)
+      context.addIssue({ code: "custom", message: "The source must retain exact excerpt text", path: ["block", "excerpt"] });
+    if (plan.block.excerpt.kind === "text-fragment" && plan.sources[0]?.canonicalUrl !== plan.block.excerpt.selectionURL)
+      context.addIssue({ code: "custom", message: "Keep the original highlight URL with its selection", path: ["block", "excerpt"] });
+    if (plan.block.excerpt.kind === "text-fragment" && excerptMarkdownHash(plan.block.markdown) !== plan.block.excerpt.markdownSHA256)
+      context.addIssue({ code: "custom", message: "Edited excerpt text must not retain an unchanged resolved-selection record", path: ["block", "excerpt"] });
+    if (plan.block.excerpt.kind === "manual" && plan.block.markdown !== (plan.block.excerpt.format === "markdown" ? plan.block.excerpt.text : literalExcerptMarkdown(plan.block.excerpt.text)))
+      context.addIssue({ code: "custom", message: "Keep manual Markdown excerpt text verbatim", path: ["block", "markdown"] });
+  }
   if ((plan.block.contentUrl || plan.block.contentType || plan.block.pdfFile) && (plan.block.kind !== "url" || plan.sources.length !== 1 || plan.sources[0]?.provider !== "web"))
     context.addIssue({ code: "custom", message: "Link content requires one web source", path: ["block", "contentUrl"] });
   if (plan.sources[0]?.provider === "web") {

@@ -4,6 +4,7 @@ import type { BlockPlan, CompositionPolicy } from "./types.ts";
 import { compositionPolicySchema } from "./types.ts";
 import { composePlan, planHash } from "./compose.ts";
 import { explicitSelections } from "./source-selection.ts";
+import { parseTextFragment } from "./text-fragment.ts";
 
 export const captureInputSchema = z.object({
   url: z.string().min(1).max(8192).optional(),
@@ -50,6 +51,7 @@ export const webPlanInputSchema = z.object({
 /** Preserve an ordinary URL as a Link block without fetching or inventing page metadata. */
 export function webPlan(input: z.input<typeof webPlanInputSchema>): BlockPlan {
   const value = webPlanInputSchema.parse(input);
+  if (parseTextFragment(value.url)) throw new Error("Resolve the highlight selection before preparing its excerpt; do not substitute a Link block");
   const source = captureSource(value.url);
   if (source.kind !== "url") throw new Error("Use the social resolver for a supported post URL");
   const title = value.title ?? new URL(source.url).hostname;
@@ -107,7 +109,8 @@ export function publicationPayload(plan: BlockPlan, publicBaseUrl: string, media
   const base = {
     title: plan.block.title,
     original_source_url: plan.block.canonicalSource,
-    original_source_title: plan.block.title,
+    ...(plan.block.excerpt ? (plan.block.excerpt.kind === "text-fragment" && plan.block.canonicalSource === plan.block.excerpt.selectionURL && plan.block.excerpt.documentTitle
+      ? { original_source_title: plan.block.excerpt.documentTitle } : {}) : { original_source_title: plan.block.title }),
     metadata: { arena_block_plan: plan.hash, arena_block_version: plan.schemaVersion },
     channel_ids: [...new Set(channelIds)],
     description: `arena-block description ${plan.hash}`,

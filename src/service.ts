@@ -15,6 +15,7 @@ import { readArenaBlockMetadata } from "./metadata.ts";
 import { mediaResponse } from "./media-response.ts";
 import { captureInputSchema, captureSource, publicationFields, publicationPayload, webPlan, webPlanInputSchema } from "./capture.ts";
 import { resolveWebPlan } from "./web-link.ts";
+import { excerptPlanInputSchema, resolveExcerptPlan } from "./excerpt.ts";
 import { remoteProvenancePolicySchema, type RemoteProvenancePolicy } from "./remote-save.ts";
 import { daemonCredentialSchema, type DaemonCredential } from "./config.ts";
 import { SaveGateway, saveSubmissionSchema, saveStatusSchema } from "./save-gateway.ts";
@@ -372,6 +373,11 @@ export function createService(config: ServiceConfig, dependencies: { client?: Ar
         if (input.refresh) requestResolver.clearSourceCache();
         const resolved = await requestResolver.resolveComposition(input.refs, input.extraRefs, input.policy, request.signal);
         const plan = composePlan(resolved.posts, resolved.policy);
+        store.savePlan(plan);
+        return json(plan);
+      }
+      if (request.method === "POST" && url.pathname === "/v1/excerpt-plans") {
+        const plan = await resolveExcerptPlan(excerptPlanInputSchema.parse(await boundedJson(request, 256 * 1024, deadline(10_000, request.signal))), { signal: request.signal });
         store.savePlan(plan);
         return json(plan);
       }

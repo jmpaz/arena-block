@@ -6,7 +6,7 @@
 
 # arena-block
 
-Arena Block captures social posts as editable Are.na blocks.
+Arena Block captures posts, links, PDFs and text excerpts as editable Are.na blocks.
 
 Available as a [CLI](docs/development.md), [iOS app](ios/README.md) and [browser extension](extension/README.md).
 
@@ -40,6 +40,17 @@ arena-block publish 'https://example.com/paper.pdf' --title 'Paper title' --to y
 ```
 
 `--source-url` changes the source link while retaining the PDF or web link as content. The CLI tries the chosen source page for a title; `--title` keeps an explicit title. Update the receiver before publishing PDF plans or source overrides. After creation, the receiver checks the PDF attachment type and selected source URL.
+
+## Text excerpts
+
+A highlight URL (`#:~:text=...`) resolves to the complete selected passage and a native Text block with its source. Missing or ambiguous selections fail explicitly. Supply text manually when the page cannot be read:
+
+```sh
+arena-block plan 'https://example.com/article' --excerpt-file ./passage.md --title 'My excerpt' --json
+arena-block publish 'https://example.com/article' --excerpt 'Exact supplied text.' --to your-channel --dry-run
+```
+
+Manual Markdown is preserved verbatim; `--excerpt-format plain` keeps punctuation literal. Source overrides, captured versions, resolution limits and the pending iOS integration are described in [text excerpts](docs/text-excerpts.md).
 
 ## Visibility ratio
 
