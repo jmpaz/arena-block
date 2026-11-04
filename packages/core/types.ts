@@ -306,6 +306,11 @@ export const blockPlanSchema = z.object({
     markdown: z.string(),
     description: z.string().optional(),
     canonicalSource: z.url(),
+    contentUrl: z.url().refine(value => {
+      const url = new URL(value);
+      return ["https:", "http:"].includes(url.protocol) && !url.username && !url.password;
+    }).optional(),
+    contentType: z.literal("application/pdf").optional(),
     artworkUrl: soundCloudArtworkUrlSchema.optional(),
     selectedMedia: z.array(z.string()),
     frameMedia: z.array(z.object({ ref: z.string().regex(/^\d+\.\d+$/), url: z.url().refine(value => {
@@ -320,6 +325,15 @@ export const blockPlanSchema = z.object({
       dateUncertainty: z.array(z.enum(["same_day", "missing_or_incomparable_source_days"])).optional() })).optional(),
   }),
 }).superRefine((plan, context) => {
+  if ((plan.block.contentUrl || plan.block.contentType) && (plan.block.kind !== "url" || plan.sources.length !== 1 || plan.sources[0]?.provider !== "web"))
+    context.addIssue({ code: "custom", message: "Link content requires one web source", path: ["block", "contentUrl"] });
+  if (plan.sources[0]?.provider === "web") {
+    const url = new URL(plan.block.canonicalSource);
+    if (!["http:", "https:"].includes(url.protocol) || url.username || url.password)
+      context.addIssue({ code: "custom", message: "Use a web source URL without credentials", path: ["block", "canonicalSource"] });
+    if (plan.block.contentUrl && plan.block.contentUrl !== plan.sources[0].canonicalUrl)
+      context.addIssue({ code: "custom", message: "Link content must match the captured URL", path: ["block", "contentUrl"] });
+  }
   for (const ref of plan.policy.videoMotion ?? []) {
     if (plan.block.selectedMedia.includes(ref) && !planMedia(plan).some(asset => asset.ref === ref && asset.kind === "video"))
       context.addIssue({ code: "custom", message: "Video choice requires an observed video source", path: ["policy", "videoMotion"] });

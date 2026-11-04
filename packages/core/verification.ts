@@ -11,7 +11,17 @@ export function verifyPublication(plan: BlockPlan, block: Json, available: Json)
     if (plan.block.kind === "text" && type !== "Text") throw new Error(`Expected Text block, received ${type}`);
     if (plan.block.kind === "image" && type !== "Image") throw new Error(`Expected Image block, received ${type}`);
     if (plan.block.kind === "link" && type !== "Link") throw new Error(`Expected Link block, received ${type}`);
-    if (plan.block.kind === "url" && !["Link", "Embed"].includes(type ?? "")) throw new Error(`Expected Link or Embed block, received ${type}`);
+    if (plan.block.kind === "url" && plan.block.contentType !== "application/pdf" && !["Link", "Embed"].includes(type ?? "")) throw new Error(`Expected Link or Embed block, received ${type}`);
+    if (plan.block.contentType === "application/pdf") {
+      const attachment = object(block.attachment);
+      if (type !== "Attachment" || string(attachment?.content_type)?.split(";", 1)[0]?.trim().toLowerCase() !== "application/pdf")
+        throw new Error("Are.na did not retain a PDF attachment");
+      const url = new URL(string(attachment?.url) ?? "https://invalid.invalid");
+      if (url.protocol !== "https:" || url.hostname === "invalid.invalid" || url.username || url.password)
+        throw new Error("Are.na PDF has no public attachment URL");
+    }
+    if (plan.block.kind === "url" && plan.sources[0]?.provider === "web" && string(object(block.source)?.url) !== plan.block.canonicalSource)
+      throw new Error("Are.na source does not match the selected source URL");
     if (plan.block.kind === "video" && !["Attachment", "Embed"].includes(type ?? "")) {
       throw new Error(`Expected video Attachment or Embed block, received ${type}`);
     }

@@ -10,6 +10,8 @@ public struct CapturePreview: Codable, Sendable {
     public var extraInputRefs: [String]?
     public var metadataTitle: String?
     public var previewPath: String?
+    public var pdfPath: String?
+    public var pdfPageCount: Int?
     public init(kind: String, url: String, plan: JSONValue? = nil, inputRefs: [String]? = nil, extraInputRefs: [String]? = nil, metadataTitle: String? = nil, previewPath: String? = nil) {
         self.kind = kind; self.url = url; self.plan = plan; self.inputRefs = inputRefs; self.extraInputRefs = extraInputRefs
         self.metadataTitle = metadataTitle; self.previewPath = previewPath

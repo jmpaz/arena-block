@@ -21,7 +21,7 @@ test("ordinary web links keep URL identity, have no rendering, and verify as Lin
   const plan = webPlan({ url: "https://example.com/essay?part=2", title: "A useful essay", description: "Kept for later." });
   expect(plan.block).toMatchObject({ kind: "url", title: "A useful essay", canonicalSource: "https://example.com/essay?part=2", description: "Kept for later.", selectedMedia: [] });
   expect(publicationPayload(plan, "https://engine.invalid", undefined, [4, 4, 8])).toMatchObject({ value: "https://example.com/essay?part=2", channel_ids: [4, 8] });
-  expect(() => verifyPublication(plan, { title: "A useful essay", type: "Link", state: "available", description: { markdown: "Kept for later." } }, { state: "available" })).not.toThrow();
+  expect(() => verifyPublication(plan, { title: "A useful essay", type: "Link", state: "available", source: { url: plan.block.canonicalSource }, description: { markdown: "Kept for later." } }, { state: "available" })).not.toThrow();
   expect(() => webPlan({ url: "https://x.com/a/status/123" })).toThrow("social resolver");
   expect(() => webPlan({ url: "https://user:secret@example.com" })).toThrow();
 });

@@ -84,7 +84,7 @@ public enum CaptureStorageExport {
         }
     }
     private static let kinds: Set<String> = ["draft", "deletedDraft", "delivery", "canceledDelivery", "deliveryReceipt", "prepared", "workspace", "incoming", "publicationLock", "mediaPromotion", "deliveryAttempt", "deliveryProgress", "deliveryTransfer"]
-    private static let pathFields: Set<String> = ["mediapath", "renderpath", "previewpath", "reusablerenderpath", "directorypath", "relativedirectory", "fileurl", "recordingpath", "localmediapath"]
+    private static let pathFields: Set<String> = ["mediapath", "renderpath", "previewpath", "pdfpath", "reusablerenderpath", "directorypath", "relativedirectory", "fileurl", "recordingpath", "localmediapath"]
     private static let jsonFields: Set<String> = ["snapshotjson", "planjson", "sourcesjson"]
     private static let containers: Set<String> = ["draft", "submission", "previewsnapshot"]
     private static let privateFields: Set<String> = ["authorization", "token", "accesstoken", "refreshtoken", "uploadurl", "uploadkey", "uploadtoken", "credentials", "headers", "cookies", "body", "text", "html", "markdown", "description", "title", "previewtext", "content", "caption", "alt", "alttext", "input", "editedtext", "titleoverride", "descriptionoverride", "problem"]

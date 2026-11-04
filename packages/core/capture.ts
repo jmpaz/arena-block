@@ -2,7 +2,7 @@ import { z } from "zod";
 import { parseSource, soundCloudShareURL } from "./url.ts";
 import type { BlockPlan, CompositionPolicy } from "./types.ts";
 import { compositionPolicySchema } from "./types.ts";
-import { composePlan } from "./compose.ts";
+import { composePlan, planHash } from "./compose.ts";
 import { explicitSelections } from "./source-selection.ts";
 
 export const captureInputSchema = z.object({
@@ -43,6 +43,8 @@ export const webPlanInputSchema = z.object({
   url: z.string().min(1).max(8192),
   title: z.string().trim().min(1).max(512).optional(),
   description: z.string().max(20_000).optional(),
+  sourceUrl: z.string().min(1).max(8192).optional(),
+  contentType: z.literal("application/pdf").optional(),
 }).strict();
 
 /** Preserve an ordinary URL as a Link block without fetching or inventing page metadata. */
@@ -51,11 +53,23 @@ export function webPlan(input: z.input<typeof webPlanInputSchema>): BlockPlan {
   const source = captureSource(value.url);
   if (source.kind !== "url") throw new Error("Use the social resolver for a supported post URL");
   const title = value.title ?? new URL(source.url).hostname;
-  return composePlan([{
+  const plan = composePlan([{
     provider: "web", id: source.url, canonicalUrl: source.url,
     author: { handle: new URL(source.url).hostname }, text: value.description ?? "",
     postTitle: title, media: [],
   }], { media: "none" });
+  const { hash, ...base } = plan;
+  if (value.sourceUrl) base.block.canonicalSource = webSourceURL(value.sourceUrl);
+  const contentType = value.contentType ?? (/\.pdf$/i.test(new URL(source.url).pathname) ? "application/pdf" : undefined);
+  if (value.sourceUrl || contentType) base.block.contentUrl = source.url;
+  if (contentType) base.block.contentType = contentType;
+  return { ...base, hash: planHash(base) };
+}
+
+export function webSourceURL(value: string): string {
+  const url = new URL(value);
+  if (!["https:", "http:"].includes(url.protocol) || url.username || url.password) throw new Error("Use a web source URL without embedded credentials");
+  return url.href;
 }
 
 export function publicationFields(plan: BlockPlan): Record<string, unknown> {
@@ -85,7 +99,7 @@ export function publicationPayload(plan: BlockPlan, publicBaseUrl: string, media
     return { ...base, value: plan.block.artworkUrl };
   }
   if (plan.block.kind === "url") return {
-    ...base, value: plan.block.canonicalSource,
+    ...base, value: plan.block.contentUrl ?? plan.block.canonicalSource,
     ...(plan.block.artworkUrl ? { cover_url: plan.block.artworkUrl } : {}),
   };
   if (!media) throw new Error("Media plan rendered no public artifact");

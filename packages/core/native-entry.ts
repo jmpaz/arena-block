@@ -6,7 +6,7 @@ import { bindRedditCaptures, normalizeRedditCapture, redditCapturesSchema } from
 import { resolveMediaURL, resolveMediaSources } from "./media-acquisition.ts";
 import { verifyPublication, arenaImageUrl } from "./verification.ts";
 import { composePlan, planHash, reviseMosaicLayout } from "./compose.ts";
-import { publicationFields, publicationPayload, publicationPayloadForMedia, captureSource } from "./capture.ts";
+import { publicationFields, publicationPayload, publicationPayloadForMedia, captureSource, webPlan } from "./capture.ts";
 import { SocialResolver } from "./providers/index.ts";
 import { BlueskyProvider } from "./providers/bluesky.ts";
 import { NativeSoundCloudProvider } from "./providers/soundcloud-native.ts";
@@ -50,6 +50,10 @@ host.captureCompose = (postsJSON: string, policyJSON: string) => {
 host.captureSubstackImport = (value: string) => JSON.stringify(normalizeSubstackCapture(JSON.parse(value)));
 host.captureRedditImport = (value: string) => JSON.stringify(normalizeRedditCapture(JSON.parse(value)));
 host.captureSource = (value: string) => JSON.stringify(captureSource(value));
+host.captureWebPlan = (value: string) => {
+  const plan = webPlan(JSON.parse(value));
+  return JSON.stringify({ plan, fields: publicationFields(plan) });
+};
 host.captureArenaMediaPost = (block: string, blockID: string) => JSON.stringify(arenaMediaPost(JSON.parse(block), blockID));
 host.captureFields = (value: string) => JSON.stringify(publicationFields(blockPlanSchema.parse(JSON.parse(value))));
 host.captureMosaicLayout = (plan: string, mode: string) => JSON.stringify(reviseMosaicLayout(blockPlanSchema.parse(JSON.parse(plan)), compositionPolicySchema.shape.mosaicLayout.unwrap().parse(mode)));

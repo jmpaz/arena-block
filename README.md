@@ -30,6 +30,17 @@ arena-block thread 'https://bsky.app/profile/example.com/post/first' --scope cha
 
 `render` writes local image previews, either as reading pages at source scale or as a single wallpaper overview. `thread` writes a conversation draft with the source responses, Markdown, HTML and a coverage report. See [previews and drafts](docs/mosaic-thread-drafts.md).
 
+## PDFs and web links
+
+Save a PDF URL through `plan` or `publish`. The CLI checks the response type, including PDF URLs without a `.pdf` suffix. Are.na receives the PDF as content and the entered URL as its source.
+
+```sh
+arena-block plan 'https://example.com/paper.pdf' --source-url 'https://example.com/article' --json
+arena-block publish 'https://example.com/paper.pdf' --title 'Paper title' --to your-channel
+```
+
+`--source-url` changes the source link while retaining the PDF or web link as content. The CLI tries the chosen source page for a title; `--title` keeps an explicit title. Update the receiver before publishing PDF plans or source overrides. After creation, the receiver checks the PDF attachment type and selected source URL.
+
 ## Visibility ratio
 
 ```sh

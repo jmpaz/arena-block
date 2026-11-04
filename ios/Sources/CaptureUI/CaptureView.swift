@@ -2,6 +2,7 @@
 import AVKit
 import CaptureCore
 import ImageIO
+import QuickLook
 import SwiftUI
 import UIKit
 
@@ -33,6 +34,7 @@ public struct CaptureRootView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var tab = CaptureTab.capture
+    @State private var pdfPreviewURL: URL?
     @State private var channels = false
     @State private var retryConfirmation = false
     @State private var continuationOffer: ContinuationOffer?
@@ -281,6 +283,15 @@ public struct CaptureRootView: View {
                             .accessibilityLabel("Block title").accessibilityIdentifier("capture.title")
                             .focused($focusedField, equals: .title).disabled(locked)
                             .listRowSeparator(.hidden)
+                        if let preview = session.preview, let path = preview.pdfPath {
+                            Button {
+                                pdfPreviewURL = URL(fileURLWithPath: path)
+                            } label: {
+                                Label("Preview PDF\(preview.pdfPageCount.map { " · \($0) pages" } ?? "")", systemImage: "doc.richtext")
+                            }
+                            .accessibilityIdentifier("capture.pdf-preview")
+                            .quickLookPreview($pdfPreviewURL)
+                        }
                         if let plan = session.preview?.plan,
                            plan["sources"]?.array.first?["provider"]?.string == "soundcloud" {
                             SoundCloudSourceView(plan: plan).listRowSeparator(.hidden)
@@ -366,7 +377,22 @@ public struct CaptureRootView: View {
                             Text(note).font(.footnote).foregroundStyle(.secondary)
                                 .accessibilityIdentifier("capture.thread-coverage")
                         }
-                        if let raw = session.preview?.url,
+                        if let preview = session.preview, preview.kind == "url" {
+                            DisclosureGroup("Source link") {
+                                TextField("Use original URL", text: Binding(get: { session.draft?.sourceURLOverride ?? "" }, set: session.setSourceURL))
+                                    .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
+                                    .accessibilityLabel("Source URL override")
+                                    .accessibilityIdentifier("capture.source-override")
+                                    .focused($focusedField, equals: .sourceOverride)
+                                    .disabled(locked)
+                                Text("Leave empty to use the captured URL.").font(.footnote).foregroundStyle(.secondary)
+                            }
+                            if preview.plan?["block"]?["contentType"] == .string("application/pdf"),
+                               session.draft?.sourceURLOverride?.isEmpty == false, let pdf = URL(string: preview.url) {
+                                Link("Open PDF", destination: pdf).accessibilityIdentifier("capture.pdf-link")
+                            }
+                        }
+                        if let raw = session.preview?.plan?["block"]?["canonicalSource"]?.string ?? session.preview?.url,
                            (session.preview?.plan?["sources"]?.array.count ?? 1) <= 1,
                            let source = URL(string: raw), ["http", "https"].contains(source.scheme?.lowercased() ?? "") {
                             Link(destination: source) {
@@ -775,6 +801,7 @@ public struct CaptureRootView: View {
     private var displayedMediaURL: URL? {
         if let choice = singleImageChoice { return choice.url }
         if let compositionPreviewURL { return compositionPreviewURL }
+        if let path = session.preview?.previewPath { return URL(fileURLWithPath: path) }
         return session.preview?.media.isEmpty != false ? session.renderURL : nil
     }
 
@@ -1103,7 +1130,7 @@ public struct CaptureRootView: View {
     }
 }
 
-private enum CaptureField: Hashable { case source(Int), title, description }
+private enum CaptureField: Hashable { case source(Int), title, description, sourceOverride }
 
 private enum CaptureTab: Hashable { case capture, history, settings }
 

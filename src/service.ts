@@ -14,6 +14,7 @@ import { buildInfo } from "./version.ts";
 import { readArenaBlockMetadata } from "./metadata.ts";
 import { mediaResponse } from "./media-response.ts";
 import { captureInputSchema, captureSource, publicationFields, publicationPayload, webPlan, webPlanInputSchema } from "./capture.ts";
+import { resolveWebPlan } from "./web-link.ts";
 import { remoteProvenancePolicySchema, type RemoteProvenancePolicy } from "./remote-save.ts";
 import { daemonCredentialSchema, type DaemonCredential } from "./config.ts";
 import { SaveGateway, saveSubmissionSchema, saveStatusSchema } from "./save-gateway.ts";
@@ -375,7 +376,7 @@ export function createService(config: ServiceConfig, dependencies: { client?: Ar
         return json(plan);
       }
       if (request.method === "POST" && url.pathname === "/v1/web-plans") {
-        const plan = webPlan(webPlanInputSchema.parse(await boundedJson(request, 32 * 1024, deadline(10_000, request.signal))));
+        const plan = await resolveWebPlan(webPlanInputSchema.parse(await boundedJson(request, 32 * 1024, deadline(10_000, request.signal))), { signal: request.signal });
         store.savePlan(plan);
         return json(plan);
       }

@@ -32,6 +32,12 @@ Text-only media saves the track URL alone. A playlist block lists its tracks in 
 
 Use New for another capture. Delete, Clear Drafts, Undo and Deleted Drafts recovery operate on unsubmitted drafts. During a queued save, the editor keeps the submitted values fixed. Clipboard import is opt-in and respects the system paste permission.
 
+## PDFs and source links
+
+Paste or share a PDF URL to preview its first page and read its title and page count. Preview PDF opens the downloaded document. The app reads up to 50 MB for a PDF preview and checks that the response contains a readable PDF.
+
+Expand Source link to set another web URL, such as a paper's DOI page. Leave the field empty to use the captured URL. The app tries the chosen source page for a title while keeping an edited title. Open PDF remains available when the source points elsewhere. Save keeps the PDF as content and checks the attachment and selected source URL after Are.na processes it.
+
 ## Background work
 
 The app retains accepted work locally before the Share host closes. On supported iOS versions, the continued-processing coordinator requests execution for the retained save and updates the system progress display. After cancellation or expiry, it persists the stopped state so later recovery can inspect the attempt.

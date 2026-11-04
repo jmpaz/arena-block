@@ -3,6 +3,7 @@ import CaptureCore
 import CaptureRuntime
 import CryptoKit
 import LinkPresentation
+import PDFKit
 import Observation
 #if DEBUG
 import OSLog
@@ -548,7 +549,7 @@ public final class CaptureSession {
         cleanedSourceURL = nil
         draft?.renderPath = nil; draft?.previewSnapshot = nil
         if !preservingChoices {
-            draft?.titleOverride = nil; draft?.descriptionOverride = nil
+            draft?.titleOverride = nil; draft?.descriptionOverride = nil; draft?.sourceURLOverride = nil
             draft?.selectedMedia = nil; draft?.videoFrames = nil; draft?.videoMotion = nil; draft?.audio = nil; draft?.quoteDepth = nil; draft?.parentDepth = nil; draft?.parentStyle = nil
             draft?.pendingMediaChoices = nil
         }
@@ -900,7 +901,7 @@ public final class CaptureSession {
         if retrying { self.draft?.phase = .preparing }
         #if DEBUG && targetEnvironment(simulator)
         if isPreviewFixture && ProcessInfo.processInfo.environment["CAPTURE_UI_LIVE_SOURCE"] != "1" {
-            guard let snapshot = fixtureMultiPostSeed ?? draft.previewSnapshot ?? (try? CaptureInput.selectedPosts(draft.input, roles: draft.sourceRoles).primary.first).map(CapturePreview.originalLink) else { return }
+            guard let snapshot = fixtureMultiPostSeed ?? draft.previewSnapshot ?? (preview?.kind == "url" ? preview : nil) ?? (try? CaptureInput.selectedPosts(draft.input, roles: draft.sourceRoles).primary.first).map(CapturePreview.originalLink) else { return }
             self.draft?.phase = .preparing
             resolution = Task {
                 do {
@@ -911,7 +912,12 @@ public final class CaptureSession {
                         throw CaptureError.message("The source could not be loaded. Check your connection and try again.")
                     }
                     var result = snapshot
-                    if var sources = snapshot.plan?["sources"] {
+                    if snapshot.kind == "url" {
+                        var input: [String: JSONValue] = ["url": .string(snapshot.url), "title": .string(snapshot.metadataTitle ?? snapshot.title)]
+                        if let source = try CaptureWebLink.sourceOverride(draft.sourceURLOverride) { input["sourceUrl"] = .string(source) }
+                        if snapshot.plan?["block"]?["contentType"] == .string("application/pdf") { input["contentType"] = .string("application/pdf") }
+                        result.plan = try JSONDecoder().decode(JSONValue.self, from: Data(try core().webPlan(json(.object(input))).utf8))["plan"]
+                    } else if var sources = snapshot.plan?["sources"] {
                         if ProcessInfo.processInfo.environment["CAPTURE_UI_FIXTURE"] == "multi-post-extra" {
                             sources = .array(sources.array.enumerated().map { index, source in
                                 var object = source.object
@@ -1021,9 +1027,9 @@ public final class CaptureSession {
                     acceptRemappedMediaChoices(policy)
                     self.draft?.renderPath = nil
                 } else {
-                    let identity = "link:\(draft.accountID):\(draft.id):\(url.absoluteString)"
+                    let identity = "link:\(draft.accountID):\(draft.id):\(url.absoluteString):\(draft.sourceURLOverride ?? "")"
                     let snapshot = try await resolvedSources.value(identity: identity) { [self] in
-                        let metadata = await linkPreview(url, draftID: draft.id)
+                        let metadata = try await linkPreview(url, draftID: draft.id, sourceOverride: draft.sourceURLOverride)
                         return String(decoding: try JSONEncoder().encode(metadata), as: UTF8.self)
                     }
                     result = try JSONDecoder().decode(CapturePreview.self, from: Data(snapshot.utf8))
@@ -1405,34 +1411,64 @@ public final class CaptureSession {
         }
     }
 
-    private func linkPreview(_ url: URL, draftID: UUID) async -> CapturePreview {
-        let provider = LPMetadataProvider()
-        provider.timeout = 15
-        do {
-            let metadata = try await provider.startFetchingMetadata(for: url)
-            try Task.checkCancellation()
-            var path: String?
-            if let imageProvider = metadata.imageProvider, imageProvider.canLoadObject(ofClass: UIImage.self) {
-                let image: UIImage? = await withCheckedContinuation { continuation in
-                    imageProvider.loadObject(ofClass: UIImage.self) { object, _ in continuation.resume(returning: object as? UIImage) }
-                }
+    func setSourceURL(_ value: String) {
+        guard !busy, draft?.blockID == nil, preview?.kind == "url",
+              [.ready, .editing, .preparing, .failed].contains(draft?.phase ?? .saved) else { return }
+        draft?.sourceURLOverride = value.isEmpty ? nil : value
+        draft?.phase = .editing; draft?.previewSnapshot = nil
+        resolvedSources.invalidate(); persistOrReport(); resolve()
+    }
+
+    private func linkPreview(_ url: URL, draftID: UUID, sourceOverride: String?) async throws -> CapturePreview {
+        let source = try CaptureWebLink.sourceOverride(sourceOverride)
+        let directory = container.appendingPathComponent("previews")
+        let pdf = try await CaptureWebLink.readPDF(url, directory: directory)
+        try Task.checkCancellation()
+        var result = CapturePreview.originalLink(url)
+        if let pdf {
+            result.pdfPath = pdf.fileURL.path; result.pdfPageCount = pdf.pageCount
+            result.metadataTitle = pdf.title ?? url.deletingPathExtension().lastPathComponent
+            if let page = PDFDocument(url: pdf.fileURL)?.page(at: 0),
+               let data = page.thumbnail(of: CGSize(width: 900, height: 1200), for: .mediaBox).jpegData(compressionQuality: 0.85) {
+                let thumbnail = pdf.fileURL.deletingPathExtension().appendingPathExtension("jpg")
+                try data.write(to: thumbnail, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+                result.previewPath = thumbnail.path
+            }
+        }
+        if pdf == nil || source != nil {
+            let provider = LPMetadataProvider(); provider.timeout = 15
+            do {
+                let metadata = try await provider.startFetchingMetadata(for: source.flatMap(URL.init(string:)) ?? url)
                 try Task.checkCancellation()
-                if let image, image.size.width > 0, image.size.height > 0 {
-                    let scale = min(1, 1600 / max(image.size.width, image.size.height))
-                    let format = UIGraphicsImageRendererFormat(); format.scale = 1
-                    let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
-                    let thumbnail = UIGraphicsImageRenderer(size: size, format: format).image { _ in image.draw(in: CGRect(origin: .zero, size: size)) }
-                    if let data = thumbnail.jpegData(compressionQuality: 0.85) {
-                        let directory = container.appendingPathComponent("previews")
-                        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-                        let file = directory.appendingPathComponent(draftID.uuidString + ".jpg")
-                        try data.write(to: file, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
-                        path = file.path
+                if let title = metadata.title, !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    result.metadataTitle = String(title.prefix(512))
+                }
+                if pdf == nil, let imageProvider = metadata.imageProvider, imageProvider.canLoadObject(ofClass: UIImage.self) {
+                    let image: UIImage? = await withCheckedContinuation { continuation in
+                        imageProvider.loadObject(ofClass: UIImage.self) { object, _ in continuation.resume(returning: object as? UIImage) }
+                    }
+                    try Task.checkCancellation()
+                    if let image, image.size.width > 0, image.size.height > 0 {
+                        let scale = min(1, 1600 / max(image.size.width, image.size.height))
+                        let format = UIGraphicsImageRendererFormat(); format.scale = 1
+                        let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+                        let thumbnail = UIGraphicsImageRenderer(size: size, format: format).image { _ in image.draw(in: CGRect(origin: .zero, size: size)) }
+                        if let data = thumbnail.jpegData(compressionQuality: 0.85) {
+                            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+                            let file = directory.appendingPathComponent(UUID().uuidString + ".jpg")
+                            try data.write(to: file, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+                            result.previewPath = file.path
+                        }
                     }
                 }
-            }
-            return CapturePreview(kind: "url", url: url.absoluteString, metadataTitle: metadata.title, previewPath: path)
-        } catch { return .originalLink(url) }
+            } catch { try Task.checkCancellation() }
+        }
+        var input: [String: JSONValue] = ["url": .string(url.absoluteString)]
+        if let source { input["sourceUrl"] = .string(source) }
+        if let title = result.metadataTitle, !title.isEmpty { input["title"] = .string(title) }
+        if pdf != nil { input["contentType"] = .string("application/pdf") }
+        result.plan = try JSONDecoder().decode(JSONValue.self, from: Data(try core().webPlan(json(.object(input))).utf8))["plan"]
+        return result
     }
 
     private func core() throws -> CaptureRuntime {
@@ -1477,7 +1513,7 @@ public final class CaptureSession {
             var next: CaptureDraft
             if input.isEmpty, let previous, !previous.hasDraftContent {
                 next = previous
-                next.input = ""; next.originalLinkOnly = nil; next.redditCapturesJSON = nil; next.substackCapturesJSON = nil; next.media = .auto; next.selectedMedia = nil; next.videoFrames = nil; next.videoMotion = nil; next.audio = nil; next.quoteDepth = nil; next.parentDepth = nil; next.parentStyle = nil; next.quoteAuthorLink = nil; next.mosaicLayout = nil; next.phase = .editing; next.problem = nil
+                next.input = ""; next.sourceURLOverride = nil; next.originalLinkOnly = nil; next.redditCapturesJSON = nil; next.substackCapturesJSON = nil; next.media = .auto; next.selectedMedia = nil; next.videoFrames = nil; next.videoMotion = nil; next.audio = nil; next.quoteDepth = nil; next.parentDepth = nil; next.parentStyle = nil; next.quoteAuthorLink = nil; next.mosaicLayout = nil; next.phase = .editing; next.problem = nil
                 next.selection = DestinationSelection(defaultChannel: defaultChannel)
             } else { next = CaptureDraft(accountID: account.id, defaultChannel: defaultChannel, input: input) }
             next.videoFrameThresholdSeconds = autoFrameThresholdSeconds

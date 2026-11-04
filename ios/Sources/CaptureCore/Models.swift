@@ -187,6 +187,7 @@ public struct CaptureDraft: Codable, Identifiable, Sendable {
     public var intent: CaptureIntent?
     public var deliveryState: CaptureDeliveryState?
     public var titleOverride: String?
+    public var sourceURLOverride: String?
     public var descriptionOverride: String?
     public var previewSnapshot: CapturePreview?
     public var savedBlock: JSONValue?

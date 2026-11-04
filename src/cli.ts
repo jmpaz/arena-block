@@ -27,8 +27,12 @@ import { initiatorSchema, prepareSaveIntent, writeSaveIntent, writeSaveResult, s
 import { formatHumanReceipt, receiptOutputMode } from "./receipt-format.ts";
 import { formatArenaBlockMetadata } from "./metadata.ts";
 import { collectRatio, formatRatioReport, type RatioSource } from "./visibility-ratio.ts";
+import { captureSource } from "./capture.ts";
+import { resolveWebPlan } from "./web-link.ts";
 
 type Options = {
+  sourceUrl?: string;
+  title?: string;
   media?: string;
   mediaOrder?: string;
   mosaicLayout?: CompositionPolicy["mosaicLayout"];
@@ -159,6 +163,12 @@ async function localPlan(values: string[], options: Options): Promise<{ plan: Bl
   const extras = options.extra ?? [];
   const refs = [...inputs.refs, ...extras];
   if (refs.length > 20) throw new Error("At most 20 source posts are supported");
+  if (captureSource(inputs.refs[0]!).kind === "url") {
+    if (refs.length !== 1) throw new Error("Save a web link or PDF separately from other sources");
+    const plan = await resolveWebPlan({ url: inputs.refs[0]!, sourceUrl: options.sourceUrl, title: options.title });
+    return { plan, destinations: inputs.destinations };
+  }
+  if (options.sourceUrl || options.title) throw new Error("--source-url and --title apply to web links and PDFs");
   const composition = policy(options, refs.length);
   const resolved = await resolver.resolveComposition(inputs.refs, extras, composition);
   const plan = composePlan(resolved.posts, selectedPostMediaPolicy(resolved.posts, resolved.policy, options.media === "all+quotes"));
@@ -175,6 +185,8 @@ function client(): ArenaBlockClient {
 function addCompositionOptions(command: Command, extras = true): Command {
   if (extras) command.option("--extra <url>", "add supplementary media from a post or Are.na block; repeatable", (value, values: string[]) => [...values, value], []);
   return command
+    .option("--source-url <url>", "set a source link while preserving the captured URL or PDF")
+    .option("--title <text>", "set the title for a web link or PDF")
     .option("--substack-capture <path>", "read a retained Substack source record; repeatable", (value, values: string[]) => [...values, value], [])
     .option("--reddit-capture <path>", "read a retained Reddit source record; repeatable", (value, values: string[]) => [...values, value], [])
     .option("--media <mode>", "auto, none, all, all+quotes, images, video, audio, indexes (1+4) or refs (1.1,1.4); all+quotes adds quoted attachments; all/types exclude them", "auto")
@@ -284,7 +296,7 @@ addCompositionOptions(program.command("render").description("Render a local medi
   .option("--canvas <width>x<height>", "canvas size; defaults: reading 4096x4096, wallpaper 1440x2560")
   .option("--min-scale <number>", "minimum image scale for reading pages; default 1"))
   .action(async (refs: string[], options: Options) => {
-    if (options.plan && (refs.length || options.extra?.length || options.redditCapture?.length || options.substackCapture?.length)) throw new Error("--plan cannot accompany source URLs, --extra, --reddit-capture, or --substack-capture");
+    if (options.plan && (refs.length || options.extra?.length || options.redditCapture?.length || options.substackCapture?.length || options.sourceUrl || options.title)) throw new Error("--plan cannot accompany source URLs, source/title overrides, --extra, --reddit-capture, or --substack-capture");
     if (options.layout && !["reading", "wallpaper"].includes(options.layout)) throw new Error("--layout must be reading or wallpaper");
     if (options.layout ? (!options.outputDir || options.output) : (!options.output || options.outputDir || options.canvas || options.minScale)) {
       throw new Error("Normal rendering requires -o; --layout requires --output-dir and writes local preview pages");
@@ -326,7 +338,7 @@ addCompositionOptions(addReceiptOptions(program.command("publish").description("
   .action(async (refs: string[], options: Options) => {
     activeReceiptOptions = options;
     const display = receiptOutputMode(options, Boolean(process.stdout.isTTY));
-    if (options.plan && (refs.length || options.extra?.length || options.redditCapture?.length || options.substackCapture?.length)) throw new Error("--plan cannot accompany source URLs, --extra, --reddit-capture, or --substack-capture");
+    if (options.plan && (refs.length || options.extra?.length || options.redditCapture?.length || options.substackCapture?.length || options.sourceUrl || options.title)) throw new Error("--plan cannot accompany source URLs, source/title overrides, --extra, --reddit-capture, or --substack-capture");
     const planned = options.plan
       ? { plan: await readLocalPlan(options.plan, options.mosaicLayout), destinations: options.to ?? [] }
       : await localPlan(refs, options);

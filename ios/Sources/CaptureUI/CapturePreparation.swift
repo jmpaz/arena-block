@@ -2,6 +2,7 @@ import CaptureCore
 import CaptureRuntime
 import Foundation
 import ImageIO
+import LinkPresentation
 
 struct CapturePreparedSource {
     var preview: CapturePreview
@@ -46,12 +47,31 @@ final class CapturePreparation {
         }
         guard source["kind"]?.string == "social" else {
             var preview = snapshot.preview ?? .originalLink(URL(string: snapshot.url)!)
-            preview.plan = nil
-            var prepared = preview.localPreparation ?? .init(payload: ["value": .string(snapshot.url), "original_source_url": .string(snapshot.url)], update: [:])
-            if let title = snapshot.title { prepared.payload["title"] = .string(title); prepared.update["title"] = .string(title) }
-            if let description = snapshot.description { prepared.payload["description"] = .string(description); prepared.update["description"] = .string(description) }
-            return .init(preview: preview, prepared: prepared)
+            var input: [String: JSONValue] = ["url": .string(snapshot.url)]
+            if let source = snapshot.sourceURLOverride { input["sourceUrl"] = .string(source) }
+            if let title = snapshot.title ?? preview.metadataTitle, !title.isEmpty { input["title"] = .string(title) }
+            if let description = snapshot.description { input["description"] = .string(description) }
+            if preview.plan?["block"]?["contentType"] == .string("application/pdf") {
+                input["contentType"] = .string("application/pdf")
+            } else if let pdf = try await CaptureWebLink.readPDF(URL(string: snapshot.url)!, directory: container.appendingPathComponent("previews"), session: mediaSession) {
+                input["contentType"] = .string("application/pdf")
+                if input["title"] == nil, let title = pdf.title { input["title"] = .string(title) }
+                preview.pdfPath = pdf.fileURL.path; preview.pdfPageCount = pdf.pageCount
+            }
+            if snapshot.title == nil, snapshot.preview == nil, let source = snapshot.sourceURLOverride.flatMap(URL.init(string:)) {
+                let provider = LPMetadataProvider(); provider.timeout = 15
+                if let title = try? await provider.startFetchingMetadata(for: source).title, !title.isEmpty {
+                    input["title"] = .string(String(title.prefix(512)))
+                }
+                try Task.checkCancellation()
+            }
+            let result = try decode(runtime.webPlan(json(.object(input))))
+            guard let plan = result["plan"] else { throw CaptureError.message("Couldn't prepare this link.") }
+            preview.plan = plan
+            let payload = try decode(runtime.localPayload(planJSON: json(plan))).object
+            return .init(preview: preview, prepared: .init(payload: payload, update: result["fields"]?.object ?? [:]))
         }
+
         let sources: JSONValue
         if let retained = snapshot.preview?.plan?["sources"], !retained.array.isEmpty,
            !(snapshot.preview?.needsParentContextAcquisition == true && (snapshot.policy["parentDepth"] == .string("full") || (snapshot.policy["parentDepth"]?.int ?? 0) > 0)),

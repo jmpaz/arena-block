@@ -3,6 +3,7 @@ import CaptureCore
 import CaptureRuntime
 import Foundation
 import UIKit
+import PDFKit
 import SwiftUI
 import Observation
 
@@ -125,7 +126,27 @@ struct PreviewFixtures {
         let initialPolicy = mode == "mosaic-video" ? "{\"media\":\"all\"}" : mode == "media-selection" ? "{\"media\":\"none\"}" :
             mode == "multi-post-extra" ? "{\"mediaOnlyPosts\":[2]}" : "{}"
         let composed = try JSONDecoder().decode(JSONValue.self, from: Data(runtime.compose(postsJSON: postJSON, policyJSON: initialPolicy).utf8))
-        preview = CapturePreview(kind: "social", url: sources.first?["canonicalUrl"]?.string ?? "https://x.com/example/status/123", plan: composed["plan"])
+        if mode == "pdf" {
+            let file = directory.appendingPathComponent("paper.pdf")
+            let renderer = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 612, height: 792), format: UIGraphicsPDFRendererFormat())
+            try renderer.writePDF(to: file) { context in
+                context.beginPage()
+                ("A paper about interfaces" as NSString).draw(at: CGPoint(x: 48, y: 60), withAttributes: [.font: UIFont.systemFont(ofSize: 25, weight: .semibold)])
+                ("A document preview keeps the PDF separate from its source link." as NSString).draw(in: CGRect(x: 48, y: 120, width: 500, height: 150), withAttributes: [.font: UIFont.systemFont(ofSize: 18)])
+                context.beginPage()
+            }
+            let input = #"{"url":"https://example.com/paper.pdf","title":"A paper about interfaces","contentType":"application/pdf"}"#
+            let plan = try JSONDecoder().decode(JSONValue.self, from: Data(runtime.webPlan(input).utf8))["plan"]
+            var document = CapturePreview(kind: "url", url: "https://example.com/paper.pdf", plan: plan, metadataTitle: "A paper about interfaces")
+            document.pdfPath = file.path; document.pdfPageCount = 2
+            if let image = PDFDocument(url: file)?.page(at: 0)?.thumbnail(of: CGSize(width: 600, height: 800), for: .mediaBox).jpegData(compressionQuality: 0.85) {
+                let thumbnail = directory.appendingPathComponent("paper.jpg")
+                try image.write(to: thumbnail); document.previewPath = thumbnail.path
+            }
+            preview = document
+        } else {
+            preview = CapturePreview(kind: "social", url: sources.first?["canonicalUrl"]?.string ?? "https://x.com/example/status/123", plan: composed["plan"])
+        }
         let imageURL = imageURLs[0]
         let multiPostInput = sources.compactMap { $0["canonicalUrl"]?.string }.joined(separator: "\n")
         var sample = CaptureDraft(accountID: account.id, defaultChannel: mode == "no-default" ? nil : channels[0], input: ["multi-post", "multi-post-extra", "multi-post-long"].contains(mode) ? multiPostInput : preview.url)
@@ -136,6 +157,7 @@ struct PreviewFixtures {
         if mode == "video-frame", ProcessInfo.processInfo.environment["CAPTURE_UI_VIDEO_DURATION"] != nil { sample.media = .auto; sample.videoFrameThresholdSeconds = CaptureVideoDefaults.frameThresholdSeconds }
         sample.titleOverride = ["soundcloud-playlist", "multi-post", "multi-post-extra", "multi-post-long"].contains(mode) ? nil : "A study in shape"
         sample.descriptionOverride = ["soundcloud-playlist", "multi-post", "multi-post-extra", "multi-post-long"].contains(mode) ? nil : "A small collection of things worth looking at again."
+        if mode == "pdf" { sample.titleOverride = nil; sample.descriptionOverride = nil; sample.renderPath = nil }
         var saved = sample
         saved.id = UUID(); saved.phase = .saved; saved.blockID = 900
         saved.deliveryState = CaptureDeliveryState(operationID: saved.id, stage: .done, confirmedChannelIDs: [101], contentVerified: true)
