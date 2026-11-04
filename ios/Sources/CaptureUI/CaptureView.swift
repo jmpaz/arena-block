@@ -316,7 +316,6 @@ public struct CaptureRootView: View {
                                     .disabled(locked)
                                 Text("Leave empty to use the captured URL.").font(.footnote).foregroundStyle(.secondary)
                             }
-                            .accessibilityIdentifier("capture.source-details")
                         }
                         if let plan = session.preview?.plan,
                            plan["sources"]?.array.first?["provider"]?.string == "soundcloud" {

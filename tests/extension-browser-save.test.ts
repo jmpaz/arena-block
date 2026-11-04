@@ -22,7 +22,7 @@ function fixture() {
       if (postMode === "reject") return new Response(null, { status: 403 });
       const payload = JSON.parse(String(init?.body));
       blockFields = { type: String(payload.value).startsWith("arena-block text ") ? "Text" : "Link",
-        title: payload.title, description: payload.description ?? null, content: payload.value };
+        title: payload.title, description: payload.description ?? null, content: payload.value, source: { url: payload.original_source_url } };
       return Response.json({ data: { id: 900 } });
     }
     if (url.endsWith("/blocks/900")) {

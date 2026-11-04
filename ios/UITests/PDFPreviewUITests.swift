@@ -21,7 +21,7 @@ final class PDFPreviewUITests: XCTestCase {
         let document = XCTAttachment(screenshot: app.screenshot()); document.name = "pdf-document"; document.lifetime = .keepAlways; add(document)
         close.tap()
         XCTAssertTrue(close.waitForNonExistence(timeout: 5))
-        let disclosure = app.descendants(matching: .any)["capture.source-details"].firstMatch
+        let disclosure = app.buttons["Source link"]
         for _ in 0..<5 where !disclosure.isHittable { app.swipeUp() }
         disclosure.tap()
         let source = app.textFields["capture.source-override"]
@@ -30,7 +30,7 @@ final class PDFPreviewUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["capture.pdf-link"].firstMatch.waitForExistence(timeout: 5))
         let resolved = app.descendants(matching: .any)["capture.resolved-link"].firstMatch
         XCTAssertTrue(resolved.waitForExistence(timeout: 5))
-        XCTAssertTrue(resolved.label.contains("https://example.com/article"))
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "label CONTAINS %@", "https://example.com/article"), object: resolved)], timeout: 5), .completed)
         app.buttons["Done"].tap()
         for _ in 0..<4 where !title.isHittable { app.swipeDown() }
         XCTAssertTrue((title.value as? String ?? "").contains("notes"))
