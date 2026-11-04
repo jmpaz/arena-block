@@ -728,7 +728,11 @@ public struct CaptureRootView: View {
             }
             sourceControlLayout {
                 TextField("Enter a link", text: Binding(
-                    get: { session.draft?.pdfInput != nil ? session.draft?.sourceURLOverride ?? session.sourceRows[index] : session.sourceRows.indices.contains(index) ? session.sourceRows[index] : "" },
+                    get: {
+                        let rows = session.sourceRows
+                        guard rows.indices.contains(index) else { return "" }
+                        return session.draft?.pdfInput != nil ? session.draft?.sourceURLOverride ?? rows[index] : rows[index]
+                    },
                     set: { session.replaceSource(at: index, with: $0) }), axis: .vertical)
                     .font(.subheadline).foregroundStyle(.primary)
                     .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
