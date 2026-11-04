@@ -317,6 +317,12 @@ public struct CaptureRootView: View {
                                 Text("Leave empty to use the captured URL.").font(.footnote).foregroundStyle(.secondary)
                             }
                         }
+                        if let preview = session.preview {
+                            if preview.plan?["block"]?["contentType"] == .string("application/pdf"),
+                               session.draft?.sourceURLOverride?.isEmpty == false, let pdf = URL(string: preview.url) {
+                                Link("Open PDF", destination: pdf).accessibilityIdentifier("capture.pdf-link")
+                            }
+                        }
                         if let plan = session.preview?.plan,
                            plan["sources"]?.array.first?["provider"]?.string == "soundcloud" {
                             SoundCloudSourceView(plan: plan).listRowSeparator(.hidden)
@@ -401,12 +407,6 @@ public struct CaptureRootView: View {
                         if let note = session.preview?.threadCoverageNote {
                             Text(note).font(.footnote).foregroundStyle(.secondary)
                                 .accessibilityIdentifier("capture.thread-coverage")
-                        }
-                        if let preview = session.preview, preview.kind == "url" {
-                            if preview.plan?["block"]?["contentType"] == .string("application/pdf"),
-                               session.draft?.sourceURLOverride?.isEmpty == false, let pdf = URL(string: preview.url) {
-                                Link("Open PDF", destination: pdf).accessibilityIdentifier("capture.pdf-link")
-                            }
                         }
                         if let raw = session.preview?.plan?["block"]?["canonicalSource"]?.string ?? session.preview?.url,
                            (session.preview?.plan?["sources"]?.array.count ?? 1) <= 1,

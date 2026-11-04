@@ -28,10 +28,11 @@ final class PDFPreviewUITests: XCTestCase {
         XCTAssertTrue(source.waitForExistence(timeout: 5)); source.tap()
         source.typeText("https://example.com/article")
         XCTAssertTrue(app.descendants(matching: .any)["capture.pdf-link"].firstMatch.waitForExistence(timeout: 5))
+        app.buttons["Done"].tap()
         let resolved = app.descendants(matching: .any)["capture.resolved-link"].firstMatch
+        for _ in 0..<5 where !resolved.isHittable { app.swipeUp() }
         XCTAssertTrue(resolved.waitForExistence(timeout: 5))
         XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "label CONTAINS %@", "https://example.com/article"), object: resolved)], timeout: 5), .completed)
-        app.buttons["Done"].tap()
         for _ in 0..<4 where !title.isHittable { app.swipeDown() }
         XCTAssertTrue((title.value as? String ?? "").contains("notes"))
         let attachment = XCTAttachment(screenshot: app.screenshot()); attachment.name = "pdf-source-override"; attachment.lifetime = .keepAlways; add(attachment)

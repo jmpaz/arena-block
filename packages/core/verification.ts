@@ -11,9 +11,9 @@ export function verifyPublication(plan: BlockPlan, block: Json, available: Json)
     if (plan.block.kind === "text" && type !== "Text") throw new Error(`Expected Text block, received ${type}`);
     if (plan.block.kind === "image" && type !== "Image") throw new Error(`Expected Image block, received ${type}`);
     if (plan.block.kind === "link" && type !== "Link") throw new Error(`Expected Link block, received ${type}`);
-    const pdfAttachment = plan.block.kind === "url" && type === "Attachment"
+    const pdfAttachment = plan.block.kind === "url" && plan.sources[0]?.provider === "web" && type === "Attachment"
       && string(object(block.attachment)?.content_type)?.split(";", 1)[0]?.trim().toLowerCase() === "application/pdf";
-    if (plan.block.kind === "url" && plan.block.contentType !== "application/pdf" && !pdfAttachment && !["Link", "Embed"].includes(type ?? "")) throw new Error(`Expected Link, Embed or PDF Attachment block, received ${type}`);
+    if (plan.block.kind === "url" && plan.block.contentType !== "application/pdf" && !pdfAttachment && !["Link", "Embed"].includes(type ?? "")) throw new Error(plan.sources[0]?.provider === "web" ? `Expected Link, Embed or PDF Attachment block, received ${type}` : `Expected Link or Embed block, received ${type}`);
     if (plan.block.contentType === "application/pdf" || pdfAttachment) {
       const attachment = object(block.attachment);
       if (type !== "Attachment" || string(attachment?.content_type)?.split(";", 1)[0]?.trim().toLowerCase() !== "application/pdf")
