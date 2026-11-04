@@ -41,7 +41,7 @@ public struct CaptureHistorySummary: Decodable, Identifiable, Sendable {
 
     private enum CodingKeys: String, CodingKey {
         case id, accountID, input, selection, phase, blockID, deliveryState, updatedAt
-        case titleOverride, descriptionOverride, previewSnapshot, savedBlock, problem
+        case titleOverride, descriptionOverride, previewSnapshot, savedBlock, problem, pdfInput
     }
 
     public init(from decoder: Decoder) throws {
@@ -56,7 +56,8 @@ public struct CaptureHistorySummary: Decodable, Identifiable, Sendable {
         updatedAt = try c.decode(Date.self, forKey: .updatedAt)
         let override = try c.decodeIfPresent(String.self, forKey: .titleOverride)
         let descriptionOverride = try c.decodeIfPresent(String.self, forKey: .descriptionOverride)
-        hasUserEdits = override != nil || descriptionOverride != nil
+        let hasPDF = c.contains(.pdfInput) ? !(try c.decodeNil(forKey: .pdfInput)) : false
+        hasUserEdits = override != nil || descriptionOverride != nil || hasPDF
         hasProblem = try c.decodeIfPresent(String.self, forKey: .problem) != nil
         let block = try? c.decode(BlockHeading.self, forKey: .savedBlock)
         let preview = try c.decodeIfPresent(PreviewHeading.self, forKey: .previewSnapshot)

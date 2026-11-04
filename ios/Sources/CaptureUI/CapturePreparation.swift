@@ -8,6 +8,7 @@ struct CapturePreparedSource {
     var preview: CapturePreview
     var prepared: PreparedCapture
     var reusableRenderPath: String?
+    var retainedPDF: CapturePDFInput?
 }
 
 /// Foreground/BGProcessing work. The durable job precedes this object's provider and media reads.
@@ -23,6 +24,21 @@ final class CapturePreparation {
     }
 
     func read(_ snapshot: CaptureSubmissionSnapshot) async throws -> CapturePreparedSource {
+        if let pdf = snapshot.pdfInput {
+            let file = try pdf.validatedFile(in: container)
+            let source = try CaptureWebLink.sourceOverride(snapshot.sourceURLOverride ?? snapshot.url)
+            guard let source else { throw CaptureError.message("Add a source link before saving this PDF.") }
+            var input: [String: JSONValue] = ["sourceUrl": .string(source), "file": pdf.planFile,
+                "title": .string(snapshot.title ?? snapshot.preview?.metadataTitle ?? pdf.title ?? URL(fileURLWithPath: pdf.filename).deletingPathExtension().lastPathComponent)]
+            if let original = pdf.originalURL { input["originalUrl"] = .string(original) }
+            if let description = snapshot.description { input["description"] = .string(description) }
+            let response = try decode(runtime.pdfFilePlan(json(.object(input))))
+            guard let plan = response["plan"] else { throw CaptureError.message("Couldn't prepare this PDF.") }
+            var preview = snapshot.preview ?? CapturePreview(kind: "url", url: snapshot.url)
+            preview.plan = plan; preview.pdfPath = file.path; preview.pdfPageCount = pdf.pageCount
+            let payload = try decode(runtime.localPayload(planJSON: json(plan), mediaURL: "https://s3.amazonaws.com/arena_images-temp/pending.pdf")).object
+            return .init(preview: preview, prepared: .init(payload: payload, update: response["fields"]?.object ?? [:]), retainedPDF: pdf)
+        }
         if snapshot.originalLinkOnly == true {
             guard snapshot.sourceRefs.count == 1, snapshot.supplementaryRefs.isEmpty,
                   let url = try? CaptureInput.singleURL(snapshot.url),

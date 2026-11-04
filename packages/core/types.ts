@@ -311,6 +311,7 @@ export const blockPlanSchema = z.object({
       return ["https:", "http:"].includes(url.protocol) && !url.username && !url.password;
     }).optional(),
     contentType: z.literal("application/pdf").optional(),
+    pdfFile: z.object({ sha256: z.string().regex(/^[a-f0-9]{64}$/), byteCount: z.number().int().positive().max(50 * 1024 * 1024) }).optional(),
     artworkUrl: soundCloudArtworkUrlSchema.optional(),
     selectedMedia: z.array(z.string()),
     frameMedia: z.array(z.object({ ref: z.string().regex(/^\d+\.\d+$/), url: z.url().refine(value => {
@@ -325,7 +326,7 @@ export const blockPlanSchema = z.object({
       dateUncertainty: z.array(z.enum(["same_day", "missing_or_incomparable_source_days"])).optional() })).optional(),
   }),
 }).superRefine((plan, context) => {
-  if ((plan.block.contentUrl || plan.block.contentType) && (plan.block.kind !== "url" || plan.sources.length !== 1 || plan.sources[0]?.provider !== "web"))
+  if ((plan.block.contentUrl || plan.block.contentType || plan.block.pdfFile) && (plan.block.kind !== "url" || plan.sources.length !== 1 || plan.sources[0]?.provider !== "web"))
     context.addIssue({ code: "custom", message: "Link content requires one web source", path: ["block", "contentUrl"] });
   if (plan.sources[0]?.provider === "web") {
     const url = new URL(plan.block.canonicalSource);
@@ -334,6 +335,8 @@ export const blockPlanSchema = z.object({
     if (plan.block.contentUrl && plan.block.contentUrl !== plan.sources[0].canonicalUrl)
       context.addIssue({ code: "custom", message: "Link content must match the captured URL", path: ["block", "contentUrl"] });
   }
+  if (plan.block.pdfFile && plan.block.contentType !== "application/pdf")
+    context.addIssue({ code: "custom", message: "Retained PDF files require PDF content", path: ["block", "pdfFile"] });
   for (const ref of plan.policy.videoMotion ?? []) {
     if (plan.block.selectedMedia.includes(ref) && !planMedia(plan).some(asset => asset.ref === ref && asset.kind === "video"))
       context.addIssue({ code: "custom", message: "Video choice requires an observed video source", path: ["policy", "videoMotion"] });

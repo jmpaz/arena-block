@@ -5,6 +5,7 @@ import { mediaSources } from "../packages/core/media-tree.ts";
 export function requiredPlanCapabilities(plan: BlockPlan): string[] {
   const required = new Set<string>();
   if (plan.block.contentUrl || plan.block.contentType) required.add("web-pdf-source-v1");
+  if (plan.block.pdfFile) required.add("pdf-file-input-v1");
   if (plan.policy.mosaicLayout !== undefined) required.add("mosaic-layout-v1");
   if (plan.policy.videoMotion !== undefined || (plan.policy.videoFrameThresholdSeconds ?? 0) > 600
     || plan.block.kind === "video" && mediaSources(plan.sources).some(node => node.media.some(asset => plan.block.selectedMedia.includes(asset.ref) && (asset.durationSeconds ?? 0) > 600))) required.add("video-representation-v2");

@@ -117,6 +117,19 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: org.arenacapture.uitests
         GENERATE_INFOPLIST_FILE: YES
         TEST_TARGET_NAME: Capture
+  CaptureReceivingTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [Tests/CaptureReceivingTests]
+    dependencies:
+      - package: ArenaCapture
+        product: CaptureCore
+      - package: ArenaCapture
+        product: CaptureUI
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: org.arenacapture.receivingtests
+        GENERATE_INFOPLIST_FILE: YES
 
 schemes:
   Capture:
@@ -128,4 +141,4 @@ schemes:
 
     test:
       config: Debug
-      targets: [CaptureUITests]
+      targets: [CaptureUITests, CaptureReceivingTests]

@@ -122,6 +122,18 @@ final class CaptureStorageExportTests: XCTestCase {
         let report = try CaptureStorageExport.collect(main: main, shared: shared, normalCaptureAlreadyActive: false)
         XCTAssertEqual(report.files.first { $0.pathSHA256 == digest(relative) }?.associatedRecordIDs.count, 2)
     }
+    func testRetainedPDFReferencesAreAssociatedWithoutExportingPrivateFields() throws {
+        let (root, main, shared) = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let relative = "originals/pdfs/\(UUID().uuidString).pdf"
+        let file = try write(shared, relative)
+        try insert(shared, kind: "incoming", value: ["pdfInput": ["filePath": file.path, "filename": "Private research.pdf", "originalURL": "https://private.example/paper"]])
+        let report = try CaptureStorageExport.collect(main: main, shared: shared, normalCaptureAlreadyActive: false)
+        let ref = try XCTUnwrap(report.records.first?.references.first)
+        XCTAssertEqual(ref.field, "filepath"); XCTAssertEqual(ref.pathSHA256, digest(relative))
+        XCTAssertEqual(report.files.first { $0.pathSHA256 == ref.pathSHA256 }?.associatedRecordIDs, [report.records[0].idSHA256])
+        let text = String(decoding: try JSONEncoder().encode(report), as: UTF8.self)
+        XCTAssertFalse(text.contains("Private research")); XCTAssertFalse(text.contains("private.example")); XCTAssertFalse(text.contains(file.path))
+    }
     func testSymlinksExternalReferencesAndUnobservedFilesStayUnknownAndPreserved() throws {
         let (root, main, shared) = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
         let original = try write(main, "private.m4a", bytes: 53)

@@ -126,7 +126,7 @@ struct PreviewFixtures {
         let initialPolicy = mode == "mosaic-video" ? "{\"media\":\"all\"}" : mode == "media-selection" ? "{\"media\":\"none\"}" :
             mode == "multi-post-extra" ? "{\"mediaOnlyPosts\":[2]}" : "{}"
         let composed = try JSONDecoder().decode(JSONValue.self, from: Data(runtime.compose(postsJSON: postJSON, policyJSON: initialPolicy).utf8))
-        if mode == "pdf" {
+        if mode.hasPrefix("pdf") {
             let file = directory.appendingPathComponent("paper.pdf")
             let renderer = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 612, height: 792), format: UIGraphicsPDFRendererFormat())
             try renderer.writePDF(to: file) { context in
@@ -139,7 +139,7 @@ struct PreviewFixtures {
             let plan = try JSONDecoder().decode(JSONValue.self, from: Data(runtime.webPlan(input).utf8))["plan"]
             var document = CapturePreview(kind: "url", url: "https://example.com/paper.pdf", plan: plan, metadataTitle: "A paper about interfaces")
             document.pdfPath = file.path; document.pdfPageCount = 2
-            if let image = PDFDocument(url: file)?.page(at: 0)?.thumbnail(of: CGSize(width: 600, height: 800), for: .mediaBox).jpegData(compressionQuality: 0.85) {
+            if let image = CaptureSession.pdfThumbnail(file) {
                 let thumbnail = directory.appendingPathComponent("paper.jpg")
                 try image.write(to: thumbnail); document.previewPath = thumbnail.path
             }
@@ -157,7 +157,19 @@ struct PreviewFixtures {
         if mode == "video-frame", ProcessInfo.processInfo.environment["CAPTURE_UI_VIDEO_DURATION"] != nil { sample.media = .auto; sample.videoFrameThresholdSeconds = CaptureVideoDefaults.frameThresholdSeconds }
         sample.titleOverride = ["soundcloud-playlist", "multi-post", "multi-post-extra", "multi-post-long"].contains(mode) ? nil : "A study in shape"
         sample.descriptionOverride = ["soundcloud-playlist", "multi-post", "multi-post-extra", "multi-post-long"].contains(mode) ? nil : "A small collection of things worth looking at again."
-        if mode == "pdf" { sample.titleOverride = nil; sample.descriptionOverride = nil; sample.renderPath = nil }
+        if mode.hasPrefix("pdf") { sample.titleOverride = nil; sample.descriptionOverride = nil; sample.renderPath = nil }
+        if mode == "pdf-file" {
+            let retained = try CapturePDFInput.retain(directory.appendingPathComponent("paper.pdf"), in: directory)
+            sample.input = ""; sample.pdfInput = retained; sample.phase = .editing
+            var local = CapturePreview(kind: "url", url: "", metadataTitle: "A paper about interfaces")
+            local.pdfPath = retained.filePath; local.pdfPageCount = retained.pageCount
+            sample.previewSnapshot = local
+        }
+        if mode == "pdf-host-confirmation" {
+            sample.input = "https://example.com/confirmation.pdf"
+            sample.previewSnapshot = nil; sample.phase = .failed
+            sample.problem = "The PDF host returned HTTP 403. Confirm access in Safari and import the downloaded PDF."
+        }
         var saved = sample
         saved.id = UUID(); saved.phase = .saved; saved.blockID = 900
         saved.deliveryState = CaptureDeliveryState(operationID: saved.id, stage: .done, confirmedChannelIDs: [101], contentVerified: true)

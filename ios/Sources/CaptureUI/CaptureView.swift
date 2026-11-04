@@ -5,6 +5,7 @@ import ImageIO
 import PDFKit
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
 
 public struct CaptureRootView: View {
     private struct SoundtrackChoice: Identifiable {
@@ -35,6 +36,8 @@ public struct CaptureRootView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var tab = CaptureTab.capture
     @State private var pdfPreviewURL: URL?
+    @State private var importingPDF = false
+    @State private var pdfImportDraftID: UUID?
     @State private var channels = false
     @State private var retryConfirmation = false
     @State private var continuationOffer: ContinuationOffer?
@@ -111,6 +114,15 @@ public struct CaptureRootView: View {
         }
         .tint(.accentColor)
         .preferredColorScheme(fixtureColorScheme)
+        .fileImporter(isPresented: $importingPDF, allowedContentTypes: [.pdf]) { result in
+            do {
+                let file = try result.get()
+                guard let id = pdfImportDraftID else { return }
+                try session.importPDFFile(file, for: id)
+            } catch let error as CocoaError where error.code == .userCancelled { }
+            catch { session.problem = error.localizedDescription }
+            pdfImportDraftID = nil
+        }
         .sheet(isPresented: Binding(get: { pdfPreviewURL != nil }, set: { if !$0 { pdfPreviewURL = nil } })) {
             if let url = pdfPreviewURL {
                 NavigationStack {
@@ -241,7 +253,7 @@ public struct CaptureRootView: View {
             if !session.incomingLinks.isEmpty {
                 Section("Shared links") {
                     ForEach(session.incomingLinks, id: \.self) { link in
-                        Button(link) { session.useIncoming(link) }.lineLimit(2)
+                        Button(session.incomingLabel(link)) { session.useIncoming(link) }.lineLimit(2)
                             .disabled(session.busy)
                     }
                 }
@@ -306,7 +318,7 @@ public struct CaptureRootView: View {
                             .accessibilityIdentifier("capture.pdf-preview")
                             .buttonStyle(.borderless)
                         }
-                        if session.preview?.kind == "url" {
+                        if session.preview?.kind == "url", session.draft?.pdfInput == nil {
                             DisclosureGroup("Source link") {
                                 TextField("Use original URL", text: Binding(get: { session.draft?.sourceURLOverride ?? "" }, set: session.setSourceURL))
                                     .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
@@ -317,9 +329,12 @@ public struct CaptureRootView: View {
                                 Text("Leave empty to use the captured URL.").font(.footnote).foregroundStyle(.secondary)
                             }
                         }
-                        if let preview = session.preview {
+                        if let original = session.draft?.pdfInput?.originalURL, let url = URL(string: original) {
+                            Link("Open original link", destination: url).accessibilityIdentifier("capture.pdf-original-link")
+                        } else if let preview = session.preview {
                             if preview.plan?["block"]?["contentType"] == .string("application/pdf"),
-                               session.draft?.sourceURLOverride?.isEmpty == false, let pdf = URL(string: preview.url) {
+                               session.draft?.sourceURLOverride?.isEmpty == false,
+                               let pdf = URL(string: session.draft?.pdfInput?.originalURL ?? preview.url) {
                                 Link("Open PDF", destination: pdf).accessibilityIdentifier("capture.pdf-link")
                             }
                         }
@@ -707,13 +722,13 @@ public struct CaptureRootView: View {
     private func sourcePostDetails(at index: Int) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             if session.sourceRows.count == 1 {
-                Text("Link").font(.subheadline.weight(.medium)).foregroundStyle(.primary)
+                Text(session.draft?.pdfInput != nil ? "Source link" : "Link").font(.subheadline.weight(.medium)).foregroundStyle(.primary)
                     .accessibilityIdentifier("capture.source.label")
                     .accessibilityHidden(true) // The field already announces its descriptive Link label.
             }
             sourceControlLayout {
                 TextField("Enter a link", text: Binding(
-                    get: { session.sourceRows.indices.contains(index) ? session.sourceRows[index] : "" },
+                    get: { session.draft?.pdfInput != nil ? session.draft?.sourceURLOverride ?? session.sourceRows[index] : session.sourceRows.indices.contains(index) ? session.sourceRows[index] : "" },
                     set: { session.replaceSource(at: index, with: $0) }), axis: .vertical)
                     .font(.subheadline).foregroundStyle(.primary)
                     .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
@@ -762,8 +777,27 @@ public struct CaptureRootView: View {
         .disabled(locked)
     }
 
+    private func beginPDFImport() {
+        focusedField = nil
+        pdfImportDraftID = session.draft?.id
+        importingPDF = true
+    }
+
     private var sourceExtras: some View {
         sourceControlLayout {
+          if let pdf = session.draft?.pdfInput {
+            VStack(alignment: .leading, spacing: 8) {
+                Label(pdf.filename, systemImage: "doc.richtext").lineLimit(2)
+                    .accessibilityIdentifier("capture.pdf-filename")
+                if pdf.originalURL == nil && session.draft?.input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == true {
+                    Text("Add the source link to save this PDF.").font(.footnote).foregroundStyle(.secondary)
+                }
+                HStack(spacing: 20) {
+                    Button("Replace PDF") { beginPDFImport() }.disabled(locked)
+                    Button("Remove PDF", role: .destructive) { session.removePDFFile() }.disabled(locked)
+                }
+            }
+          } else {
             Button {
                 session.addSource()
                 expandedSourceIndex = session.sourceRows.count - 1
@@ -777,6 +811,10 @@ public struct CaptureRootView: View {
             .contentShape(Rectangle())
             .disabled(locked || session.sourceRows.count >= 20 || session.sourceRows.last?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false)
             .accessibilityIdentifier("capture.source.add")
+            if session.sourceRows.count == 1 {
+                Button { beginPDFImport() } label: { Label("Import PDF", systemImage: "doc.badge.plus") }
+                    .frame(minHeight: 44).disabled(locked).accessibilityIdentifier("capture.pdf-import")
+            }
             if session.canExpandForumMagnumComment {
                 if !dynamicTypeSize.isAccessibilitySize { Spacer(minLength: 8) }
                 Picker("Comment context", selection: Binding(
@@ -797,6 +835,7 @@ public struct CaptureRootView: View {
                     .accessibilityIdentifier("capture.thread-import")
                     .disabled(locked)
             }
+          }
         }
         .buttonStyle(.borderless)
         .font(.subheadline)
@@ -992,6 +1031,12 @@ public struct CaptureRootView: View {
                             }
                         }
                 }.frame(maxWidth: .infinity, alignment: .leading)
+            }
+            if !reading, session.draft?.pdfInput == nil, CaptureSourceAccess.pdfNeedsHost(session.draft?.problem),
+               let source = try? CaptureInput.singleURL(session.draft?.input ?? "") {
+                Link("Open in Safari", destination: source).accessibilityIdentifier("capture.pdf-browser")
+                Text("If this is a PDF that needs confirmation, download it in Safari, then share the PDF to Capture or choose Import PDF.")
+                    .font(.footnote).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
             if !reading, CaptureSourceAccess.originalLinkAvailable(session.draft?.problem),
                let source = try? CaptureInput.selectedPosts(session.draft?.input ?? "", roles: session.draft?.sourceRoles).primary.first {

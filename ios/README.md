@@ -38,6 +38,10 @@ Paste or share a PDF URL to preview its first page and read its title and page c
 
 Expand Source link to set another web URL, such as a paper's DOI page. Leave the field empty to use the captured URL. The app tries the chosen source page for a title while keeping an edited title. Open PDF remains available when the source points elsewhere. Save keeps the PDF as content and checks the attachment and selected source URL after Are.na processes it.
 
+For a PDF that needs confirmation, open it in Safari and complete the host's confirmation or download flow. Share the downloaded PDF to Capture, or choose Import PDF and select it in Files. Capture copies the supplied document into private storage before the host releases its temporary file; it does not copy browser cookies or login sessions. The preview remains available after reopening the draft. Edit Source link above the imported document to choose its source; a file without a known web URL needs this link before Save becomes available. Replace PDF changes the document while preserving writing edits; Remove PDF returns to the link capture.
+
+Saving an imported PDF uploads the retained bytes before creating the block. Recovery checks the file's size and SHA-256 digest and never substitutes the citation page for a missing PDF. The final readback checks PDF attachment type, byte count, and source URL.
+
 ## Background work
 
 The app retains accepted work locally before the Share host closes. On supported iOS versions, the continued-processing coordinator requests execution for the retained save and updates the system progress display. After cancellation or expiry, it persists the stopped state so later recovery can inspect the attempt.

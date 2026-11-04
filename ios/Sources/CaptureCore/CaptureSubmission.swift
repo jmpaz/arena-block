@@ -14,6 +14,7 @@ public struct CaptureSubmissionSnapshot: Codable, Sendable {
     public let pendingMediaChoices: CaptureMediaChoiceAnchors?
     public let title: String?
     public let sourceURLOverride: String?
+    public let pdfInput: CapturePDFInput?
     public let description: String?
     public let preview: CapturePreview?
     public let reusableRenderPath: String?
@@ -42,6 +43,11 @@ public struct CaptureSubmissionSnapshot: Codable, Sendable {
         pendingMediaChoices = draft.pendingMediaChoices
         title = draft.titleOverride; description = draft.descriptionOverride
         sourceURLOverride = try CaptureWebLink.sourceOverride(draft.sourceURLOverride)
+        pdfInput = draft.pdfInput
+        if pdfInput != nil {
+            guard submitted.count == 1, extras.isEmpty else { throw CaptureError.message("Save a PDF file on its own.") }
+            _ = try CaptureWebLink.sourceOverride(sourceURLOverride ?? submitted[0])
+        }
         if sourceURLOverride != nil && (submitted.count != 1 || !extras.isEmpty) {
             throw CaptureError.message("Set a source link for a single web link or PDF.")
         }

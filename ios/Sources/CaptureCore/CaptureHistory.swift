@@ -40,6 +40,7 @@ extension CaptureDraft {
         !input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             || titleOverride?.isEmpty == false || descriptionOverride?.isEmpty == false
             || previewSnapshot != nil || renderPath != nil || blockID != nil || !isUnsubmittedDraft
+            || pdfInput != nil
     }
 
     public var isUnsubmittedDraft: Bool {
@@ -52,7 +53,7 @@ extension CaptureDraft {
 
     public var isDraftCapture: Bool { !isCanceled && (isUnsubmittedDraft || deliveryState?.preparationFailureStage != nil) }
 
-    public var hasUserEdits: Bool { titleOverride != nil || descriptionOverride != nil }
+    public var hasUserEdits: Bool { titleOverride != nil || descriptionOverride != nil || pdfInput != nil }
 
     public func automaticDraftExpired(at date: Date) -> Bool {
         isUnsubmittedDraft && !hasUserEdits && blockID == nil && deliveryState == nil

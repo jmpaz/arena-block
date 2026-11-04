@@ -7,8 +7,10 @@ public struct PendingShare: Codable {
     public var urls: [String]
     public var redditCaptureJSON: String?
     public var substackCaptureJSON: String?
-    public init(id: UUID, urls: [String], redditCaptureJSON: String? = nil, substackCaptureJSON: String? = nil) {
+    public var pdfInput: CapturePDFInput?
+    public init(id: UUID, urls: [String], redditCaptureJSON: String? = nil, substackCaptureJSON: String? = nil, pdfInput: CapturePDFInput? = nil) {
         self.id = id; self.urls = urls; self.redditCaptureJSON = redditCaptureJSON; self.substackCaptureJSON = substackCaptureJSON
+        self.pdfInput = pdfInput
     }
 }
 
@@ -29,6 +31,26 @@ extension CaptureRuntime {
 }
 
 extension CaptureStore {
+    public func replacePDFInput(in current: CaptureDraft, input: CapturePDFInput?, workspaceID: String, shareInvocationID: UUID? = nil) throws -> CaptureDraft {
+        var replacement = current
+        replacement.pdfInput = input; replacement.originalLinkOnly = nil; replacement.redditCapturesJSON = nil; replacement.substackCapturesJSON = nil
+        replacement.problem = nil; replacement.phase = .editing; replacement.previewSnapshot = nil; replacement.renderPath = nil
+        replacement.media = .none; replacement.selectedMedia = nil; replacement.pendingMediaChoices = nil
+        replacement.threadExpansion = nil; replacement.sourceRoles = nil; replacement.updatedAt = Date()
+        try transaction {
+            try requireShareInvocation(shareInvocationID, account: current.accountID, workspaceID: workspaceID)
+            guard try value(DeletedCapture.self, account: current.accountID, kind: "deletedDraft", id: current.id.uuidString) == nil,
+                  current.isUnsubmittedDraft, current.blockID == nil else { throw CaptureError.message("Start a new capture to import this PDF.") }
+            if let stored = try value(CaptureDraft.self, account: current.accountID, kind: "draft", id: current.id.uuidString),
+               !stored.isUnsubmittedDraft || stored.blockID != nil { throw CaptureError.message("This capture has already been submitted. Start a new capture.") }
+            try save(replacement, account: current.accountID, kind: "draft", id: current.id.uuidString)
+            var workspace = try value(CaptureWorkspace.self, account: current.accountID, kind: "workspace", id: workspaceID) ?? CaptureWorkspace()
+            workspace.activeDraftID = replacement.hasDraftContent ? replacement.id : nil
+            try save(workspace, account: current.accountID, kind: "workspace", id: workspaceID)
+        }
+        return replacement
+    }
+
     /// Return replacement state only after the draft and workspace commit together.
     public func replaceBrowserSnapshot(in current: CaptureDraft, recordsJSON: String, workspaceID: String, substack: Bool = false, shareInvocationID: UUID? = nil) throws -> CaptureDraft {
         var replacement = current
@@ -54,24 +76,27 @@ extension CaptureStore {
     }
 
     public func commitNewCapture(_ draft: CaptureDraft, workspace: CaptureWorkspace, workspaceID: String,
-                                 consumingIncoming: Bool, incomingIDs: Set<UUID>? = nil, shareInvocationID: UUID? = nil) throws -> (draft: CaptureDraft, incoming: [String]?) {
+                                 consumingIncoming: Bool, incomingIDs: Set<UUID>? = nil, shareInvocationID: UUID? = nil,
+                                 incomingReference: String? = nil) throws -> (draft: CaptureDraft, incoming: [String]?) {
         var next = draft
         var incoming: [String]?
         try transaction {
             try requireShareInvocation(shareInvocationID, account: next.accountID, workspaceID: workspaceID)
             if consumingIncoming {
                 let pending = try values(PendingShare.self, account: 0, kind: "incoming").filter { incomingIDs?.contains($0.id) ?? true }
-                let matching = pending.filter { $0.urls.contains(next.input) }
+                let reference = incomingReference ?? next.input
+                let matching = pending.filter { $0.urls.contains(reference) }
                 // Newest matching snapshot supersedes earlier intake for this URL.
                 next.substackCapturesJSON = matching.first(where: { $0.substackCaptureJSON != nil })?.substackCaptureJSON.map { "[" + $0 + "]" }
                 next.redditCapturesJSON = matching.first(where: { $0.redditCaptureJSON != nil })?.redditCaptureJSON.map { "[" + $0 + "]" }
+                if let input = matching.first(where: { $0.pdfInput != nil })?.pdfInput { next.pdfInput = input }
                 for item in matching {
-                    let remaining = item.urls.filter { $0 != next.input }
+                    let remaining = item.urls.filter { $0 != reference }
                     if remaining.isEmpty { try remove(account: 0, kind: "incoming", id: item.id.uuidString) }
                     else { try save(PendingShare(id: item.id, urls: remaining), account: 0, kind: "incoming", id: item.id.uuidString) }
                 }
                 var seen = Set<String>()
-                incoming = pending.flatMap(\.urls).filter { $0 != next.input && seen.insert($0).inserted }
+                incoming = pending.flatMap(\.urls).filter { $0 != reference && seen.insert($0).inserted }
             }
             if next.hasDraftContent { try save(next, account: next.accountID, kind: "draft", id: next.id.uuidString) }
             try save(workspace, account: next.accountID, kind: "workspace", id: workspaceID)

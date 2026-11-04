@@ -118,6 +118,7 @@ public final class CaptureRuntime {
     }
     public func source(_ value: String) throws -> String { try invoke("captureSource", [value]) }
     public func webPlan(_ value: String) throws -> String { try invoke("captureWebPlan", [value]) }
+    public func pdfFilePlan(_ value: String) throws -> String { try invoke("capturePDFFilePlan", [value]) }
     /// Convert an existing on-device authenticated Are.na read to a media source without transmitting its credential.
     public func arenaMediaPost(blockJSON: String, blockID: Int) throws -> String {
         try invoke("captureArenaMediaPost", [blockJSON, String(blockID)])

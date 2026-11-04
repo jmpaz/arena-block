@@ -72,6 +72,7 @@ public final class CaptureSession {
     let credentials: CredentialStore
     let defaults: UserDefaults
     let container: URL
+    public var pdfImportContainer: URL { container }
     private let workspaceID: String
     private let freshShare: Bool
     private let shareInvocationID = UUID()
@@ -172,7 +173,7 @@ public final class CaptureSession {
                 let opened = try store.openWorkspace(account: fixture.account.id, id: workspaceID, defaultChannel: defaultChannel, migrateLegacy: false)
                 draft = opened.draft; draft?.recoverAfterInterruption(); preview = draft?.previewSnapshot; retainedResult = opened.retainedResult
             } else {
-                draft = fixture.draft; preview = ["empty", "bluesky-error", "reddit-denied"].contains(mode) ? nil : fixture.preview
+                draft = fixture.draft; preview = ["empty", "bluesky-error", "reddit-denied", "pdf-host-confirmation"].contains(mode) ? nil : fixture.draft.pdfInput != nil ? fixture.draft.previewSnapshot : fixture.preview
                 try store.save(fixture.history, account: fixture.account.id, kind: "draft", id: fixture.history.id.uuidString)
                 try store.save(fixture.draft, account: fixture.account.id, kind: "draft", id: fixture.draft.id.uuidString)
                 try store.save(CaptureWorkspace(activeDraftID: fixture.draft.id), account: fixture.account.id, kind: "workspace", id: workspaceID)
@@ -202,6 +203,9 @@ public final class CaptureSession {
                 retainedResult = try store.value(CaptureDraft.self, account: fixture.account.id, kind: "draft", id: id.uuidString)
             }
             delivery = try CaptureDelivery(store: store, credentials: credentials, directory: directory.appendingPathComponent("delivery"), group: "capture-fixture", identifier: "capture-fixture", ingestBase: nil)
+            if mode == "pdf-host-confirmation", ProcessInfo.processInfo.environment["CAPTURE_UI_IMPORT_PDF"] == "1", let id = draft?.id {
+                try importPDFFile(directory.appendingPathComponent("paper.pdf"), for: id)
+            }
             try delivery.refreshPreparationFailures()
             refreshDelivery()
             if !freshShare { try restorePlacementEdit() }
@@ -552,7 +556,7 @@ public final class CaptureSession {
         let startingEmpty = draft?.hasDraftContent == false
         cleanedSourceURL = nil
         draft?.renderPath = nil; draft?.previewSnapshot = nil
-        if !preservingChoices {
+        if !preservingChoices && draft?.pdfInput == nil {
             draft?.titleOverride = nil; draft?.descriptionOverride = nil; draft?.sourceURLOverride = nil
             draft?.selectedMedia = nil; draft?.videoFrames = nil; draft?.videoMotion = nil; draft?.audio = nil; draft?.quoteDepth = nil; draft?.parentDepth = nil; draft?.parentStyle = nil
             draft?.pendingMediaChoices = nil
@@ -657,20 +661,20 @@ public final class CaptureSession {
     }
 
     var canExpandAtprotoThread: Bool {
-        guard let draft, let posts = try? CaptureInput.selectedPosts(draft.input, roles: draft.sourceRoles),
+        guard let draft, draft.pdfInput == nil, let posts = try? CaptureInput.selectedPosts(draft.input, roles: draft.sourceRoles),
               posts.primary.count == 1 else { return false }
         return CaptureInput.isAtprotoPost(posts.primary[0])
     }
 
     var canImportLinearThread: Bool {
-        guard let draft, let posts = try? CaptureInput.selectedPosts(draft.input, roles: draft.sourceRoles),
+        guard let draft, draft.pdfInput == nil, let posts = try? CaptureInput.selectedPosts(draft.input, roles: draft.sourceRoles),
               posts.primary.count == 1 else { return false }
         let identity = CaptureInput.canonicalSourceIdentity(posts.primary[0])
         return identity.hasPrefix("x:") || identity.hasPrefix("substack:")
     }
 
     var canExpandForumMagnumComment: Bool {
-        guard let draft, let posts = try? CaptureInput.selectedPosts(draft.input, roles: draft.sourceRoles),
+        guard let draft, draft.pdfInput == nil, let posts = try? CaptureInput.selectedPosts(draft.input, roles: draft.sourceRoles),
               posts.primary.count == 1 else { return false }
         return CaptureInput.isForumMagnumComment(posts.primary[0])
     }
@@ -731,7 +735,7 @@ public final class CaptureSession {
 
     func addSource() {
         let rows = sourceRows
-        guard rows.count < 20, rows.last?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false,
+        guard draft?.pdfInput == nil, rows.count < 20, rows.last?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false,
               !busy, draft?.blockID == nil,
               [.editing, .preparing, .ready, .failed].contains(draft?.phase ?? .saved),
               retainMediaChoicesForSourceOptions() else { return }
@@ -885,8 +889,13 @@ public final class CaptureSession {
         guard !sharePresentationClosed else { return }
         resolution?.cancel()
         let ticket = UUID(); generation = ticket
-        guard let draft, !draft.input.isEmpty, draft.blockID == nil,
+        guard let draft, draft.blockID == nil,
               ![.queued, .creating, .checking, .uncertain, .saved].contains(draft.phase) else { return }
+        if let pdf = draft.pdfInput {
+            resolvePDFFile(pdf, draft: draft, ticket: ticket)
+            return
+        }
+        guard !draft.input.isEmpty else { return }
         if draft.originalLinkOnly == true {
             guard let selected = try? CaptureInput.selectedPosts(draft.input, roles: draft.sourceRoles),
                   selected.primary.count == 1, selected.extra.isEmpty else { return }
@@ -1090,7 +1099,11 @@ public final class CaptureSession {
         guard !busy, account != nil, let draft, !draft.isCanceled, canSaveToDestinations,
               [.editing, .preparing, .ready, .failed].contains(draft.phase) else { return false }
         if isAddingPlacements { return draft.selection.channels.map(\.id) != placementBaseline?.channels.map(\.id) }
-        if CaptureSourceAccess.denied(draft.problem) { return false }
+        if draft.pdfInput != nil {
+            return (try? CaptureInput.singleURL(draft.input)) != nil &&
+                (try? CaptureWebLink.sourceOverride(draft.sourceURLOverride ?? draft.input)) != nil
+        }
+        if CaptureSourceAccess.denied(draft.problem) || CaptureSourceAccess.pdfNeedsHost(draft.problem) { return false }
         return draft.isPlacementOnly ? draft.blockID != nil :
             (try? CaptureInput.selectedPosts(draft.input, roles: draft.sourceRoles)) != nil
     }
@@ -1352,7 +1365,7 @@ public final class CaptureSession {
         if !busy { do { try reloadAccount() } catch { problem = error.localizedDescription } }
         await resumeForegroundDelivery(ifAdmitted: ticket)
         guard allowsForegroundWork(ticket) else { return }
-        if draft?.phase == .editing && draft?.input.isEmpty == false { resolve() }
+        if draft?.phase == .editing && (draft?.input.isEmpty == false || draft?.pdfInput != nil) { resolve() }
     }
 
     public func resumeDelivery() async { guard !isPreviewFixture, !sharePresentationClosed else { return }; await delivery.resume(); refreshDelivery() }
@@ -1423,6 +1436,58 @@ public final class CaptureSession {
         resolvedSources.invalidate(); persistOrReport(); resolve()
     }
 
+    private func resolvePDFFile(_ input: CapturePDFInput, draft: CaptureDraft, ticket: UUID) {
+        resolution = Task {
+            do {
+                try await Task.sleep(for: .milliseconds(300))
+                let file = try input.validatedFile(in: container)
+                var result = CapturePreview(kind: "url", url: draft.input, metadataTitle: input.title ?? URL(fileURLWithPath: input.filename).deletingPathExtension().lastPathComponent)
+                result.pdfPath = file.path; result.pdfPageCount = input.pageCount
+                let thumbnail = file.deletingPathExtension().appendingPathExtension("jpg")
+                if !FileManager.default.fileExists(atPath: thumbnail.path), let data = Self.pdfThumbnail(file) {
+                    try data.write(to: thumbnail, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+                }
+                if FileManager.default.fileExists(atPath: thumbnail.path) { result.previewPath = thumbnail.path }
+                let source = try? CaptureWebLink.sourceOverride(draft.sourceURLOverride ?? draft.input)
+                if let source {
+                    if draft.titleOverride == nil {
+                        #if DEBUG && targetEnvironment(simulator)
+                        let readMetadata = !isPreviewFixture || ProcessInfo.processInfo.environment["CAPTURE_UI_LIVE_SOURCE"] == "1"
+                        #else
+                        let readMetadata = true
+                        #endif
+                        if readMetadata, source != input.originalURL {
+                            let provider = LPMetadataProvider(); provider.timeout = 15
+                            if let title = try? await provider.startFetchingMetadata(for: URL(string: source)!).title, !title.isEmpty {
+                                result.metadataTitle = String(title.prefix(512))
+                            }
+                        }
+                    }
+                    var value: [String: JSONValue] = ["sourceUrl": .string(source), "file": input.planFile, "title": .string(draft.titleOverride ?? result.title)]
+                    if let original = input.originalURL { value["originalUrl"] = .string(original) }
+                    if let description = draft.descriptionOverride { value["description"] = .string(description) }
+                    result.plan = try JSONDecoder().decode(JSONValue.self, from: Data(try core().pdfFilePlan(json(.object(value))).utf8))["plan"]
+                }
+                try Task.checkCancellation()
+                guard generation == ticket, self.draft?.id == draft.id else { return }
+                preview = result; self.draft?.previewSnapshot = result; self.draft?.problem = nil
+                self.draft?.phase = source == nil ? .editing : .ready
+                persistOrReport()
+            } catch is CancellationError { }
+            catch {
+                guard generation == ticket, self.draft?.id == draft.id else { return }
+                self.draft?.phase = .failed; self.draft?.problem = error.localizedDescription; persistOrReport()
+            }
+        }
+    }
+
+    static func pdfThumbnail(_ file: URL) -> Data? {
+        guard let document = PDFDocument(url: file) else { return nil }
+        return withExtendedLifetime(document) {
+            document.page(at: 0)?.thumbnail(of: CGSize(width: 900, height: 1200), for: .mediaBox).jpegData(compressionQuality: 0.85)
+        }
+    }
+
     private func linkPreview(_ url: URL, draftID: UUID, sourceOverride: String?) async throws -> CapturePreview {
         let source = try CaptureWebLink.sourceOverride(sourceOverride)
         let directory = container.appendingPathComponent("previews")
@@ -1432,8 +1497,7 @@ public final class CaptureSession {
         if let pdf {
             result.pdfPath = pdf.fileURL.path; result.pdfPageCount = pdf.pageCount
             result.metadataTitle = pdf.title ?? url.deletingPathExtension().lastPathComponent
-            if let page = PDFDocument(url: pdf.fileURL)?.page(at: 0),
-               let data = page.thumbnail(of: CGSize(width: 900, height: 1200), for: .mediaBox).jpegData(compressionQuality: 0.85) {
+            if let data = Self.pdfThumbnail(pdf.fileURL) {
                 let thumbnail = pdf.fileURL.deletingPathExtension().appendingPathExtension("jpg")
                 try data.write(to: thumbnail, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
                 result.previewPath = thumbnail.path
@@ -1508,7 +1572,7 @@ public final class CaptureSession {
         return found
     }
 
-    @discardableResult func newCapture(input: String = "", consumingIncoming: Bool = false) -> Bool {
+    @discardableResult func newCapture(input: String = "", consumingIncoming: Bool = false, pdfInput: CapturePDFInput? = nil, incomingReference: String? = nil) -> Bool {
         guard !sharePresentationClosed, let account, !busy else { return false }
         if isAddingPlacements { cancelPlacements() }
         do {
@@ -1520,6 +1584,7 @@ public final class CaptureSession {
                 next.input = ""; next.sourceURLOverride = nil; next.originalLinkOnly = nil; next.redditCapturesJSON = nil; next.substackCapturesJSON = nil; next.media = .auto; next.selectedMedia = nil; next.videoFrames = nil; next.videoMotion = nil; next.audio = nil; next.quoteDepth = nil; next.parentDepth = nil; next.parentStyle = nil; next.quoteAuthorLink = nil; next.mosaicLayout = nil; next.phase = .editing; next.problem = nil
                 next.selection = DestinationSelection(defaultChannel: defaultChannel)
             } else { next = CaptureDraft(accountID: account.id, defaultChannel: defaultChannel, input: input) }
+            next.pdfInput = pdfInput
             next.videoFrameThresholdSeconds = autoFrameThresholdSeconds
             if let identity = Self.singleThreadSourceIdentity(input, roles: nil) {
                 next.threadExpansion = Self.defaultThreadExpansion(for: identity)
@@ -1533,7 +1598,7 @@ public final class CaptureSession {
             }
             let committed = try store.commitNewCapture(next, workspace: workspace, workspaceID: workspaceID,
                                                         consumingIncoming: consumingIncoming, incomingIDs: freshShare ? sharePendingIDs : nil,
-                                                        shareInvocationID: freshShare ? shareInvocationID : nil)
+                                                        shareInvocationID: freshShare ? shareInvocationID : nil, incomingReference: incomingReference)
             next = committed.draft
             retainedResult = nextRetained; incomingLinks = committed.incoming ?? incomingLinks
             historyReturnDraft = nil
@@ -1864,8 +1929,47 @@ public final class CaptureSession {
     }
 
     func useIncoming(_ url: String) {
-        guard newCapture(input: url, consumingIncoming: true) else { return }
+        let pdf = try? store.values(PendingShare.self, account: 0, kind: "incoming")
+            .first(where: { (!freshShare || sharePendingIDs.contains($0.id)) && $0.urls.contains(url) })?.pdfInput
+        guard newCapture(input: pdf?.originalURL ?? (pdf == nil ? url : ""), consumingIncoming: true, pdfInput: pdf, incomingReference: url) else { return }
         resolve()
+    }
+
+    func incomingLabel(_ reference: String) -> String {
+        (try? store.values(PendingShare.self, account: 0, kind: "incoming").first { $0.urls.contains(reference) }?.pdfInput?.filename) ?? reference
+    }
+
+    public func receivePDF(_ input: CapturePDFInput) throws {
+        guard !sharePresentationClosed else { throw CancellationError() }
+        _ = try input.validatedFile(in: container)
+        let pending = PendingShare(id: UUID(), urls: [input.incomingReference], pdfInput: input)
+        try store.transaction {
+            if freshShare, let account { try store.requireShareInvocation(shareInvocationID, account: account.id, workspaceID: workspaceID) }
+            try store.save(pending, account: 0, kind: "incoming", id: pending.id.uuidString)
+        }
+        if freshShare { sharePendingIDs.insert(pending.id) }
+        try refreshIncoming()
+        if account != nil && !busy { useIncoming(input.incomingReference) }
+    }
+
+    public func importPDFFile(_ url: URL, for draftID: UUID) throws {
+        guard !sharePresentationClosed, !busy, let current = draft, current.id == draftID,
+              current.isUnsubmittedDraft, current.blockID == nil else { throw CaptureError.message("This capture changed. Import the PDF again.") }
+        let original = current.pdfInput == nil ? (try? CaptureInput.singleURL(current.input))?.absoluteString : current.pdfInput?.originalURL
+        let input = try CapturePDFInput.retain(url, in: container, originalURL: original)
+        do {
+            let replacement = try store.replacePDFInput(in: current, input: input, workspaceID: workspaceID, shareInvocationID: freshShare ? shareInvocationID : nil)
+            resolution?.cancel(); generation = UUID(); draft = replacement; preview = nil
+            resolvedSources.invalidate(); resolve()
+        } catch { input.discardUnaccepted(in: container); throw error }
+    }
+
+    func removePDFFile() {
+        guard !busy, let current = draft, current.pdfInput != nil else { return }
+        do {
+            draft = try store.replacePDFInput(in: current, input: nil, workspaceID: workspaceID, shareInvocationID: freshShare ? shareInvocationID : nil)
+            resolution?.cancel(); generation = UUID(); preview = nil; resolve()
+        } catch { problem = error.localizedDescription }
     }
 
     func refreshSharedIntake() {

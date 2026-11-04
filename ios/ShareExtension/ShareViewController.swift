@@ -38,11 +38,11 @@ final class ShareViewController: UIViewController {
         do {
             let session = try CaptureSession(freshShare: true); self.session = session
             let id = invocation, accountID = session.account?.id
-            let view = CaptureRootView(session: session, isExtension: true) { [weak self, weak context] in
+            let view = CaptureRootView(session: session, isExtension: true, completion: { [weak self, weak context] in
                 guard let self, invocation == id else { return }
                 finishIntake()
                 context?.completeRequest(returningItems: nil)
-            }
+            })
             embed(UIHostingController(rootView: view))
             intake = Task { [weak self] in
                 guard let self else { return }
@@ -96,6 +96,36 @@ final class ShareViewController: UIViewController {
         guard isCurrent(invocation, session: session, accountID: accountID) else { return }
         var urls: [URL] = []
         let items = extensionContext?.inputItems as? [NSExtensionItem] ?? []
+        // Prefer the host-provided document to its page URL. The provider's
+        // temporary file is copied before its completion handler returns.
+        let pdfs = items.flatMap { $0.attachments ?? [] }.filter { $0.hasItemConformingToTypeIdentifier(UTType.pdf.identifier) }
+        if !pdfs.isEmpty {
+            guard pdfs.count == 1 else { session.reportInputFailure("Share one PDF at a time."); return }
+            do {
+                var contextURLs: [URL] = []
+                for item in items {
+                    if let text = item.attributedContentText { contextURLs += CaptureShareInput.urls(in: text) }
+                    for provider in item.attachments ?? [] {
+                        for type in [UTType.url, .plainText, .propertyList] where provider.hasItemConformingToTypeIdentifier(type.identifier) {
+                            let value = try? await load(provider, type: type.identifier, session: session, invocation: invocation, accountID: accountID)
+                            guard isCurrent(invocation, session: session, accountID: accountID) else { return }
+                            if type == .propertyList, let value, let dictionary = CaptureShareInput.propertyList(value),
+                               let result = dictionary[NSExtensionJavaScriptPreprocessingResultsKey] as? [String: Any],
+                               let url = CaptureShareInput.browserPageURL(result) { contextURLs.append(url) }
+                            else if let value { contextURLs += CaptureShareInput.urls(in: value) }
+                        }
+                    }
+                }
+                let sources = Set(contextURLs.filter { ["https", "http"].contains($0.scheme ?? "") }.map(\.absoluteString))
+                let input = try await CapturePDFInput.receive(from: pdfs[0], in: session.pdfImportContainer, originalURL: sources.count == 1 ? sources.first : nil)
+                guard isCurrent(invocation, session: session, accountID: accountID) else { input.discardUnaccepted(in: session.pdfImportContainer); return }
+                do { try session.receivePDF(input) }
+                catch { input.discardUnaccepted(in: session.pdfImportContainer); throw error }
+            } catch {
+                if isCurrent(invocation, session: session, accountID: accountID) { session.reportInputFailure(error.localizedDescription) }
+            }
+            return
+        }
         // A typed page capture retains its provider-specific error and recovery path.
         for item in items {
             for provider in item.attachments ?? [] where provider.hasItemConformingToTypeIdentifier(UTType.propertyList.identifier) {
@@ -149,6 +179,12 @@ final class ShareViewController: UIViewController {
                     switch source {
                     case .links(let received): urls += received
                     case .captureFile(let url):
+                        if url.pathExtension.lowercased() == "pdf" {
+                            let input = try CapturePDFInput.retain(url, in: session.pdfImportContainer)
+                            do { try session.receivePDF(input) }
+                            catch { input.discardUnaccepted(in: session.pdfImportContainer); throw error }
+                            return
+                        }
                         guard url.pathExtension.lowercased() == "json" else { throw CaptureError.message("Couldn’t read the shared file. Share the page from Safari instead.") }
                         try session.receiveBrowserCaptureFile(url); return
                     case nil: break

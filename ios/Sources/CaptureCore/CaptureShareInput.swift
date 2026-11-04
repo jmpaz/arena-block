@@ -73,7 +73,7 @@ public enum CaptureShareInput {
             try Task.checkCancellation()
             guard let value else { continue }
             if let url = value as? URL, url.isFileURL {
-                if url.pathExtension.lowercased() == "json" { return .captureFile(url) }
+                if ["json", "pdf"].contains(url.pathExtension.lowercased()) { return .captureFile(url) }
                 continue
             }
             let urls = urls(in: value)

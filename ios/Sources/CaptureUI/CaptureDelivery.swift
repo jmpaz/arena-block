@@ -412,7 +412,10 @@ final class CaptureDelivery {
             let key = "capture-v2:" + SHA256.hash(data: material).map { String(format: "%02x", $0) }.joined()
             job.draft.publicationKey = key
             let hasMedia = !result.preview.selectedMedia.isEmpty
-            job.mediaPath = hasMedia ? result.reusableRenderPath : nil
+            if let pdf = result.retainedPDF {
+                job.mediaPath = try pdf.validatedFile(in: directory.deletingLastPathComponent()).path
+                job.mediaType = "application/pdf"
+            } else { job.mediaPath = hasMedia ? result.reusableRenderPath : nil }
             job.stage = hasMedia ? .rendering : .destinations
             if job.draft.provenanceChannelID != nil {
                 job.provenance = try CaptureConnectionProvenance(draft: job.draft, prepared: job.prepared)
@@ -1246,6 +1249,16 @@ final class CaptureDelivery {
 
     func request(_ job: DeliveryJob, token: String) throws -> (request: URLRequest, body: Data?, file: URL?) {
         guard job.canceledAt == nil else { throw CaptureError.message("This save was canceled.") }
+        if let expected = job.draft.previewSnapshot?.plan?["block"]?["pdfFile"], [.presign, .upload, .create].contains(job.stage) {
+            guard let pdf = job.submission?.pdfInput ?? job.draft.pdfInput,
+                  expected == pdf.planFile, job.mediaType == "application/pdf",
+                  try pdf.validatedFile(in: directory.deletingLastPathComponent()).path == job.mediaPath else {
+                throw CaptureError.message("The retained PDF is unavailable. Import it again before saving.")
+            }
+            if job.stage == .create, job.uploadedSource == nil || job.mediaUploadCompletedAt == nil {
+                throw CaptureError.message("The PDF upload has not been confirmed. Check this save before continuing.")
+            }
+        }
         if job.draft.isPlacementOnly, [.presign, .upload, .create, .update].contains(job.stage) {
             throw CaptureError.message("Edit the saved block in Are.na.")
         }

@@ -52,7 +52,7 @@ export function routeBrowserDestinations(requested: string[], defaultChannel?: {
 }
 
 export function browserCanPublish(plan: BlockPlan): boolean {
-  return ["text", "url", "image"].includes(plan.block.kind);
+  return !plan.block.pdfFile && ["text", "url", "image"].includes(plan.block.kind);
 }
 
 export class BrowserSaver {

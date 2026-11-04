@@ -144,6 +144,10 @@ public struct CaptureContinuedProgress: Equatable, Sendable {
 
 /// Identify the provider's HTTP 401/403/429 denial messages.
 public enum CaptureSourceAccess {
+    public static func pdfNeedsHost(_ problem: String?) -> Bool {
+        guard let problem else { return false }
+        return problem.hasPrefix("The PDF host returned HTTP ") || problem.hasPrefix("The PDF could not be downloaded.")
+    }
     public static func redditDenied(_ problem: String?) -> Bool {
         guard let problem else { return false }
         return ["metadata", "post", "share-link"].contains { kind in

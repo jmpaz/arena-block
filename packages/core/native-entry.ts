@@ -6,7 +6,7 @@ import { bindRedditCaptures, normalizeRedditCapture, redditCapturesSchema } from
 import { resolveMediaURL, resolveMediaSources } from "./media-acquisition.ts";
 import { verifyPublication, arenaImageUrl } from "./verification.ts";
 import { composePlan, planHash, reviseMosaicLayout } from "./compose.ts";
-import { publicationFields, publicationPayload, publicationPayloadForMedia, captureSource, webPlan } from "./capture.ts";
+import { publicationFields, publicationPayload, publicationPayloadForMedia, captureSource, webPlan, pdfFilePlan } from "./capture.ts";
 import { SocialResolver } from "./providers/index.ts";
 import { BlueskyProvider } from "./providers/bluesky.ts";
 import { NativeSoundCloudProvider } from "./providers/soundcloud-native.ts";
@@ -52,6 +52,10 @@ host.captureRedditImport = (value: string) => JSON.stringify(normalizeRedditCapt
 host.captureSource = (value: string) => JSON.stringify(captureSource(value));
 host.captureWebPlan = (value: string) => {
   const plan = webPlan(JSON.parse(value));
+  return JSON.stringify({ plan, fields: publicationFields(plan) });
+};
+host.capturePDFFilePlan = (value: string) => {
+  const plan = pdfFilePlan(JSON.parse(value));
   return JSON.stringify({ plan, fields: publicationFields(plan) });
 };
 host.captureArenaMediaPost = (block: string, blockID: string) => JSON.stringify(arenaMediaPost(JSON.parse(block), blockID));

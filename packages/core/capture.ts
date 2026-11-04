@@ -72,6 +72,28 @@ export function webSourceURL(value: string): string {
   return url.href;
 }
 
+export const pdfFilePlanInputSchema = z.object({
+  sourceUrl: z.string().min(1).max(8192),
+  originalUrl: z.string().min(1).max(8192).optional(),
+  title: z.string().trim().min(1).max(512),
+  description: z.string().max(20_000).optional(),
+  file: z.object({ sha256: z.string().regex(/^[a-f0-9]{64}$/), byteCount: z.number().int().positive().max(50 * 1024 * 1024) }),
+}).strict();
+
+export function pdfFilePlan(input: z.input<typeof pdfFilePlanInputSchema>): BlockPlan {
+  const value = pdfFilePlanInputSchema.parse(input);
+  const source = webSourceURL(value.sourceUrl), original = value.originalUrl ? webSourceURL(value.originalUrl) : undefined;
+  const { hash, ...base } = composePlan([{
+    provider: "web", id: `pdf:${value.file.sha256}`, canonicalUrl: original ?? source,
+    author: { handle: new URL(source).hostname }, text: value.description ?? "", postTitle: value.title, media: [],
+  }], { media: "none" });
+  base.block.canonicalSource = source;
+  base.block.contentType = "application/pdf";
+  base.block.pdfFile = value.file;
+  if (original) base.block.contentUrl = original;
+  return { ...base, hash: planHash(base) };
+}
+
 export function publicationFields(plan: BlockPlan): Record<string, unknown> {
   return {
     title: plan.block.title,
@@ -98,6 +120,10 @@ export function publicationPayload(plan: BlockPlan, publicBaseUrl: string, media
     if (!plan.block.artworkUrl) throw new Error("SoundCloud playlist Image has no source artwork");
     return { ...base, value: plan.block.artworkUrl };
   }
+  if (plan.block.pdfFile) {
+    if (!media || media.extension !== "pdf") throw new Error("Upload the retained PDF file before publishing this plan");
+    return { ...base, value: `${publicBaseUrl}/media/${media.hash}.pdf` };
+  }
   if (plan.block.kind === "url") return {
     ...base, value: plan.block.contentUrl ?? plan.block.canonicalSource,
     ...(plan.block.artworkUrl ? { cover_url: plan.block.artworkUrl } : {}),
@@ -115,8 +141,11 @@ export function publicationPayload(plan: BlockPlan, publicBaseUrl: string, media
 }
 
 export function publicationPayloadForMedia(plan: BlockPlan, mediaURL: string | undefined, ingestURL: string | undefined, channelIds: number[]): Record<string, unknown> {
-  const payload = publicationPayload(plan, "https://capture.invalid", plan.block.kind === "text" ? undefined : { hash: "artifact", extension: "jpg" }, channelIds);
-  if (plan.block.kind === "video") {
+  const payload = publicationPayload(plan, "https://capture.invalid", plan.block.kind === "text" ? undefined : { hash: "artifact", extension: plan.block.pdfFile ? "pdf" : "jpg" }, channelIds);
+  if (plan.block.pdfFile) {
+    if (!mediaURL) throw new Error("Upload the retained PDF file before publishing this plan");
+    payload.value = webSourceURL(mediaURL);
+  } else if (plan.block.kind === "video") {
     if (!mediaURL) throw new Error("Media plan rendered no public artifact");
     payload.value = mediaURL;
   } else if (plan.block.kind === "audio") {
