@@ -545,6 +545,10 @@ public final class CaptureSession {
         // Paste/share intake can be cleaned as a whole. Keep in-progress row
         // edits intact so typing a query does not move its text into the path.
         let text = preservingChoices ? text : CaptureInput.canonicalSourceText(text)
+        if CaptureInput.urls(in: text).map(CaptureInput.canonicalSourceIdentity)
+            != CaptureInput.urls(in: draft?.input ?? "").map(CaptureInput.canonicalSourceIdentity) {
+            draft?.sourceURLOverride = nil
+        }
         let startingEmpty = draft?.hasDraftContent == false
         cleanedSourceURL = nil
         draft?.renderPath = nil; draft?.previewSnapshot = nil

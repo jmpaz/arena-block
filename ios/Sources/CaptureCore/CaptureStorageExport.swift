@@ -87,7 +87,7 @@ public enum CaptureStorageExport {
     private static let pathFields: Set<String> = ["mediapath", "renderpath", "previewpath", "pdfpath", "reusablerenderpath", "directorypath", "relativedirectory", "fileurl", "recordingpath", "localmediapath"]
     private static let jsonFields: Set<String> = ["snapshotjson", "planjson", "sourcesjson"]
     private static let containers: Set<String> = ["draft", "submission", "previewsnapshot"]
-    private static let privateFields: Set<String> = ["authorization", "token", "accesstoken", "refreshtoken", "uploadurl", "uploadkey", "uploadtoken", "credentials", "headers", "cookies", "body", "text", "html", "markdown", "description", "title", "previewtext", "content", "caption", "alt", "alttext", "input", "editedtext", "titleoverride", "descriptionoverride", "problem"]
+    private static let privateFields: Set<String> = ["authorization", "token", "accesstoken", "refreshtoken", "uploadurl", "uploadkey", "uploadtoken", "credentials", "headers", "cookies", "body", "text", "html", "markdown", "description", "title", "previewtext", "content", "caption", "alt", "alttext", "input", "editedtext", "titleoverride", "descriptionoverride", "sourceurloverride", "problem"]
     private static let roots: Set<String> = ["renders", "previews", "composition-previews", "originals", "recordings", "temporary-media-v1", "delivery"]
     private static let identityFields: Set<String> = ["id", "captureid", "draftid", "operationid", "receiptid", "activedraftid", "retainedresultid"]
     private static func hash(_ data: Data) -> String { SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined() }
