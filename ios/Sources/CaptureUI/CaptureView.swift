@@ -2,7 +2,7 @@
 import AVKit
 import CaptureCore
 import ImageIO
-import QuickLook
+import PDFKit
 import SwiftUI
 import UIKit
 
@@ -111,7 +111,20 @@ public struct CaptureRootView: View {
         }
         .tint(.accentColor)
         .preferredColorScheme(fixtureColorScheme)
-        .quickLookPreview($pdfPreviewURL)
+        .sheet(isPresented: Binding(get: { pdfPreviewURL != nil }, set: { if !$0 { pdfPreviewURL = nil } })) {
+            if let url = pdfPreviewURL {
+                NavigationStack {
+                    CapturePDFDocumentView(url: url)
+                        .ignoresSafeArea(edges: .bottom)
+                        .navigationTitle("PDF").navigationBarTitleDisplayMode(.inline)
+                        .toolbar {
+                            ToolbarItem(placement: .confirmationAction) {
+                                Button("Done") { pdfPreviewURL = nil }.accessibilityIdentifier("capture.pdf.close")
+                            }
+                        }
+                }
+            }
+        }
         .alert("Capture", isPresented: Binding(get: { session.problem != nil }, set: { if !$0 { session.problem = nil } })) {
             Button("OK") { session.problem = nil }
         } message: { Text(session.problem ?? "") }
@@ -1137,6 +1150,20 @@ public struct CaptureRootView: View {
 private enum CaptureField: Hashable { case source(Int), title, description, sourceOverride }
 
 private enum CaptureTab: Hashable { case capture, history, settings }
+
+private struct CapturePDFDocumentView: UIViewRepresentable {
+    let url: URL
+    func makeUIView(context: Context) -> PDFView {
+        let view = PDFView()
+        view.autoScales = true; view.displayMode = .singlePageContinuous; view.displayDirection = .vertical
+        view.backgroundColor = .secondarySystemBackground
+        view.document = PDFDocument(url: url)
+        return view
+    }
+    func updateUIView(_ view: PDFView, context: Context) {
+        if view.document?.documentURL != url { view.document = PDFDocument(url: url) }
+    }
+}
 
 func blockURL(_ id: Int) -> URL { URL(string: "https://www.are.na/block/\(id)")! }
 

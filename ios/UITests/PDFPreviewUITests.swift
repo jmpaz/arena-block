@@ -16,7 +16,7 @@ final class PDFPreviewUITests: XCTestCase {
         XCTAssertTrue(preview.waitForExistence(timeout: 5))
         let before = XCTAttachment(screenshot: app.screenshot()); before.name = "pdf-editor"; before.lifetime = .keepAlways; add(before)
         preview.tap()
-        let close = app.buttons["QLOverlayDoneButtonAccessibilityIdentifier"]
+        let close = app.buttons["capture.pdf.close"]
         XCTAssertTrue(close.waitForExistence(timeout: 5))
         let document = XCTAttachment(screenshot: app.screenshot()); document.name = "pdf-document"; document.lifetime = .keepAlways; add(document)
         close.tap()
