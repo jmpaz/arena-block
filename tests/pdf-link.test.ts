@@ -54,6 +54,8 @@ test("PDF verification requires available PDF content, public attachment and exa
   const block = { state: "available", title: "Paper", type: "Attachment", description: null,
     attachment: { content_type: "application/pdf", url: "https://attachments.are.na/paper.pdf" }, source: { url: source } };
   expect(() => verifyPublication(plan, block, block)).not.toThrow();
+  const unclassified = webPlan({ url: pdf, sourceUrl: source, title: "Paper" });
+  expect(() => verifyPublication(unclassified, block, block)).not.toThrow();
   for (const patch of [{ source: { url: pdf } }, { type: "Link" }, { attachment: { content_type: "text/html", url: "https://example.com/" } },
     { attachment: { content_type: "application/pdf" } }, { state: "failed" }])
     expect(() => verifyPublication(plan, { ...block, ...patch }, block)).toThrow();

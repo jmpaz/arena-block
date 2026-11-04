@@ -11,8 +11,10 @@ export function verifyPublication(plan: BlockPlan, block: Json, available: Json)
     if (plan.block.kind === "text" && type !== "Text") throw new Error(`Expected Text block, received ${type}`);
     if (plan.block.kind === "image" && type !== "Image") throw new Error(`Expected Image block, received ${type}`);
     if (plan.block.kind === "link" && type !== "Link") throw new Error(`Expected Link block, received ${type}`);
-    if (plan.block.kind === "url" && plan.block.contentType !== "application/pdf" && !["Link", "Embed"].includes(type ?? "")) throw new Error(`Expected Link or Embed block, received ${type}`);
-    if (plan.block.contentType === "application/pdf") {
+    const pdfAttachment = plan.block.kind === "url" && type === "Attachment"
+      && string(object(block.attachment)?.content_type)?.split(";", 1)[0]?.trim().toLowerCase() === "application/pdf";
+    if (plan.block.kind === "url" && plan.block.contentType !== "application/pdf" && !pdfAttachment && !["Link", "Embed"].includes(type ?? "")) throw new Error(`Expected Link, Embed or PDF Attachment block, received ${type}`);
+    if (plan.block.contentType === "application/pdf" || pdfAttachment) {
       const attachment = object(block.attachment);
       if (type !== "Attachment" || string(attachment?.content_type)?.split(";", 1)[0]?.trim().toLowerCase() !== "application/pdf")
         throw new Error("Are.na did not retain a PDF attachment");
