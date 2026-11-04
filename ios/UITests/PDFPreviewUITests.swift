@@ -20,7 +20,8 @@ final class PDFPreviewUITests: XCTestCase {
         XCTAssertTrue(close.waitForExistence(timeout: 5))
         let document = XCTAttachment(screenshot: app.screenshot()); document.name = "pdf-document"; document.lifetime = .keepAlways; add(document)
         close.tap()
-        let disclosure = app.buttons["Source link"]
+        XCTAssertTrue(close.waitForNonExistence(timeout: 5))
+        let disclosure = app.descendants(matching: .any)["capture.source-details"].firstMatch
         for _ in 0..<5 where !disclosure.isHittable { app.swipeUp() }
         disclosure.tap()
         let source = app.textFields["capture.source-override"]
@@ -36,8 +37,8 @@ final class PDFPreviewUITests: XCTestCase {
         let attachment = XCTAttachment(screenshot: app.screenshot()); attachment.name = "pdf-source-override"; attachment.lifetime = .keepAlways; add(attachment)
     }
 
-    func testLiveExtensionlessPDFPreview() {
-        guard ProcessInfo.processInfo.environment["CAPTURE_LIVE_PDF"] == "1" else { return }
+    func testLiveExtensionlessPDFPreview() throws {
+        guard ProcessInfo.processInfo.environment["CAPTURE_LIVE_PDF"] == "1" else { throw XCTSkip("Opt-in public PDF preview; no save.") }
         let app = XCUIApplication()
         app.launchEnvironment["CAPTURE_UI_FIXTURE"] = "empty"
         app.launchEnvironment["CAPTURE_UI_STORE_ID"] = UUID().uuidString

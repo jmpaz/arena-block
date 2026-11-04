@@ -111,6 +111,7 @@ public struct CaptureRootView: View {
         }
         .tint(.accentColor)
         .preferredColorScheme(fixtureColorScheme)
+        .quickLookPreview($pdfPreviewURL)
         .alert("Capture", isPresented: Binding(get: { session.problem != nil }, set: { if !$0 { session.problem = nil } })) {
             Button("OK") { session.problem = nil }
         } message: { Text(session.problem ?? "") }
@@ -290,7 +291,19 @@ public struct CaptureRootView: View {
                                 Label("Preview PDF\(preview.pdfPageCount.map { " · \($0) pages" } ?? "")", systemImage: "doc.richtext")
                             }
                             .accessibilityIdentifier("capture.pdf-preview")
-                            .quickLookPreview($pdfPreviewURL)
+                            .buttonStyle(.borderless)
+                        }
+                        if session.preview?.kind == "url" {
+                            DisclosureGroup("Source link") {
+                                TextField("Use original URL", text: Binding(get: { session.draft?.sourceURLOverride ?? "" }, set: session.setSourceURL))
+                                    .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
+                                    .accessibilityLabel("Source URL override")
+                                    .accessibilityIdentifier("capture.source-override")
+                                    .focused($focusedField, equals: .sourceOverride)
+                                    .disabled(locked)
+                                Text("Leave empty to use the captured URL.").font(.footnote).foregroundStyle(.secondary)
+                            }
+                            .accessibilityIdentifier("capture.source-details")
                         }
                         if let plan = session.preview?.plan,
                            plan["sources"]?.array.first?["provider"]?.string == "soundcloud" {
@@ -378,15 +391,6 @@ public struct CaptureRootView: View {
                                 .accessibilityIdentifier("capture.thread-coverage")
                         }
                         if let preview = session.preview, preview.kind == "url" {
-                            DisclosureGroup("Source link") {
-                                TextField("Use original URL", text: Binding(get: { session.draft?.sourceURLOverride ?? "" }, set: session.setSourceURL))
-                                    .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
-                                    .accessibilityLabel("Source URL override")
-                                    .accessibilityIdentifier("capture.source-override")
-                                    .focused($focusedField, equals: .sourceOverride)
-                                    .disabled(locked)
-                                Text("Leave empty to use the captured URL.").font(.footnote).foregroundStyle(.secondary)
-                            }
                             if preview.plan?["block"]?["contentType"] == .string("application/pdf"),
                                session.draft?.sourceURLOverride?.isEmpty == false, let pdf = URL(string: preview.url) {
                                 Link("Open PDF", destination: pdf).accessibilityIdentifier("capture.pdf-link")
