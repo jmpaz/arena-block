@@ -159,7 +159,7 @@ test("capabilities and Delve save endpoints retain bearer and MCP authorization"
     }
     const headers = { authorization: "Bearer fixture-engine-token" };
     const response = await service.handler(new Request("https://fixture.invalid/v1/version", { headers }));
-    expect((await response.json()).planCapabilities).toEqual(["atproto-post-records-v1", "delve-posts-v1", "bluesky-thread-coverage-v1", "forum-magnum-posts-v1", "expanded-source-count-32-v1", "reddit-browser-records-v1", "reddit-public-page-records-v1", "substack-browser-records-v1", "substack-public-sources-v2", "substack-native-media-v1", "substack-note-attachments-v1", "quoted-image-media-v1", "quoted-video-audio-v1", "substack-note-podcast-audio-v1", "quote-author-links-v1", "soundcloud-mp3-v1", "linkedin-posts-v1", "comment-parent-context-v1", "video-representation-v2", "mosaic-layout-v1"]);
+    expect((await response.json()).planCapabilities).toEqual(["web-pdf-source-v1", "atproto-post-records-v1", "delve-posts-v1", "bluesky-thread-coverage-v1", "forum-magnum-posts-v1", "expanded-source-count-32-v1", "reddit-browser-records-v1", "reddit-public-page-records-v1", "substack-browser-records-v1", "substack-public-sources-v2", "substack-native-media-v1", "substack-note-attachments-v1", "quoted-image-media-v1", "quoted-video-audio-v1", "substack-note-podcast-audio-v1", "quote-author-links-v1", "soundcloud-mp3-v1", "linkedin-posts-v1", "comment-parent-context-v1", "video-representation-v2", "mosaic-layout-v1"]);
     const denied = await service.handler(new Request("https://fixture.invalid/v1/mcp-saves", { method: "POST", headers, body: JSON.stringify(input) }));
     expect(denied.status).toBe(403);
     await denied.text();
